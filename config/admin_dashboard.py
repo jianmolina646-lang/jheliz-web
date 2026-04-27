@@ -10,7 +10,7 @@ import json
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Count, Sum
+from django.db.models import Count, Max, Min, Sum
 from django.urls import reverse
 from django.utils import timezone
 
@@ -50,20 +50,23 @@ def dashboard_callback(request, context):
     avg_ticket = (
         (sales_month / paid_month_count) if paid_month_count else Decimal("0.00")
     )
-    customers_month = (
-        paid_month_qs.exclude(user__isnull=True)
-        .values_list("user_id", flat=True)
-        .distinct()
+    # Una sola query agrega min/max de fechas pagadas por usuario. Antes había
+    # un .exists() por cliente (N+1 grave en cuanto crece la lista de clientes).
+    user_paid_range = (
+        Order.objects
+        .filter(status__in=paid_statuses, user__isnull=False)
+        .values("user_id")
+        .annotate(
+            first_paid=Min("created_at__date"),
+            last_paid=Max("created_at__date"),
+        )
     )
     new_customers = 0
     returning_customers = 0
-    for uid in customers_month:
-        older = Order.objects.filter(
-            user_id=uid,
-            status__in=paid_statuses,
-            created_at__date__lt=first_of_month,
-        ).exists()
-        if older:
+    for row in user_paid_range:
+        if row["last_paid"] is None or row["last_paid"] < first_of_month:
+            continue  # no compró este mes
+        if row["first_paid"] and row["first_paid"] < first_of_month:
             returning_customers += 1
         else:
             new_customers += 1

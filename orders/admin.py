@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib import admin, messages
+from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
@@ -75,6 +76,11 @@ class OrderAdmin(ModelAdmin):
     actions = ("mark_preparing", "mark_delivered", "confirm_yape_payment", "reject_yape_payment")
     list_filter_submit = True
     compressed_fields = True
+    list_select_related = ("user",)
+
+    def get_queryset(self, request):
+        # Trae el FK user de un solo JOIN (display_customer lo usa).
+        return super().get_queryset(request).select_related("user")
 
     fieldsets = (
         ("Datos", {
@@ -260,19 +266,25 @@ class OrderAdmin(ModelAdmin):
         if request.method == "POST":
             form = DeliverCredentialsForm(request.POST, order=order)
             if form.is_valid():
-                for item in order.items.all():
-                    item.delivered_credentials = form.cleaned_data.get(
-                        f"creds_{item.pk}", ""
-                    ) or item.delivered_credentials
-                    expires = form.cleaned_data.get(f"expires_{item.pk}")
-                    if expires:
-                        item.expires_at = expires
-                    item.save(update_fields=["delivered_credentials", "expires_at"])
-                order.status = Order.Status.DELIVERED
-                order.delivered_at = timezone.now()
-                order.paid_at = order.paid_at or order.delivered_at
-                order.save(update_fields=["status", "delivered_at", "paid_at"])
-                emails.send_order_delivered(order)
+                # Atomicidad: si algo falla a mitad, no queremos un pedido
+                # con la mitad de las credenciales escritas y la otra mitad
+                # vacía, y mucho menos con status=DELIVERED inconsistente.
+                with transaction.atomic():
+                    for item in order.items.all():
+                        item.delivered_credentials = form.cleaned_data.get(
+                            f"creds_{item.pk}", ""
+                        ) or item.delivered_credentials
+                        expires = form.cleaned_data.get(f"expires_{item.pk}")
+                        if expires:
+                            item.expires_at = expires
+                        item.save(update_fields=["delivered_credentials", "expires_at"])
+                    order.status = Order.Status.DELIVERED
+                    order.delivered_at = timezone.now()
+                    order.paid_at = order.paid_at or order.delivered_at
+                    order.save(update_fields=["status", "delivered_at", "paid_at"])
+                # El email viaja DESPUÉS del commit (si la transacción aborta,
+                # no enviamos un correo con datos que no quedaron guardados).
+                transaction.on_commit(lambda: emails.send_order_delivered(order))
                 self.message_user(
                     request,
                     f"Pedido #{order.short_uuid} entregado. Email con credenciales enviado.",

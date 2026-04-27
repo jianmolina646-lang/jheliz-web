@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.mail import send_mail
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Max, Prefetch, Q, Sum
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.html import format_html
@@ -119,6 +119,9 @@ class CustomerAdmin(ModelAdmin):
                 "orders__total",
                 filter=Q(orders__status__in=["paid", "preparing", "delivered"]),
             ),
+            # Evita N+1 en last_order_at: una sola query con MAX en vez de
+            # un SELECT por fila para encontrar el último pedido.
+            _last_order_at=Max("orders__created_at"),
         )
         return qs
 
@@ -143,10 +146,10 @@ class CustomerAdmin(ModelAdmin):
     def spent_total(self, obj):
         return f"S/ {(getattr(obj, '_spent_total', None) or 0):,.2f}"
 
-    @display(description="Último pedido")
+    @display(description="Último pedido", ordering="_last_order_at")
     def last_order_at(self, obj):
-        o = obj.orders.order_by("-created_at").first()
-        return o.created_at.strftime("%d %b %Y") if o else "—"
+        ts = getattr(obj, "_last_order_at", None)
+        return ts.strftime("%d %b %Y") if ts else "—"
 
     @display(description="WhatsApp")
     def whatsapp_link(self, obj):
