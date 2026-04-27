@@ -354,11 +354,24 @@ X_FRAME_OPTIONS = "DENY"
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": ("'self'",),
-        "script-src": ("'self'", "'unsafe-inline'", "'unsafe-eval'"),
-        "style-src": ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com"),
+        # 'unsafe-eval' lo necesita Alpine.js (Unfold).
+        # cdn.tailwindcss.com y unpkg.com los usa la tienda pública para Tailwind+htmx.
+        "script-src": (
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'",
+            "https://cdn.tailwindcss.com",
+            "https://unpkg.com",
+        ),
+        "style-src": (
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com",
+        ),
         "font-src": ("'self'", "data:", "https://fonts.gstatic.com"),
         "img-src": ("'self'", "data:", "https:"),
-        "connect-src": ("'self'",),
+        # Tailwind CDN hace fetch de su CSS dinámicamente; htmx hace requests al backend.
+        "connect-src": ("'self'", "https://cdn.tailwindcss.com"),
         "frame-ancestors": ("'none'",),
         "base-uri": ("'self'",),
         "form-action": ("'self'",),
