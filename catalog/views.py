@@ -1,5 +1,7 @@
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 
 from .models import Category, Product
 
@@ -87,6 +89,42 @@ def distributor_landing(request):
     )
     return render(
         request, "catalog/distributor.html", {"categories": categories},
+    )
+
+
+@login_required
+def distributor_panel(request):
+    """Catálogo con precios mayoristas — solo para distribuidores aprobados."""
+    user = request.user
+    if not getattr(user, "is_distributor", False):
+        if getattr(user, "role", None) == "distribuidor":
+            messages.info(
+                request,
+                "Tu cuenta de distribuidor está pendiente de aprobación. "
+                "En cuanto te aprobemos, verás los precios mayoristas aquí.",
+            )
+        else:
+            messages.info(
+                request,
+                "Esta zona es solo para distribuidores. "
+                "Si quieres serlo, regístrate como distribuidor y te activamos la cuenta.",
+            )
+        return redirect("catalog:distributor")
+
+    products = (
+        Product.objects.filter(
+            is_active=True,
+            plans__is_active=True,
+            plans__available_for_distributor=True,
+        )
+        .select_related("category")
+        .prefetch_related("plans")
+        .distinct()
+    )
+    return render(
+        request,
+        "catalog/distributor_panel.html",
+        {"products": products},
     )
 
 

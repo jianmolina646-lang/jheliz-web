@@ -15,7 +15,7 @@ from django.views.decorators.http import require_POST
 
 from catalog.models import Plan
 
-from . import emails, mercadopago_client
+from . import emails, mercadopago_client, telegram
 from .cart import Cart
 from .forms import AddToCartForm, CheckoutForm
 from .models import Order, OrderItem
@@ -116,6 +116,7 @@ def checkout(request):
             order = _create_order_from_cart(request, cart, form.cleaned_data)
             cart.clear()
             emails.send_order_received(order)
+            telegram.notify_admin(telegram.format_new_order(order))
             if mercadopago_client.is_configured():
                 try:
                     preference = mercadopago_client.create_preference(request, order)

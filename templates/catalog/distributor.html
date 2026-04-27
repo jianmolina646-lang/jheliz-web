@@ -15,9 +15,11 @@
   <div class="mt-6 flex flex-wrap gap-3">
     {% if user.is_authenticated %}
       {% if user.is_distributor %}
-        <a href="{% url 'catalog:products' %}" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">Ver productos mayoristas</a>
+        <a href="{% url 'catalog:distributor_panel' %}" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">Entrar al panel distribuidor</a>
       {% else %}
         <span class="px-5 py-3 rounded-xl bg-white/5 border border-white/10">Tu solicitud está en revisión</span>
+        <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener"
+           class="px-5 py-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/30 font-semibold">Avisar por WhatsApp</a>
       {% endif %}
     {% else %}
       <a href="{% url 'accounts:signup' %}" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">Registrarme como distribuidor</a>
