@@ -92,6 +92,17 @@ class Order(models.Model):
         ordering = ("-created_at",)
         verbose_name = "Pedido"
         verbose_name_plural = "Pedidos"
+        indexes = [
+            # Filtro más común en el admin: lista por status + ordenado por fecha.
+            models.Index(fields=["status", "-created_at"], name="order_status_created_idx"),
+            # Filtro por fecha (dashboard, ventas del día/mes, recordatorios).
+            models.Index(fields=["-created_at"], name="order_created_idx"),
+            # Búsqueda directa por correo y por teléfono desde el admin.
+            models.Index(fields=["email"], name="order_email_idx"),
+            models.Index(fields=["phone"], name="order_phone_idx"),
+            # Métricas por usuario (clientes nuevos vs recurrentes en dashboard).
+            models.Index(fields=["user", "status"], name="order_user_status_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"Pedido #{self.pk} ({self.get_status_display()})"
