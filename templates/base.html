@@ -3,9 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#07060b">
   <title>{% block title %}{{ SITE_NAME }} — {{ SITE_TAGLINE }}{% endblock %}</title>
-  <meta name="description" content="{{ SITE_NAME }} — {{ SITE_TAGLINE }}. Streaming y licencias al instante, pagos con Mercado Pago." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ec4899'/%3E%3Ctext x='50%25' y='62%25' font-size='34' font-family='system-ui,sans-serif' font-weight='800' text-anchor='middle' fill='white'%3EJ%3C/text%3E%3C/svg%3E" />
+  <meta name="description" content="{% block meta_description %}{{ SITE_NAME }} — {{ SITE_TAGLINE }}. Streaming y licencias al instante, pagos con Mercado Pago.{% endblock %}" />
+  <link rel="canonical" href="{% block canonical_url %}{{ request.build_absolute_uri }}{% endblock %}">
+
+  <!-- Open Graph (compartido en redes / WhatsApp) -->
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:site_name" content="{{ SITE_NAME }}">
+  <meta property="og:title" content="{% block og_title %}{{ SITE_NAME }} — {{ SITE_TAGLINE }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Streaming y licencias al instante en Perú. Pagos con Mercado Pago y Yape.{% endblock %}">
+  <meta property="og:url" content="{{ request.build_absolute_uri }}">
+  <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-default.png' %}{% endblock %}">
+  <meta property="og:locale" content="es_PE">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- PWA / favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ec4899'/%3E%3Ctext x='50%25' y='62%25' font-size='34' font-family='system-ui,sans-serif' font-weight='800' text-anchor='middle' fill='white'%3EJ%3C/text%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+  <link rel="manifest" href="{% url 'pwa-manifest' %}">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -171,9 +187,8 @@
       <div class="flex items-center gap-2">
         <a href="{% url 'orders:cart' %}" class="relative inline-flex items-center justify-center w-9 h-9 rounded-md text-zinc-300 hover:text-white hover:bg-white/5 transition" title="Carrito" aria-label="Carrito">
           <svg class="icon" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-          {% if cart_count %}
-            <span class="absolute -top-0.5 -right-0.5 bg-jheliz-500 text-white text-[10px] font-bold rounded-full px-1.5 py-px min-w-[18px] text-center">{{ cart_count }}</span>
-          {% endif %}
+          <span id="cart-count-badge"
+                class="absolute -top-0.5 -right-0.5 bg-jheliz-500 text-white text-[10px] font-bold rounded-full px-1.5 py-px min-w-[18px] text-center{% if not cart_count %} hidden{% endif %}">{{ cart_count|default:"" }}</span>
         </a>
         {% if user.is_authenticated %}
           <a href="{% url 'accounts:dashboard' %}" class="hidden sm:inline-flex btn btn-secondary text-sm" style="padding:0.4rem 0.75rem">{{ user.username }}</a>
@@ -185,6 +200,8 @@
       </div>
     </div>
   </header>
+
+  {% block above_content %}{% endblock %}
 
   <!-- Flash messages ----------------------------------------------------- -->
   {% if messages %}
@@ -244,9 +261,34 @@
     <div class="border-t hairline">
       <div class="max-w-6xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-zinc-500">
         <span>&copy; {% now "Y" %} {{ SITE_NAME }}. Todos los derechos reservados.</span>
-        <span>Hecho en Perú · Pagos con Mercado Pago &amp; Yape</span>
+        <span>
+          Hecho en Perú · Pagos con Mercado Pago &amp; Yape ·
+          <a href="{% url 'catalog:faq' %}" class="hover:text-white transition">FAQ</a> ·
+          <a href="{% url 'catalog:status' %}" class="hover:text-white transition">Estado</a>
+        </span>
       </div>
     </div>
   </footer>
+
+  <!-- Toast stack (used by htmx add-to-cart and others) ------------------ -->
+  <div id="cart-toast-stack" class="fixed top-20 right-4 sm:right-6 z-[60] flex flex-col items-end pointer-events-none"></div>
+  <style>
+    @keyframes cart-toast-in { from { transform: translateY(-8px); opacity: 0 } to { transform: none; opacity: 1 } }
+    @keyframes cart-toast-out { from { opacity: 1 } to { opacity: 0; transform: translateX(40px) } }
+    .cart-toast { animation: cart-toast-in .2s ease-out, cart-toast-out .35s ease-in 3.5s forwards; }
+  </style>
+
+  <!-- Floating WhatsApp button ------------------------------------------- -->
+  {% if WHATSAPP_NUMBER %}
+    <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}?text=Hola%20Jheliz%2C%20tengo%20una%20consulta"
+       target="_blank" rel="noopener"
+       aria-label="Escríbenos por WhatsApp"
+       class="fixed bottom-5 right-5 z-50 inline-flex items-center justify-center w-14 h-14 rounded-full text-white shadow-lg hover:scale-105 active:scale-95 transition"
+       style="background:#25d366; box-shadow: 0 8px 24px -6px rgba(37,211,102,.5);">
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true">
+        <path d="M20.52 3.48A11.86 11.86 0 0 0 12 0C5.37 0 0 5.37 0 12c0 2.11.55 4.17 1.6 5.99L0 24l6.16-1.6A11.96 11.96 0 0 0 12 24c6.63 0 12-5.37 12-12 0-3.2-1.25-6.21-3.48-8.52zM12 21.82a9.79 9.79 0 0 1-5-1.36l-.36-.21-3.66.95.97-3.56-.23-.37A9.83 9.83 0 1 1 21.82 12c0 5.42-4.4 9.82-9.82 9.82zm5.39-7.34c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.66.15s-.76.97-.93 1.16c-.17.2-.34.22-.64.07-.3-.15-1.27-.47-2.42-1.5a9.06 9.06 0 0 1-1.68-2.08c-.18-.3-.02-.46.13-.61.13-.13.3-.34.45-.51.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.66-1.59-.9-2.18-.24-.57-.49-.49-.66-.5h-.56c-.2 0-.52.07-.79.37-.27.3-1.03 1-1.03 2.44s1.05 2.83 1.2 3.03c.15.2 2.07 3.16 5.02 4.43 2.95 1.27 2.95.85 3.48.8.53-.05 1.76-.72 2-1.41.25-.69.25-1.28.18-1.41-.07-.13-.27-.2-.57-.35z"/>
+      </svg>
+    </a>
+  {% endif %}
 </body>
 </html>

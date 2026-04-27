@@ -34,8 +34,12 @@ def _plan_from_request(request) -> Plan:
 def add_to_cart(request):
     plan = _plan_from_request(request)
     form = AddToCartForm(request.POST)
+    is_htmx = bool(request.headers.get("HX-Request"))
+
     if not form.is_valid():
         messages.error(request, "Revisa los datos del carrito.")
+        if is_htmx:
+            return _cart_toast(request, "Revisa los datos del carrito.", ok=False)
         return redirect(plan.product.get_absolute_url())
 
     if plan.product.requires_customer_profile_data:
@@ -45,10 +49,10 @@ def add_to_cart(request):
         if not form.cleaned_data["pin"]:
             missing.append("PIN")
         if missing:
-            messages.error(
-                request,
-                "Falta completar: " + ", ".join(missing) + ". Son necesarios para crear tu perfil.",
-            )
+            msg = "Falta completar: " + ", ".join(missing) + "."
+            messages.error(request, msg + " Son necesarios para crear tu perfil.")
+            if is_htmx:
+                return _cart_toast(request, msg, ok=False)
             return redirect(plan.product.get_absolute_url())
 
     cart = Cart(request)
@@ -59,8 +63,25 @@ def add_to_cart(request):
         pin=form.cleaned_data["pin"],
         notes=form.cleaned_data["notes"],
     )
-    messages.success(request, f"Agregado: {plan.product.name} \u2014 {plan.name}.")
+    success_msg = f"{plan.product.name} \u2014 {plan.name} agregado al carrito."
+    messages.success(request, success_msg)
+
+    if is_htmx:
+        # Send cart-updated event so the header counter can refresh.
+        cart_count = sum(int(line.quantity) for line in cart.lines())
+        response = _cart_toast(request, success_msg, ok=True, cart_count=cart_count)
+        response["HX-Trigger"] = json.dumps({"cart-updated": {"count": cart_count}})
+        return response
     return redirect("orders:cart")
+
+
+def _cart_toast(request, text: str, ok: bool, cart_count: int | None = None):
+    """Render the small toast fragment returned by the htmx add-to-cart action."""
+    return render(
+        request,
+        "orders/_cart_toast.html",
+        {"toast_text": text, "toast_ok": ok, "cart_count": cart_count},
+    )
 
 
 def _decorated_lines(cart: Cart, user) -> list:

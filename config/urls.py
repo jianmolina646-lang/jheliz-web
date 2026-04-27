@@ -1,13 +1,25 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.sitemaps.views import sitemap as sitemap_view
 from django.urls import include, path, re_path
 from django.views.static import serve as static_serve
 
+from catalog.seo_views import manifest_json, robots_txt
+from catalog.sitemaps import SITEMAPS
 from orders import media_views as orders_media_views
 
 urlpatterns = [
     path("jheliz-admin/", admin.site.urls),
+    # SEO / PWA endpoints (root-level)
+    path("robots.txt", robots_txt, name="robots_txt"),
+    path("manifest.webmanifest", manifest_json, name="pwa-manifest"),
+    path(
+        "sitemap.xml",
+        sitemap_view,
+        {"sitemaps": SITEMAPS},
+        name="django.contrib.sitemaps.views.sitemap",
+    ),
     path("cuenta/", include("accounts.urls", namespace="accounts")),
     path("pedidos/", include("orders.urls", namespace="orders")),
     path("soporte/", include("support.urls", namespace="support")),

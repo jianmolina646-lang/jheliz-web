@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import seo_views, views
 
 app_name = "catalog"
 
@@ -14,4 +14,6 @@ urlpatterns = [
     path("tutoriales/", views.tutorials, name="tutorials"),
     path("terminos/", views.terms, name="terms"),
     path("garantia/", views.warranty, name="warranty"),
+    path("preguntas-frecuentes/", seo_views.faq, name="faq"),
+    path("estado/", seo_views.status_page, name="status"),
 ]

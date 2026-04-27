@@ -1,6 +1,29 @@
 {% extends "base.html" %}
 {% load humanize %}
 
+{% block above_content %}
+{% if recent_purchases %}
+<div class="border-y hairline overflow-hidden bg-white/[0.02]" aria-label="Compras recientes">
+  <div class="max-w-6xl mx-auto px-6 py-2 flex items-center gap-3 text-xs text-zinc-400 overflow-hidden">
+    <span class="inline-flex items-center gap-1.5 shrink-0 text-emerald-400 font-semibold">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      EN VIVO
+    </span>
+    <div class="ticker-track flex gap-8 whitespace-nowrap" style="animation: ticker 35s linear infinite;">
+      {% for p in recent_purchases %}{% for _ in "12" %}
+        <span class="inline-flex items-center gap-1.5">
+          <span class="text-zinc-200 font-medium">{{ p.name }}</span>
+          compró <span class="text-zinc-200">{{ p.product }}</span>
+          <span class="text-zinc-600">· {{ p.when|naturaltime }}</span>
+        </span>
+      {% endfor %}{% endfor %}
+    </div>
+  </div>
+</div>
+<style>@keyframes ticker { from { transform: translateX(0) } to { transform: translateX(-50%) } }</style>
+{% endif %}
+{% endblock %}
+
 {% block content %}
 
 <!-- Hero ----------------------------------------------------------------- -->
@@ -113,6 +136,42 @@
     </div>
   </div>
 </section>
+
+<!-- Testimonios ---------------------------------------------------------- -->
+{% if testimonios %}
+<section class="py-14 border-t hairline">
+  <div class="flex items-end justify-between mb-8">
+    <div>
+      <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Reseñas</p>
+      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1">Lo que dicen nuestros clientes</h2>
+    </div>
+    <div class="hidden sm:flex items-center gap-1 text-sm text-zinc-400">
+      <svg class="icon" viewBox="0 0 24 24" style="color:#fbbf24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <span class="font-semibold text-white">4.9</span>
+      <span class="text-zinc-500">/ 5 · 500+ reseñas</span>
+    </div>
+  </div>
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    {% for t in testimonios %}
+      <figure class="surface rounded-xl p-5 flex flex-col">
+        <div class="flex items-center gap-1 text-amber-400">
+          {% for _ in "12345"|slice:t.rating %}
+            <svg class="icon" viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          {% endfor %}
+        </div>
+        <blockquote class="text-sm text-zinc-300 leading-relaxed mt-3 flex-1">"{{ t.text }}"</blockquote>
+        <figcaption class="mt-4 pt-4 border-t hairline flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-xs font-bold text-jheliz-300">{{ t.author|slice:":1" }}</div>
+          <div>
+            <div class="text-xs font-semibold text-zinc-200">{{ t.author }}</div>
+            <div class="text-[11px] text-zinc-500">{{ t.city }}, Perú · Cliente verificado</div>
+          </div>
+        </figcaption>
+      </figure>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
 <!-- CTA strip ------------------------------------------------------------ -->
 <section class="mt-6 surface rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
