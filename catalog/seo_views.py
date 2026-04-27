@@ -28,7 +28,8 @@ def robots_txt(request):
 @cache_control(public=True, max_age=86400)
 def manifest_json(request):
     """PWA manifest — makes the site installable on mobile."""
-    icon = request.build_absolute_uri("/static/img/apple-touch-icon.png")
+    icon192 = request.build_absolute_uri("/static/img/icon-192.png")
+    icon512 = request.build_absolute_uri("/static/img/icon-512.png")
     return JsonResponse({
         "name": "Jheliz Services TV",
         "short_name": "Jheliz",
@@ -41,8 +42,9 @@ def manifest_json(request):
         "orientation": "portrait",
         "lang": "es-PE",
         "icons": [
-            {"src": icon, "sizes": "180x180", "type": "image/png", "purpose": "any"},
-            {"src": icon, "sizes": "180x180", "type": "image/png", "purpose": "maskable"},
+            {"src": icon192, "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": icon512, "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": icon512, "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
         ],
         "categories": ["shopping", "entertainment"],
     })
