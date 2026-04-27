@@ -1,6 +1,7 @@
 Django>=5.2,<6.0
 psycopg[binary]>=3.2
 python-decouple>=3.8
+dj-database-url>=2.2
 Pillow>=11.0
 django-allauth>=65.0
 django-widget-tweaks>=1.5
