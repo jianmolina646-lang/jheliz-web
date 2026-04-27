@@ -62,33 +62,37 @@ def create_preference(request, order: "Order") -> dict:
             "quantity": int(item.quantity),
             "unit_price": unit_price,
             "currency_id": order.currency or "PEN",
-            "category_id": "services",
         })
 
     success_url = _absolute(request, "orders:checkout_return", order.uuid)
     webhook_url = _absolute(request, "orders:mercadopago_webhook")
 
+    # Mercado Pago rechaza back_urls/notification_url localhost y pide HTTPS.
+    # En local, saltamos esos campos; en prod/tunnel usamos los reales.
+    def _is_public(url: str) -> bool:
+        return url.startswith("https://") and "127.0.0.1" not in url and "localhost" not in url
+
     preference_data = {
         "items": items_payload,
-        "payer": {
-            "email": order.email or "",
-            "name": (order.user.first_name if order.user_id else "") or "",
-        },
-        "back_urls": {
-            "success": success_url,
-            "pending": success_url,
-            "failure": success_url,
-        },
-        "auto_return": "approved",
         "external_reference": str(order.uuid),
-        "notification_url": webhook_url,
-        "statement_descriptor": "JHELIZ",
-        "binary_mode": False,
         "metadata": {
             "order_id": order.pk,
             "order_uuid": str(order.uuid),
         },
     }
+    if order.email:
+        preference_data["payer"] = {"email": order.email}
+
+    if _is_public(success_url):
+        preference_data["back_urls"] = {
+            "success": success_url,
+            "pending": success_url,
+            "failure": success_url,
+        }
+        preference_data["auto_return"] = "approved"
+
+    if _is_public(webhook_url):
+        preference_data["notification_url"] = webhook_url
 
     result = sdk.preference().create(preference_data)
     response = result.get("response", {})
