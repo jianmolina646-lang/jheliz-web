@@ -30,7 +30,7 @@ class BlogMarkdownTests(TestCase):
 class BlogViewsTests(TestCase):
     def setUp(self):
         self.client = Client()
-        self.cat = BlogCategory.objects.create(name="Streaming")
+        self.cat = BlogCategory.objects.create(name="TestCategoryX")
         self.published = BlogPost.objects.create(
             title="Cómo activar Netflix Premium",
             slug="netflix-premium",
