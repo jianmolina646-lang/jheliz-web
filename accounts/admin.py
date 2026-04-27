@@ -2,12 +2,17 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from unfold.admin import ModelAdmin
+from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 
 from .models import Role, User, WalletTransaction
 
 
 @admin.register(User)
-class UserAdmin(BaseUserAdmin):
+class UserAdmin(BaseUserAdmin, ModelAdmin):
+    form = UserChangeForm
+    add_form = UserCreationForm
+    change_password_form = AdminPasswordChangeForm
     list_display = (
         "username", "email", "role", "distributor_approved",
         "wallet_balance", "is_staff", "date_joined",
@@ -65,7 +70,7 @@ class UserAdmin(BaseUserAdmin):
 
 
 @admin.register(WalletTransaction)
-class WalletTransactionAdmin(admin.ModelAdmin):
+class WalletTransactionAdmin(ModelAdmin):
     list_display = ("user", "kind", "amount", "balance_after", "reference", "created_at")
     list_filter = ("kind", "created_at")
     search_fields = ("user__username", "user__email", "reference")

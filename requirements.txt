@@ -10,4 +10,5 @@ gunicorn>=23.0
 mercadopago>=2.3
 django-htmx>=1.22
 django-extensions>=4.0
+django-unfold>=0.50
 requests>=2.32

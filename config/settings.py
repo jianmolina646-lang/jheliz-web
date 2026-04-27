@@ -24,6 +24,12 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 INSTALLED_APPS = [
+    # Unfold debe ir ANTES de django.contrib.admin
+    "unfold",
+    "unfold.contrib.filters",
+    "unfold.contrib.forms",
+    "unfold.contrib.inlines",
+    "unfold.contrib.import_export",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -144,6 +150,125 @@ TELEGRAM_ADMIN_CHAT_ID = config("TELEGRAM_ADMIN_CHAT_ID", default="")
 # Brand
 SITE_NAME = "Jheliz"
 SITE_TAGLINE = "Streaming y licencias al mejor precio"
+
+# Unfold admin theme
+UNFOLD = {
+    "SITE_TITLE": "Jheliz Admin",
+    "SITE_HEADER": "Jheliz",
+    "SITE_SUBHEADER": "Panel de administración",
+    "SITE_SYMBOL": "storefront",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": True,
+    "THEME": "dark",
+    "BORDER_RADIUS": "8px",
+    "COLORS": {
+        "primary": {
+            "50": "253 244 255",
+            "100": "250 232 255",
+            "200": "245 208 254",
+            "300": "240 171 252",
+            "400": "232 121 249",
+            "500": "217 70 239",
+            "600": "192 38 211",
+            "700": "162 28 175",
+            "800": "134 25 143",
+            "900": "112 26 117",
+            "950": "74 4 78",
+        },
+    },
+    "DASHBOARD_CALLBACK": "config.admin_dashboard.dashboard_callback",
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": "Resumen",
+                "separator": False,
+                "items": [
+                    {
+                        "title": "Dashboard",
+                        "icon": "dashboard",
+                        "link": "/jheliz-admin/",
+                    },
+                    {
+                        "title": "Ver tienda",
+                        "icon": "public",
+                        "link": "/",
+                    },
+                ],
+            },
+            {
+                "title": "Ventas",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Pedidos",
+                        "icon": "receipt_long",
+                        "link": "/jheliz-admin/orders/order/",
+                    },
+                    {
+                        "title": "Items de pedidos",
+                        "icon": "list_alt",
+                        "link": "/jheliz-admin/orders/orderitem/",
+                    },
+                ],
+            },
+            {
+                "title": "Catálogo",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Productos",
+                        "icon": "inventory_2",
+                        "link": "/jheliz-admin/catalog/product/",
+                    },
+                    {
+                        "title": "Planes",
+                        "icon": "sell",
+                        "link": "/jheliz-admin/catalog/plan/",
+                    },
+                    {
+                        "title": "Categorías",
+                        "icon": "category",
+                        "link": "/jheliz-admin/catalog/category/",
+                    },
+                    {
+                        "title": "Stock",
+                        "icon": "inventory",
+                        "link": "/jheliz-admin/catalog/stockitem/",
+                    },
+                ],
+            },
+            {
+                "title": "Clientes",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Usuarios",
+                        "icon": "group",
+                        "link": "/jheliz-admin/accounts/user/",
+                    },
+                    {
+                        "title": "Movimientos de wallet",
+                        "icon": "account_balance_wallet",
+                        "link": "/jheliz-admin/accounts/wallettransaction/",
+                    },
+                ],
+            },
+            {
+                "title": "Soporte",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Tickets",
+                        "icon": "support_agent",
+                        "link": "/jheliz-admin/support/ticket/",
+                    },
+                ],
+            },
+        ],
+    },
+}
 
 # Security in prod
 if not DEBUG:
