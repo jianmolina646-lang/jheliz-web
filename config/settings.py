@@ -348,15 +348,30 @@ X_FRAME_OPTIONS = "DENY"
 # Content Security Policy. Bloquea scripts/estilos/imágenes de orígenes
 # que no estén en self. 'unsafe-inline' se mantiene en script/style por
 # compatibilidad con el admin de Django/Unfold y con los bloques inline de
-# las plantillas; los demás directivos están cerrados al máximo.
+# las plantillas. 'unsafe-eval' es necesario para Alpine.js (lo usa Unfold
+# para renderizar el sidebar, modales, etc. evaluando expresiones x-data,
+# x-show, x-on con el constructor Function()).
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": ("'self'",),
-        "script-src": ("'self'", "'unsafe-inline'"),
-        "style-src": ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com"),
+        # 'unsafe-eval' lo necesita Alpine.js (Unfold).
+        # cdn.tailwindcss.com y unpkg.com los usa la tienda pública para Tailwind+htmx.
+        "script-src": (
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'",
+            "https://cdn.tailwindcss.com",
+            "https://unpkg.com",
+        ),
+        "style-src": (
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com",
+        ),
         "font-src": ("'self'", "data:", "https://fonts.gstatic.com"),
         "img-src": ("'self'", "data:", "https:"),
-        "connect-src": ("'self'",),
+        # Tailwind CDN hace fetch de su CSS dinámicamente; htmx hace requests al backend.
+        "connect-src": ("'self'", "https://cdn.tailwindcss.com"),
         "frame-ancestors": ("'none'",),
         "base-uri": ("'self'",),
         "form-action": ("'self'",),
@@ -366,16 +381,14 @@ CONTENT_SECURITY_POLICY = {
 }
 
 # Permissions-Policy (cabecera moderna que reemplaza a Feature-Policy).
-# Bloqueamos APIs sensibles que el admin no necesita.
+# Bloqueamos APIs sensibles que el admin no necesita. Sólo incluimos
+# features actualmente soportadas por Chromium para evitar warnings.
 PERMISSIONS_POLICY = (
-    "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), "
-    "camera=(), display-capture=(), document-domain=(), encrypted-media=(), "
-    "execution-while-not-rendered=(), execution-while-out-of-viewport=(), "
-    "fullscreen=(self), geolocation=(), gyroscope=(), keyboard-map=(), "
-    "magnetometer=(), microphone=(), midi=(), navigation-override=(), "
+    "accelerometer=(), autoplay=(), camera=(), display-capture=(), "
+    "encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), "
+    "keyboard-map=(), magnetometer=(), microphone=(), midi=(), "
     "payment=(), picture-in-picture=(), publickey-credentials-get=(), "
-    "screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), "
-    "xr-spatial-tracking=()"
+    "screen-wake-lock=(), sync-xhr=(), usb=(), xr-spatial-tracking=()"
 )
 
 # ---------------------------------------------------------------------------

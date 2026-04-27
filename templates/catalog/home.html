@@ -2,75 +2,128 @@
 {% load humanize %}
 
 {% block content %}
-<section class="relative overflow-hidden rounded-3xl card-glass p-8 md:p-14">
-  <div class="max-w-3xl">
-    <span class="inline-block text-xs uppercase tracking-[0.25em] text-jheliz-300 mb-3">Plataforma de venta</span>
-    <h1 class="text-4xl md:text-6xl font-extrabold leading-[1.05]">
-      Streaming y licencias
-      <span class="bg-gradient-to-r from-jheliz-400 via-fuchsia-300 to-violet-300 bg-clip-text text-transparent">al mejor precio de Perú</span>
-    </h1>
-    <p class="mt-5 text-lg text-white/80">
-      Netflix, Disney+, Prime, Windows, Office, Photoshop y mucho más.
-      Entrega inmediata, pagos con Mercado Pago, soporte 24/7.
-    </p>
-    <div class="mt-6 flex flex-wrap gap-3">
-      <a href="{% url 'catalog:products' %}" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">Ver productos</a>
-      <a href="{% url 'catalog:distributor' %}" class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 font-semibold">Soy distribuidor</a>
+
+<!-- Hero ----------------------------------------------------------------- -->
+<section class="pt-6 md:pt-12 pb-14 md:pb-20 max-w-3xl">
+  <div class="inline-flex items-center gap-2 chip mb-6">
+    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+    Entrega inmediata · Soporte 24/7
+  </div>
+  <h1 class="font-display text-5xl md:text-7xl font-bold leading-[1.02] tracking-tight">
+    Streaming y licencias<br>
+    <span class="text-jheliz-400">al mejor precio</span>
+    <span class="text-zinc-500">de Perú.</span>
+  </h1>
+  <p class="mt-6 text-lg text-zinc-400 max-w-xl leading-relaxed">
+    Netflix, Disney+, Prime, Windows, Office, Photoshop y más.
+    Pago con Mercado Pago o Yape, entrega automática en minutos.
+  </p>
+  <div class="mt-8 flex flex-wrap gap-3">
+    <a href="{% url 'catalog:products' %}" class="btn btn-primary btn-lg">
+      Ver productos
+      <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+    </a>
+    <a href="{% url 'catalog:distributor' %}" class="btn btn-secondary btn-lg">Soy distribuidor</a>
+  </div>
+
+  <!-- Trust row -->
+  <div class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 text-xs text-zinc-500">
+    <div class="flex items-center gap-2">
+      <svg class="icon" viewBox="0 0 24 24" style="color:#34d399"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+      Más de 5 000 entregas
     </div>
-    <div class="mt-6 flex flex-wrap gap-3 text-xs text-white/70">
-      <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">⚡ Entrega inmediata</span>
-      <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">💳 Mercado Pago</span>
-      <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">🛡️ Garantía incluida</span>
-      <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">👥 Miles de clientes felices</span>
+    <div class="flex items-center gap-2">
+      <svg class="icon" viewBox="0 0 24 24" style="color:#fbbf24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      4.9 / 5 promedio
+    </div>
+    <div class="flex items-center gap-2">
+      <svg class="icon" viewBox="0 0 24 24" style="color:#f472b6"><path d="M12 22s-8-4.5-8-12a8 8 0 0 1 16 0c0 7.5-8 12-8 12z"/><circle cx="12" cy="10" r="3"/></svg>
+      Hecho en Perú
     </div>
   </div>
 </section>
 
+<!-- Categories ----------------------------------------------------------- -->
 {% if top_categories %}
-<section class="mt-10">
-  <h2 class="text-xl md:text-2xl font-bold mb-4">Categorías</h2>
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+<section class="py-10 border-t hairline">
+  <div class="flex items-end justify-between mb-6">
+    <div>
+      <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Catálogo</p>
+      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1">Explora por categoría</h2>
+    </div>
+    <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition hidden sm:inline">Ver todo →</a>
+  </div>
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
     {% for c in top_categories %}
-      <a href="{{ c.get_absolute_url }}" class="card-glass rounded-2xl p-4 text-center hover:-translate-y-1 hover:border-jheliz-400/60 transition">
-        <div class="text-3xl">{{ c.emoji }}</div>
-        <div class="mt-2 text-sm font-medium">{{ c.name }}</div>
+      <a href="{{ c.get_absolute_url }}" class="surface rounded-xl p-4 text-center transition group">
+        <div class="text-2xl">{{ c.emoji }}</div>
+        <div class="mt-2 text-sm font-medium text-zinc-200 group-hover:text-white">{{ c.name }}</div>
       </a>
     {% endfor %}
   </div>
 </section>
 {% endif %}
 
-<section class="mt-12">
-  <div class="flex items-end justify-between mb-4">
-    <h2 class="text-xl md:text-2xl font-bold">Productos destacados</h2>
-    <a href="{% url 'catalog:products' %}" class="text-jheliz-300 hover:text-jheliz-200 text-sm">Ver todos →</a>
+<!-- Featured products ---------------------------------------------------- -->
+<section class="py-10 border-t hairline">
+  <div class="flex items-end justify-between mb-6">
+    <div>
+      <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Destacados</p>
+      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1">Los más vendidos del mes</h2>
+    </div>
+    <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition">Ver todos →</a>
   </div>
   {% if featured_products %}
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
       {% for p in featured_products %}{% include "catalog/_product_card.html" with product=p %}{% endfor %}
     </div>
   {% else %}
-    <div class="card-glass rounded-2xl p-8 text-center text-white/70">
-      Pronto habrá productos destacados. Mientras tanto revisa el <a class="text-jheliz-300 underline" href="{% url 'catalog:products' %}">catálogo completo</a>.
+    <div class="surface rounded-xl p-8 text-center text-zinc-400">
+      Pronto habrá productos destacados. Mientras tanto revisa el
+      <a class="text-jheliz-400 hover:text-jheliz-300 underline" href="{% url 'catalog:products' %}">catálogo completo</a>.
     </div>
   {% endif %}
 </section>
 
-<section class="mt-14 grid md:grid-cols-3 gap-4">
-  <div class="card-glass rounded-2xl p-6">
-    <div class="text-3xl">⚡</div>
-    <h3 class="font-bold mt-2">Entrega inmediata</h3>
-    <p class="text-sm text-white/70 mt-1">Apenas confirmamos el pago, tu cuenta aparece en tu panel y te llega por correo.</p>
-  </div>
-  <div class="card-glass rounded-2xl p-6">
-    <div class="text-3xl">🛡️</div>
-    <h3 class="font-bold mt-2">Garantía real</h3>
-    <p class="text-sm text-white/70 mt-1">Si algo falla dentro del periodo, te reponemos la cuenta sin preguntas.</p>
-  </div>
-  <div class="card-glass rounded-2xl p-6">
-    <div class="text-3xl">💬</div>
-    <h3 class="font-bold mt-2">Soporte 24/7</h3>
-    <p class="text-sm text-white/70 mt-1">Abre un ticket desde tu cuenta o escríbenos al WhatsApp {{ WHATSAPP_NUMBER }}.</p>
+<!-- Value props ---------------------------------------------------------- -->
+<section class="py-14 border-t hairline">
+  <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Por qué Jheliz</p>
+  <h2 class="font-display text-2xl md:text-3xl font-bold mt-1 mb-8">La forma más rápida de comprar streaming en Perú</h2>
+  <div class="grid md:grid-cols-3 gap-3">
+    <div class="surface rounded-xl p-6">
+      <div class="w-10 h-10 rounded-lg bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-jheliz-300">
+        <svg class="icon-lg icon" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      </div>
+      <h3 class="font-display font-semibold mt-4">Entrega inmediata</h3>
+      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Apenas confirmamos el pago, la cuenta aparece en tu panel y te llega por correo.</p>
+    </div>
+    <div class="surface rounded-xl p-6">
+      <div class="w-10 h-10 rounded-lg bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-jheliz-300">
+        <svg class="icon-lg icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <h3 class="font-display font-semibold mt-4">Garantía real</h3>
+      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Si algo falla durante el periodo, te reponemos la cuenta sin preguntas.</p>
+    </div>
+    <div class="surface rounded-xl p-6">
+      <div class="w-10 h-10 rounded-lg bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-jheliz-300">
+        <svg class="icon-lg icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <h3 class="font-display font-semibold mt-4">Soporte humano</h3>
+      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Abre un ticket desde tu cuenta o escríbenos al WhatsApp {{ WHATSAPP_NUMBER }}.</p>
+    </div>
   </div>
 </section>
+
+<!-- CTA strip ------------------------------------------------------------ -->
+<section class="mt-6 surface rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+  <div>
+    <h2 class="font-display text-xl md:text-2xl font-bold tracking-tight">¿Vendes cuentas? Trabaja con nosotros.</h2>
+    <p class="text-sm text-zinc-400 mt-2">Precios mayoristas, panel de gestión propio y entrega automatizada.</p>
+  </div>
+  <a href="{% url 'catalog:distributor' %}" class="btn btn-secondary btn-lg whitespace-nowrap">
+    Quiero ser distribuidor
+    <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+  </a>
+</section>
+
 {% endblock %}

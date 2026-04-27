@@ -1,51 +1,62 @@
 {% load humanize %}
-<a href="{{ product.get_absolute_url }}" class="card-glass rounded-2xl p-5 hover:-translate-y-1 hover:border-jheliz-400/60 transition block group">
-  <div class="flex items-start justify-between gap-3">
-    <div class="flex items-center gap-3">
-      <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-fuchsia-500/30 to-purple-500/30 border border-white/10 flex items-center justify-center text-2xl">
-        {{ product.icon|default:product.category.emoji }}
-      </div>
-      <div>
-        <h3 class="font-semibold text-white leading-tight">{{ product.name }}</h3>
-        <p class="text-xs text-white/60 mt-0.5">{{ product.category.name }}</p>
-      </div>
+<a href="{{ product.get_absolute_url }}" class="surface rounded-xl p-5 hover:border-zinc-600 transition block group relative">
+  {% if product.is_featured %}
+    <span class="absolute top-3 right-3 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded chip-pink font-semibold">Top</span>
+  {% endif %}
+
+  <div class="flex items-center gap-3">
+    <div class="w-11 h-11 rounded-lg surface-soft flex items-center justify-center text-xl">
+      {{ product.icon|default:product.category.emoji }}
     </div>
-    {% if product.is_featured %}
-      <span class="text-[10px] uppercase tracking-wider px-2 py-1 rounded-full bg-jheliz-500/20 text-jheliz-300 border border-jheliz-500/40">Top</span>
-    {% endif %}
+    <div class="min-w-0">
+      <h3 class="font-display font-semibold text-zinc-100 leading-tight truncate">{{ product.name }}</h3>
+      <p class="text-xs text-zinc-500 mt-0.5">{{ product.category.name }}</p>
+    </div>
   </div>
 
   {% if product.short_description %}
-    <p class="mt-3 text-sm text-white/70 line-clamp-2">{{ product.short_description }}</p>
+    <p class="mt-4 text-sm text-zinc-400 line-clamp-2 leading-relaxed">{{ product.short_description }}</p>
   {% endif %}
 
-  <div class="mt-4 flex items-center justify-between">
-    <div>
+  <div class="mt-5 pt-4 border-t hairline flex items-end justify-between gap-3">
+    <div class="min-w-0">
       {% with plan=product.plans.first %}
         {% if plan %}
           {% if user.is_distributor %}
-            <div class="text-xs text-jheliz-300 font-semibold">Precio mayorista desde</div>
-            <div class="text-lg font-bold text-white">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
-            <div class="text-[11px] text-white/40 line-through">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-jheliz-400">Mayorista desde</div>
+            <div class="text-xl font-display font-bold text-white tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
+            <div class="text-[11px] text-zinc-500 line-through">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
           {% else %}
-            <div class="text-xs text-white/50">Desde</div>
-            <div class="text-lg font-bold text-white">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+            <div class="text-[11px] uppercase tracking-wider text-zinc-500">Desde</div>
+            <div class="text-xl font-display font-bold text-white tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
           {% endif %}
         {% else %}
-          <div class="text-xs text-white/50">Pronto disponible</div>
+          <div class="text-xs text-zinc-500">Pronto disponible</div>
         {% endif %}
       {% endwith %}
     </div>
-    <div class="text-right text-xs text-white/60">
-      <div>⭐ {{ product.rating }}</div>
-      {% if product.sold_badge %}<div>{{ product.sold_badge }} vendidos</div>{% endif %}
+    <div class="text-right text-[11px] text-zinc-500 leading-tight shrink-0">
+      <div class="flex items-center gap-1 justify-end text-amber-400/90">
+        <svg class="icon" viewBox="0 0 24 24" style="width:11px;height:11px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span class="text-zinc-300">{{ product.rating }}</span>
+      </div>
+      {% if product.sold_badge %}<div class="mt-1">{{ product.sold_badge }} vendidos</div>{% endif %}
     </div>
   </div>
 
   <div class="mt-4 flex items-center justify-between text-xs">
-    <span class="inline-flex items-center gap-1 text-emerald-300">
-      {% if product.delivery_is_instant %}⚡ Entrega inmediata{% else %}⏱️ Entrega manual{% endif %}
+    <span class="inline-flex items-center gap-1.5 text-emerald-400">
+      {% if product.delivery_is_instant %}
+        <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Inmediata
+      {% else %}
+        <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Manual
+      {% endif %}
     </span>
-    <span class="text-jheliz-300 group-hover:text-jheliz-200">Ver →</span>
+    <span class="text-zinc-400 group-hover:text-jheliz-400 transition inline-flex items-center gap-1">
+      Ver
+      <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+    </span>
   </div>
 </a>
