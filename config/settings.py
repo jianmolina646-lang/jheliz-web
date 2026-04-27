@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "catalog.apps.CatalogConfig",
     "orders.apps.OrdersConfig",
     "support.apps.SupportConfig",
+    "blog.apps.BlogConfig",
 ]
 
 MIDDLEWARE = [
@@ -327,6 +328,27 @@ UNFOLD = {
                         "title": "Tickets",
                         "icon": "support_agent",
                         "link": "/jheliz-admin/support/ticket/",
+                    },
+                ],
+            },
+            {
+                "title": "Marketing",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Cupones / códigos",
+                        "icon": "redeem",
+                        "link": "/jheliz-admin/orders/coupon/",
+                    },
+                    {
+                        "title": "Posts del blog",
+                        "icon": "article",
+                        "link": "/jheliz-admin/blog/blogpost/",
+                    },
+                    {
+                        "title": "Categorías de blog",
+                        "icon": "label",
+                        "link": "/jheliz-admin/blog/blogcategory/",
                     },
                 ],
             },

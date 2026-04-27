@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% load static humanize %}
+
+{% block title %}{{ post.effective_seo_title }} — Blog {{ SITE_NAME }}{% endblock %}
+{% block meta_description %}{{ post.effective_seo_description }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ post.effective_seo_title }}{% endblock %}
+{% block og_description %}{{ post.effective_seo_description }}{% endblock %}
+{% block og_image %}{% if post.cover_image %}{{ request.scheme }}://{{ request.get_host }}{{ post.cover_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.jpg' %}{% endif %}{% endblock %}
+
+{% block extra_head %}
+{% if post.seo_keywords %}<meta name="keywords" content="{{ post.seo_keywords }}">{% endif %}
+<link rel="alternate" type="application/rss+xml" title="Blog Jheliz RSS" href="{% url 'blog:feed' %}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "{{ post.title|escapejs }}",
+  "description": "{{ post.effective_seo_description|escapejs }}",
+  "image": "{% if post.cover_image %}{{ request.scheme }}://{{ request.get_host }}{{ post.cover_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.jpg' %}{% endif %}",
+  "author": {
+    "@type": "Person",
+    "name": "{% if post.author %}{{ post.author.get_full_name|default:post.author.username|escapejs }}{% else %}{{ SITE_NAME|escapejs }}{% endif %}"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "{{ SITE_NAME|escapejs }}",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "{{ request.scheme }}://{{ request.get_host }}{% static 'img/icon-512.png' %}"
+    }
+  },
+  "datePublished": "{{ post.published_at|date:'c' }}",
+  "dateModified": "{{ post.updated_at|date:'c' }}",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "{{ request.build_absolute_uri }}"
+  }
+}
+</script>
+<style>
+  .blog-content h1, .blog-content h2, .blog-content h3 {
+    font-family: 'Inter Tight', Inter, system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #f4f4f5;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.25;
+  }
+  .blog-content h1 { font-size: 2rem; }
+  .blog-content h2 { font-size: 1.5rem; }
+  .blog-content h3 { font-size: 1.25rem; }
+  .blog-content p {
+    color: #d4d4d8;
+    line-height: 1.75;
+    margin: 1rem 0;
+  }
+  .blog-content a {
+    color: #f472b6;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .blog-content a:hover { color: #ec4899; }
+  .blog-content ul, .blog-content ol {
+    color: #d4d4d8;
+    padding-left: 1.5rem;
+    margin: 1rem 0;
+    line-height: 1.75;
+  }
+  .blog-content ul { list-style: disc; }
+  .blog-content ol { list-style: decimal; }
+  .blog-content li { margin: 0.4rem 0; }
+  .blog-content blockquote {
+    border-left: 3px solid #ec4899;
+    padding: 0.5rem 0 0.5rem 1rem;
+    margin: 1.5rem 0;
+    color: #a1a1aa;
+    font-style: italic;
+  }
+  .blog-content code {
+    background: rgba(255,255,255,0.06);
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.3rem;
+    font-size: 0.9em;
+    color: #f9a8d4;
+  }
+  .blog-content pre {
+    background: rgba(255,255,255,0.04);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+  .blog-content pre code {
+    background: transparent;
+    color: #d4d4d8;
+    padding: 0;
+  }
+  .blog-content strong { color: #f4f4f5; font-weight: 600; }
+  .blog-content hr {
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    margin: 2rem 0;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<article class="max-w-3xl mx-auto">
+  <a href="{% url 'blog:list' %}" class="text-sm text-zinc-500 hover:text-zinc-200 transition inline-flex items-center gap-1">
+    ← Volver al blog
+  </a>
+
+  <header class="mt-6">
+    {% if post.category %}
+      <a href="{{ post.category.get_absolute_url }}" class="text-xs font-semibold tracking-wider uppercase text-jheliz-300 hover:text-jheliz-200">
+        {{ post.category.emoji }} {{ post.category.name }}
+      </a>
+    {% endif %}
+    <h1 class="font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mt-3 leading-[1.1]">{{ post.title }}</h1>
+    <p class="text-lg text-zinc-400 mt-4 leading-relaxed">{{ post.excerpt }}</p>
+    <div class="mt-5 flex items-center gap-3 text-xs text-zinc-500">
+      <span>{{ post.published_at|date:"d \d\e F, Y" }}</span>
+      <span>·</span>
+      <span>{{ post.views_count|intcomma }} lecturas</span>
+      {% if post.author %}<span>·</span><span>Por {{ post.author.get_full_name|default:post.author.username }}</span>{% endif %}
+    </div>
+  </header>
+
+  {% if post.cover_image %}
+  <div class="mt-8 rounded-2xl overflow-hidden">
+    <img src="{{ post.cover_image.url }}" alt="{{ post.cover_alt|default:post.title }}" class="w-full" loading="eager">
+  </div>
+  {% endif %}
+
+  <div class="blog-content mt-8">
+    {{ body_html|safe }}
+  </div>
+
+  {% if related_products %}
+  <section class="mt-12 pt-8 border-t hairline">
+    <h2 class="font-display text-xl font-bold tracking-tight">Productos relacionados</h2>
+    <div class="mt-4 grid sm:grid-cols-3 gap-4">
+      {% for p in related_products %}
+        <a href="{{ p.get_absolute_url }}" class="surface rounded-xl p-4 hover:ring-1 hover:ring-jheliz-500/30 transition">
+          <div class="text-2xl">{{ p.icon|default:p.category.emoji }}</div>
+          <div class="font-display font-semibold mt-2">{{ p.name }}</div>
+          {% if p.short_description %}<p class="text-xs text-zinc-500 mt-1 line-clamp-2">{{ p.short_description }}</p>{% endif %}
+          <div class="mt-3 text-xs text-jheliz-300">Ver planes →</div>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if related_posts %}
+  <section class="mt-12 pt-8 border-t hairline">
+    <h2 class="font-display text-xl font-bold tracking-tight">Sigue leyendo</h2>
+    <div class="mt-4 grid sm:grid-cols-3 gap-4">
+      {% for r in related_posts %}
+        <a href="{{ r.get_absolute_url }}" class="surface rounded-xl p-4 hover:ring-1 hover:ring-jheliz-500/30 transition">
+          <div class="font-display font-semibold leading-snug">{{ r.title }}</div>
+          <p class="text-xs text-zinc-500 mt-2 line-clamp-2">{{ r.excerpt }}</p>
+          <div class="text-xs text-zinc-600 mt-3">{{ r.published_at|date:"d M Y" }}</div>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</article>
+{% endblock %}

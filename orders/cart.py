@@ -19,6 +19,7 @@ from typing import Iterator
 from catalog.models import Plan
 
 CART_SESSION_KEY = "cart"
+CART_COUPON_SESSION_KEY = "cart_coupon_code"
 
 
 @dataclass
@@ -61,6 +62,8 @@ class Cart:
     def clear(self) -> None:
         self._items = []
         self.save()
+        self.session.pop(CART_COUPON_SESSION_KEY, None)
+        self.session.modified = True
 
     # ----- operaciones -----
 
@@ -126,8 +129,44 @@ class Cart:
     def is_empty(self) -> bool:
         return not self._items
 
-    def total_for(self, user) -> Decimal:
+    def subtotal_for(self, user) -> Decimal:
         total = Decimal("0.00")
         for line in self.lines():
             total += line.subtotal_for(user)
         return total
+
+    def total_for(self, user) -> Decimal:
+        """Compatibilidad: devuelve el total con descuento aplicado si hay cupón."""
+        return self.subtotal_for(user) - self.discount_for(user)
+
+    # ----- Cupones -----
+
+    def get_coupon_code(self) -> str:
+        return (self.session.get(CART_COUPON_SESSION_KEY) or "").upper().strip()
+
+    def get_coupon(self):
+        """Devuelve el Coupon (si existe y está activo). Lazy import para evitar ciclos."""
+        code = self.get_coupon_code()
+        if not code:
+            return None
+        from .models import Coupon
+
+        return Coupon.objects.filter(code=code).first()
+
+    def set_coupon_code(self, code: str) -> None:
+        self.session[CART_COUPON_SESSION_KEY] = code.upper().strip() if code else ""
+        self.session.modified = True
+
+    def clear_coupon(self) -> None:
+        self.session.pop(CART_COUPON_SESSION_KEY, None)
+        self.session.modified = True
+
+    def discount_for(self, user) -> Decimal:
+        coupon = self.get_coupon()
+        if not coupon:
+            return Decimal("0.00")
+        subtotal = self.subtotal_for(user)
+        ok, _ = coupon.is_eligible_for(user, subtotal)
+        if not ok:
+            return Decimal("0.00")
+        return coupon.compute_discount(subtotal)

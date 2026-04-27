@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib import messages
-from django.db import transaction
+from django.db import models, transaction
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -18,7 +18,7 @@ from catalog.models import Plan
 from . import emails, mercadopago_client, telegram
 from .cart import Cart
 from .forms import AddToCartForm, CheckoutForm, YapeProofForm
-from .models import Order, OrderItem, PaymentSettings
+from .models import Coupon, Order, OrderItem, PaymentSettings
 
 logger = logging.getLogger(__name__)
 
@@ -117,12 +117,57 @@ def _decorated_lines(cart: Cart, user) -> list:
 def cart_view(request):
     cart = Cart(request)
     lines = _decorated_lines(cart, request.user)
-    total = cart.total_for(request.user)
+    subtotal = cart.subtotal_for(request.user)
+    coupon = cart.get_coupon()
+    discount = cart.discount_for(request.user)
+    coupon_error = ""
+    if coupon and discount == 0 and not cart.is_empty():
+        # Cupón inválido en este momento: avisa al cliente.
+        ok, msg = coupon.is_eligible_for(request.user, subtotal)
+        if not ok:
+            coupon_error = msg
     return render(request, "orders/cart.html", {
         "cart": cart,
         "lines": lines,
-        "total": total,
+        "subtotal": subtotal,
+        "discount": discount,
+        "total": subtotal - discount,
+        "coupon": coupon,
+        "coupon_error": coupon_error,
     })
+
+
+@require_POST
+def cart_apply_coupon(request):
+    cart = Cart(request)
+    code = (request.POST.get("code") or "").strip().upper()
+    if not code:
+        cart.clear_coupon()
+        messages.info(request, "Cupón retirado.")
+        return redirect("orders:cart")
+
+    coupon = Coupon.objects.filter(code=code).first()
+    if not coupon:
+        messages.error(request, f"El cupón '{code}' no existe.")
+        return redirect("orders:cart")
+
+    subtotal = cart.subtotal_for(request.user)
+    ok, msg = coupon.is_eligible_for(request.user, subtotal)
+    if not ok:
+        messages.error(request, msg or "Este cupón no aplica a tu carrito.")
+        return redirect("orders:cart")
+
+    cart.set_coupon_code(coupon.code)
+    discount = coupon.compute_discount(subtotal)
+    messages.success(request, f"Cupón {coupon.code} aplicado: descuento de S/ {discount:g}.")
+    return redirect("orders:cart")
+
+
+@require_POST
+def cart_remove_coupon(request):
+    Cart(request).clear_coupon()
+    messages.info(request, "Cupón retirado del carrito.")
+    return redirect("orders:cart")
 
 
 @require_POST
@@ -206,11 +251,16 @@ def checkout(request):
             # Deja solo Mercado Pago como opci\u00f3n.
             form.fields["payment_method"].choices = [CheckoutForm.PAYMENT_METHODS[0]]
 
+    subtotal = cart.subtotal_for(request.user)
+    discount = cart.discount_for(request.user)
     return render(request, "orders/checkout.html", {
         "form": form,
         "cart": cart,
         "lines": _decorated_lines(cart, request.user),
-        "total": cart.total_for(request.user),
+        "subtotal": subtotal,
+        "discount": discount,
+        "total": subtotal - discount,
+        "coupon": cart.get_coupon(),
         "yape_available": yape_available,
         "payment_settings": payment_settings,
     })
@@ -286,6 +336,18 @@ def _create_order_from_cart(request, cart: Cart, contact: dict) -> Order:
                 requested_pin=line.pin,
                 customer_notes=line.notes,
             )
+        # Aplicar cupón si hay y sigue siendo elegible.
+        coupon = cart.get_coupon()
+        if coupon:
+            subtotal = order.subtotal
+            ok, _msg = coupon.is_eligible_for(request.user, subtotal)
+            if ok:
+                order.coupon = coupon
+                order.coupon_code = coupon.code
+                order.discount_amount = coupon.compute_discount(subtotal)
+                order.save(update_fields=["coupon", "coupon_code", "discount_amount"])
+                # Bumpea el contador de usos del cupón (atomic).
+                Coupon.objects.filter(pk=coupon.pk).update(times_used=models.F("times_used") + 1)
         order.recompute_total()
     return order
 

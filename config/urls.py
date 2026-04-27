@@ -5,9 +5,12 @@ from django.contrib.sitemaps.views import sitemap as sitemap_view
 from django.urls import include, path, re_path
 from django.views.static import serve as static_serve
 
+from blog.sitemaps import BlogPostSitemap
 from catalog.seo_views import manifest_json, robots_txt
 from catalog.sitemaps import SITEMAPS
 from orders import media_views as orders_media_views
+
+SITEMAPS_ALL = {**SITEMAPS, "blog": BlogPostSitemap}
 
 urlpatterns = [
     path("jheliz-admin/", admin.site.urls),
@@ -17,12 +20,13 @@ urlpatterns = [
     path(
         "sitemap.xml",
         sitemap_view,
-        {"sitemaps": SITEMAPS},
+        {"sitemaps": SITEMAPS_ALL},
         name="django.contrib.sitemaps.views.sitemap",
     ),
     path("cuenta/", include("accounts.urls", namespace="accounts")),
     path("pedidos/", include("orders.urls", namespace="orders")),
     path("soporte/", include("support.urls", namespace="support")),
+    path("blog/", include("blog.urls", namespace="blog")),
     path("", include("catalog.urls", namespace="catalog")),
 ]
 

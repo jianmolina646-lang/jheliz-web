@@ -282,3 +282,97 @@ class AuditLogTests(TestCase):
         latest = LogEntry.objects.get_for_object(item).order_by("-timestamp").first()
         if latest and latest.changes_dict:
             self.assertNotIn("delivered_credentials", latest.changes_dict)
+
+
+# --------------------------------------------------------------------------
+# Tests para Cupones
+# --------------------------------------------------------------------------
+
+from orders.models import Coupon  # noqa: E402
+
+
+class CouponTests(TestCase):
+    def setUp(self):
+        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.product = Product.objects.create(
+            name="Netflix Premium", slug="netflix-premium", category=self.cat,
+            is_active=True, requires_customer_profile_data=False,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes",
+            price_customer=Decimal("20.00"),
+            is_active=True,
+        )
+
+    def test_percent_discount_calculation(self):
+        c = Coupon.objects.create(code="OFF10", discount_type="percent", discount_value=Decimal("10"))
+        self.assertEqual(c.compute_discount(Decimal("100")), Decimal("10.00"))
+
+    def test_fixed_discount_does_not_exceed_subtotal(self):
+        c = Coupon.objects.create(code="OFF50", discount_type="fixed", discount_value=Decimal("50"))
+        self.assertEqual(c.compute_discount(Decimal("30")), Decimal("30"))
+
+    def test_inactive_coupon_not_eligible(self):
+        c = Coupon.objects.create(
+            code="DISABLED", discount_type="percent",
+            discount_value=Decimal("10"), is_active=False,
+        )
+        ok, _ = c.is_eligible_for(None, Decimal("100"))
+        self.assertFalse(ok)
+
+    def test_min_order_total_enforced(self):
+        c = Coupon.objects.create(
+            code="MIN50", discount_type="percent",
+            discount_value=Decimal("10"), min_order_total=Decimal("50"),
+        )
+        ok, msg = c.is_eligible_for(None, Decimal("30"))
+        self.assertFalse(ok)
+        self.assertIn("mínimo", msg.lower())
+
+    def test_max_uses_global_cap(self):
+        c = Coupon.objects.create(
+            code="LIMITED", discount_type="percent",
+            discount_value=Decimal("10"), max_uses=1, times_used=1,
+        )
+        self.assertFalse(c.is_currently_valid())
+
+    def test_code_normalized_to_uppercase(self):
+        c = Coupon.objects.create(
+            code="  hola amigos  ", discount_type="percent",
+            discount_value=Decimal("5"),
+        )
+        self.assertEqual(c.code, "HOLAAMIGOS")
+
+    def test_apply_and_remove_coupon_via_views(self):
+        c = Coupon.objects.create(code="WELCOME10", discount_type="percent", discount_value=Decimal("10"))
+        client = Client()
+        # Add an item to the cart
+        client.post(reverse("orders:add_to_cart"), data={
+            "plan_id": self.plan.id, "quantity": 1,
+        })
+        # Apply coupon
+        resp = client.post(reverse("orders:cart_apply_coupon"), data={"code": "WELCOME10"})
+        self.assertEqual(resp.status_code, 302)
+        # Cart total should reflect the 10% discount
+        resp = client.get(reverse("orders:cart"))
+        # subtotal 20.00, discount 2.00, total 18.00
+        self.assertContains(resp, "WELCOME10")
+        # Format may use locale-specific comma (S/ 18,00) or period (18.00).
+        body = resp.content.decode("utf-8")
+        self.assertTrue("18,00" in body or "18.00" in body, "Total con descuento no encontrado en la respuesta.")
+        # Remove coupon
+        resp = client.post(reverse("orders:cart_remove_coupon"))
+        self.assertEqual(resp.status_code, 302)
+        resp = client.get(reverse("orders:cart"))
+        self.assertNotContains(resp, "WELCOME10")
+
+    def test_unknown_coupon_rejected(self):
+        client = Client()
+        client.post(reverse("orders:add_to_cart"), data={
+            "plan_id": self.plan.id, "quantity": 1,
+        })
+        resp = client.post(reverse("orders:cart_apply_coupon"), data={"code": "NOPE"})
+        self.assertEqual(resp.status_code, 302)
+        # Following the redirect should show an error message
+        resp = client.get(reverse("orders:cart"))
+        self.assertContains(resp, "no existe")

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load static humanize %}
+
+{% block title %}{% if category %}{{ category.name }} — {% endif %}Blog Jheliz — Tips, guías y novedades{% endblock %}
+{% block meta_description %}{% if category %}Artículos sobre {{ category.name|lower }} en {{ SITE_NAME }}.{% else %}Guías paso a paso sobre cuentas premium, streaming, software original y trucos para sacarle más a tu suscripción.{% endif %}{% endblock %}
+{% block og_title %}{% if category %}{{ category.name }} — {% endif %}Blog Jheliz{% endblock %}
+{% block og_description %}{% if category %}Artículos sobre {{ category.name|lower }}.{% else %}Guías paso a paso sobre cuentas premium, streaming y software original.{% endif %}{% endblock %}
+
+{% block extra_head %}
+<link rel="alternate" type="application/rss+xml" title="Blog Jheliz RSS" href="{% url 'blog:feed' %}">
+{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+  <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">{% if category %}Categoría · {{ category.name }}{% else %}Blog{% endif %}</p>
+  <h1 class="font-display text-3xl md:text-5xl font-bold tracking-tight mt-1">
+    {% if category %}{{ category.emoji }} {{ category.name }}{% else %}Guías, tips y novedades{% endif %}
+  </h1>
+  <p class="text-zinc-400 mt-2 max-w-2xl">
+    {% if category and category.description %}{{ category.description }}{% else %}Cómo aprovechar tus cuentas premium, qué hacer si algo falla, comparativas y cobertura.{% endif %}
+  </p>
+</div>
+
+{% if categories %}
+<nav class="flex flex-wrap gap-2 mb-10">
+  <a href="{% url 'blog:list' %}" class="px-3 py-1.5 rounded-md text-sm transition {% if not category %}bg-jheliz-500/15 text-jheliz-300 ring-1 ring-jheliz-500/30{% else %}text-zinc-400 hover:text-white hover:bg-white/5{% endif %}">Todos</a>
+  {% for cat in categories %}
+    <a href="{{ cat.get_absolute_url }}" class="px-3 py-1.5 rounded-md text-sm transition {% if category and category.id == cat.id %}bg-jheliz-500/15 text-jheliz-300 ring-1 ring-jheliz-500/30{% else %}text-zinc-400 hover:text-white hover:bg-white/5{% endif %}">{{ cat.emoji }} {{ cat.name }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% if featured %}
+<a href="{{ featured.get_absolute_url }}" class="block surface rounded-2xl overflow-hidden hover:ring-1 hover:ring-jheliz-500/30 transition mb-8">
+  <div class="grid md:grid-cols-[1.2fr_1fr]">
+    <div class="aspect-[16/10] md:aspect-auto bg-zinc-900">
+      {% if featured.cover_image %}
+        <img src="{{ featured.cover_image.url }}" alt="{{ featured.cover_alt|default:featured.title }}" class="w-full h-full object-cover" loading="lazy">
+      {% endif %}
+    </div>
+    <div class="p-7 md:p-10 flex flex-col justify-center">
+      <span class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">★ Destacado{% if featured.category %} · {{ featured.category.name }}{% endif %}</span>
+      <h2 class="font-display text-2xl md:text-3xl font-bold tracking-tight mt-2">{{ featured.title }}</h2>
+      <p class="text-zinc-400 mt-3 leading-relaxed">{{ featured.excerpt }}</p>
+      <p class="text-xs text-zinc-500 mt-4">
+        {{ featured.published_at|date:"d M Y" }} · {{ featured.views_count|default:0|intcomma }} lecturas
+      </p>
+    </div>
+  </div>
+</a>
+{% endif %}
+
+{% if page_obj.object_list %}
+<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+  {% for post in page_obj %}
+    <a href="{{ post.get_absolute_url }}" class="surface rounded-2xl overflow-hidden hover:ring-1 hover:ring-jheliz-500/30 transition flex flex-col">
+      {% if post.cover_image %}
+        <div class="aspect-[16/9] bg-zinc-900">
+          <img src="{{ post.cover_image.url }}" alt="{{ post.cover_alt|default:post.title }}" class="w-full h-full object-cover" loading="lazy">
+        </div>
+      {% endif %}
+      <div class="p-5 flex-1 flex flex-col">
+        {% if post.category %}<span class="text-xs text-zinc-500">{{ post.category.emoji }} {{ post.category.name }}</span>{% endif %}
+        <h2 class="font-display text-lg font-bold tracking-tight mt-1.5 leading-snug">{{ post.title }}</h2>
+        <p class="text-sm text-zinc-400 mt-2 leading-relaxed line-clamp-3">{{ post.excerpt }}</p>
+        <div class="text-xs text-zinc-500 mt-auto pt-3">
+          {{ post.published_at|date:"d M Y" }}
+        </div>
+      </div>
+    </a>
+  {% endfor %}
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav class="flex items-center justify-between mt-10">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-soft text-sm">← Anterior</a>
+  {% else %}<span></span>{% endif %}
+  <span class="text-sm text-zinc-500">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}" class="btn btn-soft text-sm">Siguiente →</a>
+  {% else %}<span></span>{% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<div class="surface rounded-2xl p-12 text-center max-w-lg mx-auto">
+  <p class="text-zinc-400">Aún no hay artículos publicados{% if category %} en esta categoría{% endif %}.</p>
+  {% if category %}
+    <a href="{% url 'blog:list' %}" class="btn btn-soft mt-4">Ver todos los artículos</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

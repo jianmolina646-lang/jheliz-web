@@ -185,6 +185,7 @@
           <a href="{% url 'catalog:distributor' %}" class="px-3 py-1.5 rounded-md text-zinc-300 hover:text-white hover:bg-white/5 transition">Distribuidor</a>
         {% endif %}
         <a href="{% url 'catalog:tutorials' %}" class="px-3 py-1.5 rounded-md text-zinc-300 hover:text-white hover:bg-white/5 transition">Tutoriales</a>
+        <a href="{% url 'blog:list' %}" class="px-3 py-1.5 rounded-md text-zinc-300 hover:text-white hover:bg-white/5 transition">Blog</a>
       </nav>
 
       <div class="flex items-center gap-2">
@@ -267,7 +268,8 @@
         <span>
           Hecho en Perú · Pagos con Mercado Pago &amp; Yape ·
           <a href="{% url 'catalog:faq' %}" class="hover:text-white transition">FAQ</a> ·
-          <a href="{% url 'catalog:status' %}" class="hover:text-white transition">Estado</a>
+          <a href="{% url 'catalog:status' %}" class="hover:text-white transition">Estado</a> ·
+          <a href="{% url 'blog:list' %}" class="hover:text-white transition">Blog</a>
         </span>
       </div>
     </div>

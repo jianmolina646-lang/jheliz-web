@@ -15,7 +15,7 @@ from unfold.contrib.import_export.forms import ExportForm, ImportForm, Selectabl
 from unfold.decorators import display
 
 from . import emails
-from .models import DistributorOrder, Order, OrderItem, PaymentSettings
+from .models import Coupon, DistributorOrder, Order, OrderItem, PaymentSettings
 
 
 class OrderResource(resources.ModelResource):
@@ -25,6 +25,9 @@ class OrderResource(resources.ModelResource):
     customer_name = Field(column_name="cliente")
     short_id = Field(attribute="short_uuid", column_name="id_corto")
     items_summary = Field(column_name="items")
+    subtotal = Field(attribute="subtotal", column_name="subtotal")
+    discount = Field(attribute="discount_amount", column_name="descuento")
+    coupon_used = Field(attribute="coupon_code", column_name="cupon")
 
     def dehydrate_customer_name(self, order):
         if order.user:
@@ -37,7 +40,7 @@ class OrderResource(resources.ModelResource):
         fields = (
             "short_id", "customer_name", "customer_email", "phone",
             "status", "channel", "payment_provider", "payment_reference",
-            "subtotal", "discount", "total", "items_summary", "created_at",
+            "subtotal", "discount", "coupon_used", "total", "items_summary", "created_at",
         )
         export_order = fields
 
@@ -466,3 +469,66 @@ class OrderItemAdmin(ModelAdmin):
         "requested_profile_name", "requested_pin",
     )
     autocomplete_fields = ("order", "product", "plan", "stock_item")
+
+
+@admin.register(Coupon)
+class CouponAdmin(ModelAdmin):
+    list_display = (
+        "code", "discount_label_col", "audience", "is_active",
+        "times_used", "max_uses", "valid_until", "min_order_total",
+    )
+    list_filter = ("is_active", "discount_type", "audience")
+    search_fields = ("code", "description")
+    list_editable = ("is_active",)
+    readonly_fields = ("times_used", "created_at", "updated_at")
+    fieldsets = (
+        ("Cupón", {
+            "fields": ("code", "description", "is_active"),
+        }),
+        ("Descuento", {
+            "fields": ("discount_type", "discount_value", "min_order_total"),
+        }),
+        ("Disponibilidad", {
+            "fields": ("audience", "valid_from", "valid_until"),
+        }),
+        ("Límites de uso", {
+            "fields": ("max_uses", "max_uses_per_user", "times_used"),
+        }),
+        ("Auditoría", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",),
+        }),
+    )
+    actions = ("duplicate_coupon", "deactivate_coupons", "activate_coupons")
+
+    @display(description="Descuento")
+    def discount_label_col(self, obj):
+        return obj.discount_label
+
+    @admin.action(description="Duplicar cupón (copia con código '_COPY')")
+    def duplicate_coupon(self, request, queryset):
+        n = 0
+        for coupon in queryset:
+            base_code = f"{coupon.code}_COPY"
+            new_code = base_code
+            i = 2
+            while Coupon.objects.filter(code=new_code).exists():
+                new_code = f"{base_code}{i}"
+                i += 1
+            coupon.pk = None
+            coupon.code = new_code
+            coupon.times_used = 0
+            coupon.is_active = False
+            coupon.save()
+            n += 1
+        self.message_user(request, f"{n} cupón(es) duplicados (inactivos por defecto).")
+
+    @admin.action(description="Desactivar")
+    def deactivate_coupons(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} cupón(es) desactivados.")
+
+    @admin.action(description="Activar")
+    def activate_coupons(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} cupón(es) activados.")
