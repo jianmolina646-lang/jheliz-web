@@ -249,7 +249,12 @@ UNFOLD = {
                 "separator": True,
                 "items": [
                     {
-                        "title": "Usuarios",
+                        "title": "Clientes",
+                        "icon": "person",
+                        "link": "/jheliz-admin/accounts/customer/",
+                    },
+                    {
+                        "title": "Usuarios (staff / distribuidores)",
                         "icon": "group",
                         "link": "/jheliz-admin/accounts/user/",
                     },

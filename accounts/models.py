@@ -30,6 +30,10 @@ class User(AbstractUser):
         "Distribuidor aprobado", default=False,
         help_text="Solo los distribuidores aprobados ven precios mayoristas.",
     )
+    admin_notes = models.TextField(
+        "Notas internas (admin)", blank=True,
+        help_text="Visible sólo para ti. Ej: 'renueva siempre el 5', 'pide recordatorio', 'cliente VIP'.",
+    )
 
     class Meta:
         verbose_name = "Usuario"
@@ -48,6 +52,15 @@ class User(AbstractUser):
 
     def clean_telegram(self) -> str:
         return self.telegram_username.lstrip("@") if self.telegram_username else ""
+
+
+class Customer(User):
+    """Proxy para mostrar a los clientes en una sección propia del admin."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Cliente"
+        verbose_name_plural = "Clientes"
 
 
 class WalletTransaction(models.Model):

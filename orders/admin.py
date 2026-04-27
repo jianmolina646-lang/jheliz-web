@@ -1,4 +1,9 @@
+from django import forms
 from django.contrib import admin, messages
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404, redirect
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
@@ -20,12 +25,41 @@ class OrderItemInline(TabularInline):
     readonly_fields = ("product_name", "plan_name", "unit_price", "quantity")
 
 
+class DeliverCredentialsForm(forms.Form):
+    """Formulario dinámico: un textarea por cada item del pedido."""
+
+    def __init__(self, *args, order: Order | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.order = order
+        if order is None:
+            return
+        for item in order.items.all():
+            self.fields[f"creds_{item.pk}"] = forms.CharField(
+                label=f"{item.product_name} — {item.plan_name}",
+                widget=forms.Textarea(attrs={
+                    "rows": 4,
+                    "style": "font-family:Menlo,Consolas,monospace;font-size:13px;"
+                             "background:#0b0217;color:#f9a8d4;",
+                    "placeholder": "email: ...\nclave: ...\nperfil: ...\nPIN: ...",
+                }),
+                initial=item.delivered_credentials,
+                required=False,
+            )
+            self.fields[f"expires_{item.pk}"] = forms.DateTimeField(
+                label="Vence (opcional)",
+                required=False,
+                widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
+                initial=item.expires_at,
+            )
+
+
 @admin.register(Order)
 class OrderAdmin(ModelAdmin):
     list_display = (
-        "id", "short_uuid", "user", "email", "display_status", "channel",
-        "payment_provider", "total", "currency", "created_at",
+        "short_uuid", "display_customer", "display_status", "channel",
+        "payment_provider", "total", "display_actions", "created_at",
     )
+    list_display_links = ("short_uuid", "display_customer")
     list_filter = ("status", "channel", "payment_provider", "created_at")
     search_fields = (
         "uuid", "email", "phone", "telegram_username", "payment_reference",
@@ -58,6 +92,20 @@ class OrderAdmin(ModelAdmin):
         }),
     )
 
+    # ---- Columnas decoradas -------------------------------------------------
+
+    @display(description="Cliente")
+    def display_customer(self, obj: Order):
+        name = (obj.user.get_full_name() if obj.user else "") or obj.email or obj.phone or "—"
+        return format_html(
+            '<div style="line-height:1.2">'
+            '<div>{}</div>'
+            '<div style="font-size:11px;color:#94a3b8">{}</div>'
+            '</div>',
+            name,
+            obj.email or "",
+        )
+
     @display(
         description="Estado",
         ordering="status",
@@ -75,10 +123,44 @@ class OrderAdmin(ModelAdmin):
     def display_status(self, obj: Order):
         return obj.status, obj.get_status_display()
 
+    @display(description="Acciones rápidas")
+    def display_actions(self, obj: Order):
+        buttons = []
+        btn_style = (
+            "display:inline-block;padding:3px 10px;margin:0 2px;border-radius:6px;"
+            "font-size:11px;text-decoration:none;"
+        )
+        if obj.status == Order.Status.VERIFYING and obj.payment_provider == "yape":
+            buttons.append(format_html(
+                '<a href="{}" style="{}background:#22c55e;color:#fff">✓ Confirmar</a>',
+                reverse("admin:orders_order_confirm_yape", args=[obj.pk]),
+                btn_style,
+            ))
+            buttons.append(format_html(
+                '<a href="{}" style="{}background:#ef4444;color:#fff">✕ Rechazar</a>',
+                reverse("admin:orders_order_reject_yape", args=[obj.pk]),
+                btn_style,
+            ))
+        if obj.status in {Order.Status.PAID, Order.Status.PREPARING, Order.Status.VERIFYING}:
+            buttons.append(format_html(
+                '<a href="{}" style="{}background:#f472b6;color:#fff">📦 Entregar</a>',
+                reverse("admin:orders_order_deliver", args=[obj.pk]),
+                btn_style,
+            ))
+        if obj.status == Order.Status.DELIVERED:
+            buttons.append(format_html(
+                '<a href="{}" style="{}background:#0ea5e9;color:#fff">↻ Reenviar</a>',
+                reverse("admin:orders_order_resend", args=[obj.pk]),
+                btn_style,
+            ))
+        if not buttons:
+            return "—"
+        return format_html("".join(str(b) for b in buttons))
+
     @admin.display(description="Comprobante")
     def payment_proof_preview(self, obj: Order):
         if not obj.payment_proof:
-            return "\u2014"
+            return "—"
         return format_html(
             '<a href="{0}" target="_blank" rel="noopener">'
             '<img src="{0}" style="max-width:320px;max-height:420px;border-radius:8px;'
@@ -86,14 +168,148 @@ class OrderAdmin(ModelAdmin):
             obj.payment_proof.url,
         )
 
-    @admin.action(description="Marcar como En preparaci\u00f3n")
+    # ---- URLs extra ---------------------------------------------------------
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "<int:pk>/confirm-yape/",
+                self.admin_site.admin_view(self.confirm_yape_view),
+                name="orders_order_confirm_yape",
+            ),
+            path(
+                "<int:pk>/reject-yape/",
+                self.admin_site.admin_view(self.reject_yape_view),
+                name="orders_order_reject_yape",
+            ),
+            path(
+                "<int:pk>/deliver/",
+                self.admin_site.admin_view(self.deliver_view),
+                name="orders_order_deliver",
+            ),
+            path(
+                "<int:pk>/resend/",
+                self.admin_site.admin_view(self.resend_view),
+                name="orders_order_resend",
+            ),
+        ]
+        return custom + urls
+
+    # ---- Vistas 1-clic ------------------------------------------------------
+
+    def _back(self, request, order):
+        ref = request.META.get("HTTP_REFERER") or reverse(
+            "admin:orders_order_change", args=[order.pk]
+        )
+        return HttpResponseRedirect(ref)
+
+    def confirm_yape_view(self, request, pk: int):
+        order = get_object_or_404(Order, pk=pk)
+        if order.payment_provider != "yape" or not order.payment_proof:
+            self.message_user(
+                request,
+                "Este pedido no tiene comprobante Yape para confirmar.",
+                level=messages.WARNING,
+            )
+            return self._back(request, order)
+        order.status = Order.Status.PREPARING
+        order.paid_at = order.paid_at or timezone.now()
+        order.payment_rejection_reason = ""
+        order.save(update_fields=["status", "paid_at", "payment_rejection_reason"])
+        emails.send_order_preparing(order)
+        self.message_user(
+            request,
+            f"Pago Yape confirmado para #{order.short_uuid}. Se notificó al cliente.",
+            level=messages.SUCCESS,
+        )
+        return redirect("admin:orders_order_deliver", pk=order.pk)
+
+    def reject_yape_view(self, request, pk: int):
+        order = get_object_or_404(Order, pk=pk)
+        if order.payment_provider != "yape":
+            self.message_user(request, "Este pedido no es Yape.", level=messages.WARNING)
+            return self._back(request, order)
+        if request.method == "POST":
+            reason = (request.POST.get("reason") or "").strip()
+            if not reason:
+                reason = (
+                    "No pudimos verificar el comprobante. Por favor sube una captura "
+                    "más clara donde se vea el monto y el destinatario."
+                )
+            order.status = Order.Status.PENDING
+            order.payment_rejection_reason = reason
+            order.save(update_fields=["status", "payment_rejection_reason"])
+            emails.send_yape_proof_rejected(order)
+            self.message_user(
+                request,
+                f"Comprobante Yape rechazado para #{order.short_uuid}. Se notificó al cliente.",
+                level=messages.WARNING,
+            )
+            return redirect("admin:orders_order_changelist")
+        context = {
+            **self.admin_site.each_context(request),
+            "order": order,
+            "opts": self.model._meta,
+            "title": f"Rechazar comprobante Yape — #{order.short_uuid}",
+        }
+        return TemplateResponse(request, "admin/orders/order/reject_yape.html", context)
+
+    def deliver_view(self, request, pk: int):
+        order = get_object_or_404(Order, pk=pk)
+        if request.method == "POST":
+            form = DeliverCredentialsForm(request.POST, order=order)
+            if form.is_valid():
+                for item in order.items.all():
+                    item.delivered_credentials = form.cleaned_data.get(
+                        f"creds_{item.pk}", ""
+                    ) or item.delivered_credentials
+                    expires = form.cleaned_data.get(f"expires_{item.pk}")
+                    if expires:
+                        item.expires_at = expires
+                    item.save(update_fields=["delivered_credentials", "expires_at"])
+                order.status = Order.Status.DELIVERED
+                order.delivered_at = timezone.now()
+                order.paid_at = order.paid_at or order.delivered_at
+                order.save(update_fields=["status", "delivered_at", "paid_at"])
+                emails.send_order_delivered(order)
+                self.message_user(
+                    request,
+                    f"Pedido #{order.short_uuid} entregado. Email con credenciales enviado.",
+                    level=messages.SUCCESS,
+                )
+                return redirect("admin:orders_order_changelist")
+        else:
+            form = DeliverCredentialsForm(order=order)
+        context = {
+            **self.admin_site.each_context(request),
+            "order": order,
+            "form": form,
+            "opts": self.model._meta,
+            "title": f"Entregar credenciales — #{order.short_uuid}",
+        }
+        return TemplateResponse(request, "admin/orders/order/deliver.html", context)
+
+    def resend_view(self, request, pk: int):
+        order = get_object_or_404(Order, pk=pk)
+        emails.send_order_delivered(order)
+        self.message_user(
+            request,
+            f"Credenciales reenviadas al cliente de #{order.short_uuid}.",
+            level=messages.SUCCESS,
+        )
+        return self._back(request, order)
+
+    # ---- Bulk actions previas -----------------------------------------------
+
+    @admin.action(description="Marcar como En preparación")
     def mark_preparing(self, request, queryset):
         count = 0
         for order in queryset:
             order.status = Order.Status.PREPARING
             order.save(update_fields=["status"])
             count += 1
-        self.message_user(request, f"{count} pedidos marcados como en preparaci\u00f3n.")
+        self.message_user(request, f"{count} pedidos marcados como en preparación.")
 
     @admin.action(description="Marcar como Entregado")
     def mark_delivered(self, request, queryset):
@@ -105,7 +321,7 @@ class OrderAdmin(ModelAdmin):
             count += 1
         self.message_user(request, f"{count} pedidos marcados como entregados.")
 
-    @admin.action(description="\u2705 Confirmar pago Yape \u2192 En preparaci\u00f3n")
+    @admin.action(description="✅ Confirmar pago Yape → En preparación")
     def confirm_yape_payment(self, request, queryset):
         now = timezone.now()
         updated = 0
@@ -126,7 +342,7 @@ class OrderAdmin(ModelAdmin):
         if updated:
             self.message_user(
                 request,
-                f"{updated} pago(s) Yape confirmado(s). Se envi\u00f3 email al cliente.",
+                f"{updated} pago(s) Yape confirmado(s). Se envió email al cliente.",
                 level=messages.SUCCESS,
             )
         if skipped:
@@ -136,7 +352,7 @@ class OrderAdmin(ModelAdmin):
                 level=messages.WARNING,
             )
 
-    @admin.action(description="\u274c Rechazar comprobante Yape")
+    @admin.action(description="❌ Rechazar comprobante Yape")
     def reject_yape_payment(self, request, queryset):
         updated = 0
         for order in queryset:
@@ -144,7 +360,7 @@ class OrderAdmin(ModelAdmin):
                 continue
             if not order.payment_rejection_reason:
                 order.payment_rejection_reason = (
-                    "No pudimos verificar el comprobante. Por favor sube una captura m\u00e1s clara "
+                    "No pudimos verificar el comprobante. Por favor sube una captura más clara "
                     "donde se vea el monto y el destinatario."
                 )
             order.status = Order.Status.PENDING
@@ -177,7 +393,6 @@ class PaymentSettingsAdmin(ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         obj = PaymentSettings.load()
-        from django.shortcuts import redirect
         return redirect(f"../../orders/paymentsettings/{obj.pk}/change/")
 
 

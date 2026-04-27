@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-6">
+  <div>
+    <h1 class="text-2xl font-bold text-base-900 dark:text-white">Entregar credenciales</h1>
+    <p class="mt-1 text-sm text-base-500 dark:text-base-400">
+      Pedido <strong>#{{ order.short_uuid }}</strong> · Cliente:
+      {{ order.user.get_full_name|default:order.email }} · Total: {{ order.currency }} {{ order.total }}
+    </p>
+  </div>
+
+  {% if order.payment_provider == "yape" and order.payment_proof %}
+  <div class="p-4 border border-amber-500/30 bg-amber-500/5 rounded-lg">
+    <div class="text-sm font-semibold text-amber-200 mb-2">Comprobante de pago Yape</div>
+    <a href="{{ order.payment_proof.url }}" target="_blank">
+      <img src="{{ order.payment_proof.url }}" alt="Comprobante"
+           style="max-width:300px;max-height:400px;border-radius:8px" />
+    </a>
+  </div>
+  {% endif %}
+
+  <form method="post" class="flex flex-col gap-5 p-6 border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900">
+    {% csrf_token %}
+    {% for field in form %}
+    <div>
+      <label class="block text-sm font-medium text-base-900 dark:text-white mb-1">
+        {{ field.label }}
+      </label>
+      {{ field }}
+      {% if field.help_text %}
+      <p class="mt-1 text-xs text-base-500">{{ field.help_text }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="flex gap-3 pt-3 border-t border-base-200 dark:border-base-800">
+      <button type="submit"
+        class="px-5 py-2 rounded bg-primary-500 hover:bg-primary-600 text-white font-semibold">
+        Guardar y enviar email al cliente
+      </button>
+      <a href="{% url 'admin:orders_order_change' order.pk %}"
+        class="px-5 py-2 rounded border border-base-200 dark:border-base-700 hover:bg-base-50 dark:hover:bg-base-800">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}
