@@ -1,0 +1,125 @@
+# ============================================================================
+# Ejemplo de configuración nginx recomendada para jhelizservicestv.xyz
+#
+# Cambios respecto al setup actual del servidor:
+#
+#   1. http2 activado (servidor responde 1.5x más rápido en conexiones nuevas).
+#   2. server_tokens off → ya no expone "nginx/1.24.0" en la cabecera Server.
+#   3. gzip + brotli para CSS/JS/HTML/JSON (reduce ~70% el tamaño).
+#   4. /static/ con cache de 1 año + immutable (los hashes los maneja
+#      WhiteNoise / collectstatic --hashed).
+#   5. /media/ con cache corto y proxy a Django (porque ahora hay rutas
+#      protegidas con auth — no se puede servir directamente como files).
+#
+# Pegar este bloque en /etc/nginx/sites-available/jhelizservicestv y reemplazar
+# el actual. Después: nginx -t && systemctl reload nginx.
+# ============================================================================
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name jhelizservicestv.xyz www.jhelizservicestv.xyz;
+
+    # Para los retos de Let's Encrypt:
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Todo el resto a HTTPS:
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name jhelizservicestv.xyz www.jhelizservicestv.xyz;
+
+    # ---- TLS (Let's Encrypt) ----
+    ssl_certificate     /etc/letsencrypt/live/jhelizservicestv.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/jhelizservicestv.xyz/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+    ssl_stapling        on;
+    ssl_stapling_verify on;
+
+    # ---- Higiene ----
+    server_tokens off;
+    client_max_body_size 10m;  # tamaño máximo de upload (comprobantes Yape, imágenes)
+
+    # ---- Compresión ----
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        application/json
+        application/javascript
+        application/xml+rss
+        application/atom+xml
+        image/svg+xml;
+
+    # Si el módulo de Brotli está instalado (libnginx-mod-brotli), descomenta:
+    # brotli on;
+    # brotli_comp_level 5;
+    # brotli_types text/plain text/css application/json application/javascript application/xml image/svg+xml;
+
+    # ---- Static (sirve directo desde el volumen, NO pasa por Django) ----
+    # WhiteNoise sirve hashes inmutables en producción → cache 1 año.
+    location /static/ {
+        alias /home/<usuario>/jheliz/staticfiles/;
+        access_log off;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    # ---- Media: NO se sirve directo desde nginx ----
+    # /media/payments/proofs/ requiere auth (PR A), por eso TODO /media/
+    # se proxyea a Django. nginx puede cachearlo si quieres con
+    # proxy_cache_path, pero es opcional.
+    location /media/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ---- App ----
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+
+    # No queremos que Bing/Google indexen el panel:
+    location = /robots.txt {
+        add_header Content-Type text/plain;
+        return 200 "User-agent: *\nDisallow: /jheliz-admin/\n";
+    }
+
+    # Favicon — opcional pero limpio:
+    location = /favicon.ico {
+        alias /home/<usuario>/jheliz/staticfiles/favicon.ico;
+        access_log off;
+        log_not_found off;
+        expires 30d;
+    }
+}
