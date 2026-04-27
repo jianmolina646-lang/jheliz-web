@@ -4,6 +4,8 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 
+from .encryption import EncryptedTextField
+
 
 class PaymentSettings(models.Model):
     """Singleton con la config de pagos manuales (Yape) editable desde el admin."""
@@ -135,7 +137,7 @@ class OrderItem(models.Model):
         "Notas del cliente", blank=True,
         help_text="Preferencias adicionales (idioma, recordatorio de vencimiento, etc).",
     )
-    delivered_credentials = models.TextField(blank=True)
+    delivered_credentials = EncryptedTextField(blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

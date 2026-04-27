@@ -4,6 +4,8 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 from django.views.static import serve as static_serve
 
+from orders import media_views as orders_media_views
+
 urlpatterns = [
     path("jheliz-admin/", admin.site.urls),
     path("cuenta/", include("accounts.urls", namespace="accounts")),
@@ -12,12 +14,30 @@ urlpatterns = [
     path("", include("catalog.urls", namespace="catalog")),
 ]
 
-# Media se sirve desde Django incluso en producción (volumen docker compartido).
-# Para tráfico alto, nginx puede cachear /media/ por delante.
-_media_prefix = settings.MEDIA_URL.lstrip("/")
+# ---------------------------------------------------------------------------
+# Media protegida
+#
+# /media/payments/proofs/  -> staff-only (comprobantes Yape de los clientes)
+# /media/payments/yape/    -> usuarios autenticados (QR del comerciante)
+# /media/...               -> público (imágenes de productos, etc.)
+#
+# Importante: las rutas protegidas se declaran ANTES del catch-all público para
+# que Django las matchee primero.
+# ---------------------------------------------------------------------------
+_media_prefix = settings.MEDIA_URL.lstrip("/").rstrip("/")
 urlpatterns += [
+    path(
+        f"{_media_prefix}/payments/proofs/<path:path>",
+        orders_media_views.serve_payment_proof,
+        name="payment_proof_media",
+    ),
+    path(
+        f"{_media_prefix}/payments/yape/<path:path>",
+        orders_media_views.serve_yape_qr,
+        name="payment_yape_media",
+    ),
     re_path(
-        rf"^{_media_prefix}(?P<path>.*)$",
+        rf"^{_media_prefix}/(?P<path>.*)$",
         static_serve,
         {"document_root": settings.MEDIA_ROOT},
     ),
