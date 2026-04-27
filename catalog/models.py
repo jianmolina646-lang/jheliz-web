@@ -164,6 +164,24 @@ class Plan(models.Model):
         return self.stock_items.filter(status=StockItem.Status.AVAILABLE).count()
 
 
+class CustomerPlan(Plan):
+    """Vista del Plan enfocada en cliente final (precio y visibilidad cliente)."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Plan — Cliente final"
+        verbose_name_plural = "Planes — Cliente final"
+
+
+class DistributorPlan(Plan):
+    """Vista mayorista del Plan (precio y visibilidad distribuidor)."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Plan — Distribuidor"
+        verbose_name_plural = "Planes — Distribuidor"
+
+
 class StockItem(models.Model):
     """Una credencial concreta lista para entregar."""
 

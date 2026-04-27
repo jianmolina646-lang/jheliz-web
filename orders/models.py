@@ -120,6 +120,15 @@ class Order(models.Model):
         return total
 
 
+class DistributorOrder(Order):
+    """Pedido cuyo cliente es distribuidor aprobado."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Pedido mayorista"
+        verbose_name_plural = "Pedidos mayoristas"
+
+
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(

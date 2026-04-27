@@ -15,7 +15,7 @@ from unfold.contrib.import_export.forms import ExportForm, ImportForm, Selectabl
 from unfold.decorators import display
 
 from . import emails
-from .models import Order, OrderItem, PaymentSettings
+from .models import DistributorOrder, Order, OrderItem, PaymentSettings
 
 
 class OrderResource(resources.ModelResource):
@@ -420,6 +420,15 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             f"{updated} comprobante(s) rechazado(s). El cliente puede volver a subir.",
             level=messages.WARNING,
         )
+
+
+@admin.register(DistributorOrder)
+class DistributorOrderAdmin(OrderAdmin):
+    """Mismo OrderAdmin pero filtrado a pedidos de distribuidores aprobados."""
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.filter(user__role="distribuidor", user__distributor_approved=True)
 
 
 @admin.register(PaymentSettings)
