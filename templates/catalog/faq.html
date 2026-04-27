@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Preguntas frecuentes — {{ SITE_NAME }}{% endblock %}
-{% block meta_description %}Respuestas r\u00e1pidas sobre c\u00f3mo comprar, garant\u00eda, perfiles y pagos en {{ SITE_NAME }}.{% endblock %}
+{% block meta_description %}Respuestas rápidas sobre cómo comprar, garantía, perfiles y pagos en {{ SITE_NAME }}.{% endblock %}
 
 {% block extra_head %}
 <script type="application/ld+json">{{ faq_schema|safe }}</script>
@@ -11,7 +11,7 @@
 <section class="max-w-3xl">
   <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Ayuda</p>
   <h1 class="font-display text-3xl md:text-5xl font-bold tracking-tight mt-1">Preguntas frecuentes</h1>
-  <p class="text-zinc-400 mt-3 text-lg leading-relaxed">Si no encuentras lo que buscas, escr\u00edbenos por WhatsApp y te ayudamos en minutos.</p>
+  <p class="text-zinc-400 mt-3 text-lg leading-relaxed">Si no encuentras lo que buscas, escríbenos por WhatsApp y te ayudamos en minutos.</p>
 
   <div class="mt-10 space-y-3">
     {% for item in faq_items %}
@@ -27,11 +27,11 @@
 
   <div class="mt-12 surface rounded-2xl p-6 md:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
     <div>
-      <h2 class="font-display text-lg font-bold">\u00bfNo resolviste tu duda?</h2>
-      <p class="text-sm text-zinc-400 mt-1">Estamos en l\u00ednea por WhatsApp y Telegram.</p>
+      <h2 class="font-display text-lg font-bold">¿No resolviste tu duda?</h2>
+      <p class="text-sm text-zinc-400 mt-1">Estamos en línea por WhatsApp y Telegram.</p>
     </div>
     <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="btn btn-primary">
-      Escr\u00edbenos por WhatsApp
+      Escríbenos por WhatsApp
       <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
     </a>
   </div>

@@ -2,7 +2,7 @@
 {% load humanize %}
 
 {% block title %}{{ product.name }} — {{ SITE_NAME }}{% endblock %}
-{% block meta_description %}{% if product.short_description %}{{ product.short_description }}{% else %}{{ product.name }} con entrega inmediata en Per\u00fa. Precio desde {{ CURRENCY_SYMBOL }} {{ product.plans.first.price_customer|default:"" }}.{% endif %}{% endblock %}
+{% block meta_description %}{% if product.short_description %}{{ product.short_description }}{% else %}{{ product.name }} con entrega inmediata en Perú. Precio desde {{ CURRENCY_SYMBOL }} {{ product.plans.first.price_customer|default:"" }}.{% endif %}{% endblock %}
 {% block og_type %}product{% endblock %}
 {% block og_title %}{{ product.name }} — {{ SITE_NAME }}{% endblock %}
 {% block og_description %}{% if product.short_description %}{{ product.short_description }}{% endif %}{% endblock %}
