@@ -53,13 +53,22 @@ class OrderAdmin(admin.ModelAdmin):
 
     @admin.action(description="Marcar como En preparaci\u00f3n")
     def mark_preparing(self, request, queryset):
-        updated = queryset.update(status=Order.Status.PREPARING)
-        self.message_user(request, f"{updated} pedidos marcados como en preparaci\u00f3n.")
+        count = 0
+        for order in queryset:
+            order.status = Order.Status.PREPARING
+            order.save(update_fields=["status"])
+            count += 1
+        self.message_user(request, f"{count} pedidos marcados como en preparaci\u00f3n.")
 
     @admin.action(description="Marcar como Entregado")
     def mark_delivered(self, request, queryset):
-        updated = queryset.update(status=Order.Status.DELIVERED, delivered_at=timezone.now())
-        self.message_user(request, f"{updated} pedidos marcados como entregados.")
+        count = 0
+        for order in queryset:
+            order.status = Order.Status.DELIVERED
+            order.delivered_at = timezone.now()
+            order.save(update_fields=["status", "delivered_at"])
+            count += 1
+        self.message_user(request, f"{count} pedidos marcados como entregados.")
 
 
 @admin.register(OrderItem)

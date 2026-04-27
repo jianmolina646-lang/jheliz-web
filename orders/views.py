@@ -1,13 +1,270 @@
-from django.contrib.auth.decorators import login_required
-from django.http import Http404
-from django.shortcuts import get_object_or_404, render
+from __future__ import annotations
 
-from .models import Order
+import json
+import logging
+from decimal import Decimal
+
+from django.conf import settings
+from django.contrib import messages
+from django.db import transaction
+from django.http import Http404, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+from catalog.models import Plan
+
+from . import emails, mercadopago_client
+from .cart import Cart
+from .forms import AddToCartForm, CheckoutForm
+from .models import Order, OrderItem
+
+logger = logging.getLogger(__name__)
 
 
-@login_required
+def _plan_from_request(request) -> Plan:
+    plan_id = request.POST.get("plan_id") or request.GET.get("plan")
+    if not plan_id:
+        raise Http404
+    return get_object_or_404(Plan.objects.select_related("product"), pk=plan_id, is_active=True)
+
+
+@require_POST
+def add_to_cart(request):
+    plan = _plan_from_request(request)
+    form = AddToCartForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Revisa los datos del carrito.")
+        return redirect(plan.product.get_absolute_url())
+
+    if plan.product.requires_customer_profile_data:
+        missing = []
+        if not form.cleaned_data["profile_name"]:
+            missing.append("nombre de perfil")
+        if not form.cleaned_data["pin"]:
+            missing.append("PIN")
+        if missing:
+            messages.error(
+                request,
+                "Falta completar: " + ", ".join(missing) + ". Son necesarios para crear tu perfil.",
+            )
+            return redirect(plan.product.get_absolute_url())
+
+    cart = Cart(request)
+    cart.add(
+        plan=plan,
+        quantity=form.cleaned_data["quantity"],
+        profile_name=form.cleaned_data["profile_name"],
+        pin=form.cleaned_data["pin"],
+        notes=form.cleaned_data["notes"],
+    )
+    messages.success(request, f"Agregado: {plan.product.name} \u2014 {plan.name}.")
+    return redirect("orders:cart")
+
+
+def _decorated_lines(cart: Cart, user) -> list:
+    out = []
+    for line in cart.lines():
+        line.unit_price_for_user = line.price_for(user)
+        line.subtotal_for_user = line.subtotal_for(user)
+        out.append(line)
+    return out
+
+
+def cart_view(request):
+    cart = Cart(request)
+    lines = _decorated_lines(cart, request.user)
+    total = cart.total_for(request.user)
+    return render(request, "orders/cart.html", {
+        "cart": cart,
+        "lines": lines,
+        "total": total,
+    })
+
+
+@require_POST
+def cart_remove(request, index: int):
+    Cart(request).remove(int(index))
+    messages.info(request, "Item eliminado del carrito.")
+    return redirect("orders:cart")
+
+
+@require_POST
+def cart_clear(request):
+    Cart(request).clear()
+    return redirect("orders:cart")
+
+
+def checkout(request):
+    cart = Cart(request)
+    if cart.is_empty():
+        messages.info(request, "Tu carrito est\u00e1 vac\u00edo.")
+        return redirect("catalog:products")
+
+    initial = {}
+    if request.user.is_authenticated:
+        initial = {
+            "full_name": request.user.get_full_name() or request.user.username,
+            "email": request.user.email,
+            "phone": getattr(request.user, "phone", ""),
+        }
+
+    if request.method == "POST":
+        form = CheckoutForm(request.POST)
+        if form.is_valid():
+            order = _create_order_from_cart(request, cart, form.cleaned_data)
+            cart.clear()
+            emails.send_order_received(order)
+            if mercadopago_client.is_configured():
+                try:
+                    preference = mercadopago_client.create_preference(request, order)
+                except mercadopago_client.MercadoPagoError as exc:
+                    logger.exception("Mercado Pago preference failed")
+                    messages.error(
+                        request,
+                        f"No pudimos iniciar el pago: {exc}. Te contactaremos por correo.",
+                    )
+                    return redirect("orders:detail", uuid=order.uuid)
+
+                order.payment_provider = "mercadopago"
+                order.payment_reference = preference.get("id", "")
+                order.save(update_fields=["payment_provider", "payment_reference"])
+
+                init_point = preference.get("init_point")
+                sandbox_init = preference.get("sandbox_init_point")
+                target = init_point if not settings.DEBUG else (sandbox_init or init_point)
+                if target:
+                    return redirect(target)
+
+            messages.warning(
+                request,
+                "Mercado Pago a\u00fan no est\u00e1 configurado. Tu pedido qued\u00f3 registrado y te contactaremos.",
+            )
+            return redirect("orders:detail", uuid=order.uuid)
+    else:
+        form = CheckoutForm(initial=initial)
+
+    return render(request, "orders/checkout.html", {
+        "form": form,
+        "cart": cart,
+        "lines": _decorated_lines(cart, request.user),
+        "total": cart.total_for(request.user),
+    })
+
+
+def _create_order_from_cart(request, cart: Cart, contact: dict) -> Order:
+    user = request.user if request.user.is_authenticated else None
+    with transaction.atomic():
+        order = Order.objects.create(
+            user=user,
+            email=contact["email"],
+            phone=contact.get("phone", ""),
+            channel=Order.Channel.WEB,
+            status=Order.Status.PENDING,
+            total=Decimal("0.00"),
+            currency=settings.DEFAULT_CURRENCY,
+            notes=(
+                f"Nombre comprador: {contact.get('full_name', '')}"
+            ),
+        )
+        for line in cart.lines():
+            unit_price = line.price_for(request.user)
+            OrderItem.objects.create(
+                order=order,
+                product=line.plan.product,
+                plan=line.plan,
+                product_name=line.plan.product.name,
+                plan_name=line.plan.name,
+                unit_price=unit_price,
+                quantity=line.quantity,
+                requested_profile_name=line.profile_name,
+                requested_pin=line.pin,
+                customer_notes=line.notes,
+            )
+        order.recompute_total()
+    return order
+
+
 def order_detail(request, uuid):
     order = get_object_or_404(Order, uuid=uuid)
-    if order.user_id and order.user_id != request.user.id and not request.user.is_staff:
-        raise Http404
+    # Si el pedido tiene due\u00f1o autenticado, requerir login y match.
+    if order.user_id:
+        if not request.user.is_authenticated:
+            return redirect("accounts:login")
+        if order.user_id != request.user.id and not request.user.is_staff:
+            raise Http404
     return render(request, "orders/detail.html", {"order": order})
+
+
+def checkout_return(request, uuid):
+    """Pantalla a la que vuelve el cliente desde Mercado Pago."""
+    order = get_object_or_404(Order, uuid=uuid)
+    mp_status = request.GET.get("status") or request.GET.get("collection_status") or ""
+    return render(request, "orders/checkout_return.html", {
+        "order": order,
+        "mp_status": mp_status,
+    })
+
+
+@csrf_exempt
+@require_POST
+def mercadopago_webhook(request):
+    """Recibe notificaciones de Mercado Pago y actualiza el pedido."""
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        payload = {}
+
+    payment_id = (
+        payload.get("data", {}).get("id")
+        or request.GET.get("data.id")
+        or request.GET.get("id")
+    )
+    if not payment_id:
+        return HttpResponse(status=200)
+
+    try:
+        payment = mercadopago_client.fetch_payment(str(payment_id))
+    except mercadopago_client.MercadoPagoError:
+        logger.exception("No se pudo recuperar el pago %s", payment_id)
+        return HttpResponse(status=200)
+
+    external_reference = payment.get("external_reference") or ""
+    status = payment.get("status")  # approved / pending / rejected / in_process
+    try:
+        order = Order.objects.get(uuid=external_reference)
+    except (Order.DoesNotExist, ValueError):
+        logger.warning("Webhook sin order matching: %s", external_reference)
+        return HttpResponse(status=200)
+
+    _apply_payment_status(order, status, payment_id)
+    return JsonResponse({"ok": True})
+
+
+def _apply_payment_status(order: Order, status: str, payment_id: str) -> None:
+    now = timezone.now()
+    update_fields = ["payment_reference"]
+    order.payment_reference = str(payment_id)
+
+    if status == "approved" and order.status != Order.Status.DELIVERED:
+        order.status = Order.Status.PREPARING
+        order.paid_at = now
+        update_fields += ["status", "paid_at"]
+        order.save(update_fields=update_fields)
+        emails.send_order_preparing(order)
+        return
+
+    if status in {"pending", "in_process", "authorized"}:
+        if order.status == Order.Status.PENDING:
+            # sigue esperando confirmaci\u00f3n
+            order.save(update_fields=update_fields)
+        return
+
+    if status in {"rejected", "cancelled", "refunded", "charged_back"}:
+        order.status = Order.Status.FAILED if status == "rejected" else Order.Status.CANCELED
+        update_fields.append("status")
+        order.save(update_fields=update_fields)
+        return
+
+    order.save(update_fields=update_fields)

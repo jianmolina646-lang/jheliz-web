@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load humanize widget_tweaks %}
+
+{% block title %}Finalizar compra — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-extrabold">Finalizar compra</h1>
+<p class="text-white/60 mt-1">Revisa tu pedido y completa tus datos. Pagas con Mercado Pago en el siguiente paso.</p>
+
+<div class="grid lg:grid-cols-[1.3fr_1fr] gap-6 mt-8">
+  <div class="card-glass rounded-2xl p-6">
+    <h2 class="text-lg font-bold">Tus datos</h2>
+    <form method="post" class="mt-4 space-y-4">
+      {% csrf_token %}
+      {% for field in form %}
+        <div>
+          <label class="block text-sm text-white/70 mb-1">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+          {% if field.field.widget.input_type == 'checkbox' %}
+            <label class="flex items-start gap-2 text-sm text-white/80">
+              {{ field }} <span>{{ field.label }}</span>
+            </label>
+          {% else %}
+            {{ field|add_class:"w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-fuchsia-400" }}
+          {% endif %}
+          {% if field.help_text %}<p class="text-xs text-white/50 mt-1">{{ field.help_text }}</p>{% endif %}
+          {% if field.errors %}<p class="text-xs text-red-300 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
+        </div>
+      {% endfor %}
+      <button type="submit" class="w-full btn-primary text-white font-semibold py-3 rounded-xl">
+        Pagar {{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }} →
+      </button>
+      {% if not MERCADOPAGO_ENABLED %}
+        <p class="text-xs text-amber-300 mt-2 text-center">Mercado Pago aún no está configurado. Tu pedido se registrará y te contactaremos.</p>
+      {% endif %}
+    </form>
+  </div>
+
+  <aside class="card-glass rounded-2xl p-6 h-max">
+    <h2 class="text-lg font-bold">Resumen</h2>
+    <div class="mt-4 divide-y divide-white/10">
+      {% for line in lines %}
+      <div class="py-3 text-sm">
+        <div class="flex justify-between">
+          <span class="font-semibold">{{ line.plan.product.name }}</span>
+          <span>{{ CURRENCY_SYMBOL }} {{ line.subtotal_for_user|floatformat:2|intcomma }}</span>
+        </div>
+        <div class="text-white/60 text-xs">{{ line.plan.name }} × {{ line.quantity }}</div>
+        {% if line.profile_name or line.pin %}
+        <div class="text-white/60 text-xs mt-1">
+          {% if line.profile_name %}Perfil: <span class="text-white/80">{{ line.profile_name }}</span>{% endif %}
+          {% if line.pin %} · PIN: <span class="text-white/80">{{ line.pin }}</span>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="flex justify-between mt-4 pt-4 border-t border-white/10 text-lg font-bold">
+      <span>Total</span>
+      <span>{{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }}</span>
+    </div>
+  </aside>
+</div>
+{% endblock %}
