@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     # Third-party
     "widget_tweaks",
     "django_htmx",
+    "auditlog",  # registro de cambios (quién hizo qué, cuándo)
     # Local
     "accounts.apps.AccountsConfig",
     "catalog.apps.CatalogConfig",
@@ -57,6 +58,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
+    # auditlog: capture el usuario que hace cada cambio en los modelos rastreados.
+    "auditlog.middleware.AuditlogMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"

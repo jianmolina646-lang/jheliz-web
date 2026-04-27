@@ -137,10 +137,16 @@ class OrderItem(models.Model):
     )
     delivered_credentials = models.TextField(blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
+    # Recordatorios de vencimiento ya enviados (evita duplicados):
+    expiry_reminder_3d_sent_at = models.DateTimeField(null=True, blank=True)
+    expiry_reminder_1d_sent_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Item de pedido"
         verbose_name_plural = "Items de pedido"
+        indexes = [
+            models.Index(fields=["expires_at"], name="orderitem_expires_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.product_name} \u2014 {self.plan_name}"
