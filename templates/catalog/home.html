@@ -56,7 +56,7 @@
       Más de 5 000 entregas
     </div>
     <div class="flex items-center gap-2">
-      <svg class="icon" viewBox="0 0 24 24" style="color:#fbbf24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      <svg class="icon icon-filled" viewBox="0 0 24 24" style="color:#fbbf24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       4.9 / 5 promedio
     </div>
     <div class="flex items-center gap-2">
@@ -154,9 +154,9 @@
   <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
     {% for t in testimonios %}
       <figure class="surface rounded-xl p-5 flex flex-col">
-        <div class="flex items-center gap-1 text-amber-400">
-          {% for _ in "12345"|slice:t.rating %}
-            <svg class="icon" viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <div class="flex items-center gap-0.5 text-amber-400">
+          {% for _ in "xxxxx" %}
+            <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:14px;height:14px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           {% endfor %}
         </div>
         <blockquote class="text-sm text-zinc-300 leading-relaxed mt-3 flex-1">"{{ t.text }}"</blockquote>
