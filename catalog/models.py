@@ -139,6 +139,12 @@ class Plan(models.Model):
     available_for_distributor = models.BooleanField("Visible distribuidor", default=True)
     is_active = models.BooleanField(default=True)
     order = models.PositiveIntegerField(default=0)
+    low_stock_threshold = models.PositiveIntegerField(
+        "Umbral de stock bajo", default=3,
+        help_text="Cuando el stock disponible cae por debajo de este número, "
+                  "se envía una alerta por Telegram al admin.",
+    )
+    low_stock_alert_sent_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         ordering = ("order", "duration_days")

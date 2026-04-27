@@ -17,3 +17,4 @@ cryptography>=42.0          # Fernet para EncryptedTextField
 django-axes>=7.0            # bloqueo por intentos fallidos en el login del admin
 django-otp>=1.5             # base de 2FA (TOTP) para el admin
 qrcode>=7.4                 # render del QR de TOTP en la página de setup
+django-auditlog>=3.0        # historial de cambios en pedidos / stock / planes

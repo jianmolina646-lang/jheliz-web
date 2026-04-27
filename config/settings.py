@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "django_otp",  # base para 2FA
     "django_otp.plugins.otp_totp",  # TOTP (Google Authenticator / Authy / 1Password)
     "django_otp.plugins.otp_static",  # códigos de respaldo
+    "auditlog",  # registro de cambios (quién hizo qué, cuándo)
     # Local
     "accounts.apps.AccountsConfig",
     "catalog.apps.CatalogConfig",
@@ -63,6 +64,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
+    # auditlog: capture el usuario que hace cada cambio en los modelos rastreados.
+    "auditlog.middleware.AuditlogMiddleware",
     # AxesMiddleware debe ir al final, después del de auth.
     "axes.middleware.AxesMiddleware",
 ]
