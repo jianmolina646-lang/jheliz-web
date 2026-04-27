@@ -17,8 +17,8 @@ from catalog.models import Plan
 
 from . import emails, mercadopago_client, telegram
 from .cart import Cart
-from .forms import AddToCartForm, CheckoutForm
-from .models import Order, OrderItem
+from .forms import AddToCartForm, CheckoutForm, YapeProofForm
+from .models import Order, OrderItem, PaymentSettings
 
 logger = logging.getLogger(__name__)
 
@@ -110,13 +110,28 @@ def checkout(request):
             "phone": getattr(request.user, "phone", ""),
         }
 
+    payment_settings = PaymentSettings.load()
+    yape_available = bool(payment_settings.yape_enabled and payment_settings.yape_qr)
+
     if request.method == "POST":
         form = CheckoutForm(request.POST)
         if form.is_valid():
+            method = form.cleaned_data["payment_method"]
+            if method == "yape" and not yape_available:
+                messages.error(request, "Yape no est\u00e1 disponible en este momento.")
+                return redirect("orders:checkout")
+
             order = _create_order_from_cart(request, cart, form.cleaned_data)
             cart.clear()
             emails.send_order_received(order)
             telegram.notify_admin(telegram.format_new_order(order))
+
+            if method == "yape":
+                order.payment_provider = "yape"
+                order.save(update_fields=["payment_provider"])
+                return redirect("orders:yape_payment", uuid=order.uuid)
+
+            # Default: Mercado Pago
             if mercadopago_client.is_configured():
                 try:
                     preference = mercadopago_client.create_preference(request, order)
@@ -145,12 +160,58 @@ def checkout(request):
             return redirect("orders:detail", uuid=order.uuid)
     else:
         form = CheckoutForm(initial=initial)
+        if not yape_available:
+            # Deja solo Mercado Pago como opci\u00f3n.
+            form.fields["payment_method"].choices = [CheckoutForm.PAYMENT_METHODS[0]]
 
     return render(request, "orders/checkout.html", {
         "form": form,
         "cart": cart,
         "lines": _decorated_lines(cart, request.user),
         "total": cart.total_for(request.user),
+        "yape_available": yape_available,
+        "payment_settings": payment_settings,
+    })
+
+
+def yape_payment(request, uuid):
+    """Pantalla para subir comprobante Yape."""
+    order = get_object_or_404(Order, uuid=uuid)
+    payment_settings = PaymentSettings.load()
+
+    if order.user_id and request.user.is_authenticated and order.user_id != request.user.id:
+        if not request.user.is_staff:
+            raise Http404
+
+    if order.status not in {Order.Status.PENDING, Order.Status.VERIFYING}:
+        return redirect("orders:detail", uuid=order.uuid)
+
+    if request.method == "POST":
+        form = YapeProofForm(request.POST, request.FILES)
+        if form.is_valid():
+            order.payment_proof = form.cleaned_data["proof"]
+            order.payment_proof_uploaded_at = timezone.now()
+            order.status = Order.Status.VERIFYING
+            order.payment_provider = "yape"
+            order.payment_rejection_reason = ""
+            order.save(update_fields=[
+                "payment_proof", "payment_proof_uploaded_at",
+                "status", "payment_provider", "payment_rejection_reason",
+            ])
+            emails.send_yape_proof_received(order)
+            telegram.notify_admin(telegram.format_yape_proof(order))
+            messages.success(
+                request,
+                "Recibimos tu comprobante. En menos de 30 minutos lo verificamos y te avisamos por correo.",
+            )
+            return redirect("orders:detail", uuid=order.uuid)
+    else:
+        form = YapeProofForm()
+
+    return render(request, "orders/yape_payment.html", {
+        "order": order,
+        "form": form,
+        "settings": payment_settings,
     })
 
 

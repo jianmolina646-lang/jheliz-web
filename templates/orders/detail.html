@@ -5,6 +5,29 @@
 <h1 class="text-3xl font-extrabold">Pedido #{{ order.short_uuid }}</h1>
 <p class="text-white/60 text-sm">Creado {{ order.created_at|date:"d/m/Y H:i" }} · Estado: <span class="text-jheliz-300">{{ order.get_status_display }}</span></p>
 
+{% if order.status == 'pending' and order.payment_provider == 'yape' %}
+  <div class="mt-5 rounded-2xl border border-fuchsia-400/30 bg-fuchsia-500/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <div class="font-bold">Te falta subir el comprobante Yape</div>
+      <div class="text-sm text-white/70">Termina tu compra pagando por QR y enviando la captura.</div>
+    </div>
+    <a href="{% url 'orders:yape_payment' uuid=order.uuid %}" class="btn-primary text-white font-semibold px-5 py-2 rounded-xl text-sm text-center">Pagar con Yape →</a>
+  </div>
+{% elif order.status == 'verifying' %}
+  <div class="mt-5 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
+    <div class="font-bold">⏳ Verificando tu pago</div>
+    <div class="text-sm text-white/70 mt-1">Recibimos tu comprobante. En menos de 30 minutos te confirmamos y empezamos a preparar tu pedido.</div>
+  </div>
+{% elif order.status == 'pending' and order.payment_rejection_reason %}
+  <div class="mt-5 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <div class="font-bold text-red-100">Comprobante rechazado</div>
+      <div class="text-sm text-white/70 mt-1">{{ order.payment_rejection_reason }}</div>
+    </div>
+    <a href="{% url 'orders:yape_payment' uuid=order.uuid %}" class="btn-primary text-white font-semibold px-5 py-2 rounded-xl text-sm text-center">Subir otro comprobante</a>
+  </div>
+{% endif %}
+
 <div class="mt-6 grid md:grid-cols-[1fr_320px] gap-6">
   <div class="space-y-4">
     {% for it in order.items.all %}

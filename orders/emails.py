@@ -48,3 +48,13 @@ def send_order_preparing(order) -> None:
 def send_order_delivered(order) -> None:
     _send(order, f"Tu pedido #{order.short_uuid} est\u00e1 listo",
           "emails/order_delivered.html")
+
+
+def send_yape_proof_received(order) -> None:
+    _send(order, f"Recibimos tu comprobante Yape \u2014 pedido #{order.short_uuid}",
+          "emails/order_yape_received.html")
+
+
+def send_yape_proof_rejected(order) -> None:
+    _send(order, f"Necesitamos otro comprobante \u2014 pedido #{order.short_uuid}",
+          "emails/order_yape_rejected.html")

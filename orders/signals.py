@@ -23,7 +23,7 @@ def _order_status_transitions(sender, instance: Order, **kwargs):
 
     now = timezone.now()
 
-    if new == Order.Status.PREPARING and old in {Order.Status.PAID, Order.Status.PENDING}:
+    if new == Order.Status.PREPARING and old in {Order.Status.PAID, Order.Status.PENDING, Order.Status.VERIFYING}:
         if instance.paid_at is None:
             instance.paid_at = now
         emails.send_order_preparing(instance)

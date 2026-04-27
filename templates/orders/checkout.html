@@ -5,7 +5,7 @@
 
 {% block content %}
 <h1 class="text-3xl font-extrabold">Finalizar compra</h1>
-<p class="text-white/60 mt-1">Revisa tu pedido y completa tus datos. Pagas con Mercado Pago en el siguiente paso.</p>
+<p class="text-white/60 mt-1">Revisa tu pedido, elige cómo pagar y completa tus datos.</p>
 
 <div class="grid lg:grid-cols-[1.3fr_1fr] gap-6 mt-8">
   <div class="card-glass rounded-2xl p-6">
@@ -13,24 +13,48 @@
     <form method="post" class="mt-4 space-y-4">
       {% csrf_token %}
       {% for field in form %}
-        <div>
-          <label class="block text-sm text-white/70 mb-1">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
-          {% if field.field.widget.input_type == 'checkbox' %}
+        {% if field.name == 'payment_method' %}
+          <div>
+            <label class="block text-sm text-white/70 mb-2">Método de pago *</label>
+            <div class="grid sm:grid-cols-2 gap-3">
+              {% for choice in field %}
+              <label class="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 cursor-pointer hover:border-fuchsia-400 transition has-[:checked]:border-fuchsia-400 has-[:checked]:bg-fuchsia-500/10">
+                {{ choice.tag }}
+                <span class="text-sm text-white/90">
+                  {% if choice.data.value == 'yape' %}
+                    <span class="font-semibold block">Yape QR</span>
+                    <span class="text-xs text-white/60">Escanea el QR desde tu app Yape y sube el comprobante</span>
+                  {% else %}
+                    <span class="font-semibold block">Mercado Pago</span>
+                    <span class="text-xs text-white/60">Tarjeta, Yape QR, PagoEfectivo</span>
+                  {% endif %}
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+            {% if field.errors %}<p class="text-xs text-red-300 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
+          </div>
+        {% elif field.field.widget.input_type == 'checkbox' %}
+          <div>
             <label class="flex items-start gap-2 text-sm text-white/80">
               {{ field }} <span>{{ field.label }}</span>
             </label>
-          {% else %}
+            {% if field.errors %}<p class="text-xs text-red-300 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
+          </div>
+        {% else %}
+          <div>
+            <label class="block text-sm text-white/70 mb-1">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
             {{ field|add_class:"w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-fuchsia-400" }}
-          {% endif %}
-          {% if field.help_text %}<p class="text-xs text-white/50 mt-1">{{ field.help_text }}</p>{% endif %}
-          {% if field.errors %}<p class="text-xs text-red-300 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
-        </div>
+            {% if field.help_text %}<p class="text-xs text-white/50 mt-1">{{ field.help_text }}</p>{% endif %}
+            {% if field.errors %}<p class="text-xs text-red-300 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
+          </div>
+        {% endif %}
       {% endfor %}
       <button type="submit" class="w-full btn-primary text-white font-semibold py-3 rounded-xl">
-        Pagar {{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }} →
+        Continuar — {{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }} →
       </button>
-      {% if not MERCADOPAGO_ENABLED %}
-        <p class="text-xs text-amber-300 mt-2 text-center">Mercado Pago aún no está configurado. Tu pedido se registrará y te contactaremos.</p>
+      {% if not MERCADOPAGO_ENABLED and not yape_available %}
+        <p class="text-xs text-amber-300 mt-2 text-center">Ningún método de pago está configurado. Tu pedido se registrará y te contactaremos.</p>
       {% endif %}
     </form>
   </div>
