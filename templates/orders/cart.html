@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Carrito — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-extrabold">Tu carrito</h1>
+<p class="text-white/60 mt-1">Revisa los datos de cada perfil antes de pagar. Para Netflix, Disney+, Prime: crearemos el perfil con el nombre y PIN que indiques.</p>
+
+{% if messages %}
+  <div class="mt-4 space-y-2">
+    {% for m in messages %}
+      <div class="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm">{{ m }}</div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if lines %}
+<div class="grid lg:grid-cols-[1.5fr_1fr] gap-6 mt-8">
+  <div class="space-y-4">
+    {% for line in lines %}
+    <div class="card-glass rounded-2xl p-5">
+      <div class="flex items-start gap-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-fuchsia-500/30 to-purple-500/30 border border-white/10 flex items-center justify-center text-2xl">
+          {{ line.plan.product.icon|default:line.plan.product.category.emoji }}
+        </div>
+        <div class="flex-1">
+          <div class="font-semibold">{{ line.plan.product.name }}</div>
+          <div class="text-white/60 text-sm">{{ line.plan.name }} · cantidad {{ line.quantity }}</div>
+          {% if line.profile_name or line.pin or line.notes %}
+            <div class="mt-2 text-xs text-white/70 space-y-0.5">
+              {% if line.profile_name %}<div>Perfil: <span class="text-white">{{ line.profile_name }}</span></div>{% endif %}
+              {% if line.pin %}<div>PIN: <span class="text-white">{{ line.pin }}</span></div>{% endif %}
+              {% if line.notes %}<div>Notas: <span class="text-white">{{ line.notes }}</span></div>{% endif %}
+            </div>
+          {% endif %}
+        </div>
+        <div class="text-right">
+          <div class="font-bold">{{ CURRENCY_SYMBOL }} {{ line.subtotal_for_user|floatformat:2|intcomma }}</div>
+          <form method="post" action="{% url 'orders:cart_remove' line.index %}" class="mt-2">
+            {% csrf_token %}
+            <button class="text-xs text-white/50 hover:text-red-300">Quitar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <form method="post" action="{% url 'orders:cart_clear' %}">
+      {% csrf_token %}
+      <button class="text-sm text-white/50 hover:text-white/80">Vaciar carrito</button>
+    </form>
+  </div>
+
+  <aside class="card-glass rounded-2xl p-6 h-max lg:sticky lg:top-20">
+    <h2 class="text-lg font-bold">Resumen</h2>
+    <div class="mt-4 flex justify-between text-sm text-white/70">
+      <span>Productos</span><span>{{ lines|length }}</span>
+    </div>
+    <div class="mt-2 flex justify-between text-lg font-bold">
+      <span>Total</span>
+      <span>{{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }}</span>
+    </div>
+    <a href="{% url 'orders:checkout' %}" class="block text-center w-full mt-5 btn-primary text-white font-semibold py-3 rounded-xl">
+      Ir a pagar →
+    </a>
+    <p class="text-xs text-white/50 mt-3 text-center">Pagos con Mercado Pago (Visa, Mastercard, Yape, Plin).</p>
+  </aside>
+</div>
+{% else %}
+<div class="card-glass rounded-2xl p-10 mt-8 text-center">
+  <div class="text-5xl">🛒</div>
+  <p class="mt-4 text-white/70">Tu carrito está vacío.</p>
+  <a href="{% url 'catalog:products' %}" class="inline-block mt-6 btn-primary text-white font-semibold px-6 py-3 rounded-xl">Ver productos</a>
+</div>
+{% endif %}
+{% endblock %}

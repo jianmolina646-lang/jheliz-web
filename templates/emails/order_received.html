@@ -1,0 +1,20 @@
+{% extends "emails/_base.html" %}
+{% load humanize %}
+{% block body %}
+  <h2 style="margin:0 0 8px 0;font-size:20px;">Recibimos tu pedido #{{ order.short_uuid }}</h2>
+  <p>Gracias por tu compra. Estos son los productos de tu pedido:</p>
+  <ul style="padding-left:18px;">
+    {% for it in items %}
+      <li>
+        <strong>{{ it.product_name }}</strong> — {{ it.plan_name }} × {{ it.quantity }}
+        <div style="color:rgba(255,255,255,0.6);font-size:13px;">
+          {% if it.requested_profile_name %}Perfil: {{ it.requested_profile_name }}{% endif %}
+          {% if it.requested_pin %} · PIN: {{ it.requested_pin }}{% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+  <p style="margin-top:16px;"><strong>Total:</strong> {{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</p>
+  <p>Apenas confirmemos el pago pasamos a prepararlo. Puedes seguir tu pedido aquí:</p>
+  <p><a href="{{ order_url }}" style="background:#f472b6;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;display:inline-block;">Ver mi pedido</a></p>
+{% endblock %}

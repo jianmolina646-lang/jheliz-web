@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Gracias por tu compra — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto card-glass rounded-3xl p-10 text-center">
+  {% if order.status == 'delivered' %}
+    <div class="text-5xl">🎉</div>
+    <h1 class="text-3xl font-extrabold mt-4">¡Pedido entregado!</h1>
+    <p class="text-white/70 mt-2">Ya puedes ver los datos de acceso en el detalle de tu pedido.</p>
+  {% elif order.status == 'preparing' or mp_status == 'approved' %}
+    <div class="text-5xl">✨</div>
+    <h1 class="text-3xl font-extrabold mt-4">Estamos preparando tu pedido</h1>
+    <p class="text-white/70 mt-2">
+      Recibimos tu pago. Ahora estamos creando tu perfil con el nombre y PIN que pediste.
+      Te avisaremos por correo apenas esté listo.
+    </p>
+  {% elif mp_status == 'pending' or order.status == 'pending' %}
+    <div class="text-5xl">⏳</div>
+    <h1 class="text-3xl font-extrabold mt-4">Pago pendiente</h1>
+    <p class="text-white/70 mt-2">
+      Tu pago está en proceso. Cuando se confirme, activaremos tu pedido automáticamente.
+    </p>
+  {% else %}
+    <div class="text-5xl">😕</div>
+    <h1 class="text-3xl font-extrabold mt-4">No pudimos confirmar el pago</h1>
+    <p class="text-white/70 mt-2">
+      Intenta de nuevo o contáctanos por WhatsApp <a href="https://wa.me/{{ WHATSAPP_NUMBER }}" class="text-jheliz-300 underline">{{ WHATSAPP_NUMBER }}</a>.
+    </p>
+  {% endif %}
+
+  <div class="mt-6 text-sm text-white/60">
+    Pedido <span class="font-mono">#{{ order.short_uuid }}</span> · Total {{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}
+  </div>
+
+  <div class="mt-6 flex flex-wrap gap-3 justify-center">
+    <a href="{% url 'orders:detail' order.uuid %}" class="btn-primary text-white px-6 py-3 rounded-xl font-semibold">Ver mi pedido</a>
+    <a href="{% url 'catalog:products' %}" class="px-6 py-3 rounded-xl border border-white/20 hover:bg-white/10">Seguir comprando</a>
+  </div>
+</div>
+{% endblock %}
