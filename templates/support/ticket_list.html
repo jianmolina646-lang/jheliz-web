@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Soporte — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-extrabold">Soporte</h1>
+<p class="text-white/70 mt-1">Tus tickets</p>
+{% if tickets %}
+  <div class="mt-6 space-y-3">
+    {% for t in tickets %}
+      <div class="card-glass rounded-2xl p-4">
+        <div class="font-semibold">#{{ t.id }} — {{ t.subject }}</div>
+        <div class="text-xs text-white/60">Estado: {{ t.get_status_display }} · actualizado {{ t.updated_at|date:"d/m/Y H:i" }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card-glass rounded-2xl p-8 mt-6 text-center text-white/70">
+    No tienes tickets aún. Escríbenos por WhatsApp {{ WHATSAPP_NUMBER }} o Telegram @{{ TELEGRAM_USERNAME }}.
+  </div>
+{% endif %}
+{% endblock %}

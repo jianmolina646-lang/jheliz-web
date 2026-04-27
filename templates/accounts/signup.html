@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Registro — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto card-glass rounded-3xl p-8 mt-8">
+  <h1 class="text-2xl font-extrabold">Crear cuenta</h1>
+  <p class="text-white/70 text-sm mt-1">¿Ya tienes cuenta? <a class="text-jheliz-300 hover:text-jheliz-200" href="{% url 'accounts:login' %}">Ingresa</a>.</p>
+  <form method="post" class="mt-6 space-y-4">
+    {% csrf_token %}
+    {% for field in form %}
+      <div>
+        <label class="text-xs uppercase tracking-wider text-white/60">{{ field.label }}</label>
+        {% if field.name == 'role' %}
+          <div class="grid grid-cols-2 gap-3">
+            {% for radio in field %}
+              <label class="card-glass rounded-xl p-3 flex items-center gap-2 cursor-pointer">
+                {{ radio.tag }}
+                <span class="text-sm">{{ radio.choice_label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        {% else %}
+          {{ field }}
+        {% endif %}
+        {% if field.help_text %}<p class="text-xs text-white/50 mt-1">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<p class="text-xs text-rose-300 mt-1">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+    {% endfor %}
+    <button type="submit" class="w-full btn-primary text-white font-semibold py-3 rounded-xl">Registrarme</button>
+  </form>
+</div>
+{% endblock %}

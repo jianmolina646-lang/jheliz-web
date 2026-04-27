@@ -1,0 +1,88 @@
+import uuid
+from decimal import Decimal
+
+from django.conf import settings
+from django.db import models
+
+
+class Order(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pendiente de pago"
+        PAID = "paid", "Pagado"
+        DELIVERED = "delivered", "Entregado"
+        CANCELED = "canceled", "Cancelado"
+        FAILED = "failed", "Fallido"
+        REFUNDED = "refunded", "Reembolsado"
+
+    class Channel(models.TextChoices):
+        WEB = "web", "Web"
+        TELEGRAM = "telegram", "Telegram"
+        MANUAL = "manual", "Manual"
+
+    uuid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="orders",
+    )
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    telegram_username = models.CharField(max_length=60, blank=True)
+    channel = models.CharField(max_length=20, choices=Channel.choices, default=Channel.WEB)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    currency = models.CharField(max_length=10, default="PEN")
+    payment_provider = models.CharField(max_length=30, blank=True)
+    payment_reference = models.CharField(max_length=120, blank=True, db_index=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Pedido"
+        verbose_name_plural = "Pedidos"
+
+    def __str__(self) -> str:
+        return f"Pedido #{self.pk} ({self.get_status_display()})"
+
+    @property
+    def short_uuid(self) -> str:
+        return str(self.uuid)[:8]
+
+    def recompute_total(self) -> Decimal:
+        total = sum((item.unit_price * item.quantity for item in self.items.all()), Decimal("0.00"))
+        self.total = total
+        self.save(update_fields=["total"])
+        return total
+
+
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
+    product = models.ForeignKey(
+        "catalog.Product", on_delete=models.PROTECT, related_name="+",
+    )
+    plan = models.ForeignKey(
+        "catalog.Plan", on_delete=models.PROTECT, related_name="+",
+    )
+    stock_item = models.ForeignKey(
+        "catalog.StockItem", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="order_items",
+    )
+    product_name = models.CharField(max_length=160)
+    plan_name = models.CharField(max_length=120)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField(default=1)
+    delivered_credentials = models.TextField(blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Item de pedido"
+        verbose_name_plural = "Items de pedido"
+
+    def __str__(self) -> str:
+        return f"{self.product_name} \u2014 {self.plan_name}"
+
+    @property
+    def subtotal(self) -> Decimal:
+        return self.unit_price * self.quantity

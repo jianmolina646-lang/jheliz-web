@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Tutoriales — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<h1 class="text-3xl md:text-4xl font-extrabold">Tutoriales</h1>
+<p class="text-white/70 mt-2">Aprende a comprar, activar tu cuenta y renovar.</p>
+<div class="mt-6 grid md:grid-cols-3 gap-4">
+  <div class="card-glass rounded-2xl p-6">
+    <div class="text-3xl">1️⃣</div>
+    <h3 class="font-bold mt-2">Cómo comprar</h3>
+    <p class="text-sm text-white/70 mt-1">Elige tu producto, duración y paga con Mercado Pago. Tu cuenta aparece al instante.</p>
+  </div>
+  <div class="card-glass rounded-2xl p-6">
+    <div class="text-3xl">2️⃣</div>
+    <h3 class="font-bold mt-2">Cómo ver tu cuenta</h3>
+    <p class="text-sm text-white/70 mt-1">Entra a "Mi cuenta → Pedidos" y abre el pedido. Ahí tienes correo, clave y perfil.</p>
+  </div>
+  <div class="card-glass rounded-2xl p-6">
+    <div class="text-3xl">3️⃣</div>
+    <h3 class="font-bold mt-2">Cómo renovar</h3>
+    <p class="text-sm text-white/70 mt-1">Un día antes de vencer, te llega el enlace directo para renovar con 1 clic.</p>
+  </div>
+</div>
+{% endblock %}

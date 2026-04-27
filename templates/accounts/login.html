@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Ingresar — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto card-glass rounded-3xl p-8 mt-8">
+  <h1 class="text-2xl font-extrabold">Ingresar</h1>
+  <p class="text-white/70 text-sm mt-1">¿No tienes cuenta? <a class="text-jheliz-300 hover:text-jheliz-200" href="{% url 'accounts:signup' %}">Regístrate</a>.</p>
+  <form method="post" class="mt-6 space-y-4">
+    {% csrf_token %}
+    {% for field in form %}
+      <div>
+        <label class="text-xs uppercase tracking-wider text-white/60">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<p class="text-xs text-rose-300 mt-1">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+    {% endfor %}
+    {% if form.non_field_errors %}<p class="text-xs text-rose-300">{{ form.non_field_errors.0 }}</p>{% endif %}
+    <button type="submit" class="w-full btn-primary text-white font-semibold py-3 rounded-xl">Entrar</button>
+  </form>
+</div>
+{% endblock %}

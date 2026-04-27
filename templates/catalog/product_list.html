@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Productos — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+  <div>
+    <h1 class="text-3xl md:text-4xl font-extrabold">
+      {% if active_category %}{{ active_category.emoji }} {{ active_category.name }}{% else %}Todos los productos{% endif %}
+    </h1>
+    {% if active_category.description %}
+      <p class="text-white/70 mt-1">{{ active_category.description }}</p>
+    {% else %}
+      <p class="text-white/70 mt-1">Elige tu producto, duración y listo. Entrega inmediata.</p>
+    {% endif %}
+  </div>
+  <form method="get" class="flex-1 md:max-w-md">
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar producto..."
+      class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/40 focus:border-jheliz-400 focus:outline-none">
+  </form>
+</section>
+
+<section class="grid lg:grid-cols-[220px_1fr] gap-6">
+  <aside class="card-glass rounded-2xl p-4 h-max lg:sticky lg:top-20">
+    <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Categorías</h3>
+    <ul class="space-y-1 text-sm">
+      <li><a href="{% url 'catalog:products' %}" class="block px-3 py-2 rounded-lg {% if not active_category %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5{% endif %}">Todas</a></li>
+      {% for c in categories %}
+        <li><a href="{{ c.get_absolute_url }}" class="block px-3 py-2 rounded-lg {% if active_category.slug == c.slug %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5{% endif %}">
+          <span class="mr-1">{{ c.emoji }}</span>{{ c.name }}
+        </a></li>
+      {% endfor %}
+    </ul>
+  </aside>
+
+  <div>
+    {% if products %}
+      <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        {% for p in products %}{% include "catalog/_product_card.html" with product=p %}{% endfor %}
+      </div>
+    {% else %}
+      <div class="card-glass rounded-2xl p-10 text-center">
+        <div class="text-4xl">🔍</div>
+        <p class="mt-3 text-white/80">No encontramos productos con esos filtros.</p>
+        <a href="{% url 'catalog:products' %}" class="mt-4 inline-block btn-primary px-4 py-2 rounded-lg font-semibold">Ver todos</a>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

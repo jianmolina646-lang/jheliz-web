@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<section class="relative overflow-hidden rounded-3xl card-glass p-8 md:p-14">
+  <div class="max-w-3xl">
+    <span class="inline-block text-xs uppercase tracking-[0.25em] text-jheliz-300 mb-3">Plataforma de venta</span>
+    <h1 class="text-4xl md:text-6xl font-extrabold leading-[1.05]">
+      Streaming y licencias
+      <span class="bg-gradient-to-r from-jheliz-400 via-fuchsia-300 to-violet-300 bg-clip-text text-transparent">al mejor precio de Perú</span>
+    </h1>
+    <p class="mt-5 text-lg text-white/80">
+      Netflix, Disney+, Prime, Windows, Office, Photoshop y mucho más.
+      Entrega inmediata, pagos con Mercado Pago, soporte 24/7.
+    </p>
+    <div class="mt-6 flex flex-wrap gap-3">
+      <a href="{% url 'catalog:products' %}" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">Ver productos</a>
+      <a href="{% url 'catalog:distributor' %}" class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 font-semibold">Soy distribuidor</a>
+    </div>
+    <div class="mt-6 flex flex-wrap gap-3 text-xs text-white/70">
+      <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">⚡ Entrega inmediata</span>
+      <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">💳 Mercado Pago</span>
+      <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">🛡️ Garantía incluida</span>
+      <span class="px-3 py-1 rounded-full bg-white/5 border border-white/10">👥 Miles de clientes felices</span>
+    </div>
+  </div>
+</section>
+
+{% if top_categories %}
+<section class="mt-10">
+  <h2 class="text-xl md:text-2xl font-bold mb-4">Categorías</h2>
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    {% for c in top_categories %}
+      <a href="{{ c.get_absolute_url }}" class="card-glass rounded-2xl p-4 text-center hover:-translate-y-1 hover:border-jheliz-400/60 transition">
+        <div class="text-3xl">{{ c.emoji }}</div>
+        <div class="mt-2 text-sm font-medium">{{ c.name }}</div>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="mt-12">
+  <div class="flex items-end justify-between mb-4">
+    <h2 class="text-xl md:text-2xl font-bold">Productos destacados</h2>
+    <a href="{% url 'catalog:products' %}" class="text-jheliz-300 hover:text-jheliz-200 text-sm">Ver todos →</a>
+  </div>
+  {% if featured_products %}
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {% for p in featured_products %}{% include "catalog/_product_card.html" with product=p %}{% endfor %}
+    </div>
+  {% else %}
+    <div class="card-glass rounded-2xl p-8 text-center text-white/70">
+      Pronto habrá productos destacados. Mientras tanto revisa el <a class="text-jheliz-300 underline" href="{% url 'catalog:products' %}">catálogo completo</a>.
+    </div>
+  {% endif %}
+</section>
+
+<section class="mt-14 grid md:grid-cols-3 gap-4">
+  <div class="card-glass rounded-2xl p-6">
+    <div class="text-3xl">⚡</div>
+    <h3 class="font-bold mt-2">Entrega inmediata</h3>
+    <p class="text-sm text-white/70 mt-1">Apenas confirmamos el pago, tu cuenta aparece en tu panel y te llega por correo.</p>
+  </div>
+  <div class="card-glass rounded-2xl p-6">
+    <div class="text-3xl">🛡️</div>
+    <h3 class="font-bold mt-2">Garantía real</h3>
+    <p class="text-sm text-white/70 mt-1">Si algo falla dentro del periodo, te reponemos la cuenta sin preguntas.</p>
+  </div>
+  <div class="card-glass rounded-2xl p-6">
+    <div class="text-3xl">💬</div>
+    <h3 class="font-bold mt-2">Soporte 24/7</h3>
+    <p class="text-sm text-white/70 mt-1">Abre un ticket desde tu cuenta o escríbenos al WhatsApp {{ WHATSAPP_NUMBER }}.</p>
+  </div>
+</section>
+{% endblock %}

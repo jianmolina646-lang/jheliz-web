@@ -1,0 +1,17 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>{{ title }}</h1>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <table>
+    {{ form.as_table }}
+  </table>
+  <p class="help">
+    Formato 1: bloques separados por línea en blanco (cada bloque es una credencial).<br>
+    Formato 2: una entrada por línea <code>correo|clave|perfil|pin</code>.
+  </p>
+  <div class="submit-row">
+    <input type="submit" value="Importar" class="default">
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% load static humanize widget_tweaks %}<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}{{ SITE_NAME }} — {{ SITE_TAGLINE }}{% endblock %}</title>
+  <meta name="description" content="{{ SITE_NAME }} — {{ SITE_TAGLINE }}. Streaming y licencias al instante, pagos con Mercado Pago." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E%F0%9F%8E%AC%3C/text%3E%3C/svg%3E" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            jheliz: {
+              50:  '#fdf2f8',
+              100: '#fce7f3',
+              300: '#f9a8d4',
+              400: '#f472b6',
+              500: '#ec4899',
+              600: '#db2777',
+              700: '#be185d',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { background: radial-gradient(1200px 800px at 10% -10%, rgba(236,72,153,.15), transparent 60%),
+                      radial-gradient(900px 600px at 110% 10%, rgba(147,51,234,.15), transparent 60%),
+                      #0b0714; }
+    .card-glass { background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)); border: 1px solid rgba(255,255,255,.08); }
+    .btn-primary { background: linear-gradient(120deg, #ec4899, #a855f7); }
+    .btn-primary:hover { filter: brightness(1.1); }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen text-white font-sans">
+  <header class="sticky top-0 z-40 backdrop-blur bg-black/30 border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+      <a href="{% url 'catalog:home' %}" class="flex items-center gap-2 font-extrabold text-xl">
+        <span class="text-2xl">🎬</span>
+        <span class="bg-gradient-to-r from-jheliz-400 to-fuchsia-300 bg-clip-text text-transparent">{{ SITE_NAME }}</span>
+      </a>
+
+      <nav class="hidden md:flex items-center gap-5 text-sm text-white/80">
+        <a href="{% url 'catalog:home' %}" class="hover:text-white">Inicio</a>
+        <a href="{% url 'catalog:products' %}" class="hover:text-white">Productos</a>
+        <a href="{% url 'catalog:distributor' %}" class="hover:text-white">Distribuidor</a>
+        <a href="{% url 'catalog:tutorials' %}" class="hover:text-white">Tutoriales</a>
+      </nav>
+
+      <div class="flex items-center gap-2">
+        {% if user.is_authenticated %}
+          <a href="{% url 'accounts:dashboard' %}" class="hidden sm:inline px-3 py-2 rounded-lg text-sm text-white/80 hover:text-white">Hola, {{ user.username }}</a>
+          <a href="{% url 'accounts:logout' %}" class="px-3 py-2 rounded-lg text-sm bg-white/5 hover:bg-white/10">Salir</a>
+        {% else %}
+          <a href="{% url 'accounts:login' %}" class="px-3 py-2 rounded-lg text-sm bg-white/5 hover:bg-white/10">Ingresar</a>
+          <a href="{% url 'accounts:signup' %}" class="px-3 py-2 rounded-lg text-sm btn-primary text-white font-semibold">Registrarme</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  {% if messages %}
+    <div class="max-w-7xl mx-auto px-4 pt-4 space-y-2">
+      {% for m in messages %}
+        <div class="card-glass rounded-xl px-4 py-3 text-sm">{{ m }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="border-t border-white/5 mt-16">
+    <div class="max-w-7xl mx-auto px-4 py-10 grid md:grid-cols-4 gap-8 text-sm text-white/70">
+      <div>
+        <div class="font-bold text-white text-lg flex items-center gap-2">🎬 {{ SITE_NAME }}</div>
+        <p class="mt-2">{{ SITE_TAGLINE }}. Cuentas y licencias con entrega inmediata y soporte real.</p>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-2">Tienda</h4>
+        <ul class="space-y-1">
+          <li><a href="{% url 'catalog:products' %}" class="hover:text-white">Productos</a></li>
+          <li><a href="{% url 'catalog:distributor' %}" class="hover:text-white">Distribuidor</a></li>
+          <li><a href="{% url 'catalog:tutorials' %}" class="hover:text-white">Tutoriales</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-2">Ayuda</h4>
+        <ul class="space-y-1">
+          <li><a href="{% url 'catalog:warranty' %}" class="hover:text-white">Garantía</a></li>
+          <li><a href="{% url 'catalog:terms' %}" class="hover:text-white">Términos</a></li>
+          <li><a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="hover:text-white">WhatsApp {{ WHATSAPP_NUMBER }}</a></li>
+          <li><a href="https://t.me/{{ TELEGRAM_USERNAME }}" target="_blank" rel="noopener" class="hover:text-white">Telegram @{{ TELEGRAM_USERNAME }}</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-2">Cuenta</h4>
+        <ul class="space-y-1">
+          {% if user.is_authenticated %}
+            <li><a href="{% url 'accounts:dashboard' %}" class="hover:text-white">Mi cuenta</a></li>
+            <li><a href="{% url 'accounts:profile' %}" class="hover:text-white">Mi perfil</a></li>
+            <li><a href="{% url 'support:list' %}" class="hover:text-white">Soporte</a></li>
+          {% else %}
+            <li><a href="{% url 'accounts:login' %}" class="hover:text-white">Ingresar</a></li>
+            <li><a href="{% url 'accounts:signup' %}" class="hover:text-white">Registrarme</a></li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+    <div class="border-t border-white/5 py-4 text-center text-xs text-white/50">
+      &copy; {% now "Y" %} {{ SITE_NAME }}. Todos los derechos reservados.
+    </div>
+  </footer>
+</body>
+</html>

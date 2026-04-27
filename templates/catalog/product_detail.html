@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ product.name }} — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<nav class="text-sm text-white/50 mb-4">
+  <a href="{% url 'catalog:home' %}" class="hover:text-white">Inicio</a> /
+  <a href="{{ product.category.get_absolute_url }}" class="hover:text-white">{{ product.category.name }}</a> /
+  <span class="text-white/80">{{ product.name }}</span>
+</nav>
+
+<section class="grid lg:grid-cols-[1.1fr_1fr] gap-8">
+  <div class="card-glass rounded-3xl p-8">
+    <div class="flex items-start gap-4">
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-500/30 to-purple-500/30 border border-white/10 flex items-center justify-center text-3xl">
+        {{ product.icon|default:product.category.emoji }}
+      </div>
+      <div>
+        <span class="inline-block text-xs uppercase tracking-wider text-jheliz-300">{{ product.category.name }}</span>
+        <h1 class="text-3xl md:text-4xl font-extrabold leading-tight mt-1">{{ product.name }}</h1>
+        <div class="mt-2 flex flex-wrap gap-2 text-xs">
+          <span class="px-2 py-1 rounded-full bg-white/5 border border-white/10">⭐ {{ product.rating }}</span>
+          <span class="px-2 py-1 rounded-full bg-white/5 border border-white/10">{% if product.delivery_is_instant %}⚡ Entrega inmediata{% else %}⏱️ Entrega manual{% endif %}</span>
+          <span class="px-2 py-1 rounded-full bg-white/5 border border-white/10">Modo: {{ product.get_mode_display }}</span>
+        </div>
+      </div>
+    </div>
+
+    {% if product.short_description %}
+      <p class="mt-6 text-lg text-white/85">{{ product.short_description }}</p>
+    {% endif %}
+
+    {% if product.description %}
+      <div class="prose prose-invert mt-6 max-w-none text-white/80 whitespace-pre-line">{{ product.description }}</div>
+    {% endif %}
+  </div>
+
+  <div class="card-glass rounded-3xl p-8 h-max lg:sticky lg:top-20">
+    <h2 class="text-xl font-bold">Elige tu plan</h2>
+    <p class="text-white/60 text-sm mt-1">Precio en {{ CURRENCY_CODE }}. Entrega inmediata tras el pago.</p>
+
+    <div class="mt-4 space-y-2">
+      {% for plan in plans %}
+        <label class="flex items-center justify-between gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer">
+          <div>
+            <div class="font-semibold">{{ plan.name }}</div>
+            <div class="text-xs text-white/60">
+              {% if plan.duration_days %}{{ plan.duration_days }} días{% else %}Sin expiración{% endif %}
+              {% if plan.available_stock %} · <span class="text-emerald-300">{{ plan.available_stock }} disponibles</span>
+              {% else %} · <span class="text-amber-300">Agotado</span>{% endif %}
+            </div>
+          </div>
+          <div class="text-right">
+            {% if user.is_distributor and plan.price_distributor %}
+              <div class="text-lg font-bold">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
+              <div class="text-xs text-jheliz-300">Distribuidor</div>
+            {% else %}
+              <div class="text-lg font-bold">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+            {% endif %}
+          </div>
+        </label>
+      {% empty %}
+        <div class="text-white/60 text-sm">Pronto habrá planes disponibles.</div>
+      {% endfor %}
+    </div>
+
+    <button type="button"
+            class="w-full mt-5 btn-primary text-white font-semibold py-3 rounded-xl"
+            onclick="alert('El checkout con Mercado Pago llega en el PR #2.')">
+      Comprar →
+    </button>
+    <p class="text-xs text-white/50 mt-3 text-center">
+      Pagos con Mercado Pago, Visa, Mastercard, Yape, Plin.
+    </p>
+  </div>
+</section>
+{% endblock %}

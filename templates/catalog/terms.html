@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Términos — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<h1 class="text-3xl md:text-4xl font-extrabold">Términos y condiciones</h1>
+<div class="card-glass rounded-2xl p-6 mt-6 text-white/80 space-y-3 leading-relaxed">
+  <p>Al comprar en {{ SITE_NAME }} aceptas los siguientes términos:</p>
+  <ul class="list-disc ml-5 space-y-2">
+    <li>Las cuentas se entregan para uso personal. No cambies el correo ni la contraseña.</li>
+    <li>La garantía cubre el periodo contratado siempre que no se haya violado el uso indicado.</li>
+    <li>No se aceptan devoluciones en productos digitales ya entregados.</li>
+    <li>El soporte responde por WhatsApp, Telegram o tickets.</li>
+  </ul>
+  <p>Contacto: WhatsApp {{ WHATSAPP_NUMBER }}, Telegram @{{ TELEGRAM_USERNAME }}.</p>
+</div>
+{% endblock %}

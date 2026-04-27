@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Distribuidor — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="card-glass rounded-3xl p-8 md:p-14">
+  <span class="inline-block text-xs uppercase tracking-[0.25em] text-jheliz-300 mb-3">Para revendedores</span>
+  <h1 class="text-3xl md:text-5xl font-extrabold leading-tight">
+    Conviertete en <span class="bg-gradient-to-r from-jheliz-400 to-fuchsia-300 bg-clip-text text-transparent">distribuidor Jheliz</span>
+  </h1>
+  <p class="mt-4 text-white/80 max-w-2xl">
+    Compra cuentas completas a precio mayorista y revéndelas a tus clientes.
+    Ideal si ya tienes tu grupo de WhatsApp, Telegram o página de ventas.
+  </p>
+  <div class="mt-6 flex flex-wrap gap-3">
+    {% if user.is_authenticated %}
+      {% if user.is_distributor %}
+        <a href="{% url 'catalog:products' %}" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">Ver productos mayoristas</a>
+      {% else %}
+        <span class="px-5 py-3 rounded-xl bg-white/5 border border-white/10">Tu solicitud está en revisión</span>
+      {% endif %}
+    {% else %}
+      <a href="{% url 'accounts:signup' %}" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">Registrarme como distribuidor</a>
+      <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener"
+         class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 font-semibold">Hablar por WhatsApp</a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="mt-12 grid md:grid-cols-3 gap-4">
+  <div class="card-glass rounded-2xl p-6">
+    <div class="text-3xl">💸</div>
+    <h3 class="font-bold mt-2">Precios mayoristas</h3>
+    <p class="text-sm text-white/70 mt-1">Cuentas completas a precio de distribuidor, listas para revender.</p>
+  </div>
+  <div class="card-glass rounded-2xl p-6">
+    <div class="text-3xl">⚡</div>
+    <h3 class="font-bold mt-2">Entrega inmediata</h3>
+    <p class="text-sm text-white/70 mt-1">Recibe tus cuentas completas al instante al confirmar el pago.</p>
+  </div>
+  <div class="card-glass rounded-2xl p-6">
+    <div class="text-3xl">🔐</div>
+    <h3 class="font-bold mt-2">Garantía de reposición</h3>
+    <p class="text-sm text-white/70 mt-1">Si una cuenta falla dentro del período, la reponemos sin costo.</p>
+  </div>
+</section>
+
+<section class="mt-12">
+  <h2 class="text-xl md:text-2xl font-bold mb-4">Categorías disponibles para distribuidor</h2>
+  <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+    {% for c in categories %}
+      <a href="{{ c.get_absolute_url }}" class="card-glass rounded-2xl p-4 flex items-center gap-3 hover:-translate-y-1 hover:border-jheliz-400/60 transition">
+        <div class="text-2xl">{{ c.emoji }}</div>
+        <div>
+          <div class="font-semibold">{{ c.name }}</div>
+          <div class="text-xs text-white/60">{{ c.get_audience_display }}</div>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
