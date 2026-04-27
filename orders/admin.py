@@ -7,11 +7,45 @@ from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
+from import_export import resources
+from import_export.admin import ExportMixin
+from import_export.fields import Field
 from unfold.admin import ModelAdmin, TabularInline
+from unfold.contrib.import_export.forms import ExportForm, ImportForm, SelectableFieldsExportForm
 from unfold.decorators import display
 
 from . import emails
 from .models import Order, OrderItem, PaymentSettings
+
+
+class OrderResource(resources.ModelResource):
+    """Resource for exporting Orders to CSV/XLSX from the admin."""
+
+    customer_email = Field(attribute="email", column_name="email")
+    customer_name = Field(column_name="cliente")
+    short_id = Field(attribute="short_uuid", column_name="id_corto")
+    items_summary = Field(column_name="items")
+
+    def dehydrate_customer_name(self, order):
+        if order.user:
+            full = (order.user.get_full_name() or order.user.username).strip()
+            return full
+        return order.email or "(invitado)"
+
+    class Meta:
+        model = Order
+        fields = (
+            "short_id", "customer_name", "customer_email", "phone",
+            "status", "channel", "payment_provider", "payment_reference",
+            "subtotal", "discount", "total", "items_summary", "created_at",
+        )
+        export_order = fields
+
+    def dehydrate_items_summary(self, order):
+        return " | ".join(
+            f"{i.product_name} \u2014 {i.plan_name} x{i.quantity}"
+            for i in order.items.all()
+        )
 
 
 class OrderItemInline(TabularInline):
@@ -55,7 +89,9 @@ class DeliverCredentialsForm(forms.Form):
 
 
 @admin.register(Order)
-class OrderAdmin(ModelAdmin):
+class OrderAdmin(ExportMixin, ModelAdmin):
+    resource_classes = (OrderResource,)
+    export_form_class = SelectableFieldsExportForm
     list_display = (
         "short_uuid", "display_customer", "display_status", "channel",
         "payment_provider", "total", "display_actions", "created_at",

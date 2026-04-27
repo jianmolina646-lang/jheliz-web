@@ -201,3 +201,25 @@ class StockItem(models.Model):
     def __str__(self) -> str:
         plan = self.plan.name if self.plan else "cualquier plan"
         return f"{self.product.name} \u2014 {plan} \u2014 {self.get_status_display()}"
+
+
+class Testimonial(models.Model):
+    author = models.CharField("Autor", max_length=80)
+    city = models.CharField("Ciudad", max_length=80, default="Lima")
+    text = models.TextField("Reseña")
+    rating = models.PositiveSmallIntegerField("Estrellas", default=5)
+    product = models.ForeignKey(
+        Product, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="testimonials", verbose_name="Producto",
+    )
+    is_published = models.BooleanField("Publicada", default=True)
+    order = models.PositiveIntegerField("Orden", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("order", "-created_at")
+        verbose_name = "Reseña"
+        verbose_name_plural = "Reseñas"
+
+    def __str__(self) -> str:
+        return f"{self.author} ({self.rating}★)"

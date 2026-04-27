@@ -30,6 +30,27 @@ def _plan_from_request(request) -> Plan:
     return get_object_or_404(Plan.objects.select_related("product"), pk=plan_id, is_active=True)
 
 
+def renew_item(request, item_id: int):
+    """1-click renewal: add the same plan from a past OrderItem to the cart and go to checkout."""
+    from django.contrib.auth.decorators import login_required as _li
+
+    if not request.user.is_authenticated:
+        return redirect("accounts:login")
+    item = get_object_or_404(
+        OrderItem.objects.select_related("plan__product", "order"),
+        pk=item_id,
+        order__user=request.user,
+    )
+    if not item.plan or not item.plan.is_active:
+        messages.error(request, "Este plan ya no está disponible. Mira las opciones actualizadas.")
+        return redirect(item.plan.product.get_absolute_url() if item.plan else "catalog:products")
+
+    cart = Cart(request)
+    cart.add(plan=item.plan, quantity=1, profile_name="", pin="", notes=f"Renovación de #{item.order.short_uuid}")
+    messages.success(request, f"{item.product_name} agregado para renovar.")
+    return redirect("orders:cart")
+
+
 @require_POST
 def add_to_cart(request):
     plan = _plan_from_request(request)

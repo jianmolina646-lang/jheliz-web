@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .models import Category, Product
+from .models import Category, Product, Testimonial
 
 
 def _product_schema(request, product, plans):
@@ -43,20 +43,9 @@ def _product_schema(request, product, plans):
     return json.dumps(schema, ensure_ascii=False)
 
 
-TESTIMONIOS = [
-    {"author": "Carla M.", "city": "Lima", "rating": 5,
-     "text": "Compr\u00e9 Netflix Premium y la cuenta lleg\u00f3 en menos de 5 minutos. Soporte por WhatsApp s\u00faper r\u00e1pido."},
-    {"author": "Diego R.", "city": "Arequipa", "rating": 5,
-     "text": "Llevo 6 meses comprando aqu\u00ed mes a mes. Cero problemas, precios mucho mejores que otras p\u00e1ginas."},
-    {"author": "Andrea L.", "city": "Trujillo", "rating": 5,
-     "text": "Pagu\u00e9 con Yape y todo perfecto. La cuenta de Disney+ funciona sin fallar."},
-    {"author": "Mart\u00edn T.", "city": "Cusco", "rating": 5,
-     "text": "Compr\u00e9 Office 2021 \u2014 lleg\u00f3 la licencia, la activ\u00e9 y a trabajar. Recomendado."},
-    {"author": "Lucia P.", "city": "Piura", "rating": 5,
-     "text": "Soy distribuidora desde hace 3 meses, los precios mayoristas y el panel automatizado me hacen la vida f\u00e1cil."},
-    {"author": "Jorge A.", "city": "Chiclayo", "rating": 5,
-     "text": "Tuve un problema con Prime Video y me repusieron la cuenta sin preguntar. Garant\u00eda real."},
-]
+def _testimonios():
+    """Return published testimonios from the DB."""
+    return Testimonial.objects.filter(is_published=True)[:9]
 
 
 def _recent_purchases(limit: int = 8):
@@ -107,7 +96,7 @@ def home(request):
         {
             "featured_products": featured,
             "top_categories": top_categories,
-            "testimonios": TESTIMONIOS,
+            "testimonios": _testimonios(),
             "recent_purchases": _recent_purchases(),
         },
     )

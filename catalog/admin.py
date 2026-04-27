@@ -6,7 +6,7 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import display
 
-from .models import Category, Plan, Product, StockItem
+from .models import Category, Plan, Product, StockItem, Testimonial
 
 
 @admin.register(Category)
@@ -170,3 +170,16 @@ class StockItemAdmin(ModelAdmin):
             )
             created += 1
         return created
+
+
+@admin.register(Testimonial)
+class TestimonialAdmin(ModelAdmin):
+    list_display = ("author", "city", "rating", "is_published", "order", "created_at")
+    list_filter = ("is_published", "rating", "city")
+    search_fields = ("author", "text", "city")
+    list_editable = ("is_published", "order")
+    ordering = ("order", "-created_at")
+    fieldsets = (
+        (None, {"fields": ("author", "city", "rating", "text", "product")}),
+        ("Publicación", {"fields": ("is_published", "order")}),
+    )

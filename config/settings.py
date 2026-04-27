@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "django_otp.plugins.otp_static",  # códigos de respaldo
     "auditlog",  # registro de cambios (quién hizo qué, cuándo)
     "csp",  # Content Security Policy
+    "import_export",  # CSV/XLSX import-export en el admin
     # Local
     "accounts.apps.AccountsConfig",
     "catalog.apps.CatalogConfig",
