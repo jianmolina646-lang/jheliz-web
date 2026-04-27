@@ -4,54 +4,58 @@
 {% block title %}Finalizar compra — {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
-<h1 class="text-3xl font-extrabold">Finalizar compra</h1>
-<p class="text-white/60 mt-1">Revisa tu pedido, elige cómo pagar y completa tus datos.</p>
+<div class="mb-2">
+  <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Paso 2 de 2</p>
+  <h1 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-1">Finalizar compra</h1>
+  <p class="text-zinc-400 mt-2 max-w-2xl">Revisa tu pedido, elige cómo pagar y completa tus datos.</p>
+</div>
 
 <div class="grid lg:grid-cols-[1.3fr_1fr] gap-6 mt-8">
-  <div class="card-glass rounded-2xl p-6">
-    <h2 class="text-lg font-bold">Tus datos</h2>
-    <form method="post" class="mt-4 space-y-4">
+  <div class="surface rounded-xl p-6 md:p-8">
+    <h2 class="font-display text-base font-bold tracking-tight">Tus datos</h2>
+    <form method="post" class="mt-5 space-y-4">
       {% csrf_token %}
       {% for field in form %}
         {% if field.name == 'payment_method' %}
           <div>
-            <label class="block text-sm text-white/70 mb-2">Método de pago *</label>
+            <label class="block text-xs font-medium text-zinc-400 mb-2">Método de pago <span class="text-jheliz-400">*</span></label>
             <div class="grid sm:grid-cols-2 gap-3">
               {% for choice in field %}
-              <label class="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 cursor-pointer hover:border-fuchsia-400 transition has-[:checked]:border-fuchsia-400 has-[:checked]:bg-fuchsia-500/10">
+              <label class="flex items-start gap-3 rounded-xl border hairline bg-white/[0.02] px-4 py-3.5 cursor-pointer hover:border-zinc-600 transition has-[:checked]:border-jheliz-500 has-[:checked]:bg-jheliz-500/[0.06]">
                 {{ choice.tag }}
-                <span class="text-sm text-white/90">
+                <span class="text-sm">
                   {% if choice.data.value == 'yape' %}
-                    <span class="font-semibold block">Yape QR</span>
-                    <span class="text-xs text-white/60">Escanea el QR desde tu app Yape y sube el comprobante</span>
+                    <span class="font-display font-semibold text-zinc-100 block">Yape QR</span>
+                    <span class="text-xs text-zinc-500">Escanea desde tu app y sube comprobante</span>
                   {% else %}
-                    <span class="font-semibold block">Mercado Pago</span>
-                    <span class="text-xs text-white/60">Tarjeta, Yape QR, PagoEfectivo</span>
+                    <span class="font-display font-semibold text-zinc-100 block">Mercado Pago</span>
+                    <span class="text-xs text-zinc-500">Tarjeta, Yape, PagoEfectivo</span>
                   {% endif %}
                 </span>
               </label>
               {% endfor %}
             </div>
-            {% if field.errors %}<p class="text-xs text-red-300 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
+            {% if field.errors %}<p class="text-xs text-red-400 mt-1.5">{{ field.errors|join:", " }}</p>{% endif %}
           </div>
         {% elif field.field.widget.input_type == 'checkbox' %}
           <div>
-            <label class="flex items-start gap-2 text-sm text-white/80">
+            <label class="flex items-start gap-2 text-sm text-zinc-300">
               {{ field }} <span>{{ field.label }}</span>
             </label>
-            {% if field.errors %}<p class="text-xs text-red-300 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
+            {% if field.errors %}<p class="text-xs text-red-400 mt-1.5">{{ field.errors|join:", " }}</p>{% endif %}
           </div>
         {% else %}
           <div>
-            <label class="block text-sm text-white/70 mb-1">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
-            {{ field|add_class:"w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-fuchsia-400" }}
-            {% if field.help_text %}<p class="text-xs text-white/50 mt-1">{{ field.help_text }}</p>{% endif %}
-            {% if field.errors %}<p class="text-xs text-red-300 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
+            <label class="block text-xs font-medium text-zinc-400 mb-1.5">{{ field.label }}{% if field.field.required %} <span class="text-jheliz-400">*</span>{% endif %}</label>
+            {{ field|add_class:"field" }}
+            {% if field.help_text %}<p class="text-xs text-zinc-500 mt-1">{{ field.help_text }}</p>{% endif %}
+            {% if field.errors %}<p class="text-xs text-red-400 mt-1">{{ field.errors|join:", " }}</p>{% endif %}
           </div>
         {% endif %}
       {% endfor %}
-      <button type="submit" class="w-full btn-primary text-white font-semibold py-3 rounded-xl">
-        Continuar — {{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }} →
+      <button type="submit" class="btn btn-primary btn-lg btn-block">
+        Continuar — {{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }}
+        <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
       </button>
       {% if not MERCADOPAGO_ENABLED and not yape_available %}
         <p class="text-xs text-amber-300 mt-2 text-center">Ningún método de pago está configurado. Tu pedido se registrará y te contactaremos.</p>
@@ -59,28 +63,28 @@
     </form>
   </div>
 
-  <aside class="card-glass rounded-2xl p-6 h-max">
-    <h2 class="text-lg font-bold">Resumen</h2>
-    <div class="mt-4 divide-y divide-white/10">
+  <aside class="surface rounded-xl p-6 md:p-8 h-max">
+    <h2 class="font-display text-base font-bold tracking-tight">Resumen</h2>
+    <div class="mt-4 divide-y divide-white/[0.06]">
       {% for line in lines %}
-      <div class="py-3 text-sm">
-        <div class="flex justify-between">
-          <span class="font-semibold">{{ line.plan.product.name }}</span>
-          <span>{{ CURRENCY_SYMBOL }} {{ line.subtotal_for_user|floatformat:2|intcomma }}</span>
+      <div class="py-3.5 text-sm">
+        <div class="flex justify-between gap-3">
+          <span class="font-display font-semibold text-zinc-100">{{ line.plan.product.name }}</span>
+          <span class="font-medium text-zinc-200 shrink-0">{{ CURRENCY_SYMBOL }} {{ line.subtotal_for_user|floatformat:2|intcomma }}</span>
         </div>
-        <div class="text-white/60 text-xs">{{ line.plan.name }} × {{ line.quantity }}</div>
+        <div class="text-zinc-500 text-xs mt-0.5">{{ line.plan.name }} × {{ line.quantity }}</div>
         {% if line.profile_name or line.pin %}
-        <div class="text-white/60 text-xs mt-1">
-          {% if line.profile_name %}Perfil: <span class="text-white/80">{{ line.profile_name }}</span>{% endif %}
-          {% if line.pin %} · PIN: <span class="text-white/80">{{ line.pin }}</span>{% endif %}
+        <div class="text-zinc-500 text-xs mt-1.5">
+          {% if line.profile_name %}Perfil: <span class="text-zinc-300">{{ line.profile_name }}</span>{% endif %}
+          {% if line.pin %} · PIN: <span class="text-zinc-300">{{ line.pin }}</span>{% endif %}
         </div>
         {% endif %}
       </div>
       {% endfor %}
     </div>
-    <div class="flex justify-between mt-4 pt-4 border-t border-white/10 text-lg font-bold">
-      <span>Total</span>
-      <span>{{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }}</span>
+    <div class="flex justify-between items-baseline mt-4 pt-4 border-t hairline">
+      <span class="text-sm text-zinc-400">Total</span>
+      <span class="font-display text-2xl font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }}</span>
     </div>
   </aside>
 </div>

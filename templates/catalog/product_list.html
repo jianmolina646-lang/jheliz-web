@@ -3,31 +3,36 @@
 {% block title %}Productos — {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
-<section class="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+<section class="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8">
   <div>
-    <h1 class="text-3xl md:text-4xl font-extrabold">
+    {% if active_category %}
+      <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Categoría</p>
+    {% else %}
+      <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Catálogo</p>
+    {% endif %}
+    <h1 class="font-display text-3xl md:text-4xl font-bold mt-1 tracking-tight">
       {% if active_category %}{{ active_category.emoji }} {{ active_category.name }}{% else %}Todos los productos{% endif %}
     </h1>
     {% if active_category.description %}
-      <p class="text-white/70 mt-1">{{ active_category.description }}</p>
+      <p class="text-zinc-400 mt-2 max-w-xl">{{ active_category.description }}</p>
     {% else %}
-      <p class="text-white/70 mt-1">Elige tu producto, duración y listo. Entrega inmediata.</p>
+      <p class="text-zinc-400 mt-2 max-w-xl">Elige tu producto, duración y listo. Entrega inmediata.</p>
     {% endif %}
   </div>
-  <form method="get" class="flex-1 md:max-w-md">
-    <input type="search" name="q" value="{{ q }}" placeholder="Buscar producto..."
-      class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-white/40 focus:border-jheliz-400 focus:outline-none">
+  <form method="get" class="flex-1 md:max-w-sm relative">
+    <svg class="icon absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar producto..." class="field" style="padding-left:2.25rem">
   </form>
 </section>
 
-<section class="grid lg:grid-cols-[220px_1fr] gap-6">
-  <aside class="card-glass rounded-2xl p-4 h-max lg:sticky lg:top-20">
-    <h3 class="text-sm font-semibold text-white/70 uppercase tracking-wider mb-3">Categorías</h3>
-    <ul class="space-y-1 text-sm">
-      <li><a href="{% url 'catalog:products' %}" class="block px-3 py-2 rounded-lg {% if not active_category %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5{% endif %}">Todas</a></li>
+<section class="grid lg:grid-cols-[220px_1fr] gap-8">
+  <aside class="surface rounded-xl p-3 h-max lg:sticky lg:top-20">
+    <h3 class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider px-3 pt-1 pb-2">Categorías</h3>
+    <ul class="space-y-0.5 text-sm">
+      <li><a href="{% url 'catalog:products' %}" class="block px-3 py-2 rounded-md {% if not active_category %}bg-white/5 text-white font-medium{% else %}text-zinc-400 hover:text-white hover:bg-white/5{% endif %} transition">Todas</a></li>
       {% for c in categories %}
-        <li><a href="{{ c.get_absolute_url }}" class="block px-3 py-2 rounded-lg {% if active_category.slug == c.slug %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5{% endif %}">
-          <span class="mr-1">{{ c.emoji }}</span>{{ c.name }}
+        <li><a href="{{ c.get_absolute_url }}" class="flex items-center gap-2 px-3 py-2 rounded-md {% if active_category.slug == c.slug %}bg-white/5 text-white font-medium{% else %}text-zinc-400 hover:text-white hover:bg-white/5{% endif %} transition">
+          <span>{{ c.emoji }}</span>{{ c.name }}
         </a></li>
       {% endfor %}
     </ul>
@@ -35,14 +40,16 @@
 
   <div>
     {% if products %}
-      <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      <p class="text-xs text-zinc-500 mb-4">{{ products|length }} producto{{ products|length|pluralize }} encontrado{{ products|length|pluralize }}</p>
+      <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
         {% for p in products %}{% include "catalog/_product_card.html" with product=p %}{% endfor %}
       </div>
     {% else %}
-      <div class="card-glass rounded-2xl p-10 text-center">
-        <div class="text-4xl">🔍</div>
-        <p class="mt-3 text-white/80">No encontramos productos con esos filtros.</p>
-        <a href="{% url 'catalog:products' %}" class="mt-4 inline-block btn-primary px-4 py-2 rounded-lg font-semibold">Ver todos</a>
+      <div class="surface rounded-xl p-10 text-center">
+        <svg class="icon-lg icon mx-auto text-zinc-500" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <p class="mt-4 text-zinc-300 font-medium">Sin resultados</p>
+        <p class="mt-1 text-sm text-zinc-500">Prueba otra búsqueda o explora todo el catálogo.</p>
+        <a href="{% url 'catalog:products' %}" class="mt-5 inline-flex btn btn-primary">Ver todos los productos</a>
       </div>
     {% endif %}
   </div>
