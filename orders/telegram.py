@@ -85,7 +85,7 @@ def format_new_order(order) -> str:
         if it.customer_notes:
             lines.append(f"   Notas: {it.customer_notes}")
     lines.append("")
-    lines.append(f"🔗 https://jhelizservicestv.es/jheliz-admin/orders/order/{order.pk}/change/")
+    lines.append(f"🔗 https://jhelizservicestv.xyz/jheliz-admin/orders/order/{order.pk}/change/")
     return "\n".join(lines)
 
 
@@ -130,7 +130,7 @@ def _handle_update(update: dict) -> None:
             )
             lines.append(f"• <b>{p.name}</b> desde {precio}")
         lines.append("")
-        lines.append("Compra en https://jhelizservicestv.es/productos/")
+        lines.append("Compra en https://jhelizservicestv.xyz/productos/")
         send_message(chat_id, "\n".join(lines))
         return
     if text.startswith("/pedido"):
@@ -151,7 +151,7 @@ def _handle_update(update: dict) -> None:
             f"Pedido <b>#{order.short_uuid}</b>\n"
             f"Estado: <b>{order.get_status_display()}</b>\n"
             f"Total: {order.currency} {order.total}\n"
-            f"https://jhelizservicestv.es/pedidos/{order.uuid}/",
+            f"https://jhelizservicestv.xyz/pedidos/{order.uuid}/",
         )
         return
 

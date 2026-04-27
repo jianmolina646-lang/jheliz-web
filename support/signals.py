@@ -28,7 +28,7 @@ def _notify_ticket_message(sender, instance: TicketMessage, created: bool, **kwa
             )
             send_mail(
                 subject=f"Nueva respuesta en tu ticket #{ticket.id} — {ticket.subject}",
-                message=f"Te respondimos el ticket #{ticket.id}. Entra a jhelizservicestv.es para leer.",
+                message=f"Te respondimos el ticket #{ticket.id}. Entra a jhelizservicestv.xyz para leer.",
                 from_email=None,
                 recipient_list=[recipient],
                 html_message=html,

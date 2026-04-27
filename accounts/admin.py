@@ -46,7 +46,7 @@ class UserAdmin(BaseUserAdmin):
                         message=(
                             f"Hola {user.get_full_name() or user.username},\n\n"
                             "Tu solicitud de distribuidor fue aprobada. Ya puedes ver los precios mayoristas "
-                            "entrando a https://jhelizservicestv.es/distribuidor/panel/"
+                            "entrando a https://jhelizservicestv.xyz/distribuidor/panel/"
                         ),
                         from_email=None,
                         recipient_list=[user.email],

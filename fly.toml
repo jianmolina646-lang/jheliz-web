@@ -8,8 +8,8 @@ primary_region = "gig"  # São Paulo (cercano a Perú)
 [env]
   PORT = "8000"
   DEBUG = "False"
-  SITE_URL = "https://jhelizservicestv.es"
-  ALLOWED_HOSTS = "jhelizservicestv.es,www.jhelizservicestv.es,jheliz-web.fly.dev"
+  SITE_URL = "https://jhelizservicestv.xyz"
+  ALLOWED_HOSTS = "jhelizservicestv.xyz,www.jhelizservicestv.xyz,jheliz-web.fly.dev"
   DJANGO_SETTINGS_MODULE = "config.settings"
 
 [http_service]

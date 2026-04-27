@@ -1,4 +1,4 @@
-# Deploy de Jheliz — `jhelizservicestv.es`
+# Deploy de Jheliz — `jhelizservicestv.xyz`
 
 Esta guía cubre dos escenarios: **VPS Hostinger** (o cualquier VPS Linux) y **Fly.io** (gratis para empezar, tráfico bajo). Elige una según el plan que tengas.
 
@@ -29,8 +29,8 @@ Campos obligatorios en `.env`:
 
 - `SECRET_KEY` → genera uno con `python -c 'import secrets;print(secrets.token_urlsafe(64))'`
 - `DEBUG=False`
-- `ALLOWED_HOSTS=jhelizservicestv.es,www.jhelizservicestv.es`
-- `SITE_URL=https://jhelizservicestv.es`
+- `ALLOWED_HOSTS=jhelizservicestv.xyz,www.jhelizservicestv.xyz`
+- `SITE_URL=https://jhelizservicestv.xyz`
 - `DATABASE_URL=postgres://jheliz:jheliz@db:5432/jheliz` (o el Postgres que uses)
 - `MERCADOPAGO_ACCESS_TOKEN` y `MERCADOPAGO_PUBLIC_KEY` (producción)
 - `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
@@ -52,7 +52,7 @@ Crea `/etc/nginx/sites-available/jheliz`:
 ```nginx
 server {
     listen 80;
-    server_name jhelizservicestv.es www.jhelizservicestv.es;
+    server_name jhelizservicestv.xyz www.jhelizservicestv.xyz;
 
     location /.well-known/acme-challenge/ { root /var/www/certbot; }
 
@@ -71,7 +71,7 @@ server {
 ```bash
 sudo ln -s /etc/nginx/sites-available/jheliz /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d jhelizservicestv.es -d www.jhelizservicestv.es
+sudo certbot --nginx -d jhelizservicestv.xyz -d www.jhelizservicestv.xyz
 ```
 
 ### 1.5 DNS en Hostinger
@@ -87,7 +87,7 @@ Espera 5–30 min a que propague.
 
 En https://www.mercadopago.com.pe/developers/panel → tu app JHELIZ → **Webhooks**:
 
-- URL: `https://jhelizservicestv.es/pedidos/webhooks/mercadopago/`
+- URL: `https://jhelizservicestv.xyz/pedidos/webhooks/mercadopago/`
 - Eventos: `payment`
 
 ---
@@ -97,7 +97,7 @@ En https://www.mercadopago.com.pe/developers/panel → tu app JHELIZ → **Webho
 Hosting compartido solo corre PHP/Node/estáticos. Django necesita Python + Gunicorn, así que la alternativa más sencilla es:
 
 - **Fly.io** → gratis hasta ~3 máquinas pequeñas. Muy rápido de deployar.
-- Apuntas `jhelizservicestv.es` desde Hostinger hacia Fly.io por DNS.
+- Apuntas `jhelizservicestv.xyz` desde Hostinger hacia Fly.io por DNS.
 
 ### 2.1 Instala flyctl
 
@@ -121,16 +121,16 @@ fly secrets set \
   EMAIL_HOST=smtp-relay.brevo.com \
   EMAIL_HOST_USER=... \
   EMAIL_HOST_PASSWORD=... \
-  DEFAULT_FROM_EMAIL='Jheliz <no-reply@jhelizservicestv.es>'
+  DEFAULT_FROM_EMAIL='Jheliz <no-reply@jhelizservicestv.xyz>'
 fly deploy
 ```
 
 ### 2.3 Dominio personalizado
 
 ```bash
-fly certs create jhelizservicestv.es
-fly certs create www.jhelizservicestv.es
-fly certs show jhelizservicestv.es
+fly certs create jhelizservicestv.xyz
+fly certs create www.jhelizservicestv.xyz
+fly certs show jhelizservicestv.xyz
 ```
 
 Fly te dará un par de registros DNS. En Hostinger hPanel → DNS apunta:
@@ -161,7 +161,7 @@ fly machine run . --command "python manage.py run_telegram_bot" --name jheliz-bo
 
 ## 3) Checklist post-deploy
 
-- [ ] `jhelizservicestv.es` responde con HTTPS y muestra el home
+- [ ] `jhelizservicestv.xyz` responde con HTTPS y muestra el home
 - [ ] `/jheliz-admin/` carga y puedes entrar como superuser
 - [ ] Carga al menos un Category + Product + Plan desde el admin
 - [ ] `python manage.py seed_catalog` si quieres ejemplos
