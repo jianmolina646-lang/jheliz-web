@@ -58,3 +58,35 @@ def send_yape_proof_received(order) -> None:
 def send_yape_proof_rejected(order) -> None:
     _send(order, f"Necesitamos otro comprobante \u2014 pedido #{order.short_uuid}",
           "emails/order_yape_rejected.html")
+
+
+def send_expiry_reminder(order, items, days_left: int) -> None:
+    """Recordatorio de renovaci\u00f3n N d\u00edas antes del vencimiento.
+
+    ``items`` es una lista de ``OrderItem`` que vencen en ``days_left`` d\u00edas.
+    """
+    if not order.email or not items:
+        return
+    context = {
+        "order": order,
+        "items": list(items),
+        "days_left": days_left,
+        "order_url": _order_absolute_url(order),
+        "SITE_NAME": settings.SITE_NAME,
+        "SITE_URL": settings.SITE_URL,
+        "CURRENCY_SYMBOL": settings.DEFAULT_CURRENCY_SYMBOL,
+        "WHATSAPP_NUMBER": settings.WHATSAPP_NUMBER,
+    }
+    body = render_to_string("emails/order_expiring.html", context)
+    if days_left <= 1:
+        subject = f"Tu suscripci\u00f3n vence ma\u00f1ana \u2014 #{order.short_uuid}"
+    else:
+        subject = f"Tu suscripci\u00f3n vence en {days_left} d\u00edas \u2014 #{order.short_uuid}"
+    message = EmailMessage(
+        subject=subject,
+        body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[order.email],
+    )
+    message.content_subtype = "html"
+    message.send(fail_silently=True)

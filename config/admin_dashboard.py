@@ -1,14 +1,16 @@
 """Dashboard callback para django-unfold.
 
-Pinta 4 métricas arriba (Pedidos hoy, Ventas mes, Pendientes, Tickets abiertos)
-+ listas rápidas de últimos pedidos y tickets.
+Métricas + gráficos: ventas por día, top productos, método de pago,
+ticket promedio, clientes nuevos vs recurrentes.
 """
 
 from __future__ import annotations
 
+import json
+from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Count, Sum
+from django.db.models import Count, Max, Min, Sum
 from django.urls import reverse
 from django.utils import timezone
 
@@ -21,12 +23,14 @@ def dashboard_callback(request, context):
     now = timezone.localtime()
     today = now.date()
     first_of_month = today.replace(day=1)
+    paid_statuses = [Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED]
 
+    # ---- KPIs arriba ---------------------------------------------------------
     orders_today = Order.objects.filter(created_at__date=today).count()
     sales_month = (
         Order.objects.filter(
             created_at__date__gte=first_of_month,
-            status__in=[Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED],
+            status__in=paid_statuses,
         )
         .aggregate(total=Sum("total"))
         .get("total")
@@ -38,9 +42,88 @@ def dashboard_callback(request, context):
     verifying_orders = Order.objects.filter(status=Order.Status.VERIFYING).count()
     open_tickets = Ticket.objects.exclude(status=Ticket.Status.CLOSED).count()
 
+    # Ticket promedio + nuevos vs recurrentes del mes
+    paid_month_qs = Order.objects.filter(
+        created_at__date__gte=first_of_month, status__in=paid_statuses
+    )
+    paid_month_count = paid_month_qs.count()
+    avg_ticket = (
+        (sales_month / paid_month_count) if paid_month_count else Decimal("0.00")
+    )
+    # Una sola query agrega min/max de fechas pagadas por usuario. Antes había
+    # un .exists() por cliente (N+1 grave en cuanto crece la lista de clientes).
+    user_paid_range = (
+        Order.objects
+        .filter(status__in=paid_statuses, user__isnull=False)
+        .values("user_id")
+        .annotate(
+            first_paid=Min("created_at__date"),
+            last_paid=Max("created_at__date"),
+        )
+    )
+    new_customers = 0
+    returning_customers = 0
+    for row in user_paid_range:
+        if row["last_paid"] is None or row["last_paid"] < first_of_month:
+            continue  # no compró este mes
+        if row["first_paid"] and row["first_paid"] < first_of_month:
+            returning_customers += 1
+        else:
+            new_customers += 1
+
     pending_distributors = User.objects.filter(
         role="distribuidor", distributor_approved=False
     ).count()
+
+    # ---- Chart 1: ventas por día (últimos 14 días) --------------------------
+    days = [today - timedelta(days=i) for i in range(13, -1, -1)]
+    per_day_rows = {
+        d: Decimal("0.00") for d in days
+    }
+    per_day_qs = (
+        Order.objects.filter(
+            created_at__date__gte=days[0],
+            status__in=paid_statuses,
+        )
+        .values("created_at__date")
+        .annotate(total=Sum("total"))
+    )
+    for row in per_day_qs:
+        d = row["created_at__date"]
+        if d in per_day_rows:
+            per_day_rows[d] = row["total"] or Decimal("0.00")
+    sales_chart = {
+        "labels": [d.strftime("%d %b") for d in days],
+        "data": [float(per_day_rows[d]) for d in days],
+    }
+
+    # ---- Chart 2: top 5 productos del mes -----------------------------------
+    top_products_rows = list(
+        Order.objects.filter(
+            status__in=paid_statuses,
+            created_at__date__gte=first_of_month,
+        )
+        .values("items__product_name")
+        .annotate(qty=Count("items"))
+        .order_by("-qty")[:5]
+    )
+    top_chart = {
+        "labels": [r["items__product_name"] or "—" for r in top_products_rows],
+        "data": [r["qty"] for r in top_products_rows],
+    }
+
+    # ---- Chart 3: método de pago (mes) --------------------------------------
+    method_rows = (
+        paid_month_qs.values("payment_provider").annotate(qty=Count("id"))
+    )
+    method_labels = []
+    method_data = []
+    for r in method_rows:
+        name = r["payment_provider"] or "—"
+        pretty = {"mercadopago": "Mercado Pago", "yape": "Yape directo"}.get(name, name)
+        method_labels.append(pretty)
+        method_data.append(r["qty"])
+    method_chart = {"labels": method_labels, "data": method_data}
 
     context.update(
         {
@@ -60,16 +143,23 @@ def dashboard_callback(request, context):
                     "link": reverse("admin:orders_order_changelist") + "?status__exact=delivered",
                 },
                 {
+                    "title": "Ticket promedio",
+                    "metric": f"S/ {avg_ticket:,.2f}",
+                    "footer": f"{paid_month_count} pedidos pagados",
+                    "icon": "receipt_long",
+                    "link": reverse("admin:orders_order_changelist"),
+                },
+                {
                     "title": "Yape por verificar",
                     "metric": verifying_orders,
-                    "footer": "Comprobantes pendientes de revisar",
+                    "footer": "Comprobantes pendientes",
                     "icon": "qr_code_scanner",
                     "link": reverse("admin:orders_order_changelist") + "?status__exact=verifying",
                 },
                 {
                     "title": "Pedidos pendientes",
                     "metric": pending_orders,
-                    "footer": "Pendiente / Pagado / En preparación",
+                    "footer": "Pendiente / Pagado / En prep.",
                     "icon": "pending_actions",
                     "link": reverse("admin:orders_order_changelist") + "?status__exact=preparing",
                 },
@@ -82,6 +172,13 @@ def dashboard_callback(request, context):
                 },
             ],
             "pending_distributors": pending_distributors,
+            "new_vs_returning": {
+                "new": new_customers,
+                "returning": returning_customers,
+            },
+            "sales_chart_json": json.dumps(sales_chart),
+            "top_chart_json": json.dumps(top_chart),
+            "method_chart_json": json.dumps(method_chart),
             "recent_orders": list(
                 Order.objects.select_related("user")
                 .order_by("-created_at")[:8]
@@ -91,19 +188,7 @@ def dashboard_callback(request, context):
                 .exclude(status=Ticket.Status.CLOSED)
                 .order_by("-updated_at")[:6]
             ),
-            "top_products": list(
-                Order.objects.filter(
-                    status__in=[
-                        Order.Status.PAID,
-                        Order.Status.PREPARING,
-                        Order.Status.DELIVERED,
-                    ],
-                    created_at__date__gte=first_of_month,
-                )
-                .values("items__product_name")
-                .annotate(qty=Count("items"))
-                .order_by("-qty")[:5]
-            ),
+            "top_products": top_products_rows,
         }
     )
     return context

@@ -40,6 +40,12 @@ INSTALLED_APPS = [
     # Third-party
     "widget_tweaks",
     "django_htmx",
+    "axes",  # protección anti fuerza-bruta en el login
+    "django_otp",  # base para 2FA
+    "django_otp.plugins.otp_totp",  # TOTP (Google Authenticator / Authy / 1Password)
+    "django_otp.plugins.otp_static",  # códigos de respaldo
+    "auditlog",  # registro de cambios (quién hizo qué, cuándo)
+    "csp",  # Content Security Policy
     # Local
     "accounts.apps.AccountsConfig",
     "catalog.apps.CatalogConfig",
@@ -54,9 +60,24 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # django-otp debe ir DESPUÉS de AuthenticationMiddleware.
+    "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
+    # auditlog: capture el usuario que hace cada cambio en los modelos rastreados.
+    "auditlog.middleware.AuditlogMiddleware",
+    "csp.middleware.CSPMiddleware",
+    "config.security_headers.SecurityHeadersMiddleware",  # Permissions-Policy
+    # AxesMiddleware debe ir al final, después del de auth.
+    "axes.middleware.AxesMiddleware",
+]
+
+# ---- Auth backends -------------------------------------------------------
+# AxesStandaloneBackend va PRIMERO para que pueda bloquear antes de validar.
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -249,7 +270,12 @@ UNFOLD = {
                 "separator": True,
                 "items": [
                     {
-                        "title": "Usuarios",
+                        "title": "Clientes",
+                        "icon": "person",
+                        "link": "/jheliz-admin/accounts/customer/",
+                    },
+                    {
+                        "title": "Usuarios (staff / distribuidores)",
                         "icon": "group",
                         "link": "/jheliz-admin/accounts/user/",
                     },
@@ -275,11 +301,100 @@ UNFOLD = {
     },
 }
 
+# ---------------------------------------------------------------------------
+# Cifrado de datos sensibles en reposo
+#
+# Se usa para EncryptedTextField en orders.models.OrderItem.delivered_credentials.
+# Generar con:  python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+# Si no se configura en DEBUG, se deriva de SECRET_KEY (sólo dev).
+# ---------------------------------------------------------------------------
+FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default="")
+
+# ---------------------------------------------------------------------------
+# django-axes: bloqueo por intentos fallidos de login
+# ---------------------------------------------------------------------------
+AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=5, cast=int)
+AXES_COOLOFF_TIME = config("AXES_COOLOFF_TIME_HOURS", default=1, cast=int)  # horas
+AXES_LOCKOUT_PARAMETERS = ["ip_address", "username"]
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_TEMPLATE = None  # usa el formulario default con mensaje de error
+AXES_VERBOSE = False
+
+# ---------------------------------------------------------------------------
+# 2FA (django-otp)
+#
+# El stack queda instalado pero el ENFORCEMENT (rechazar logins sin TOTP)
+# se activa con ADMIN_2FA_ENFORCED=True una vez que tengas tu dispositivo
+# TOTP registrado. Pasos (después de desplegar este PR):
+#   1) Entra al admin con tu superuser actual.
+#   2) Sección "TOTP devices" → "Añadir TOTP device" y escanea el QR con
+#      Google Authenticator / Authy / 1Password.
+#   3) Verifica que puedes usar el código (genera otro y entra de nuevo).
+#   4) En tu .env de producción pon: ADMIN_2FA_ENFORCED=True
+#      Esto fuerza que TODO superuser use TOTP. Si pierdes acceso, usa
+#      `python manage.py addstatictoken <usuario>` para emitir un token
+#      temporal de rescate por SSH.
+# ---------------------------------------------------------------------------
+ADMIN_2FA_ENFORCED = config("ADMIN_2FA_ENFORCED", default=False, cast=bool)
+OTP_TOTP_ISSUER = "Jheliz Admin"
+
+# ---------------------------------------------------------------------------
+# Security headers
+# ---------------------------------------------------------------------------
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+
+# Content Security Policy. Bloquea scripts/estilos/imágenes de orígenes
+# que no estén en self. 'unsafe-inline' se mantiene en script/style por
+# compatibilidad con el admin de Django/Unfold y con los bloques inline de
+# las plantillas; los demás directivos están cerrados al máximo.
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": ("'self'",),
+        "script-src": ("'self'", "'unsafe-inline'"),
+        "style-src": ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com"),
+        "font-src": ("'self'", "data:", "https://fonts.gstatic.com"),
+        "img-src": ("'self'", "data:", "https:"),
+        "connect-src": ("'self'",),
+        "frame-ancestors": ("'none'",),
+        "base-uri": ("'self'",),
+        "form-action": ("'self'",),
+        "object-src": ("'none'",),
+        "upgrade-insecure-requests": (),
+    },
+}
+
+# Permissions-Policy (cabecera moderna que reemplaza a Feature-Policy).
+# Bloqueamos APIs sensibles que el admin no necesita.
+PERMISSIONS_POLICY = (
+    "accelerometer=(), ambient-light-sensor=(), autoplay=(), battery=(), "
+    "camera=(), display-capture=(), document-domain=(), encrypted-media=(), "
+    "execution-while-not-rendered=(), execution-while-out-of-viewport=(), "
+    "fullscreen=(self), geolocation=(), gyroscope=(), keyboard-map=(), "
+    "magnetometer=(), microphone=(), midi=(), navigation-override=(), "
+    "payment=(), picture-in-picture=(), publickey-credentials-get=(), "
+    "screen-wake-lock=(), sync-xhr=(), usb=(), web-share=(), "
+    "xr-spatial-tracking=()"
+)
+
+# ---------------------------------------------------------------------------
 # Security in prod
+# ---------------------------------------------------------------------------
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    # HSTS: 1 año + preload (cumple requisitos de hstspreload.org).
+    # Sólo activa preload una vez que estés 100% seguro de que TODOS los
+    # subdominios sirven HTTPS. Sacar HSTS preload requiere meses de espera.
+    SECURE_HSTS_SECONDS = config(
+        "SECURE_HSTS_SECONDS", default=60 * 60 * 24 * 365, cast=int
+    )
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = config("SECURE_HSTS_PRELOAD", default=True, cast=bool)
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

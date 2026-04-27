@@ -8,6 +8,10 @@
     {% include "unfold/helpers/site_branding.html" %}
 {% endblock %}
 
+{% block extrahead %}{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="flex flex-col gap-6">
     {% if pending_distributors %}
@@ -18,7 +22,7 @@
     {% endif %}
 
     {% if kpi %}
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
         {% for card in kpi %}
         <a href="{{ card.link }}" class="group block p-5 border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 hover:-translate-y-0.5 hover:shadow-xl transition">
             <div class="flex items-start justify-between">
@@ -35,7 +39,39 @@
     {% endif %}
 
     <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
+        <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="font-semibold text-base-900 dark:text-white">Ventas por día (últimos 14)</h2>
+                <span class="text-xs text-base-500">S/</span>
+            </div>
+            <canvas id="salesChart" height="90"></canvas>
+        </div>
+        <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
+            <h2 class="font-semibold text-base-900 dark:text-white mb-3">Método de pago (mes)</h2>
+            <canvas id="methodChart" height="150"></canvas>
+            {% if new_vs_returning %}
+            <div class="mt-4 pt-3 border-t border-base-200 dark:border-base-800 grid grid-cols-2 gap-3 text-center">
+                <div>
+                    <div class="text-xs text-base-500">Nuevos</div>
+                    <div class="text-xl font-bold text-emerald-400">{{ new_vs_returning.new }}</div>
+                </div>
+                <div>
+                    <div class="text-xs text-base-500">Recurrentes</div>
+                    <div class="text-xl font-bold text-primary-400">{{ new_vs_returning.returning }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
         <div class="flex flex-col gap-6">
+            {% if top_chart_json %}
+            <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
+                <h2 class="font-semibold text-base-900 dark:text-white mb-3">Top productos del mes</h2>
+                <canvas id="topChart" height="90"></canvas>
+            </div>
+            {% endif %}
             {% if recent_orders %}
             <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 overflow-hidden">
                 <div class="flex items-center justify-between px-5 py-3 border-b border-base-200 dark:border-base-800">
@@ -62,21 +98,6 @@
             </div>
             {% endif %}
 
-            {% if top_products %}
-            <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 overflow-hidden">
-                <div class="px-5 py-3 border-b border-base-200 dark:border-base-800">
-                    <h2 class="font-semibold text-base-900 dark:text-white">Top productos del mes</h2>
-                </div>
-                <div class="divide-y divide-base-200 dark:divide-base-800">
-                    {% for row in top_products %}
-                    <div class="flex items-center justify-between px-5 py-3">
-                        <div class="text-sm text-base-900 dark:text-white truncate">{{ row.items__product_name|default:"—" }}</div>
-                        <div class="text-sm font-semibold text-base-900 dark:text-white">{{ row.qty }}</div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
         </div>
 
         <div class="flex flex-col gap-6">
@@ -119,4 +140,91 @@
         {% include "unfold/helpers/app_list_default.html" %}
     </div>
 </div>
+
+{{ sales_chart_json|json_script:"salesChartData" }}
+{{ top_chart_json|json_script:"topChartData" }}
+{{ method_chart_json|json_script:"methodChartData" }}
+
+<script>
+(function(){
+    function parse(id){ try { return JSON.parse(document.getElementById(id).textContent); } catch(e){ return null; } }
+    var pink = "#f472b6", violet = "#8b5cf6", cyan = "#06b6d4", emerald = "#10b981", amber = "#f59e0b";
+    var palette = [pink, violet, cyan, emerald, amber];
+    var grid = "rgba(148,163,184,0.15)";
+    Chart.defaults.color = "#94a3b8";
+    Chart.defaults.font.family = "ui-sans-serif,system-ui,sans-serif";
+
+    var sales = parse("salesChartData");
+    var salesEl = document.getElementById("salesChart");
+    if(sales && salesEl){
+        new Chart(salesEl, {
+            type: "line",
+            data: {
+                labels: sales.labels,
+                datasets: [{
+                    label: "Ventas (S/)",
+                    data: sales.data,
+                    borderColor: pink,
+                    backgroundColor: "rgba(244,114,182,0.15)",
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 3,
+                    pointBackgroundColor: pink,
+                }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: grid } },
+                    y: { grid: { color: grid }, beginAtZero: true },
+                },
+            },
+        });
+    }
+
+    var top = parse("topChartData");
+    var topEl = document.getElementById("topChart");
+    if(top && topEl && top.data && top.data.length){
+        new Chart(topEl, {
+            type: "bar",
+            data: {
+                labels: top.labels,
+                datasets: [{
+                    label: "Unidades",
+                    data: top.data,
+                    backgroundColor: palette,
+                    borderRadius: 6,
+                }],
+            },
+            options: {
+                indexAxis: "y",
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: grid }, beginAtZero: true, ticks: { precision: 0 } },
+                    y: { grid: { display: false } },
+                },
+            },
+        });
+    }
+
+    var method = parse("methodChartData");
+    var methodEl = document.getElementById("methodChart");
+    if(method && methodEl && method.data && method.data.length){
+        new Chart(methodEl, {
+            type: "doughnut",
+            data: {
+                labels: method.labels,
+                datasets: [{ data: method.data, backgroundColor: [pink, violet, cyan, emerald], borderWidth: 0 }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: "bottom" } },
+                cutout: "60%",
+            },
+        });
+    }
+})();
+</script>
 {% endblock %}

@@ -4,6 +4,8 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 
+from .encryption import EncryptedTextField
+
 
 class PaymentSettings(models.Model):
     """Singleton con la config de pagos manuales (Yape) editable desde el admin."""
@@ -92,6 +94,17 @@ class Order(models.Model):
         ordering = ("-created_at",)
         verbose_name = "Pedido"
         verbose_name_plural = "Pedidos"
+        indexes = [
+            # Filtro más común en el admin: lista por status + ordenado por fecha.
+            models.Index(fields=["status", "-created_at"], name="order_status_created_idx"),
+            # Filtro por fecha (dashboard, ventas del día/mes, recordatorios).
+            models.Index(fields=["-created_at"], name="order_created_idx"),
+            # Búsqueda directa por correo y por teléfono desde el admin.
+            models.Index(fields=["email"], name="order_email_idx"),
+            models.Index(fields=["phone"], name="order_phone_idx"),
+            # Métricas por usuario (clientes nuevos vs recurrentes en dashboard).
+            models.Index(fields=["user", "status"], name="order_user_status_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"Pedido #{self.pk} ({self.get_status_display()})"
@@ -135,12 +148,18 @@ class OrderItem(models.Model):
         "Notas del cliente", blank=True,
         help_text="Preferencias adicionales (idioma, recordatorio de vencimiento, etc).",
     )
-    delivered_credentials = models.TextField(blank=True)
+    delivered_credentials = EncryptedTextField(blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
+    # Recordatorios de vencimiento ya enviados (evita duplicados):
+    expiry_reminder_3d_sent_at = models.DateTimeField(null=True, blank=True)
+    expiry_reminder_1d_sent_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Item de pedido"
         verbose_name_plural = "Items de pedido"
+        indexes = [
+            models.Index(fields=["expires_at"], name="orderitem_expires_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.product_name} \u2014 {self.plan_name}"

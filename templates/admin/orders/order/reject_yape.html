@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto flex flex-col gap-6">
+  <div>
+    <h1 class="text-2xl font-bold text-base-900 dark:text-white">Rechazar comprobante Yape</h1>
+    <p class="mt-1 text-sm text-base-500 dark:text-base-400">
+      Pedido <strong>#{{ order.short_uuid }}</strong> · Cliente: {{ order.email }}
+    </p>
+  </div>
+
+  {% if order.payment_proof %}
+  <a href="{{ order.payment_proof.url }}" target="_blank">
+    <img src="{{ order.payment_proof.url }}" alt="Comprobante"
+         style="max-width:300px;max-height:400px;border-radius:8px" />
+  </a>
+  {% endif %}
+
+  <form method="post" class="flex flex-col gap-5 p-6 border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900">
+    {% csrf_token %}
+    <div>
+      <label class="block text-sm font-medium text-base-900 dark:text-white mb-1" for="reason">
+        Motivo (se enviará al cliente por email)
+      </label>
+      <textarea name="reason" id="reason" rows="4"
+        class="w-full p-2 rounded border border-base-200 dark:border-base-700 bg-base-50 dark:bg-base-800 text-base-900 dark:text-white"
+        placeholder="Ej: el monto del comprobante es menor al pedido, o la captura no muestra el número de destino."></textarea>
+      <p class="mt-1 text-xs text-base-500">Si lo dejas en blanco, se envía un motivo genérico.</p>
+    </div>
+
+    <div class="flex gap-3 pt-3 border-t border-base-200 dark:border-base-800">
+      <button type="submit"
+        class="px-5 py-2 rounded bg-red-500 hover:bg-red-600 text-white font-semibold">
+        Rechazar y notificar al cliente
+      </button>
+      <a href="{% url 'admin:orders_order_changelist' %}"
+        class="px-5 py-2 rounded border border-base-200 dark:border-base-700 hover:bg-base-50 dark:hover:bg-base-800">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}
