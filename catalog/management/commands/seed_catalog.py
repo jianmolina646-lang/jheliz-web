@@ -109,6 +109,7 @@ class Command(BaseCommand):
         ]
 
         for data in catalog_data:
+            requires_profile = data["mode"] != ProductMode.LICENCIA
             product, created = Product.objects.get_or_create(
                 name=data["name"],
                 defaults={
@@ -119,6 +120,8 @@ class Command(BaseCommand):
                     "description": data["desc"],
                     "is_featured": data["featured"],
                     "sold_badge": data["sold_badge"],
+                    "requires_customer_profile_data": requires_profile,
+                    "delivery_is_instant": False,
                 },
             )
             for idx, (name, days, pc, pd) in enumerate(data["plans"]):

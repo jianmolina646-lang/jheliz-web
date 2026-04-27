@@ -63,7 +63,16 @@ class Product(models.Model):
     image = models.ImageField("Imagen", upload_to="products/", blank=True, null=True)
     is_active = models.BooleanField("Visible en tienda", default=True)
     is_featured = models.BooleanField("Destacado en home", default=False)
-    delivery_is_instant = models.BooleanField("Entrega inmediata", default=True)
+    delivery_is_instant = models.BooleanField(
+        "Entrega inmediata", default=False,
+        help_text="Si est\u00e1 activo, se asigna un stock autom\u00e1ticamente. Por defecto, "
+        "la entrega es manual y el admin crea el perfil con los datos que pidi\u00f3 el cliente.",
+    )
+    requires_customer_profile_data = models.BooleanField(
+        "Pedir al cliente nombre de perfil y PIN", default=True,
+        help_text="Aplica a productos por perfil (Netflix, Disney, etc). "
+        "Desactiva para licencias donde el cliente no elige nada.",
+    )
     rating = models.DecimalField(
         "Rating mostrado", max_digits=3, decimal_places=1, default=Decimal("5.0")
     )

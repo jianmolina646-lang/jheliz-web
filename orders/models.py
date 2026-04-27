@@ -9,6 +9,7 @@ class Order(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente de pago"
         PAID = "paid", "Pagado"
+        PREPARING = "preparing", "En preparación"
         DELIVERED = "delivered", "Entregado"
         CANCELED = "canceled", "Cancelado"
         FAILED = "failed", "Fallido"
@@ -73,6 +74,18 @@ class OrderItem(models.Model):
     plan_name = models.CharField(max_length=120)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=1)
+    # Datos que el cliente pide (flujo manual)
+    requested_profile_name = models.CharField(
+        "Nombre del perfil solicitado", max_length=60, blank=True,
+    )
+    requested_pin = models.CharField(
+        "PIN solicitado", max_length=8, blank=True,
+        help_text="PIN numérico que el cliente quiere en su perfil.",
+    )
+    customer_notes = models.TextField(
+        "Notas del cliente", blank=True,
+        help_text="Preferencias adicionales (idioma, recordatorio de vencimiento, etc).",
+    )
     delivered_credentials = models.TextField(blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
 

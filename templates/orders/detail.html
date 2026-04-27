@@ -19,11 +19,22 @@
           </div>
           <div class="text-right text-sm">{{ CURRENCY_SYMBOL }} {{ it.unit_price|floatformat:2|intcomma }}</div>
         </div>
+        {% if it.requested_profile_name or it.requested_pin or it.customer_notes %}
+          <div class="mt-4 rounded-xl bg-white/5 border border-white/10 p-4 text-sm space-y-1">
+            <div class="text-xs uppercase tracking-wider text-white/50 mb-1">Tus preferencias</div>
+            {% if it.requested_profile_name %}<div>Nombre del perfil: <span class="font-semibold">{{ it.requested_profile_name }}</span></div>{% endif %}
+            {% if it.requested_pin %}<div>PIN solicitado: <span class="font-semibold">{{ it.requested_pin }}</span></div>{% endif %}
+            {% if it.customer_notes %}<div>Notas: <span class="font-semibold">{{ it.customer_notes }}</span></div>{% endif %}
+          </div>
+        {% endif %}
+
         {% if it.delivered_credentials %}
           <div class="mt-4 rounded-xl bg-black/40 border border-white/10 p-4 font-mono text-sm whitespace-pre-wrap select-all">{{ it.delivered_credentials }}</div>
           <p class="text-xs text-white/50 mt-2">No cambies el correo ni la contraseña. Si pierdes los datos, abre un ticket.</p>
         {% elif order.status == 'pending' %}
           <p class="text-amber-300 text-sm mt-3">Esperando confirmación del pago.</p>
+        {% elif order.status == 'preparing' %}
+          <p class="text-fuchsia-300 text-sm mt-3">Estamos creando tu perfil con el nombre y PIN que pediste. Te avisamos por correo en cuanto esté listo.</p>
         {% else %}
           <p class="text-white/60 text-sm mt-3">La entrega se está procesando.</p>
         {% endif %}
