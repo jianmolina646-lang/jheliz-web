@@ -5,9 +5,49 @@ from django.conf import settings
 from django.db import models
 
 
+class PaymentSettings(models.Model):
+    """Singleton con la config de pagos manuales (Yape) editable desde el admin."""
+
+    yape_enabled = models.BooleanField("Yape activo", default=False)
+    yape_holder_name = models.CharField(
+        "Nombre del titular (Yape)", max_length=120, blank=True,
+        help_text="Nombre que aparece al transferir por Yape, ej: Jhonatan Molina.",
+    )
+    yape_phone = models.CharField(
+        "Número Yape", max_length=30, blank=True,
+        help_text="Celular asociado a Yape, ej: +51 999 999 999.",
+    )
+    yape_qr = models.ImageField(
+        "QR de Yape", upload_to="payments/yape/", blank=True,
+        help_text="Captura o export del QR de tu cuenta Yape.",
+    )
+    yape_instructions = models.TextField(
+        "Instrucciones extra", blank=True,
+        help_text="Texto adicional bajo el QR (ej: horario, verificación extra).",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuración de pagos"
+        verbose_name_plural = "Configuración de pagos"
+
+    def __str__(self) -> str:
+        return "Configuración de pagos"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "PaymentSettings":
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class Order(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente de pago"
+        VERIFYING = "verifying", "Verificando pago"
         PAID = "paid", "Pagado"
         PREPARING = "preparing", "En preparación"
         DELIVERED = "delivered", "Entregado"
@@ -35,6 +75,15 @@ class Order(models.Model):
     payment_provider = models.CharField(max_length=30, blank=True)
     payment_reference = models.CharField(max_length=120, blank=True, db_index=True)
     notes = models.TextField(blank=True)
+    payment_proof = models.ImageField(
+        "Comprobante de pago", upload_to="payments/proofs/", blank=True,
+        help_text="Captura del comprobante Yape subida por el cliente.",
+    )
+    payment_proof_uploaded_at = models.DateTimeField(null=True, blank=True)
+    payment_rejection_reason = models.TextField(
+        "Motivo de rechazo", blank=True,
+        help_text="Visible para el cliente cuando el comprobante es rechazado.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)

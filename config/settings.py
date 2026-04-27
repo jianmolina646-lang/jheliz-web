@@ -211,6 +211,11 @@ UNFOLD = {
                         "icon": "list_alt",
                         "link": "/jheliz-admin/orders/orderitem/",
                     },
+                    {
+                        "title": "Config. de pagos (Yape)",
+                        "icon": "qr_code_2",
+                        "link": "/jheliz-admin/orders/paymentsettings/",
+                    },
                 ],
             },
             {

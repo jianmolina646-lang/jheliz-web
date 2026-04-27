@@ -1,0 +1,9 @@
+{% extends "emails/_base.html" %}
+{% load humanize %}
+{% block body %}
+  <h2 style="margin:0 0 8px 0;font-size:20px;">Recibimos tu comprobante Yape</h2>
+  <p>Pedido <strong>#{{ order.short_uuid }}</strong> · Total <strong>{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</strong></p>
+  <p>Estamos verificando tu pago. En menos de <strong>30 minutos</strong> te avisaremos con la confirmación y empezaremos a preparar tu pedido.</p>
+  <p>Si necesitas otra cosa, escríbenos por WhatsApp o respondiendo este correo.</p>
+  <p style="margin-top:16px;"><a href="{{ order_url }}" style="background:#f472b6;color:#fff;padding:10px 18px;border-radius:10px;text-decoration:none;display:inline-block;">Ver mi pedido</a></p>
+{% endblock %}

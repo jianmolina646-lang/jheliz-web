@@ -35,6 +35,7 @@ def dashboard_callback(request, context):
     pending_orders = Order.objects.filter(
         status__in=[Order.Status.PENDING, Order.Status.PAID, Order.Status.PREPARING]
     ).count()
+    verifying_orders = Order.objects.filter(status=Order.Status.VERIFYING).count()
     open_tickets = Ticket.objects.exclude(status=Ticket.Status.CLOSED).count()
 
     pending_distributors = User.objects.filter(
@@ -57,6 +58,13 @@ def dashboard_callback(request, context):
                     "footer": f"Desde {first_of_month.strftime('%d %b')}",
                     "icon": "payments",
                     "link": reverse("admin:orders_order_changelist") + "?status__exact=delivered",
+                },
+                {
+                    "title": "Yape por verificar",
+                    "metric": verifying_orders,
+                    "footer": "Comprobantes pendientes de revisar",
+                    "icon": "qr_code_scanner",
+                    "link": reverse("admin:orders_order_changelist") + "?status__exact=verifying",
                 },
                 {
                     "title": "Pedidos pendientes",

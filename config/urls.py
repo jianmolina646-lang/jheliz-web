@@ -11,6 +11,9 @@ urlpatterns = [
     path("", include("catalog.urls", namespace="catalog")),
 ]
 
+# Media siempre se sirve vía Django (volumen compartido con el contenedor).
+# En producción nginx puede cachear /media/ por delante si se quiere.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

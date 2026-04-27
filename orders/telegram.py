@@ -89,6 +89,18 @@ def format_new_order(order) -> str:
     return "\n".join(lines)
 
 
+def format_yape_proof(order) -> str:
+    return "\n".join([
+        f"<b>💸 Comprobante Yape recibido — pedido #{order.short_uuid}</b>",
+        f"Cliente: {order.email or '(sin correo)'}"
+        + (f" · tel {order.phone}" if order.phone else ""),
+        f"Total: {order.currency} {order.total}",
+        "",
+        "Revisa el comprobante y confirma o rechaza desde el admin:",
+        f"🔗 https://jhelizservicestv.xyz/jheliz-admin/orders/order/{order.pk}/change/",
+    ])
+
+
 # -------- Polling bot --------
 
 HELP_TEXT = (
