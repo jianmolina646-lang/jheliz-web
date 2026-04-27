@@ -12,3 +12,4 @@ django-htmx>=1.22
 django-extensions>=4.0
 django-unfold>=0.50
 requests>=2.32
+django-csp>=4.0  # cabecera Content-Security-Policy
