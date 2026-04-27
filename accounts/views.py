@@ -43,12 +43,46 @@ class JhelizLogoutView(LogoutView):
 
 @login_required
 def dashboard(request):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from orders.models import OrderItem
+
     orders = (
         Order.objects.filter(user=request.user)
         .prefetch_related("items__stock_item")
         .order_by("-created_at")[:20]
     )
-    return render(request, "accounts/dashboard.html", {"orders": orders})
+
+    now = timezone.now()
+    soon = now + timedelta(days=7)
+    user_items = OrderItem.objects.filter(order__user=request.user).select_related(
+        "order", "plan__product",
+    )
+    active_items = user_items.filter(
+        expires_at__gt=now, order__status=Order.Status.DELIVERED,
+    ).order_by("expires_at")
+    expiring_soon = active_items.filter(expires_at__lte=soon)
+    delivered_count = user_items.filter(order__status=Order.Status.DELIVERED).count()
+
+    stats = {
+        "active": active_items.count(),
+        "expiring_soon": expiring_soon.count(),
+        "delivered": delivered_count,
+        "total_orders": Order.objects.filter(user=request.user).count(),
+    }
+
+    return render(
+        request,
+        "accounts/dashboard.html",
+        {
+            "orders": orders,
+            "active_items": active_items[:8],
+            "expiring_soon": expiring_soon[:5],
+            "stats": stats,
+        },
+    )
 
 
 @login_required

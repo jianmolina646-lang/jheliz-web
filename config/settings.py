@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.humanize",
+    "django.contrib.sitemaps",
     # Third-party
     "widget_tweaks",
     "django_htmx",
@@ -46,6 +47,7 @@ INSTALLED_APPS = [
     "django_otp.plugins.otp_static",  # códigos de respaldo
     "auditlog",  # registro de cambios (quién hizo qué, cuándo)
     "csp",  # Content Security Policy
+    "import_export",  # CSV/XLSX import-export en el admin
     # Local
     "accounts.apps.AccountsConfig",
     "catalog.apps.CatalogConfig",
@@ -219,7 +221,7 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "Ventas",
+                "title": "Ventas (cliente final)",
                 "separator": True,
                 "items": [
                     {
@@ -249,8 +251,18 @@ UNFOLD = {
                         "link": "/jheliz-admin/catalog/product/",
                     },
                     {
-                        "title": "Planes",
+                        "title": "Planes — Cliente final",
                         "icon": "sell",
+                        "link": "/jheliz-admin/catalog/customerplan/",
+                    },
+                    {
+                        "title": "Planes — Distribuidor",
+                        "icon": "storefront",
+                        "link": "/jheliz-admin/catalog/distributorplan/",
+                    },
+                    {
+                        "title": "Planes (todos)",
+                        "icon": "list",
                         "link": "/jheliz-admin/catalog/plan/",
                     },
                     {
@@ -262,6 +274,32 @@ UNFOLD = {
                         "title": "Stock",
                         "icon": "inventory",
                         "link": "/jheliz-admin/catalog/stockitem/",
+                    },
+                    {
+                        "title": "Reseñas",
+                        "icon": "reviews",
+                        "link": "/jheliz-admin/catalog/testimonial/",
+                    },
+                ],
+            },
+            {
+                "title": "Distribuidor",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Pedidos mayoristas",
+                        "icon": "local_shipping",
+                        "link": "/jheliz-admin/orders/distributororder/",
+                    },
+                    {
+                        "title": "Distribuidores",
+                        "icon": "badge",
+                        "link": "/jheliz-admin/accounts/distributor/",
+                    },
+                    {
+                        "title": "Movimientos de wallet",
+                        "icon": "account_balance_wallet",
+                        "link": "/jheliz-admin/accounts/wallettransaction/",
                     },
                 ],
             },
@@ -275,14 +313,9 @@ UNFOLD = {
                         "link": "/jheliz-admin/accounts/customer/",
                     },
                     {
-                        "title": "Usuarios (staff / distribuidores)",
+                        "title": "Usuarios (staff)",
                         "icon": "group",
                         "link": "/jheliz-admin/accounts/user/",
-                    },
-                    {
-                        "title": "Movimientos de wallet",
-                        "icon": "account_balance_wallet",
-                        "link": "/jheliz-admin/accounts/wallettransaction/",
                     },
                 ],
             },

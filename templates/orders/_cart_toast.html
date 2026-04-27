@@ -1,0 +1,27 @@
+{# Toast returned by htmx add_to_cart. Auto-dismisses after 3.5s via inline JS. #}
+<div hx-swap-oob="afterbegin:#cart-toast-stack">
+  <div class="cart-toast surface rounded-xl px-4 py-3 mb-2 flex items-start gap-3 max-w-sm pointer-events-auto"
+       style="border-color: {% if toast_ok %}rgba(52,211,153,.35){% else %}rgba(248,113,113,.35){% endif %}; background: {% if toast_ok %}rgba(52,211,153,.08){% else %}rgba(248,113,113,.08){% endif %};"
+       onanimationend="if(event.animationName==='cart-toast-out')this.remove()">
+    {% if toast_ok %}
+      <svg class="icon mt-0.5 text-emerald-400 shrink-0" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+    {% else %}
+      <svg class="icon mt-0.5 text-red-400 shrink-0" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    {% endif %}
+    <div class="flex-1 min-w-0">
+      <p class="text-sm text-zinc-100 leading-snug">{{ toast_text }}</p>
+      {% if toast_ok %}
+        <a href="/pedidos/carrito/" class="text-xs text-jheliz-400 hover:text-jheliz-300 mt-1 inline-flex items-center gap-1">
+          Ir al carrito
+          <svg class="icon" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+      {% endif %}
+    </div>
+    <button type="button" class="text-zinc-500 hover:text-zinc-200" onclick="this.parentElement.remove()">
+      <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+{% if cart_count is not None %}
+  <span hx-swap-oob="innerHTML:#cart-count-badge">{{ cart_count }}</span>
+{% endif %}

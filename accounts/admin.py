@@ -9,7 +9,7 @@ from unfold.admin import ModelAdmin
 from unfold.decorators import display
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 
-from .models import Customer, Role, User, WalletTransaction
+from .models import Customer, Distributor, Role, User, WalletTransaction
 
 
 JHELIZ_FIELDSETS_EXTRA = (
@@ -230,3 +230,54 @@ class WalletTransactionAdmin(ModelAdmin):
     search_fields = ("user__username", "user__email", "reference")
     autocomplete_fields = ("user",)
     readonly_fields = ("balance_after", "created_at")
+
+
+@admin.register(Distributor)
+class DistributorAdmin(ModelAdmin):
+    """Vista enfocada en distribuidores (aprobados y pendientes)."""
+
+    list_display = (
+        "username", "email", "first_name", "last_name", "phone",
+        "distributor_approved", "wallet_balance", "date_joined",
+    )
+    list_filter = ("distributor_approved", "is_active", "date_joined")
+    list_editable = ("distributor_approved",)
+    search_fields = ("username", "email", "first_name", "last_name", "phone", "telegram_username")
+    actions = ["approve_distributor", "revoke_distributor"]
+    fieldsets = (
+        ("Perfil", {
+            "fields": (
+                "username", "email", "first_name", "last_name",
+                "phone", "telegram_username", "is_active",
+            ),
+        }),
+        ("Distribuidor", {
+            "fields": ("distributor_approved", "wallet_balance"),
+            "description": "Sólo los distribuidores aprobados ven precios mayoristas.",
+        }),
+        ("Notas internas", {"fields": ("admin_notes",)}),
+        ("Fechas", {
+            "fields": ("date_joined", "last_login"),
+            "classes": ("collapse",),
+        }),
+    )
+    readonly_fields = ("date_joined", "last_login", "wallet_balance")
+    list_per_page = 50
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(role=Role.DISTRIBUIDOR)
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.role = Role.DISTRIBUIDOR
+        super().save_model(request, obj, form, change)
+
+    @admin.action(description="Aprobar como distribuidor")
+    def approve_distributor(self, request, queryset):
+        count = queryset.update(distributor_approved=True)
+        self.message_user(request, f"{count} distribuidor(es) aprobado(s).")
+
+    @admin.action(description="Revocar aprobación de distribuidor")
+    def revoke_distributor(self, request, queryset):
+        count = queryset.update(distributor_approved=False)
+        self.message_user(request, f"{count} distribuidor(es) desaprobado(s).")

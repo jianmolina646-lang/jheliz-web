@@ -1,15 +1,48 @@
 {% extends "base.html" %}
-{% block title %}Términos — {{ SITE_NAME }}{% endblock %}
+
+{% block title %}Términos y condiciones — {{ SITE_NAME }}{% endblock %}
+{% block meta_description %}Términos de uso y condiciones de servicio de {{ SITE_NAME }}.{% endblock %}
+
 {% block content %}
-<h1 class="text-3xl md:text-4xl font-extrabold">Términos y condiciones</h1>
-<div class="card-glass rounded-2xl p-6 mt-6 text-white/80 space-y-3 leading-relaxed">
-  <p>Al comprar en {{ SITE_NAME }} aceptas los siguientes términos:</p>
-  <ul class="list-disc ml-5 space-y-2">
-    <li>Las cuentas se entregan para uso personal. No cambies el correo ni la contraseña.</li>
-    <li>La garantía cubre el periodo contratado siempre que no se haya violado el uso indicado.</li>
-    <li>No se aceptan devoluciones en productos digitales ya entregados.</li>
-    <li>El soporte responde por WhatsApp, Telegram o tickets.</li>
-  </ul>
-  <p>Contacto: WhatsApp {{ WHATSAPP_NUMBER }}, Telegram @{{ TELEGRAM_USERNAME }}.</p>
-</div>
+<section class="max-w-3xl">
+  <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Legal</p>
+  <h1 class="font-display text-3xl md:text-5xl font-bold tracking-tight mt-1">Términos y condiciones</h1>
+  <p class="text-zinc-400 mt-3 text-lg leading-relaxed">Al comprar en {{ SITE_NAME }} aceptas los siguientes términos.</p>
+
+  <div class="mt-10 surface rounded-2xl p-6 md:p-8 space-y-8 text-zinc-300 leading-relaxed">
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">1. Uso de las cuentas</h2>
+      <p class="mt-2 text-sm">Las cuentas se entregan para uso personal y no se deben compartir fuera del núcleo familiar. No modifiques el correo, la contraseña ni el plan de la cuenta. Hacerlo invalida la garantía y puede generar la suspensión del acceso sin reembolso.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">2. Garantía</h2>
+      <p class="mt-2 text-sm">La garantía cubre el periodo contratado siempre que no se haya violado el uso indicado. Reponemos la cuenta sin costo en caso de fallas no atribuibles al cliente. Más detalles en <a href="{% url 'catalog:warranty' %}" class="text-jheliz-400 hover:text-jheliz-300 underline">/garantia</a>.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">3. Devoluciones</h2>
+      <p class="mt-2 text-sm">Por tratarse de productos digitales entregados de forma inmediata, no aceptamos devoluciones una vez enviadas las credenciales. En caso de problema, contáctanos y aplicaremos la garantía.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">4. Pagos</h2>
+      <p class="mt-2 text-sm">Aceptamos Yape (verificación manual del comprobante) y Mercado Pago (pago automático con tarjeta o billetera). Los precios son en soles peruanos (PEN) e incluyen el costo del plan elegido.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">5. Soporte</h2>
+      <p class="mt-2 text-sm">Atendemos por WhatsApp, Telegram o por la sección de tickets en tu cuenta. El tiempo de respuesta normal es de pocos minutos en horario de oficina.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">6. Datos personales</h2>
+      <p class="mt-2 text-sm">Tus datos se utilizan únicamente para procesar pedidos y soporte. No los compartimos con terceros salvo lo estrictamente necesario para la operación de pago.</p>
+    </div>
+  </div>
+
+  <p class="text-xs text-zinc-500 mt-6">
+    Contacto: WhatsApp <a class="text-jheliz-400 hover:text-jheliz-300" href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener">{{ WHATSAPP_NUMBER }}</a> · Telegram <a class="text-jheliz-400 hover:text-jheliz-300" href="https://t.me/{{ TELEGRAM_USERNAME }}" target="_blank" rel="noopener">@{{ TELEGRAM_USERNAME }}</a>
+  </p>
+</section>
 {% endblock %}

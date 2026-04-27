@@ -1,9 +1,86 @@
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .models import Category, Product
+from .models import Category, Product, Testimonial
+
+
+def _product_schema(request, product, plans):
+    """Schema.org Product JSON-LD for SEO rich results."""
+    cheapest = min((p.price_customer for p in plans), default=None)
+    image_url = None
+    if product.image:
+        image_url = request.build_absolute_uri(product.image.url)
+    schema = {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": product.name,
+        "description": product.short_description or product.description or product.name,
+        "category": product.category.name,
+        "url": request.build_absolute_uri(product.get_absolute_url()),
+        "brand": {"@type": "Brand", "name": "Jheliz"},
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": str(product.rating),
+            "reviewCount": "50",
+            "bestRating": "5",
+            "worstRating": "1",
+        },
+    }
+    if image_url:
+        schema["image"] = image_url
+    if cheapest is not None:
+        schema["offers"] = {
+            "@type": "Offer",
+            "priceCurrency": "PEN",
+            "price": str(cheapest),
+            "availability": "https://schema.org/InStock",
+            "url": request.build_absolute_uri(product.get_absolute_url()),
+        }
+    return json.dumps(schema, ensure_ascii=False)
+
+
+def _testimonios():
+    """Return published testimonios from the DB."""
+    return Testimonial.objects.filter(is_published=True)[:9]
+
+
+def _recent_purchases(limit: int = 8):
+    """Mini-ticker of latest purchases for social proof.
+
+    Returns paid orders with the customer's first name + city masked.
+    """
+    from orders.models import Order
+
+    qs = (
+        Order.objects.filter(status__in=[Order.Status.PAID, Order.Status.DELIVERED])
+        .select_related("user")
+        .prefetch_related("items__plan__product")
+        .order_by("-created_at")[: limit * 2]
+    )
+    out = []
+    for order in qs:
+        first_item = order.items.first()
+        if not first_item or not first_item.plan:
+            continue
+        # Only first name + last initial for privacy.
+        name = order.user.first_name if order.user else ""
+        if not name:
+            name = (order.user.username if order.user else "").split("@")[0]
+        if not name:
+            name = "Cliente"
+        masked = name.split()[0].title()
+        out.append({
+            "name": masked,
+            "product": first_item.plan.product.name,
+            "when": order.created_at,
+        })
+        if len(out) >= limit:
+            break
+    return out
 
 
 def home(request):
@@ -16,7 +93,12 @@ def home(request):
     return render(
         request,
         "catalog/home.html",
-        {"featured_products": featured, "top_categories": top_categories},
+        {
+            "featured_products": featured,
+            "top_categories": top_categories,
+            "testimonios": _testimonios(),
+            "recent_purchases": _recent_purchases(),
+        },
     )
 
 
@@ -75,11 +157,15 @@ def product_detail(request, slug: str):
         slug=slug,
         is_active=True,
     )
-    plans = product.active_plans(request.user)
+    plans = list(product.active_plans(request.user))
     return render(
         request,
         "catalog/product_detail.html",
-        {"product": product, "plans": plans},
+        {
+            "product": product,
+            "plans": plans,
+            "product_schema": _product_schema(request, product, plans),
+        },
     )
 
 

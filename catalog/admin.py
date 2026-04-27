@@ -6,7 +6,15 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import display
 
-from .models import Category, Plan, Product, StockItem
+from .models import (
+    Category,
+    CustomerPlan,
+    DistributorPlan,
+    Plan,
+    Product,
+    StockItem,
+    Testimonial,
+)
 
 
 @admin.register(Category)
@@ -29,10 +37,68 @@ class PlanInline(TabularInline):
 
 @admin.register(Plan)
 class PlanAdmin(ModelAdmin):
+    """Listado completo (cliente + distribuidor)."""
     list_display = ("product", "name", "duration_days", "price_customer", "price_distributor", "is_active")
     list_filter = ("is_active", "available_for_customer", "available_for_distributor")
     search_fields = ("product__name", "name")
     autocomplete_fields = ("product",)
+
+
+@admin.register(CustomerPlan)
+class CustomerPlanAdmin(ModelAdmin):
+    """Vista enfocada en cliente final: solo se ve y edita el precio cliente."""
+    list_display = ("product", "name", "duration_days", "price_customer", "available_stock_short", "is_active")
+    list_filter = ("is_active", "product__category")
+    search_fields = ("product__name", "name")
+    autocomplete_fields = ("product",)
+    fieldsets = (
+        (None, {"fields": ("product", "name", "duration_days")}),
+        ("Precio cliente final", {"fields": ("price_customer", "available_for_customer")}),
+        ("Avanzado", {
+            "classes": ("collapse",),
+            "fields": ("is_active", "order", "low_stock_threshold"),
+        }),
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(available_for_customer=True)
+
+    def save_model(self, request, obj, form, change):
+        # Forzar visibilidad cliente en esta sección.
+        obj.available_for_customer = True
+        super().save_model(request, obj, form, change)
+
+    @display(description="Stock", ordering="-id")
+    def available_stock_short(self, obj):
+        return obj.available_stock
+
+
+@admin.register(DistributorPlan)
+class DistributorPlanAdmin(ModelAdmin):
+    """Vista mayorista: solo se ve y edita el precio distribuidor."""
+    list_display = ("product", "name", "duration_days", "price_distributor", "available_stock_short", "is_active")
+    list_filter = ("is_active", "product__category")
+    search_fields = ("product__name", "name")
+    autocomplete_fields = ("product",)
+    fieldsets = (
+        (None, {"fields": ("product", "name", "duration_days")}),
+        ("Precio distribuidor (mayorista)", {"fields": ("price_distributor", "available_for_distributor")}),
+        ("Avanzado", {
+            "classes": ("collapse",),
+            "fields": ("is_active", "order", "low_stock_threshold"),
+        }),
+    )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(available_for_distributor=True)
+
+    def save_model(self, request, obj, form, change):
+        obj.available_for_distributor = True
+        super().save_model(request, obj, form, change)
+
+    @display(description="Stock", ordering="-id")
+    def available_stock_short(self, obj):
+        return obj.available_stock
 
 
 @admin.register(Product)
@@ -170,3 +236,16 @@ class StockItemAdmin(ModelAdmin):
             )
             created += 1
         return created
+
+
+@admin.register(Testimonial)
+class TestimonialAdmin(ModelAdmin):
+    list_display = ("author", "city", "rating", "is_published", "order", "created_at")
+    list_filter = ("is_published", "rating", "city")
+    search_fields = ("author", "text", "city")
+    list_editable = ("is_published", "order")
+    ordering = ("order", "-created_at")
+    fieldsets = (
+        (None, {"fields": ("author", "city", "rating", "text", "product")}),
+        ("Publicación", {"fields": ("is_published", "order")}),
+    )
