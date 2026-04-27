@@ -1,0 +1,12 @@
+{% extends "emails/_base.html" %}
+{% block body %}
+  <h2 style="margin:0 0 8px 0;font-size:20px;">Nuevo mensaje en ticket #{{ ticket.id }}</h2>
+  <p><strong>Asunto:</strong> {{ ticket.subject }}<br>
+     <strong>De:</strong> {{ ticket.user.username }} &lt;{{ ticket.user.email }}&gt;
+     {% if ticket.order %}<br><strong>Pedido:</strong> #{{ ticket.order.short_uuid }}{% endif %}
+  </p>
+  <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:14px 16px;border-radius:12px;margin:12px 0;white-space:pre-wrap;">
+    {{ message.body }}
+  </div>
+  <p>Responde desde el <a href="https://jhelizservicestv.es/jheliz-admin/support/ticket/{{ ticket.id }}/change/" style="color:#f472b6;">admin</a>.</p>
+{% endblock %}

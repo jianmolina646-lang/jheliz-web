@@ -17,6 +17,36 @@
   </div>
 </section>
 
+{% if user.is_distributor %}
+  <section class="mt-6 card-glass rounded-2xl p-5 border-jheliz-400/30">
+    <div class="flex items-center justify-between gap-4 flex-wrap">
+      <div>
+        <div class="text-xs uppercase tracking-wider text-jheliz-300">Modo distribuidor</div>
+        <div class="font-semibold">Estás viendo precios mayoristas</div>
+      </div>
+      <a href="{% url 'catalog:distributor_panel' %}" class="btn-primary text-white font-semibold px-4 py-2 rounded-xl text-sm">Ir al panel</a>
+    </div>
+  </section>
+{% endif %}
+
+<section class="mt-6 grid md:grid-cols-3 gap-3">
+  <a href="{% url 'support:list' %}" class="card-glass rounded-2xl p-4 hover:border-jheliz-400/50">
+    <div class="text-xl">💬</div>
+    <div class="font-semibold mt-1">Mis tickets</div>
+    <div class="text-xs text-white/60">Abre y sigue tus solicitudes de soporte</div>
+  </a>
+  <a href="{% url 'accounts:profile' %}" class="card-glass rounded-2xl p-4 hover:border-jheliz-400/50">
+    <div class="text-xl">👤</div>
+    <div class="font-semibold mt-1">Mi perfil</div>
+    <div class="text-xs text-white/60">Actualiza tus datos de contacto</div>
+  </a>
+  <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="card-glass rounded-2xl p-4 hover:border-emerald-400/50">
+    <div class="text-xl">🟢</div>
+    <div class="font-semibold mt-1">WhatsApp</div>
+    <div class="text-xs text-white/60">Habla con soporte en tiempo real</div>
+  </a>
+</section>
+
 <section class="mt-8">
   <h2 class="text-xl font-bold mb-3">Mis pedidos</h2>
   {% if orders %}

@@ -117,6 +117,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Email
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Jheliz <no-reply@jhelizservicestv.es>")
+SUPPORT_ADMIN_EMAIL = config("SUPPORT_ADMIN_EMAIL", default="")
+
+# SMTP (opcional, para enviar correos reales en prod)
+EMAIL_HOST = config("EMAIL_HOST", default="")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 
 # Mercado Pago
 MERCADOPAGO_ACCESS_TOKEN = config("MERCADOPAGO_ACCESS_TOKEN", default="")
@@ -126,6 +134,10 @@ MERCADOPAGO_WEBHOOK_SECRET = config("MERCADOPAGO_WEBHOOK_SECRET", default="")
 # Contact
 WHATSAPP_NUMBER = config("WHATSAPP_NUMBER", default="+51999999999")
 TELEGRAM_USERNAME = config("TELEGRAM_USERNAME", default="jhelizbot")
+
+# Telegram bot (opcional)
+TELEGRAM_BOT_TOKEN = config("TELEGRAM_BOT_TOKEN", default="")
+TELEGRAM_ADMIN_CHAT_ID = config("TELEGRAM_ADMIN_CHAT_ID", default="")
 
 # Brand
 SITE_NAME = "Jheliz"

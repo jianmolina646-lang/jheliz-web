@@ -53,7 +53,11 @@
       <nav class="hidden md:flex items-center gap-5 text-sm text-white/80">
         <a href="{% url 'catalog:home' %}" class="hover:text-white">Inicio</a>
         <a href="{% url 'catalog:products' %}" class="hover:text-white">Productos</a>
-        <a href="{% url 'catalog:distributor' %}" class="hover:text-white">Distribuidor</a>
+        {% if user.is_distributor %}
+          <a href="{% url 'catalog:distributor_panel' %}" class="text-jheliz-300 hover:text-jheliz-200 font-semibold">Panel distribuidor</a>
+        {% else %}
+          <a href="{% url 'catalog:distributor' %}" class="hover:text-white">Distribuidor</a>
+        {% endif %}
         <a href="{% url 'catalog:tutorials' %}" class="hover:text-white">Tutoriales</a>
       </nav>
 

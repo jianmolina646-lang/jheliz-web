@@ -23,8 +23,14 @@
     <div>
       {% with plan=product.plans.first %}
         {% if plan %}
-          <div class="text-xs text-white/50">Desde</div>
-          <div class="text-lg font-bold text-white">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+          {% if user.is_distributor %}
+            <div class="text-xs text-jheliz-300 font-semibold">Precio mayorista desde</div>
+            <div class="text-lg font-bold text-white">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
+            <div class="text-[11px] text-white/40 line-through">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+          {% else %}
+            <div class="text-xs text-white/50">Desde</div>
+            <div class="text-lg font-bold text-white">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+          {% endif %}
         {% else %}
           <div class="text-xs text-white/50">Pronto disponible</div>
         {% endif %}
