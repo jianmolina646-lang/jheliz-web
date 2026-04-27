@@ -21,12 +21,12 @@
               <label class="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 cursor-pointer hover:border-fuchsia-400 transition has-[:checked]:border-fuchsia-400 has-[:checked]:bg-fuchsia-500/10">
                 {{ choice.tag }}
                 <span class="text-sm text-white/90">
-                  {% if choice.choice_value == 'yape' %}
-                    <span class="font-semibold block">Pagar por Yape</span>
+                  {% if choice.data.value == 'yape' %}
+                    <span class="font-semibold block">Yape QR</span>
                     <span class="text-xs text-white/60">Escanea el QR desde tu app Yape y sube el comprobante</span>
                   {% else %}
-                    <span class="font-semibold block">Yape QR</span>
-                    <span class="text-xs text-white/60">Pago automático por Mercado Pago (Yape QR, tarjeta o PagoEfectivo)</span>
+                    <span class="font-semibold block">Mercado Pago</span>
+                    <span class="text-xs text-white/60">Tarjeta, Yape QR, PagoEfectivo</span>
                   {% endif %}
                 </span>
               </label>

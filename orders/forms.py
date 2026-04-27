@@ -35,8 +35,8 @@ class CheckoutForm(forms.Form):
     """Datos de contacto del comprador. Los datos por item se editan en el carrito."""
 
     PAYMENT_METHODS = (
-        ("mercadopago", "Yape QR (Mercado Pago)"),
-        ("yape", "Pagar por Yape"),
+        ("mercadopago", "Mercado Pago"),
+        ("yape", "Yape QR"),
     )
 
     full_name = forms.CharField(
