@@ -27,3 +27,4 @@ tailwind.css.tmp
 htmlcov/
 .coverage
 .pytest_cache/
+\n# test artifacts\ntest-plan-*.md\ntest-report-*.md

@@ -1,11 +1,12 @@
 from django.contrib import admin
 from django.utils import timezone
-from django.utils.html import format_html
+from unfold.admin import ModelAdmin, TabularInline
+from unfold.decorators import display
 
 from .models import Order, OrderItem
 
 
-class OrderItemInline(admin.TabularInline):
+class OrderItemInline(TabularInline):
     model = OrderItem
     extra = 0
     fields = (
@@ -18,9 +19,9 @@ class OrderItemInline(admin.TabularInline):
 
 
 @admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
+class OrderAdmin(ModelAdmin):
     list_display = (
-        "id", "short_uuid", "user", "email", "status_badge", "channel",
+        "id", "short_uuid", "user", "email", "display_status", "channel",
         "total", "currency", "created_at",
     )
     list_filter = ("status", "channel", "payment_provider", "created_at")
@@ -33,23 +34,24 @@ class OrderAdmin(admin.ModelAdmin):
     inlines = [OrderItemInline]
     date_hierarchy = "created_at"
     actions = ("mark_preparing", "mark_delivered")
+    list_filter_submit = True
+    compressed_fields = True
 
-    @admin.display(description="Estado", ordering="status")
-    def status_badge(self, obj: Order) -> str:
-        colors = {
-            Order.Status.PENDING: "#b45309",
-            Order.Status.PAID: "#1d4ed8",
-            Order.Status.PREPARING: "#c026d3",
-            Order.Status.DELIVERED: "#047857",
-            Order.Status.CANCELED: "#991b1b",
-            Order.Status.FAILED: "#991b1b",
-            Order.Status.REFUNDED: "#6b7280",
-        }
-        return format_html(
-            '<span style="padding:2px 8px;border-radius:10px;color:white;background:{};font-size:11px">{}</span>',
-            colors.get(obj.status, "#374151"),
-            obj.get_status_display(),
-        )
+    @display(
+        description="Estado",
+        ordering="status",
+        label={
+            Order.Status.PENDING: "warning",
+            Order.Status.PAID: "info",
+            Order.Status.PREPARING: "info",
+            Order.Status.DELIVERED: "success",
+            Order.Status.CANCELED: "danger",
+            Order.Status.FAILED: "danger",
+            Order.Status.REFUNDED: "",
+        },
+    )
+    def display_status(self, obj: Order):
+        return obj.status, obj.get_status_display()
 
     @admin.action(description="Marcar como En preparaci\u00f3n")
     def mark_preparing(self, request, queryset):
@@ -72,7 +74,7 @@ class OrderAdmin(admin.ModelAdmin):
 
 
 @admin.register(OrderItem)
-class OrderItemAdmin(admin.ModelAdmin):
+class OrderItemAdmin(ModelAdmin):
     list_display = (
         "order", "product_name", "plan_name",
         "requested_profile_name", "requested_pin",

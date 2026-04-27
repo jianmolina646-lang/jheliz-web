@@ -3,12 +3,14 @@ from django.contrib import admin, messages
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils.html import format_html
+from unfold.admin import ModelAdmin, TabularInline
+from unfold.decorators import display
 
 from .models import Category, Plan, Product, StockItem
 
 
 @admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(ModelAdmin):
     list_display = ("name", "emoji", "audience", "order", "is_active")
     list_editable = ("order", "is_active")
     list_filter = ("audience", "is_active")
@@ -16,7 +18,7 @@ class CategoryAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
 
 
-class PlanInline(admin.TabularInline):
+class PlanInline(TabularInline):
     model = Plan
     extra = 1
     fields = (
@@ -26,7 +28,7 @@ class PlanInline(admin.TabularInline):
 
 
 @admin.register(Plan)
-class PlanAdmin(admin.ModelAdmin):
+class PlanAdmin(ModelAdmin):
     list_display = ("product", "name", "duration_days", "price_customer", "price_distributor", "is_active")
     list_filter = ("is_active", "available_for_customer", "available_for_distributor")
     search_fields = ("product__name", "name")
@@ -34,15 +36,36 @@ class PlanAdmin(admin.ModelAdmin):
 
 
 @admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
+class ProductAdmin(ModelAdmin):
     list_display = (
-        "name", "category", "mode", "is_active", "is_featured",
-        "delivery_is_instant", "available_stock_count",
+        "product_preview", "category", "mode", "display_active",
+        "is_featured", "delivery_is_instant", "available_stock_count",
     )
     list_filter = ("category", "mode", "is_active", "is_featured")
     search_fields = ("name", "short_description")
     prepopulated_fields = {"slug": ("name",)}
     inlines = [PlanInline]
+    list_filter_submit = True
+    compressed_fields = True
+
+    @display(description="Producto", ordering="name")
+    def product_preview(self, obj: Product) -> str:
+        emoji = obj.icon or obj.category.emoji or ""
+        return format_html(
+            '<div class="flex items-center gap-2">'
+            '<span class="text-2xl">{}</span>'
+            '<span class="font-medium">{}</span>'
+            '</div>',
+            emoji, obj.name,
+        )
+
+    @display(
+        description="Visible",
+        boolean=True,
+        ordering="is_active",
+    )
+    def display_active(self, obj: Product) -> bool:
+        return obj.is_active
 
     def available_stock_count(self, obj: Product) -> int:
         return obj.available_stock
@@ -68,7 +91,7 @@ class StockImportForm(forms.Form):
 
 
 @admin.register(StockItem)
-class StockItemAdmin(admin.ModelAdmin):
+class StockItemAdmin(ModelAdmin):
     list_display = ("product", "plan", "status", "label", "created_at", "sold_at")
     list_filter = ("status", "product", "plan")
     search_fields = ("product__name", "label", "credentials")
