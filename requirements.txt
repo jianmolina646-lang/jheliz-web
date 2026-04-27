@@ -12,3 +12,8 @@ django-htmx>=1.22
 django-extensions>=4.0
 django-unfold>=0.50
 requests>=2.32
+# --- Seguridad ---
+cryptography>=42.0          # Fernet para EncryptedTextField
+django-axes>=7.0            # bloqueo por intentos fallidos en el login del admin
+django-otp>=1.5             # base de 2FA (TOTP) para el admin
+qrcode>=7.4                 # render del QR de TOTP en la página de setup
