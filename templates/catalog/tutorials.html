@@ -57,6 +57,26 @@
   .platform-windows { background: linear-gradient(135deg, #0078d4, #003d6b); }
   .platform-hbo { background: linear-gradient(135deg, #6e2da6, #2d0f4e); }
   .platform-youtube { background: linear-gradient(135deg, #ff0000, #7a0000); }
+  /* Foto de portada en cada card */
+  .platform-cover {
+    position: relative; aspect-ratio: 16 / 8; overflow: hidden;
+    background: #0a0a0a;
+  }
+  .platform-cover img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 320ms ease;
+  }
+  .tut-card:hover .platform-cover img { transform: scale(1.05); }
+  .platform-cover::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.55) 80%, rgba(0,0,0,0.78));
+  }
+  .platform-cover-info {
+    position: absolute; left: 1rem; right: 1rem; bottom: 1rem;
+    display: flex; align-items: center; gap: 0.75rem; z-index: 1;
+  }
+  .platform-cover-info h3 { color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.7); }
+  .platform-cover-info p { color: rgba(255,255,255,.85); text-shadow: 0 1px 4px rgba(0,0,0,.6); }
 </style>
 {% endblock %}
 
@@ -191,12 +211,15 @@
 
   <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
     {# Card Netflix #}
-    <div class="surface tut-card rounded-2xl p-6">
-      <div class="flex items-center gap-3">
-        <div class="platform-icon platform-netflix">🎬</div>
-        <div><h3 class="font-display text-lg font-bold">Netflix</h3><p class="text-xs text-zinc-500 mt-0.5">Activación en 2 min</p></div>
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/netflix.jpg' %}" alt="TV con Netflix" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-netflix">🎬</div>
+          <div><h3 class="font-display text-lg font-bold">Netflix</h3><p class="text-xs mt-0.5">Activación en 2 min</p></div>
+        </div>
       </div>
-      <ol class="mt-5 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
         <li>Inicia en <strong class="text-zinc-100">netflix.com</strong> con tus credenciales.</li>
         <li>Selecciona el perfil con <strong class="text-zinc-100">tu nombre</strong>.</li>
         <li>Pon tu <strong class="text-zinc-100">PIN de 4 dígitos</strong>.</li>
@@ -205,12 +228,15 @@
     </div>
 
     {# Card Disney+ #}
-    <div class="surface tut-card rounded-2xl p-6">
-      <div class="flex items-center gap-3">
-        <div class="platform-icon platform-disney">✨</div>
-        <div><h3 class="font-display text-lg font-bold">Disney+</h3><p class="text-xs text-zinc-500 mt-0.5">Activación en 2 min</p></div>
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/disney.jpg' %}" alt="Logo Disney+" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-disney">✨</div>
+          <div><h3 class="font-display text-lg font-bold">Disney+</h3><p class="text-xs mt-0.5">Activación en 2 min</p></div>
+        </div>
       </div>
-      <ol class="mt-5 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
         <li>Abre <strong class="text-zinc-100">disneyplus.com</strong>.</li>
         <li>Inicia con correo y contraseña.</li>
         <li>Entra al <strong class="text-zinc-100">perfil asignado</strong>.</li>
@@ -219,12 +245,15 @@
     </div>
 
     {# Card Prime Video #}
-    <div class="surface tut-card rounded-2xl p-6">
-      <div class="flex items-center gap-3">
-        <div class="platform-icon platform-prime">📦</div>
-        <div><h3 class="font-display text-lg font-bold">Prime Video</h3><p class="text-xs text-zinc-500 mt-0.5">Activación en 2 min</p></div>
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/prime.jpg' %}" alt="TV con Prime Video" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-prime">📦</div>
+          <div><h3 class="font-display text-lg font-bold">Prime Video</h3><p class="text-xs mt-0.5">Activación en 2 min</p></div>
+        </div>
       </div>
-      <ol class="mt-5 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
         <li>Entra a <strong class="text-zinc-100">primevideo.com</strong>.</li>
         <li>Inicia sesión con tus datos.</li>
         <li>Selecciona tu perfil.</li>
@@ -233,12 +262,15 @@
     </div>
 
     {# Card HBO Max #}
-    <div class="surface tut-card rounded-2xl p-6">
-      <div class="flex items-center gap-3">
-        <div class="platform-icon platform-hbo">🎥</div>
-        <div><h3 class="font-display text-lg font-bold">HBO Max</h3><p class="text-xs text-zinc-500 mt-0.5">Activación en 2 min</p></div>
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/hbo.jpg' %}" alt="Logo Max" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-hbo">🎥</div>
+          <div><h3 class="font-display text-lg font-bold">HBO Max</h3><p class="text-xs mt-0.5">Activación en 2 min</p></div>
+        </div>
       </div>
-      <ol class="mt-5 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
         <li>Abre <strong class="text-zinc-100">max.com</strong> o la app.</li>
         <li>Pon correo y contraseña.</li>
         <li>Selecciona tu perfil.</li>
@@ -247,12 +279,15 @@
     </div>
 
     {# Card Spotify #}
-    <div class="surface tut-card rounded-2xl p-6">
-      <div class="flex items-center gap-3">
-        <div class="platform-icon platform-spotify">🎵</div>
-        <div><h3 class="font-display text-lg font-bold">Spotify Premium</h3><p class="text-xs text-zinc-500 mt-0.5">Activación inmediata</p></div>
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/spotify.jpg' %}" alt="Spotify en celular" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-spotify">🎵</div>
+          <div><h3 class="font-display text-lg font-bold">Spotify Premium</h3><p class="text-xs mt-0.5">Activación inmediata</p></div>
+        </div>
       </div>
-      <ol class="mt-5 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
         <li>Inicia sesión con el correo entregado.</li>
         <li><strong class="text-red-300">No</strong> cambies la contraseña.</li>
         <li>En tu app móvil verás <strong class="text-zinc-100">Premium</strong> activo.</li>
@@ -261,12 +296,15 @@
     </div>
 
     {# Card Office 365 #}
-    <div class="surface tut-card rounded-2xl p-6">
-      <div class="flex items-center gap-3">
-        <div class="platform-icon platform-office">📊</div>
-        <div><h3 class="font-display text-lg font-bold">Office 365</h3><p class="text-xs text-zinc-500 mt-0.5">Activación en 5 min</p></div>
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/office.jpg' %}" alt="Laptop con documento abierto" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-office">📊</div>
+          <div><h3 class="font-display text-lg font-bold">Office 365</h3><p class="text-xs mt-0.5">Activación en 5 min</p></div>
+        </div>
       </div>
-      <ol class="mt-5 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
         <li>Entra a <strong class="text-zinc-100">office.com</strong>.</li>
         <li>Inicia con la cuenta entregada.</li>
         <li>Descarga Office para Windows o Mac.</li>
@@ -275,12 +313,15 @@
     </div>
 
     {# Card Windows #}
-    <div class="surface tut-card rounded-2xl p-6">
-      <div class="flex items-center gap-3">
-        <div class="platform-icon platform-windows">💻</div>
-        <div><h3 class="font-display text-lg font-bold">Windows 10/11 Pro</h3><p class="text-xs text-zinc-500 mt-0.5">Activación en 5 min</p></div>
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/windows.jpg' %}" alt="Laptop con Windows 11" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-windows">💻</div>
+          <div><h3 class="font-display text-lg font-bold">Windows 10/11 Pro</h3><p class="text-xs mt-0.5">Activación en 5 min</p></div>
+        </div>
       </div>
-      <ol class="mt-5 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
         <li>Configuración → <strong class="text-zinc-100">Activación</strong>.</li>
         <li>Pega la clave entregada.</li>
         <li>Espera 1-2 min para validar.</li>
@@ -289,12 +330,15 @@
     </div>
 
     {# Card YouTube Premium #}
-    <div class="surface tut-card rounded-2xl p-6">
-      <div class="flex items-center gap-3">
-        <div class="platform-icon platform-youtube">▶️</div>
-        <div><h3 class="font-display text-lg font-bold">YouTube Premium</h3><p class="text-xs text-zinc-500 mt-0.5">Activación en 2 min</p></div>
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/youtube.jpg' %}" alt="YouTube Premium en pantalla" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-youtube">▶️</div>
+          <div><h3 class="font-display text-lg font-bold">YouTube Premium</h3><p class="text-xs mt-0.5">Activación en 2 min</p></div>
+        </div>
       </div>
-      <ol class="mt-5 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
         <li>Inicia sesión con la cuenta entregada.</li>
         <li>Activa el <strong class="text-zinc-100">perfil asignado</strong>.</li>
         <li>Sin anuncios + descarga offline.</li>
