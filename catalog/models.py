@@ -225,6 +225,7 @@ class StockItem(models.Model):
         AVAILABLE = "available", "Disponible"
         RESERVED = "reserved", "Reservada"
         SOLD = "sold", "Vendida"
+        DEFECTIVE = "defective", "Caída / Reportada"
         DISABLED = "disabled", "Deshabilitada"
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="stock_items")

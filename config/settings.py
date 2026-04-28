@@ -234,6 +234,11 @@ UNFOLD = {
                         "link": "/jheliz-admin/renewals/",
                     },
                     {
+                        "title": "Stock por producto",
+                        "icon": "inventory_2",
+                        "link": "/jheliz-admin/stock/",
+                    },
+                    {
                         "title": "Estado de servicios",
                         "icon": "health_and_safety",
                         "link": "/jheliz-admin/health/",

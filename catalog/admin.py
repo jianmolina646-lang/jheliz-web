@@ -186,12 +186,15 @@ class StockImportForm(forms.Form):
 
 @admin.register(StockItem)
 class StockItemAdmin(ModelAdmin):
-    list_display = ("product", "plan", "status", "label", "created_at", "sold_at")
+    list_display = (
+        "product", "plan", "status_badge", "label", "created_at", "sold_at",
+    )
     list_filter = ("status", "product", "plan")
     search_fields = ("product__name", "label", "credentials")
     autocomplete_fields = ("product", "plan")
     readonly_fields = ("created_at", "sold_at")
     change_list_template = "admin/catalog/stock_changelist.html"
+    actions = ("action_mark_defective", "action_mark_available", "action_duplicate")
 
     def get_urls(self):
         urls = super().get_urls()
@@ -203,6 +206,53 @@ class StockItemAdmin(ModelAdmin):
             ),
         ]
         return custom + urls
+
+    def status_badge(self, obj):
+        from django.utils.safestring import mark_safe
+
+        styles = {
+            "available": ("#10b981", "✓ Disponible"),
+            "reserved": ("#6b7280", "● Reservada"),
+            "sold": ("#3b82f6", "✓ Vendida"),
+            "defective": ("#ef4444", "⚠ Caída"),
+            "disabled": ("#9ca3af", "○ Deshabilitada"),
+        }
+        color, text = styles.get(obj.status, ("#9ca3af", obj.get_status_display()))
+        return mark_safe(
+            f'<span style="display:inline-block;padding:2px 8px;border-radius:9999px;'
+            f'background:{color}22;color:{color};font-size:11px;font-weight:600;'
+            f'border:1px solid {color}55;">{text}</span>'
+        )
+
+    status_badge.short_description = "Estado"
+    status_badge.admin_order_field = "status"
+
+    def action_mark_defective(self, request, queryset):
+        n = queryset.update(status=StockItem.Status.DEFECTIVE)
+        self.message_user(request, f"{n} stock marcado como caída/reportada.")
+
+    action_mark_defective.short_description = "⚠ Marcar como caída/reportada"
+
+    def action_mark_available(self, request, queryset):
+        n = queryset.update(status=StockItem.Status.AVAILABLE)
+        self.message_user(request, f"{n} stock marcado como disponible.")
+
+    action_mark_available.short_description = "✓ Marcar como disponible"
+
+    def action_duplicate(self, request, queryset):
+        created = 0
+        for item in queryset:
+            StockItem.objects.create(
+                product=item.product,
+                plan=item.plan,
+                credentials=item.credentials,
+                label=item.label,
+                status=StockItem.Status.AVAILABLE,
+            )
+            created += 1
+        self.message_user(request, f"{created} stock(s) duplicado(s) como disponibles.")
+
+    action_duplicate.short_description = "🔁 Duplicar (clonar)"
 
     def import_view(self, request):
         if request.method == "POST":
@@ -226,7 +276,14 @@ class StockItemAdmin(ModelAdmin):
                 )
                 return redirect(reverse("admin:catalog_stockitem_changelist"))
         else:
-            form = StockImportForm()
+            initial = {}
+            preselected_pk = request.GET.get("product")
+            if preselected_pk:
+                try:
+                    initial["product"] = Product.objects.get(pk=int(preselected_pk))
+                except (ValueError, Product.DoesNotExist):
+                    pass
+            form = StockImportForm(initial=initial)
         return render(
             request,
             "admin/catalog/stock_import.html",

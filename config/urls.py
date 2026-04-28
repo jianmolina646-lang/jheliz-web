@@ -56,6 +56,21 @@ urlpatterns = [
         admin_views.renew_item,
         name="admin_renew_item",
     ),
+    path(
+        "jheliz-admin/stock/",
+        admin_views.stock_overview,
+        name="admin_stock_overview",
+    ),
+    path(
+        "jheliz-admin/stock/quick-add/",
+        admin_views.stock_quick_add,
+        name="admin_stock_quick_add",
+    ),
+    path(
+        "jheliz-admin/stock/<int:item_id>/action/",
+        admin_views.stock_quick_action,
+        name="admin_stock_quick_action",
+    ),
     path("jheliz-admin/", admin.site.urls),
     # SEO / PWA endpoints (root-level)
     path("robots.txt", robots_txt, name="robots_txt"),
