@@ -40,3 +40,14 @@
   </div>
 </div>
 {% endblock %}
+
+{% block tracking_events %}
+{% if order %}
+<script>
+  if (window.jhTrack && !sessionStorage.getItem('jh_tracked_order_{{ order.id }}')) {
+    jhTrack('purchase', { id: '{{ order.id }}', value: {{ order.total|default:0 }} });
+    sessionStorage.setItem('jh_tracked_order_{{ order.id }}', '1');
+  }
+</script>
+{% endif %}
+{% endblock %}

@@ -1,6 +1,7 @@
 from django.conf import settings
+from django.core.cache import cache
 
-from .models import Category, PromoBanner
+from .models import Category, PromoBanner, SiteSettings
 
 
 def site_context(request):
@@ -21,8 +22,27 @@ def site_context(request):
     try:
         promo_banner = PromoBanner.get_active(on_home=on_home)
     except Exception:
-        # Antes de migrar, la tabla a\u00fan no existe — no rompemos el render.
+        # Antes de migrar, la tabla a\u00fan no existe \u2014 no rompemos el render.
         promo_banner = None
+
+    # Tracking IDs (cacheados 5 min para no agregar query en cada request).
+    tracking = cache.get("jh_tracking_ids")
+    if tracking is None:
+        try:
+            s = SiteSettings.load()
+            tracking = {
+                "ga4": (s.ga4_measurement_id or "").strip(),
+                "meta": (s.meta_pixel_id or "").strip(),
+                "google_ads": (s.google_ads_id or "").strip(),
+                "tiktok": (s.tiktok_pixel_id or "").strip(),
+            }
+        except Exception:
+            tracking = {"ga4": "", "meta": "", "google_ads": "", "tiktok": ""}
+        cache.set("jh_tracking_ids", tracking, 300)
+    ga4_id = tracking["ga4"]
+    meta_pixel = tracking["meta"]
+    google_ads = tracking["google_ads"]
+    tiktok_pixel = tracking["tiktok"]
 
     return {
         "SITE_NAME": settings.SITE_NAME,
@@ -35,4 +55,8 @@ def site_context(request):
         "nav_categories": Category.objects.filter(is_active=True)[:12],
         "cart_count": cart_count,
         "promo_banner": promo_banner,
+        "GA4_ID": ga4_id,
+        "META_PIXEL_ID": meta_pixel,
+        "GOOGLE_ADS_ID": google_ads,
+        "TIKTOK_PIXEL_ID": tiktok_pixel,
     }

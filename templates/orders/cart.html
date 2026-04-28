@@ -138,3 +138,13 @@
 </div>
 {% endif %}
 {% endblock %}
+
+{% block tracking_events %}
+{% if total %}
+<script>
+  if (window.jhTrack) {
+    jhTrack('begin_checkout', { value: {{ total|default:0 }}, items: {{ lines|length|default:0 }} });
+  }
+</script>
+{% endif %}
+{% endblock %}

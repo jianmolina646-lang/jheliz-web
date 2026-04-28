@@ -165,6 +165,7 @@
     a.btn-primary:hover, button.btn-primary:hover, .btn-primary:not(.btn):hover { background: #f472b6 !important; }
   </style>
   {% block extra_head %}{% endblock %}
+  {% include "partials/tracking_head.html" %}
 </head>
 <body class="min-h-screen font-sans antialiased">
 
@@ -297,5 +298,8 @@
       </svg>
     </a>
   {% endif %}
+
+  {% include "partials/cookie_banner.html" %}
+  {% include "partials/tracking_body.html" %}
 </body>
 </html>

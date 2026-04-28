@@ -626,6 +626,14 @@ class SiteSettingsAdmin(ModelAdmin):
             "fields": ("seo_default_image", "seo_meta_description"),
             "classes": ("collapse",),
         }),
+        ("Tracking & Analytics", {
+            "fields": ("ga4_measurement_id", "meta_pixel_id", "google_ads_id", "tiktok_pixel_id"),
+            "description": (
+                "IDs para activar Google Analytics 4, Meta Pixel y otros. "
+                "Los pixels se cargan solo si el visitante acepta cookies."
+            ),
+            "classes": ("collapse",),
+        }),
         ("Mantenimiento", {
             "fields": ("maintenance_mode", "maintenance_message"),
             "classes": ("collapse",),
