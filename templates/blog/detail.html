@@ -6,7 +6,7 @@
 {% block og_type %}article{% endblock %}
 {% block og_title %}{{ post.effective_seo_title }}{% endblock %}
 {% block og_description %}{{ post.effective_seo_description }}{% endblock %}
-{% block og_image %}{% if post.cover_image %}{{ request.scheme }}://{{ request.get_host }}{{ post.cover_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.jpg' %}{% endif %}{% endblock %}
+{% block og_image %}{% if post.cover_image %}{{ request.scheme }}://{{ request.get_host }}{{ post.cover_image_url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.jpg' %}{% endif %}{% endblock %}
 
 {% block extra_head %}
 {% if post.seo_keywords %}<meta name="keywords" content="{{ post.seo_keywords }}">{% endif %}
@@ -17,7 +17,7 @@
   "@type": "BlogPosting",
   "headline": "{{ post.title|escapejs }}",
   "description": "{{ post.effective_seo_description|escapejs }}",
-  "image": "{% if post.cover_image %}{{ request.scheme }}://{{ request.get_host }}{{ post.cover_image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.jpg' %}{% endif %}",
+  "image": "{% if post.cover_image %}{{ request.scheme }}://{{ request.get_host }}{{ post.cover_image_url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.jpg' %}{% endif %}",
   "author": {
     "@type": "Person",
     "name": "{% if post.author %}{{ post.author.get_full_name|default:post.author.username|escapejs }}{% else %}{{ SITE_NAME|escapejs }}{% endif %}"
@@ -211,7 +211,7 @@
 
   {% if post.cover_image %}
   <div class="mt-8 rounded-2xl overflow-hidden border hairline">
-    <img src="{{ post.cover_image.url }}" alt="{{ post.cover_alt|default:post.title }}" class="w-full" loading="eager">
+    <img src="{{ post.cover_image_url }}" alt="{{ post.cover_alt|default:post.title }}" class="w-full" loading="eager">
   </div>
   {% endif %}
 

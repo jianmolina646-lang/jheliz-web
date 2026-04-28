@@ -123,3 +123,15 @@ class BlogPost(models.Model):
         """Tiempo estimado de lectura en minutos (~200 palabras/min)."""
         words = len((self.body or "").split())
         return max(1, round(words / 200))
+
+    @property
+    def cover_image_url(self) -> str:
+        """URL de la portada con cache-busting (?v=mtime) para que el navegador
+        baje la versión nueva cuando se regenera la imagen."""
+        if not self.cover_image:
+            return ""
+        try:
+            ts = int(self.cover_image.storage.get_modified_time(self.cover_image.name).timestamp())
+        except Exception:  # noqa: BLE001
+            ts = int(self.updated_at.timestamp()) if self.updated_at else 0
+        return f"{self.cover_image.url}?v={ts}"
