@@ -25,6 +25,25 @@ def robots_txt(request):
     return HttpResponse(body, content_type="text/plain; charset=utf-8")
 
 
+_GOOGLE_VERIFICATION_TOKENS = {
+    # Google Search Console verification tokens (one per property).
+    "google47b175ffc31eb10e": "google-site-verification: google47b175ffc31eb10e.html",
+}
+
+
+def google_site_verification(request, token):
+    """Serve Google Search Console verification HTML files.
+
+    Each token is a property registered in Search Console. Anyone with the
+    token in the URL gets the matching response body — Google uses this to
+    verify domain ownership.
+    """
+    body = _GOOGLE_VERIFICATION_TOKENS.get(token)
+    if body is None:
+        return HttpResponse(status=404)
+    return HttpResponse(body, content_type="text/html; charset=utf-8")
+
+
 @cache_control(public=True, max_age=86400)
 def manifest_json(request):
     """PWA manifest — makes the site installable on mobile."""

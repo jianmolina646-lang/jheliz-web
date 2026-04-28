@@ -6,7 +6,7 @@ from django.urls import include, path, re_path
 from django.views.static import serve as static_serve
 
 from blog.sitemaps import BlogPostSitemap
-from catalog.seo_views import manifest_json, robots_txt
+from catalog.seo_views import google_site_verification, manifest_json, robots_txt
 from catalog.sitemaps import SITEMAPS
 from config import admin_views
 from orders import media_views as orders_media_views
@@ -59,6 +59,11 @@ urlpatterns = [
     path("jheliz-admin/", admin.site.urls),
     # SEO / PWA endpoints (root-level)
     path("robots.txt", robots_txt, name="robots_txt"),
+    re_path(
+        r"^(?P<token>google[a-f0-9]+)\.html$",
+        google_site_verification,
+        name="google_site_verification",
+    ),
     path("manifest.webmanifest", manifest_json, name="pwa-manifest"),
     path(
         "sitemap.xml",
