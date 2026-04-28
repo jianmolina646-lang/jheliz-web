@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib import admin, messages
-from django.db import transaction
+from django.db import models, transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
@@ -64,18 +64,36 @@ class OrderItemInline(TabularInline):
 
 
 class DeliverCredentialsForm(forms.Form):
-    """Formulario dinámico: un textarea por cada item del pedido."""
+    """Formulario dinámico: un textarea por cada item del pedido.
+
+    Para cada item, además del textarea de credenciales y la fecha de
+    vencimiento, expone una lista de StockItems disponibles (mismo producto
+    y compatible con el plan). El template los muestra como botones que,
+    al hacer click, rellenan el textarea con las credenciales del stock
+    elegido. Al guardar, ese StockItem queda marcado como vendido.
+    """
 
     def __init__(self, *args, order: Order | None = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.order = order
+        # Estructura amigable para el template: una lista de bloques, uno
+        # por cada item del pedido, ya con BoundField objects listos para
+        # renderizar.
+        self.items_data: list[dict] = []
         if order is None:
             return
+        from catalog.models import StockItem  # import diferido para evitar circulares
+
         for item in order.items.all():
-            self.fields[f"creds_{item.pk}"] = forms.CharField(
+            creds_name = f"creds_{item.pk}"
+            expires_name = f"expires_{item.pk}"
+            stock_name = f"stock_used_{item.pk}"
+            self.fields[creds_name] = forms.CharField(
                 label=f"{item.product_name} — {item.plan_name}",
                 widget=forms.Textarea(attrs={
                     "rows": 4,
+                    "id": f"id_{creds_name}",
+                    "class": "w-full p-3 rounded border border-base-200 dark:border-base-800",
                     "style": "font-family:Menlo,Consolas,monospace;font-size:13px;"
                              "background:#0b0217;color:#f9a8d4;",
                     "placeholder": "email: ...\nclave: ...\nperfil: ...\nPIN: ...",
@@ -83,12 +101,40 @@ class DeliverCredentialsForm(forms.Form):
                 initial=item.delivered_credentials,
                 required=False,
             )
-            self.fields[f"expires_{item.pk}"] = forms.DateTimeField(
+            self.fields[expires_name] = forms.DateTimeField(
                 label="Vence (opcional)",
                 required=False,
-                widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
+                widget=forms.DateTimeInput(attrs={
+                    "type": "datetime-local",
+                    "id": f"id_{expires_name}",
+                    "class": "p-2 rounded border border-base-200 dark:border-base-800",
+                }),
                 initial=item.expires_at,
             )
+            self.fields[stock_name] = forms.IntegerField(
+                required=False,
+                widget=forms.HiddenInput(attrs={"id": f"id_{stock_name}"}),
+            )
+            # Stocks disponibles para este item: mismo producto, plan
+            # exacto o stock genérico (plan=None).
+            stocks = list(
+                StockItem.objects.filter(
+                    product_id=item.product_id,
+                    status=StockItem.Status.AVAILABLE,
+                )
+                .filter(models.Q(plan_id=item.plan_id) | models.Q(plan__isnull=True))
+                .select_related("plan")
+                .order_by("created_at")[:10]
+            )
+            self.items_data.append({
+                "item": item,
+                "stocks": stocks,
+                "creds_field": self[creds_name],
+                "expires_field": self[expires_name],
+                "stock_field": self[stock_name],
+                "creds_id": f"id_{creds_name}",
+                "stock_id": f"id_{stock_name}",
+            })
 
 
 @admin.register(Order)
@@ -308,6 +354,8 @@ class OrderAdmin(ExportMixin, ModelAdmin):
                 # Atomicidad: si algo falla a mitad, no queremos un pedido
                 # con la mitad de las credenciales escritas y la otra mitad
                 # vacía, y mucho menos con status=DELIVERED inconsistente.
+                from catalog.models import StockItem  # import diferido
+
                 with transaction.atomic():
                     for item in order.items.all():
                         item.delivered_credentials = form.cleaned_data.get(
@@ -316,7 +364,23 @@ class OrderAdmin(ExportMixin, ModelAdmin):
                         expires = form.cleaned_data.get(f"expires_{item.pk}")
                         if expires:
                             item.expires_at = expires
-                        item.save(update_fields=["delivered_credentials", "expires_at"])
+                        # Si se usó un stock para auto-rellenar, marcarlo
+                        # como vendido y vincularlo al item.
+                        stock_id = form.cleaned_data.get(f"stock_used_{item.pk}")
+                        if stock_id:
+                            stock = (
+                                StockItem.objects.select_for_update()
+                                .filter(pk=stock_id, status=StockItem.Status.AVAILABLE)
+                                .first()
+                            )
+                            if stock is not None:
+                                stock.status = StockItem.Status.SOLD
+                                stock.sold_at = timezone.now()
+                                stock.save(update_fields=["status", "sold_at"])
+                                item.stock_item = stock
+                        item.save(update_fields=[
+                            "delivered_credentials", "expires_at", "stock_item",
+                        ])
                     order.status = Order.Status.DELIVERED
                     order.delivered_at = timezone.now()
                     order.paid_at = order.paid_at or order.delivered_at

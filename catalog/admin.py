@@ -148,12 +148,34 @@ class StockImportForm(forms.Form):
     )
     file = forms.FileField(
         label="Archivo .txt / .csv",
-        help_text=(
-            "Una entrada por bloque. Separa bloques con una l\u00ednea en blanco. "
-            "Tambi\u00e9n acepta una entrada por l\u00ednea si el formato es "
-            "correo|clave|perfil|pin."
-        ),
+        required=False,
+        help_text="Sube un archivo, o pega el contenido en el cuadro de abajo.",
     )
+    pasted = forms.CharField(
+        label="O pega aquí (Excel, Sheets, .csv, .txt)",
+        required=False,
+        widget=forms.Textarea(attrs={
+            "rows": 12,
+            "style": "font-family:Menlo,Consolas,monospace;font-size:13px;width:100%;",
+            "placeholder": (
+                "Acepta varios formatos:\n\n"
+                "1) CSV con cabecera (separador ',' o ';' o tab):\n"
+                "   email,password,perfil,pin\n"
+                "   user1@gmail.com,Abc123,Perfil 1,1234\n"
+                "   user2@gmail.com,Xyz789,Perfil 2,5678\n\n"
+                "2) Una línea por cuenta (sin cabecera): correo|clave|perfil|pin\n\n"
+                "3) Bloques separados por línea en blanco (texto libre)."
+            ),
+        }),
+    )
+
+    def clean(self) -> dict:
+        cleaned = super().clean()
+        if not cleaned.get("file") and not (cleaned.get("pasted") or "").strip():
+            raise forms.ValidationError(
+                "Sube un archivo o pega contenido en el cuadro de texto."
+            )
+        return cleaned
 
 
 @admin.register(StockItem)
@@ -180,13 +202,21 @@ class StockItemAdmin(ModelAdmin):
         if request.method == "POST":
             form = StockImportForm(request.POST, request.FILES)
             if form.is_valid():
+                if form.cleaned_data.get("file"):
+                    content = form.cleaned_data["file"].read().decode(
+                        "utf-8", errors="replace"
+                    )
+                else:
+                    content = form.cleaned_data["pasted"]
                 created = self._process_file(
-                    form.cleaned_data["file"].read().decode("utf-8", errors="replace"),
+                    content,
                     product=form.cleaned_data["product"],
                     plan=form.cleaned_data["plan"],
                 )
                 messages.success(
-                    request, f"Se importaron {created} entradas de stock.",
+                    request,
+                    f"Se importaron {created} entradas de stock para "
+                    f"{form.cleaned_data['product'].name}.",
                 )
                 return redirect(reverse("admin:catalog_stockitem_changelist"))
         else:
@@ -196,40 +226,122 @@ class StockItemAdmin(ModelAdmin):
             "admin/catalog/stock_import.html",
             {
                 "form": form,
-                "title": "Importar stock desde archivo",
+                "title": "Importar stock — masivo",
                 "opts": StockItem._meta,
             },
         )
 
     def _process_file(self, content: str, product: Product, plan: Plan | None) -> int:
+        """Importa stock soportando 3 formatos:
+
+        1. CSV/TSV con cabecera (separador autodetectado: ``,``, ``;`` o tab).
+           Cabeceras esperadas (case-insensitive, acentos opcionales):
+           ``email``/``correo``, ``password``/``contraseña``/``clave``,
+           ``profile``/``perfil``, ``pin``, ``label``/``etiqueta``.
+        2. Una línea por cuenta sin cabecera, separadas por ``|``:
+           ``correo|clave|perfil|pin``.
+        3. Bloques de texto libre separados por línea en blanco.
+        """
+        import csv
+        import io
+
+        content = content.strip()
+        if not content:
+            return 0
+        lines = content.splitlines()
+        non_empty = [l for l in lines if l.strip()]
+
+        # Formato 1: CSV/TSV con cabecera. Lo detectamos si la primera línea
+        # tiene cabecera reconocible (email/correo) y separadores , ; o tab.
+        first = non_empty[0].lower() if non_empty else ""
+        is_csv_like = (
+            ("email" in first or "correo" in first)
+            and any(sep in first for sep in (",", ";", "\t"))
+        )
+        if is_csv_like:
+            return self._import_csv(content, product, plan)
+
+        # Formato 2: pipe-separated, una por línea.
+        if all("|" in line for line in non_empty):
+            return self._import_pipe(non_empty, product, plan)
+
+        # Formato 3: bloques.
+        return self._import_blocks(content, product, plan)
+
+    def _import_csv(self, content: str, product: Product, plan: Plan | None) -> int:
+        import csv
+        import io
+
+        # Autodetectar separador.
+        sample = content[:2048]
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
+        except csv.Error:
+            dialect = csv.excel
+        reader = csv.DictReader(io.StringIO(content), dialect=dialect)
+        # Normalizar cabeceras: minúsculas y sin tildes.
+        def norm(s: str) -> str:
+            s = (s or "").strip().lower()
+            return (
+                s.replace("á", "a").replace("é", "e").replace("í", "i")
+                .replace("ó", "o").replace("ú", "u").replace("ñ", "n")
+            )
+
+        if not reader.fieldnames:
+            return 0
+        original = list(reader.fieldnames)
+        reader.fieldnames = [norm(h) for h in original]
+        # Mapeo de cabecera real → nombre canónico.
+        canon = {
+            "email": "email", "correo": "email", "usuario": "email", "user": "email",
+            "password": "password", "contrasena": "password", "clave": "password", "pass": "password",
+            "profile": "profile", "perfil": "profile",
+            "pin": "pin",
+            "label": "label", "etiqueta": "label",
+        }
+        created = 0
+        for row in reader:
+            data = {canon.get(k, k): (v or "").strip() for k, v in row.items() if k}
+            email = data.get("email", "")
+            password = data.get("password", "")
+            if not email or not password:
+                continue
+            creds = f"Correo: {email}\nContraseña: {password}"
+            if data.get("profile"):
+                creds += f"\nPerfil: {data['profile']}"
+            if data.get("pin"):
+                creds += f"\nPIN: {data['pin']}"
+            StockItem.objects.create(
+                product=product, plan=plan,
+                credentials=creds, label=data.get("label", "")[:80],
+            )
+            created += 1
+        return created
+
+    def _import_pipe(self, lines: list[str], product: Product, plan: Plan | None) -> int:
+        created = 0
+        for line in lines:
+            parts = [p.strip() for p in line.strip().split("|")]
+            if len(parts) < 2:
+                continue
+            email, password, *rest = parts
+            creds = f"Correo: {email}\nContraseña: {password}"
+            if rest:
+                perfil = rest[0] if len(rest) > 0 else ""
+                pin = rest[1] if len(rest) > 1 else ""
+                if perfil:
+                    creds += f"\nPerfil: {perfil}"
+                if pin:
+                    creds += f"\nPIN: {pin}"
+            StockItem.objects.create(
+                product=product, plan=plan, credentials=creds,
+            )
+            created += 1
+        return created
+
+    def _import_blocks(self, content: str, product: Product, plan: Plan | None) -> int:
         created = 0
         blocks = [b.strip() for b in content.split("\n\n") if b.strip()]
-        if len(blocks) == 1 and "\n" in blocks[0] and "|" not in blocks[0]:
-            # single-block input, treat whole thing as one entry
-            pass
-
-        # If user used one-entry-per-line pipe format
-        if all("|" in line for line in content.splitlines() if line.strip()) and content.strip():
-            for line in content.splitlines():
-                parts = [p.strip() for p in line.strip().split("|")]
-                if len(parts) < 2:
-                    continue
-                email, password, *rest = parts
-                creds = f"Correo: {email}\nContrase\u00f1a: {password}"
-                if rest:
-                    perfil = rest[0] if len(rest) > 0 else ""
-                    pin = rest[1] if len(rest) > 1 else ""
-                    if perfil:
-                        creds += f"\nPerfil: {perfil}"
-                    if pin:
-                        creds += f"\nPIN: {pin}"
-                StockItem.objects.create(
-                    product=product, plan=plan, credentials=creds,
-                )
-                created += 1
-            return created
-
-        # Otherwise treat as block-per-entry
         for block in blocks:
             StockItem.objects.create(
                 product=product, plan=plan, credentials=block,

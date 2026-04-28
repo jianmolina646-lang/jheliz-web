@@ -16,12 +16,14 @@ from django.utils import timezone
 
 
 def dashboard_callback(request, context):
-    from orders.models import Order
+    from orders.models import Order, OrderItem
     from support.models import Ticket
     from accounts.models import User
+    from catalog.models import Product, StockItem
 
     now = timezone.localtime()
     today = now.date()
+    yesterday = today - timedelta(days=1)
     first_of_month = today.replace(day=1)
     paid_statuses = [Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED]
 
@@ -75,6 +77,52 @@ def dashboard_callback(request, context):
         role="distribuidor", distributor_approved=False
     ).count()
 
+    # ---- Operacional: ventas hoy vs ayer + cuentas por vencer ---------------
+    sales_today = (
+        Order.objects.filter(created_at__date=today, status__in=paid_statuses)
+        .aggregate(total=Sum("total")).get("total") or Decimal("0.00")
+    )
+    sales_yesterday = (
+        Order.objects.filter(created_at__date=yesterday, status__in=paid_statuses)
+        .aggregate(total=Sum("total")).get("total") or Decimal("0.00")
+    )
+    if sales_yesterday > 0:
+        delta_pct = float((sales_today - sales_yesterday) / sales_yesterday * 100)
+    elif sales_today > 0:
+        delta_pct = 100.0
+    else:
+        delta_pct = 0.0
+
+    # Cuentas que vencen hoy / mañana / próximos 3 días.
+    expiring_today = OrderItem.objects.filter(
+        expires_at__date=today, order__status=Order.Status.DELIVERED,
+    ).count()
+    expiring_tomorrow = OrderItem.objects.filter(
+        expires_at__date=today + timedelta(days=1),
+        order__status=Order.Status.DELIVERED,
+    ).count()
+    expiring_soon = OrderItem.objects.filter(
+        expires_at__date__gte=today,
+        expires_at__date__lte=today + timedelta(days=3),
+        order__status=Order.Status.DELIVERED,
+    ).select_related("order", "order__user")[:8]
+
+    # Stock bajo: productos activos con menos de 3 stocks disponibles.
+    low_stock_rows = []
+    for p in Product.objects.filter(is_active=True).order_by("name"):
+        avail = StockItem.objects.filter(
+            product=p, status=StockItem.Status.AVAILABLE
+        ).count()
+        if avail < 3:
+            low_stock_rows.append({"product": p, "available": avail})
+        if len(low_stock_rows) >= 8:
+            break
+
+    # Tickets esperando respuesta del soporte (estado abierto o pending_admin).
+    pending_support_tickets = Ticket.objects.filter(
+        status__in=[Ticket.Status.OPEN, Ticket.Status.PENDING_ADMIN],
+    ).count()
+
     # ---- Chart 1: ventas por día (últimos 14 días) --------------------------
     days = [today - timedelta(days=i) for i in range(13, -1, -1)]
     per_day_rows = {
@@ -125,9 +173,17 @@ def dashboard_callback(request, context):
         method_data.append(r["qty"])
     method_chart = {"labels": method_labels, "data": method_data}
 
+    arrow = "↑" if delta_pct >= 0 else "↓"
     context.update(
         {
             "kpi": [
+                {
+                    "title": "Ventas hoy",
+                    "metric": f"S/ {sales_today:,.2f}",
+                    "footer": f"{arrow} {abs(delta_pct):.0f}% vs ayer (S/ {sales_yesterday:,.2f})",
+                    "icon": "trending_up",
+                    "link": reverse("admin:orders_order_changelist") + "?status__exact=delivered",
+                },
                 {
                     "title": "Pedidos hoy",
                     "metric": orders_today,
@@ -164,14 +220,23 @@ def dashboard_callback(request, context):
                     "link": reverse("admin:orders_order_changelist") + "?status__exact=preparing",
                 },
                 {
-                    "title": "Tickets abiertos",
-                    "metric": open_tickets,
-                    "footer": "Excluye cerrados",
+                    "title": "Tickets sin responder",
+                    "metric": pending_support_tickets,
+                    "footer": "Esperan tu respuesta",
                     "icon": "support_agent",
                     "link": reverse("admin:support_ticket_changelist"),
                 },
+                {
+                    "title": "Vencen hoy",
+                    "metric": expiring_today,
+                    "footer": f"+{expiring_tomorrow} mañana",
+                    "icon": "schedule",
+                    "link": reverse("admin:orders_orderitem_changelist"),
+                },
             ],
             "pending_distributors": pending_distributors,
+            "expiring_soon": expiring_soon,
+            "low_stock_rows": low_stock_rows,
             "new_vs_returning": {
                 "new": new_customers,
                 "returning": returning_customers,

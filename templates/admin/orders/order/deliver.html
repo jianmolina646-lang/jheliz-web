@@ -25,15 +25,55 @@
 
   <form method="post" class="flex flex-col gap-5 p-6 border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900">
     {% csrf_token %}
-    {% for field in form %}
-    <div>
-      <label class="block text-sm font-medium text-base-900 dark:text-white mb-1">
-        {{ field.label }}
-      </label>
-      {{ field }}
-      {% if field.help_text %}
-      <p class="mt-1 text-xs text-base-500">{{ field.help_text }}</p>
+    {% for data in form.items_data %}
+    <div class="border border-base-200 dark:border-base-800 rounded-lg p-4">
+      <div class="flex items-baseline justify-between gap-3 mb-3">
+        <div class="font-semibold text-base-900 dark:text-white">
+          {{ data.item.product_name }} — {{ data.item.plan_name }}
+        </div>
+        {% if data.item.requested_profile_name or data.item.requested_pin %}
+        <div class="text-xs text-base-500">
+          {% if data.item.requested_profile_name %}Perfil: <strong>{{ data.item.requested_profile_name }}</strong>{% endif %}
+          {% if data.item.requested_pin %} · PIN: <strong>{{ data.item.requested_pin }}</strong>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      {% if data.stocks %}
+      <div class="mb-3 p-3 bg-pink-500/5 border border-pink-500/20 rounded-md">
+        <div class="text-xs font-semibold text-pink-300 mb-2">
+          📦 Stock disponible ({{ data.stocks|length }}) — click para auto-rellenar:
+        </div>
+        <div class="flex flex-wrap gap-2">
+          {% for stock in data.stocks %}
+          <button type="button"
+                  class="stock-fill-btn px-3 py-1.5 text-xs rounded border border-pink-400/40 bg-pink-500/10 hover:bg-pink-500/25 text-pink-100 transition"
+                  data-target-creds="{{ data.creds_id }}"
+                  data-target-stock-id="{{ data.stock_id }}"
+                  data-stock-id="{{ stock.pk }}"
+                  data-credentials="{{ stock.credentials }}">
+            #{{ stock.pk }}{% if stock.label %} · {{ stock.label }}{% endif %}
+            {% if stock.plan %}<span class="opacity-60"> · {{ stock.plan.name }}</span>{% endif %}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="mb-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-md text-xs text-amber-200">
+        ⚠️ Sin stock disponible para este producto. Pega las credenciales manualmente o carga stock primero.
+      </div>
       {% endif %}
+
+      <label class="block text-sm font-medium text-base-900 dark:text-white mb-1">
+        Credenciales a enviar
+      </label>
+      {{ data.creds_field }}
+      {{ data.stock_field }}
+
+      <label class="block text-sm font-medium text-base-900 dark:text-white mt-3 mb-1">
+        Vence (opcional)
+      </label>
+      {{ data.expires_field }}
     </div>
     {% endfor %}
 
@@ -49,4 +89,20 @@
     </div>
   </form>
 </div>
+
+<script>
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('.stock-fill-btn');
+  if (!btn) return;
+  const credsEl = document.getElementById(btn.dataset.targetCreds);
+  const stockEl = document.getElementById(btn.dataset.targetStockId);
+  if (credsEl) credsEl.value = btn.dataset.credentials;
+  if (stockEl) stockEl.value = btn.dataset.stockId;
+  // Visual feedback: highlight the chosen button.
+  btn.parentElement.querySelectorAll('.stock-fill-btn').forEach(b => {
+    b.classList.remove('ring-2', 'ring-pink-400', 'bg-pink-500/30');
+  });
+  btn.classList.add('ring-2', 'ring-pink-400', 'bg-pink-500/30');
+});
+</script>
 {% endblock %}
