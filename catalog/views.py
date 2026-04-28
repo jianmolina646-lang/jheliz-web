@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .models import Category, Product, Testimonial
+from .models import Category, Plan, Product, Testimonial
 
 
 def _product_schema(request, product, plans):
@@ -173,8 +173,37 @@ def distributor_landing(request):
     categories = Category.objects.filter(
         is_active=True, audience__in=["distribuidor", "ambos"],
     )
+    # Planes destacados para mostrar margen al visitante
+    plans_qs = (
+        Plan.objects.filter(
+            is_active=True,
+            available_for_distributor=True,
+            price_distributor__gt=0,
+        )
+        .select_related("product", "product__category")
+        .order_by("-product__is_featured", "duration_days")[:4]
+    )
+    sample_plans = []
+    for p in plans_qs:
+        diff = p.price_customer - p.price_distributor
+        pct = int(round(diff / p.price_customer * 100)) if p.price_customer else 0
+        sample_plans.append({
+            "product_name": p.product.name,
+            "name": p.name,
+            "price_customer": p.price_customer,
+            "price_distributor": p.price_distributor,
+            "savings_amount": diff,
+            "savings_pct": pct,
+        })
+    total_active_products = Product.objects.filter(is_active=True).count()
     return render(
-        request, "catalog/distributor.html", {"categories": categories},
+        request,
+        "catalog/distributor.html",
+        {
+            "categories": categories,
+            "sample_plans": sample_plans,
+            "total_active_products": total_active_products,
+        },
     )
 
 

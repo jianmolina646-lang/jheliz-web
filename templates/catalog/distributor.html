@@ -1,64 +1,407 @@
 {% extends "base.html" %}
+{% load humanize %}
 
-{% block title %}Distribuidor — {{ SITE_NAME }}{% endblock %}
+{% block title %}Distribuidor — {{ SITE_NAME }} · Precios mayoristas para revender{% endblock %}
+{% block meta_description %}Conviértete en distribuidor de Jheliz: cuentas a precio mayorista, entrega inmediata, garantía de reposición. Empieza a revender Netflix, Disney+, Office y más.{% endblock %}
+
+{% block extra_head %}
+<style>
+  .hero-glow-d::before {
+    content: ''; position: absolute; inset: -40% -20% auto -20%; height: 70%;
+    background: radial-gradient(60% 60% at 50% 20%, rgba(236,72,153,0.20), transparent 70%);
+    z-index: -1; pointer-events: none;
+  }
+  .step-num-d {
+    width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;
+    background: linear-gradient(135deg, #ec4899, #be185d);
+    color: #fff; font-weight: 700; font-family: 'Inter Tight';
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 18px -6px rgba(236,72,153,.6);
+    flex-shrink: 0; font-size: 1.05rem;
+  }
+  .benefit-icon {
+    width: 2.75rem; height: 2.75rem; border-radius: 0.85rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(236,72,153,0.10); color: #f9a8d4;
+    border: 1px solid rgba(236,72,153,.25);
+  }
+  .price-row {
+    display: grid; grid-template-columns: 1fr auto auto auto;
+    align-items: center; gap: 1rem; padding: 1rem 1.25rem;
+  }
+  .price-row + .price-row { border-top: 1px solid var(--line); }
+  .savings-badge {
+    background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05));
+    color: #86efac; border: 1px solid rgba(34,197,94,0.3);
+    padding: 0.2rem 0.6rem; border-radius: 9999px;
+    font-size: 0.75rem; font-weight: 600;
+  }
+  details.faq-d summary {
+    cursor: pointer; list-style: none;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; padding: 1.1rem 1.4rem;
+  }
+  details.faq-d summary::-webkit-details-marker { display: none; }
+  details.faq-d summary .chev { transition: transform 200ms ease; }
+  details.faq-d[open] summary .chev { transform: rotate(180deg); }
+  details.faq-d[open] { background: rgba(255,255,255,.02); }
+  .cat-card { transition: transform 150ms ease, border-color 150ms ease, box-shadow 200ms ease; }
+  .cat-card:hover {
+    transform: translateY(-2px); border-color: rgba(236,72,153,.4);
+    box-shadow: 0 12px 30px -10px rgba(236,72,153,.18);
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<section class="card-glass rounded-3xl p-8 md:p-14">
-  <span class="inline-block text-xs uppercase tracking-[0.25em] text-jheliz-300 mb-3">Para revendedores</span>
-  <h1 class="text-3xl md:text-5xl font-extrabold leading-tight">
-    Conviertete en <span class="bg-gradient-to-r from-jheliz-400 to-fuchsia-300 bg-clip-text text-transparent">distribuidor Jheliz</span>
-  </h1>
-  <p class="mt-4 text-white/80 max-w-2xl">
-    Compra cuentas completas a precio mayorista y revéndelas a tus clientes.
-    Ideal si ya tienes tu grupo de WhatsApp, Telegram o página de ventas.
-  </p>
-  <div class="mt-6 flex flex-wrap gap-3">
-    {% if user.is_authenticated %}
-      {% if user.is_distributor %}
-        <a href="{% url 'catalog:distributor_panel' %}" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">Entrar al panel distribuidor</a>
-      {% else %}
-        <span class="px-5 py-3 rounded-xl bg-white/5 border border-white/10">Tu solicitud está en revisión</span>
-        <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener"
-           class="px-5 py-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/30 font-semibold">Avisar por WhatsApp</a>
-      {% endif %}
-    {% else %}
-      <a href="{% url 'accounts:signup' %}" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">Registrarme como distribuidor</a>
-      <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener"
-         class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 font-semibold">Hablar por WhatsApp</a>
-    {% endif %}
-  </div>
-</section>
 
-<section class="mt-12 grid md:grid-cols-3 gap-4">
-  <div class="card-glass rounded-2xl p-6">
-    <div class="text-3xl">💸</div>
-    <h3 class="font-bold mt-2">Precios mayoristas</h3>
-    <p class="text-sm text-white/70 mt-1">Cuentas completas a precio de distribuidor, listas para revender.</p>
-  </div>
-  <div class="card-glass rounded-2xl p-6">
-    <div class="text-3xl">⚡</div>
-    <h3 class="font-bold mt-2">Entrega inmediata</h3>
-    <p class="text-sm text-white/70 mt-1">Recibe tus cuentas completas al instante al confirmar el pago.</p>
-  </div>
-  <div class="card-glass rounded-2xl p-6">
-    <div class="text-3xl">🔐</div>
-    <h3 class="font-bold mt-2">Garantía de reposición</h3>
-    <p class="text-sm text-white/70 mt-1">Si una cuenta falla dentro del período, la reponemos sin costo.</p>
-  </div>
-</section>
+<!-- ── Hero ──────────────────────────────────────────────────── -->
+<section class="hero-glow-d relative -mx-6 px-6 py-12 md:py-20 mb-14">
+  <div class="grid md:grid-cols-[1.3fr_1fr] gap-10 items-center">
+    <div>
+      <span class="chip chip-pink">💼 Programa de revendedores</span>
+      <h1 class="font-display text-4xl md:text-6xl font-bold tracking-tight mt-4 leading-[1.05]">
+        Vende cuentas premium<br>
+        con <span class="bg-gradient-to-r from-jheliz-300 to-fuchsia-200 bg-clip-text text-transparent">precios mayoristas.</span>
+      </h1>
+      <p class="text-lg text-zinc-400 mt-5 leading-relaxed max-w-xl">
+        Compra cuentas completas de Netflix, Disney+, Office y más a <strong class="text-zinc-200">hasta 60% menos</strong>.
+        Revéndelas por WhatsApp, Telegram o tu página y queda toda la diferencia para ti.
+      </p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        {% if user.is_authenticated %}
+          {% if user.is_distributor %}
+            <a href="{% url 'catalog:distributor_panel' %}" class="btn btn-primary btn-lg">
+              Entrar al panel distribuidor
+              <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            </a>
+          {% else %}
+            <span class="btn btn-secondary btn-lg cursor-default" style="opacity:.7">⏳ Solicitud en revisión</span>
+            <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="btn btn-primary btn-lg">
+              Avisar por WhatsApp
+            </a>
+          {% endif %}
+        {% else %}
+          <a href="{% url 'accounts:signup' %}?role=distribuidor" class="btn btn-primary btn-lg">
+            Registrarme como distribuidor
+            <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </a>
+          <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="btn btn-secondary btn-lg">
+            Hablar por WhatsApp
+          </a>
+        {% endif %}
+      </div>
+      <p class="text-xs text-zinc-500 mt-5">✓ Aprobación en menos de 24 horas · ✓ Sin cuota mensual · ✓ Sin meta de ventas</p>
+    </div>
 
-<section class="mt-12">
-  <h2 class="text-xl md:text-2xl font-bold mb-4">Categorías disponibles para distribuidor</h2>
-  <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-    {% for c in categories %}
-      <a href="{{ c.get_absolute_url }}" class="card-glass rounded-2xl p-4 flex items-center gap-3 hover:-translate-y-1 hover:border-jheliz-400/60 transition">
-        <div class="text-2xl">{{ c.emoji }}</div>
-        <div>
-          <div class="font-semibold">{{ c.name }}</div>
-          <div class="text-xs text-white/60">{{ c.get_audience_display }}</div>
+    <!-- Mini calculadora visual de margen -->
+    <div class="surface rounded-2xl p-6 md:p-7 relative">
+      <span class="chip chip-pink mb-3">Ejemplo de margen</span>
+      <div class="text-sm text-zinc-400">Si vendes <strong class="text-zinc-100">10 cuentas Netflix Premium / mes</strong>:</div>
+      <div class="mt-5 space-y-3">
+        <div class="flex justify-between items-center">
+          <span class="text-zinc-400 text-sm">Tu costo mayorista</span>
+          <span class="text-zinc-300 font-mono">S/ 450</span>
         </div>
+        <div class="flex justify-between items-center">
+          <span class="text-zinc-400 text-sm">Precio retail</span>
+          <span class="text-zinc-300 font-mono line-through opacity-70">S/ 600</span>
+        </div>
+        <div class="hairline border-t my-3"></div>
+        <div class="flex justify-between items-center">
+          <span class="text-zinc-100 font-semibold">Tu ganancia</span>
+          <span class="text-jheliz-300 font-display text-2xl font-bold">S/ 150 / mes</span>
+        </div>
+      </div>
+      <p class="text-xs text-zinc-500 mt-5 leading-relaxed">
+        * Márgenes reales varían entre 25% y 60% según producto. Ejemplo conservador.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ── KPI strip ─────────────────────────────────────────────── -->
+<section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
+  <div class="surface rounded-2xl p-5">
+    <div class="text-3xl font-display font-bold tracking-tight">25-60%</div>
+    <div class="text-xs text-zinc-500 mt-1">Margen promedio</div>
+  </div>
+  <div class="surface rounded-2xl p-5">
+    <div class="text-3xl font-display font-bold tracking-tight">{{ total_active_products }}+</div>
+    <div class="text-xs text-zinc-500 mt-1">Productos disponibles</div>
+  </div>
+  <div class="surface rounded-2xl p-5">
+    <div class="text-3xl font-display font-bold tracking-tight">&lt; 24h</div>
+    <div class="text-xs text-zinc-500 mt-1">Aprobación de cuenta</div>
+  </div>
+  <div class="surface rounded-2xl p-5">
+    <div class="text-3xl font-display font-bold tracking-tight">30 días</div>
+    <div class="text-xs text-zinc-500 mt-1">Garantía de reposición</div>
+  </div>
+</section>
+
+<!-- ── Tabla de precios cliente vs distribuidor ─────────────── -->
+{% if sample_plans %}
+<section class="mb-20">
+  <div class="mb-8">
+    <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Precios reales</p>
+    <h2 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-2">
+      Mira cuánto ahorras de un solo vistazo.
+    </h2>
+    <p class="text-zinc-400 mt-2 max-w-2xl">
+      Estos son precios reales que tienes hoy si te registras como distribuidor aprobado.
+    </p>
+  </div>
+
+  <div class="surface rounded-2xl overflow-hidden">
+    <div class="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 border-b hairline">
+      <div>Producto / plan</div>
+      <div class="text-right">Precio cliente</div>
+      <div class="text-right pr-2">Precio TÚ</div>
+      <div class="text-right">Tu margen</div>
+    </div>
+    {% for plan in sample_plans %}
+      <div class="price-row">
+        <div>
+          <div class="font-semibold text-zinc-100">{{ plan.product_name }}</div>
+          <div class="text-xs text-zinc-500 mt-0.5">{{ plan.name }}</div>
+        </div>
+        <div class="text-right text-zinc-400 font-mono text-sm md:text-base">
+          {{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}
+        </div>
+        <div class="text-right text-jheliz-300 font-mono text-base md:text-lg font-bold">
+          {{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}
+        </div>
+        <div class="text-right">
+          <span class="savings-badge">
+            −{{ plan.savings_pct }}% · ahorra {{ CURRENCY_SYMBOL }} {{ plan.savings_amount|floatformat:2|intcomma }}
+          </span>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  <p class="text-xs text-zinc-500 mt-3">
+    * El margen mostrado es la diferencia entre precio cliente y precio distribuidor. Tú decides cuánto cobrar a tus clientes finales.
+  </p>
+</section>
+{% endif %}
+
+<!-- ── ¿Cómo funciona? — 4 pasos ─────────────────────────────── -->
+<section class="mb-20">
+  <div class="mb-10">
+    <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Cómo empezar</p>
+    <h2 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-2">
+      De registro a primera venta, en 4 pasos
+    </h2>
+  </div>
+
+  <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div class="surface cat-card rounded-2xl p-6">
+      <span class="step-num-d">1</span>
+      <h3 class="font-display text-lg font-bold mt-4">Te registras</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">
+        Llena el formulario de distribuidor con tu nombre, WhatsApp y mensaje.
+        Te toma 1 minuto.
+      </p>
+    </div>
+    <div class="surface cat-card rounded-2xl p-6">
+      <span class="step-num-d">2</span>
+      <h3 class="font-display text-lg font-bold mt-4">Te aprobamos</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">
+        Revisamos tu solicitud en <strong class="text-zinc-200">menos de 24 horas</strong>.
+        Te llega email cuando ya puedes ver precios mayoristas.
+      </p>
+    </div>
+    <div class="surface cat-card rounded-2xl p-6">
+      <span class="step-num-d">3</span>
+      <h3 class="font-display text-lg font-bold mt-4">Compras al por mayor</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">
+        Entras al panel distribuidor y compras cuentas completas
+        a precio mayorista. Pagas con Yape o MercadoPago.
+      </p>
+    </div>
+    <div class="surface cat-card rounded-2xl p-6">
+      <span class="step-num-d">4</span>
+      <h3 class="font-display text-lg font-bold mt-4">Revendes y ganas</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">
+        Distribuyes los perfiles a tus clientes por WhatsApp, Telegram, etc.
+        El margen es 100% tuyo.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Beneficios ────────────────────────────────────────────── -->
+<section class="mb-20">
+  <div class="mb-10">
+    <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Beneficios</p>
+    <h2 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-2">
+      Todo lo que necesitas para crecer tu negocio.
+    </h2>
+  </div>
+
+  <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div class="surface rounded-2xl p-6">
+      <div class="benefit-icon">💸</div>
+      <h3 class="font-display text-lg font-bold mt-4">Precios mayoristas reales</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">Hasta 60% menos que el precio cliente. El margen entero queda para ti.</p>
+    </div>
+    <div class="surface rounded-2xl p-6">
+      <div class="benefit-icon">⚡</div>
+      <h3 class="font-display text-lg font-bold mt-4">Entrega rápida</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">Recibes las credenciales por email apenas confirmamos el pago. Las pasas a tu cliente al instante.</p>
+    </div>
+    <div class="surface rounded-2xl p-6">
+      <div class="benefit-icon">🛡️</div>
+      <h3 class="font-display text-lg font-bold mt-4">Garantía 30 días</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">Si una cuenta falla por algo nuestro dentro del mes, te la reponemos sin costo.</p>
+    </div>
+    <div class="surface rounded-2xl p-6">
+      <div class="benefit-icon">🛒</div>
+      <h3 class="font-display text-lg font-bold mt-4">Panel exclusivo</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">Tu propio dashboard con productos disponibles, stock en vivo y tu historial de pedidos.</p>
+    </div>
+    <div class="surface rounded-2xl p-6">
+      <div class="benefit-icon">📦</div>
+      <h3 class="font-display text-lg font-bold mt-4">Stock real, no falso</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">Solo vendemos lo que tenemos. Si un producto está sin stock, lo verás marcado.</p>
+    </div>
+    <div class="surface rounded-2xl p-6">
+      <div class="benefit-icon">📞</div>
+      <h3 class="font-display text-lg font-bold mt-4">Soporte directo 24/7</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">WhatsApp privado para distribuidores. Respuesta en máx 5 min en horario hábil.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Categorías disponibles ────────────────────────────────── -->
+{% if categories %}
+<section class="mb-20">
+  <div class="mb-8">
+    <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Catálogo</p>
+    <h2 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-2">
+      Categorías disponibles para distribuidor
+    </h2>
+  </div>
+  <div class="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+    {% for c in categories %}
+      <a href="{{ c.get_absolute_url }}" class="surface cat-card rounded-2xl p-5 flex items-center gap-4">
+        <div class="text-3xl">{{ c.emoji }}</div>
+        <div class="min-w-0 flex-1">
+          <div class="font-display font-bold text-zinc-100 truncate">{{ c.name }}</div>
+          <div class="text-xs text-zinc-500 mt-0.5">{{ c.get_audience_display }}</div>
+        </div>
+        <svg class="icon text-zinc-600" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
       </a>
     {% endfor %}
   </div>
 </section>
+{% endif %}
+
+<!-- ── FAQ distribuidores ────────────────────────────────────── -->
+<section class="mb-20">
+  <div class="mb-8">
+    <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Preguntas frecuentes</p>
+    <h2 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-2">
+      Lo que todo nuevo distribuidor pregunta.
+    </h2>
+  </div>
+
+  <div class="surface rounded-2xl divide-y hairline overflow-hidden">
+    <details class="faq-d">
+      <summary>
+        <span class="font-semibold text-zinc-100">¿Cuánto demora la aprobación de mi cuenta?</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        Normalmente <strong class="text-zinc-200">menos de 24 horas en días hábiles</strong>. Cuando te aprobamos, te llega un email
+        con el acceso al panel mayorista. Si pasaste 24h y no recibes nada, escríbenos por WhatsApp con tu correo registrado.
+      </div>
+    </details>
+
+    <details class="faq-d">
+      <summary>
+        <span class="font-semibold text-zinc-100">¿Hay que pagar una membresía mensual?</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        <strong class="text-zinc-200">No</strong>. Ser distribuidor es gratis. Solo pagas las cuentas que compras al precio mayorista.
+        Sin meta de ventas, sin cuota mínima, sin permanencia.
+      </div>
+    </details>
+
+    <details class="faq-d">
+      <summary>
+        <span class="font-semibold text-zinc-100">¿Cuánto puedo ganar al mes?</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        Depende 100% de cuánto vendas y a qué precio. Distribuidores nuestros suelen sacar
+        <strong class="text-zinc-200">entre S/ 300 y S/ 1,500 al mes</strong> con un grupo de WhatsApp activo.
+        Si te dedicas a esto a tiempo completo, hemos visto distribuidores ganando S/ 3-5K al mes.
+      </div>
+    </details>
+
+    <details class="faq-d">
+      <summary>
+        <span class="font-semibold text-zinc-100">¿Puedo comprar perfiles individuales o solo cuentas completas?</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        Como distribuidor compras <strong class="text-zinc-200">cuentas completas</strong> (con los 4-5 perfiles)
+        a precio mayorista, y tú las subdivides para revender perfiles a tus clientes finales.
+        Algunos productos también ofrecemos perfiles a precio mayorista, depende del catálogo.
+      </div>
+    </details>
+
+    <details class="faq-d">
+      <summary>
+        <span class="font-semibold text-zinc-100">¿Qué pasa si una cuenta falla con mi cliente?</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        Tienes <strong class="text-zinc-200">30 días de garantía</strong> desde que la compraste.
+        Si en ese período la cuenta falla por algo nuestro (cambio de contraseña del dueño, plataforma cambia algo, etc),
+        te la reponemos sin costo. Solo escríbenos con el ID del pedido y la cuenta nueva sale el mismo día.
+      </div>
+    </details>
+
+    <details class="faq-d">
+      <summary>
+        <span class="font-semibold text-zinc-100">¿Puedo pagar con Yape o solo con tarjeta?</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        Aceptamos <strong class="text-zinc-200">Yape, Mercado Pago, transferencia bancaria</strong> y para distribuidores
+        de alto volumen también activamos <strong class="text-zinc-200">crédito a 7 días</strong>. Pregúntanos por WhatsApp.
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ── CTA final ─────────────────────────────────────────────── -->
+<section class="mb-12">
+  <div class="rounded-2xl p-8 md:p-14 text-center relative overflow-hidden"
+       style="background: radial-gradient(120% 100% at 50% 0%, rgba(236,72,153,0.20), rgba(0,0,0,0) 60%), rgba(255,255,255,0.02); border: 1px solid rgba(236,72,153,.18);">
+    <h2 class="font-display text-3xl md:text-5xl font-bold tracking-tight">
+      ¿Listo para empezar a ganar?
+    </h2>
+    <p class="text-zinc-400 mt-4 max-w-xl mx-auto leading-relaxed">
+      Regístrate gratis, te aprobamos en menos de 24h y empiezas a vender el mismo día.
+      Sin contratos, sin cuotas, sin metas.
+    </p>
+    <div class="mt-8 flex flex-wrap justify-center gap-3">
+      {% if user.is_authenticated and user.is_distributor %}
+        <a href="{% url 'catalog:distributor_panel' %}" class="btn btn-primary btn-lg">Ir al panel mayorista →</a>
+      {% else %}
+        <a href="{% url 'accounts:signup' %}?role=distribuidor" class="btn btn-primary btn-lg">Registrarme gratis →</a>
+      {% endif %}
+      <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="btn btn-secondary btn-lg">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Tengo dudas — WhatsApp
+      </a>
+    </div>
+  </div>
+</section>
+
 {% endblock %}
