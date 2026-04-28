@@ -1,0 +1,109 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}<h1>Reportes financieros</h1>{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <p class="text-sm text-gray-500 dark:text-gray-400">
+        Solo se contabilizan pedidos en estado Pagado / En preparación / Entregado.
+        El total se calcula sobre el campo <code>paid_at</code>.
+    </p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {% with stats_list=today_stats|default_if_none:"" %}
+        <div class="rounded-xl border border-blue-500 bg-blue-500/20 p-4">
+            <div class="text-xs uppercase tracking-wide text-white/80">Hoy</div>
+            <div class="text-3xl font-bold text-white mt-1">{{ currency_symbol }} {{ today_stats.revenue|floatformat:2 }}</div>
+            <div class="text-xs text-white/80 mt-1">{{ today_stats.count }} pedido{{ today_stats.count|pluralize }}</div>
+        </div>
+        <div class="rounded-xl border border-green-500 bg-green-500/20 p-4">
+            <div class="text-xs uppercase tracking-wide text-white/80">Últimos 7 días</div>
+            <div class="text-3xl font-bold text-white mt-1">{{ currency_symbol }} {{ week_stats.revenue|floatformat:2 }}</div>
+            <div class="text-xs text-white/80 mt-1">{{ week_stats.count }} pedido{{ week_stats.count|pluralize }}</div>
+        </div>
+        <div class="rounded-xl border border-orange-500 bg-orange-500/20 p-4">
+            <div class="text-xs uppercase tracking-wide text-white/80">Últimos 30 días</div>
+            <div class="text-3xl font-bold text-white mt-1">{{ currency_symbol }} {{ month_stats.revenue|floatformat:2 }}</div>
+            <div class="text-xs text-white/80 mt-1">{{ month_stats.count }} pedido{{ month_stats.count|pluralize }}</div>
+        </div>
+        <div class="rounded-xl border border-yellow-500 bg-yellow-500/20 p-4">
+            <div class="text-xs uppercase tracking-wide text-white/80">Últimos 365 días</div>
+            <div class="text-3xl font-bold text-white mt-1">{{ currency_symbol }} {{ year_stats.revenue|floatformat:2 }}</div>
+            <div class="text-xs text-white/80 mt-1">{{ year_stats.count }} pedido{{ year_stats.count|pluralize }}</div>
+        </div>
+        {% endwith %}
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+        <a href="?" class="px-3 py-2 rounded-md bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium">
+            Recargar
+        </a>
+        <a href="{% url 'admin_reports_export_csv' %}?days=7" class="px-3 py-2 rounded-md border border-primary-500 text-primary-200 hover:bg-primary-500/20 text-sm font-medium">
+            ⬇️ CSV últimos 7 días
+        </a>
+        <a href="{% url 'admin_reports_export_csv' %}?days=30" class="px-3 py-2 rounded-md border border-primary-500 text-primary-200 hover:bg-primary-500/20 text-sm font-medium">
+            ⬇️ CSV últimos 30 días
+        </a>
+        <a href="{% url 'admin_reports_export_csv' %}?days=90" class="px-3 py-2 rounded-md border border-primary-500 text-primary-200 hover:bg-primary-500/20 text-sm font-medium">
+            ⬇️ CSV últimos 90 días
+        </a>
+        <a href="{% url 'admin_reports_export_csv' %}?days=365" class="px-3 py-2 rounded-md border border-primary-500 text-primary-200 hover:bg-primary-500/20 text-sm font-medium">
+            ⬇️ CSV anual
+        </a>
+    </div>
+
+    <section class="rounded-xl border border-gray-700 bg-gray-800/40 p-5">
+        <h2 class="text-base font-bold text-white mb-3">Top 10 productos (últimos 30 días)</h2>
+        {% if top_products %}
+        <table class="w-full text-sm">
+            <thead class="text-left text-xs uppercase text-gray-400 border-b border-gray-700">
+                <tr>
+                    <th class="py-2">Producto</th>
+                    <th class="py-2">Unidades</th>
+                    <th class="py-2 text-right">Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in top_products %}
+                <tr class="border-b border-gray-800/60">
+                    <td class="py-2 text-gray-100">{{ p.product_name }}</td>
+                    <td class="py-2 text-gray-300">{{ p.units }}</td>
+                    <td class="py-2 text-right font-mono text-white">{{ currency_symbol }} {{ p.revenue|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-gray-400 text-sm">Aún no hay ventas registradas en el período.</p>
+        {% endif %}
+    </section>
+
+    <section class="rounded-xl border border-gray-700 bg-gray-800/40 p-5">
+        <h2 class="text-base font-bold text-white mb-3">Ingresos por método de pago (últimos 30 días)</h2>
+        {% if by_method %}
+        <table class="w-full text-sm">
+            <thead class="text-left text-xs uppercase text-gray-400 border-b border-gray-700">
+                <tr>
+                    <th class="py-2">Método</th>
+                    <th class="py-2">Pedidos</th>
+                    <th class="py-2 text-right">Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in by_method %}
+                <tr class="border-b border-gray-800/60">
+                    <td class="py-2 text-gray-100">{{ m.payment_provider|default:"—" }}</td>
+                    <td class="py-2 text-gray-300">{{ m.count }}</td>
+                    <td class="py-2 text-right font-mono text-white">{{ currency_symbol }} {{ m.revenue|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-gray-400 text-sm">Sin datos en el período.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
