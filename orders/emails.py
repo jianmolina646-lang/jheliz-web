@@ -12,7 +12,24 @@ def _order_absolute_url(order) -> str:
     return f"{settings.SITE_URL}{reverse('orders:detail', args=[order.uuid])}"
 
 
-def _send(order, subject: str, template: str) -> None:
+def _log(*, order, subject: str, kind: str = "other", error: str = "") -> None:
+    """Persiste un EmailLog para auditoría/diagnóstico de envíos."""
+    try:
+        from .models import EmailLog
+        EmailLog.objects.create(
+            kind=kind,
+            status=EmailLog.Status.FAILED if error else EmailLog.Status.SENT,
+            to_email=getattr(order, "email", "") or "",
+            subject=subject,
+            order=order if hasattr(order, "pk") else None,
+            error=error,
+        )
+    except Exception:
+        # No bloqueamos el flujo si el log falla.
+        pass
+
+
+def _send(order, subject: str, template: str, kind: str = "other") -> None:
     if not order.email:
         return
     context = {
@@ -32,32 +49,37 @@ def _send(order, subject: str, template: str) -> None:
         to=[order.email],
     )
     message.content_subtype = "html"
-    message.send(fail_silently=True)
+    error_msg = ""
+    try:
+        message.send(fail_silently=False)
+    except Exception as exc:
+        error_msg = str(exc)[:500]
+    _log(order=order, subject=subject, kind=kind, error=error_msg)
 
 
 def send_order_received(order) -> None:
     _send(order, f"Recibimos tu pedido #{order.short_uuid} \u2014 {settings.SITE_NAME}",
-          "emails/order_received.html")
+          "emails/order_received.html", kind="order_received")
 
 
 def send_order_preparing(order) -> None:
     _send(order, f"Estamos preparando tu pedido #{order.short_uuid}",
-          "emails/order_preparing.html")
+          "emails/order_preparing.html", kind="order_preparing")
 
 
 def send_order_delivered(order) -> None:
     _send(order, f"Tu pedido #{order.short_uuid} est\u00e1 listo",
-          "emails/order_delivered.html")
+          "emails/order_delivered.html", kind="order_delivered")
 
 
 def send_yape_proof_received(order) -> None:
     _send(order, f"Recibimos tu comprobante Yape \u2014 pedido #{order.short_uuid}",
-          "emails/order_yape_received.html")
+          "emails/order_yape_received.html", kind="yape_received")
 
 
 def send_yape_proof_rejected(order) -> None:
     _send(order, f"Necesitamos otro comprobante \u2014 pedido #{order.short_uuid}",
-          "emails/order_yape_rejected.html")
+          "emails/order_yape_rejected.html", kind="yape_rejected")
 
 
 def send_expiry_reminder(order, items, days_left: int) -> None:
@@ -89,7 +111,12 @@ def send_expiry_reminder(order, items, days_left: int) -> None:
         to=[order.email],
     )
     message.content_subtype = "html"
-    message.send(fail_silently=True)
+    error_msg = ""
+    try:
+        message.send(fail_silently=False)
+    except Exception as exc:
+        error_msg = str(exc)[:500]
+    _log(order=order, subject=subject, kind="expiry_reminder", error=error_msg)
 
 
 def send_review_requests(order) -> None:
@@ -151,11 +178,17 @@ def send_review_requests(order) -> None:
         "WHATSAPP_NUMBER": settings.WHATSAPP_NUMBER,
     }
     body = render_to_string("emails/review_request.html", context)
+    subject = f"\u00bfQu\u00e9 te pareci\u00f3 tu compra? \u2014 #{order.short_uuid}"
     message = EmailMessage(
-        subject=f"\u00bfQu\u00e9 te pareci\u00f3 tu compra? \u2014 #{order.short_uuid}",
+        subject=subject,
         body=body,
         from_email=settings.DEFAULT_FROM_EMAIL,
         to=[order.email],
     )
     message.content_subtype = "html"
-    message.send(fail_silently=True)
+    error_msg = ""
+    try:
+        message.send(fail_silently=False)
+    except Exception as exc:
+        error_msg = str(exc)[:500]
+    _log(order=order, subject=subject, kind="review_request", error=error_msg)

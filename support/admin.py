@@ -2,7 +2,32 @@ from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import display
 
-from .models import Ticket, TicketMessage
+from .models import ReplyTemplate, Ticket, TicketMessage
+
+
+@admin.register(ReplyTemplate)
+class ReplyTemplateAdmin(ModelAdmin):
+    list_display = ("name", "category", "is_active", "use_count", "last_used_at")
+    list_filter = ("category", "is_active")
+    search_fields = ("name", "subject", "body")
+    list_filter_submit = True
+    fieldsets = (
+        (None, {
+            "fields": ("name", "category", "is_active"),
+        }),
+        ("Contenido", {
+            "fields": ("subject", "body"),
+            "description": (
+                "Variables disponibles: {nombre}, {pedido}, {producto}, "
+                "{telefono}, {fecha}. Se reemplazan al insertar la plantilla en un ticket."
+            ),
+        }),
+        ("Uso", {
+            "fields": ("use_count", "last_used_at"),
+            "classes": ("collapse",),
+        }),
+    )
+    readonly_fields = ("use_count", "last_used_at")
 
 
 class TicketMessageInline(TabularInline):

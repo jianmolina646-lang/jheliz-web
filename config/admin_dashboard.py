@@ -10,6 +10,7 @@ import json
 from datetime import timedelta
 from decimal import Decimal
 
+from django.db import models
 from django.db.models import Count, Max, Min, Sum
 from django.urls import reverse
 from django.utils import timezone
@@ -19,7 +20,7 @@ def dashboard_callback(request, context):
     from orders.models import Order, OrderItem
     from support.models import Ticket
     from accounts.models import User
-    from catalog.models import Product, StockItem
+    from catalog.models import Plan, Product, ProductReview, StockItem
 
     now = timezone.localtime()
     today = now.date()
@@ -123,6 +124,24 @@ def dashboard_callback(request, context):
         status__in=[Ticket.Status.OPEN, Ticket.Status.PENDING_ADMIN],
     ).count()
 
+    # Reseñas pendientes de moderación.
+    pending_reviews = ProductReview.objects.filter(
+        status=ProductReview.Status.PENDING,
+    ).count()
+
+    # Planes activos sin stock disponible (crítico).
+    out_of_stock = (
+        Plan.objects.filter(is_active=True, product__is_active=True)
+        .annotate(
+            avail=Count(
+                "stock_items",
+                filter=models.Q(stock_items__status=StockItem.Status.AVAILABLE),
+            )
+        )
+        .filter(avail=0)
+        .count()
+    )
+
     # ---- Chart 1: ventas por día (últimos 14 días) --------------------------
     days = [today - timedelta(days=i) for i in range(13, -1, -1)]
     per_day_rows = {
@@ -174,8 +193,65 @@ def dashboard_callback(request, context):
     method_chart = {"labels": method_labels, "data": method_data}
 
     arrow = "↑" if delta_pct >= 0 else "↓"
+
+    # ---- Necesita acción: lista consolidada de cosas urgentes ---------------
+    # Tones limited to colors compiled in Unfold's Tailwind: red, orange, yellow, green, blue.
+    _TONE_CLASSES = {
+        "red": "border-red-500 bg-red-500/20 text-red-100",
+        "orange": "border-orange-500 bg-orange-500/20 text-orange-100",
+        "yellow": "border-yellow-500 bg-yellow-500/20 text-yellow-100",
+        "green": "border-green-500 bg-green-500/20 text-green-100",
+        "blue": "border-blue-500 bg-blue-500/20 text-blue-100",
+    }
+    needs_action = []
+    if verifying_orders:
+        needs_action.append({
+            "label": "Comprobantes Yape por verificar",
+            "count": verifying_orders, "icon": "qr_code_scanner", "tone": "orange",
+            "link": reverse("admin:orders_order_changelist") + "?status__exact=verifying",
+        })
+    if pending_orders:
+        needs_action.append({
+            "label": "Pedidos en preparación",
+            "count": pending_orders, "icon": "pending_actions", "tone": "yellow",
+            "link": reverse("admin:orders_order_changelist") + "?status__exact=preparing",
+        })
+    if pending_support_tickets:
+        needs_action.append({
+            "label": "Tickets sin responder",
+            "count": pending_support_tickets, "icon": "support_agent", "tone": "blue",
+            "link": reverse("admin:support_ticket_changelist"),
+        })
+    if pending_reviews:
+        needs_action.append({
+            "label": "Reseñas pendientes de aprobar",
+            "count": pending_reviews, "icon": "rate_review", "tone": "blue",
+            "link": reverse("admin:catalog_productreview_changelist") + "?status__exact=pending",
+        })
+    if pending_distributors:
+        needs_action.append({
+            "label": "Distribuidores por aprobar",
+            "count": pending_distributors, "icon": "verified_user", "tone": "green",
+            "link": reverse("admin:accounts_user_changelist") + "?role__exact=distribuidor&distributor_approved__exact=0",
+        })
+    if out_of_stock:
+        needs_action.append({
+            "label": "Planes SIN stock (críticos)",
+            "count": out_of_stock, "icon": "warning", "tone": "red",
+            "link": reverse("admin:catalog_stockitem_changelist") + "?status__exact=available",
+        })
+    if expiring_today:
+        needs_action.append({
+            "label": "Cuentas que vencen HOY",
+            "count": expiring_today, "icon": "schedule", "tone": "orange",
+            "link": reverse("admin:orders_orderitem_changelist"),
+        })
+    for item in needs_action:
+        item["classes"] = _TONE_CLASSES[item["tone"]]
+
     context.update(
         {
+            "needs_action": needs_action,
             "kpi": [
                 {
                     "title": "Ventas hoy",
@@ -225,6 +301,13 @@ def dashboard_callback(request, context):
                     "footer": "Esperan tu respuesta",
                     "icon": "support_agent",
                     "link": reverse("admin:support_ticket_changelist"),
+                },
+                {
+                    "title": "Reseñas por moderar",
+                    "metric": pending_reviews,
+                    "footer": "Aprobar / rechazar",
+                    "icon": "rate_review",
+                    "link": reverse("admin:catalog_productreview_changelist") + "?status__exact=pending",
                 },
                 {
                     "title": "Vencen hoy",

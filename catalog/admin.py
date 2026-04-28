@@ -14,6 +14,7 @@ from .models import (
     Product,
     ProductReview,
     PromoBanner,
+    SiteSettings,
     StockItem,
     Testimonial,
 )
@@ -446,3 +447,50 @@ class PromoBannerAdmin(ModelAdmin):
     @display(description="En vivo", boolean=True)
     def is_currently_active_display(self, obj):
         return obj.is_currently_active
+
+
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(ModelAdmin):
+    """Singleton: una sola fila de configuración global del sitio."""
+
+    fieldsets = (
+        ("Marca", {
+            "fields": ("site_name", "tagline", "logo", "favicon"),
+        }),
+        ("Hero / portada", {
+            "fields": ("hero_title", "hero_subtitle", "hero_cta_text"),
+        }),
+        ("Contacto", {
+            "fields": ("whatsapp_number", "whatsapp_message", "contact_email"),
+        }),
+        ("Redes sociales", {
+            "fields": ("instagram_url", "tiktok_url", "facebook_url", "youtube_url"),
+            "classes": ("collapse",),
+        }),
+        ("Información legal (Indecopi Perú)", {
+            "fields": ("legal_business_name", "legal_ruc", "legal_address"),
+            "classes": ("collapse",),
+        }),
+        ("SEO", {
+            "fields": ("seo_default_image", "seo_meta_description"),
+            "classes": ("collapse",),
+        }),
+        ("Mantenimiento", {
+            "fields": ("maintenance_mode", "maintenance_message"),
+            "classes": ("collapse",),
+        }),
+    )
+    readonly_fields = ("updated_at",)
+
+    def has_add_permission(self, request):
+        return not SiteSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        # Redirige siempre a la única instancia.
+        obj = SiteSettings.load()
+        from django.shortcuts import redirect
+        from django.urls import reverse as _reverse
+        return redirect(_reverse("admin:catalog_sitesettings_change", args=[obj.pk]))

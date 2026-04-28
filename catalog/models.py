@@ -448,3 +448,119 @@ class PromoBanner(models.Model):
         if not on_home:
             qs = qs.filter(show_only_on_home=False)
         return qs.order_by("order", "-created_at").first()
+
+
+class SiteSettings(models.Model):
+    """Configuración global del sitio editable desde el admin (singleton).
+
+    Permite cambiar logo, textos del hero, link de WhatsApp, redes sociales,
+    etc. sin tocar código.
+    """
+
+    site_name = models.CharField(
+        "Nombre del sitio", max_length=80, default="Jheliz",
+        help_text="Aparece en el header, footer y emails.",
+    )
+    tagline = models.CharField(
+        "Tagline corto", max_length=160, blank=True,
+        default="Cuentas oficiales y licencias premium en Perú",
+    )
+    logo = models.ImageField(
+        "Logo", upload_to="site/", blank=True, null=True,
+        help_text="Reemplaza el logo del header. PNG transparente recomendado (200×60).",
+    )
+    favicon = models.ImageField(
+        "Favicon", upload_to="site/", blank=True, null=True,
+        help_text="Icono de la pestaña del navegador. ICO o PNG 64×64.",
+    )
+
+    # Hero / portada
+    hero_title = models.CharField(
+        "Título del hero", max_length=120, blank=True,
+        default="Streaming y licencias premium",
+    )
+    hero_subtitle = models.CharField(
+        "Subtítulo del hero", max_length=200, blank=True,
+        default="Netflix, Disney+, Spotify, Office y más — cuentas oficiales con garantía.",
+    )
+    hero_cta_text = models.CharField(
+        "Texto del botón CTA", max_length=40, default="Ver catálogo",
+    )
+
+    # Contacto
+    whatsapp_number = models.CharField(
+        "WhatsApp (con código país, sin +)", max_length=20, blank=True,
+        default="51999999999",
+        help_text="Ej: 51999999999 (sin + ni espacios). Se usa en el botón flotante.",
+    )
+    whatsapp_message = models.CharField(
+        "Mensaje pre-rellenado de WhatsApp", max_length=200,
+        default="Hola Jheliz, tengo una consulta sobre sus productos.",
+    )
+    contact_email = models.EmailField("Correo de contacto", blank=True)
+
+    # Redes sociales
+    instagram_url = models.URLField("Instagram", blank=True)
+    tiktok_url = models.URLField("TikTok", blank=True)
+    facebook_url = models.URLField("Facebook", blank=True)
+    youtube_url = models.URLField("YouTube", blank=True)
+
+    # Información legal (Indecopi Perú)
+    legal_business_name = models.CharField(
+        "Razón social", max_length=160, blank=True,
+        help_text="Nombre legal de la empresa, ej: 'Jheliz Services E.I.R.L.'",
+    )
+    legal_ruc = models.CharField(
+        "RUC", max_length=20, blank=True,
+        help_text="11 dígitos del RUC de la empresa.",
+    )
+    legal_address = models.CharField(
+        "Dirección física", max_length=200, blank=True,
+    )
+
+    # SEO global
+    seo_default_image = models.ImageField(
+        "Imagen OG por defecto", upload_to="site/", blank=True, null=True,
+        help_text="Imagen que aparece al compartir el sitio en WhatsApp/Facebook (1200×630).",
+    )
+    seo_meta_description = models.CharField(
+        "Meta descripción (SEO)", max_length=200, blank=True,
+        default="Cuentas premium oficiales: Netflix, Disney+, Spotify, Office y más. Pago Yape o Mercado Pago. Garantía 30 días.",
+    )
+
+    # Operacional
+    maintenance_mode = models.BooleanField(
+        "Modo mantenimiento", default=False,
+        help_text="Si está activo, se muestra una página de mantenimiento en lugar del sitio normal.",
+    )
+    maintenance_message = models.TextField(
+        "Mensaje de mantenimiento", blank=True,
+        default="Volvemos en unos minutos. ¡Disculpa las molestias!",
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuración del sitio"
+        verbose_name_plural = "Configuración del sitio"
+
+    def __str__(self) -> str:
+        return "Configuración del sitio"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls) -> "SiteSettings":
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    @property
+    def whatsapp_link(self) -> str:
+        """Link wa.me con número y mensaje pre-rellenado."""
+        from urllib.parse import quote
+        if not self.whatsapp_number:
+            return ""
+        msg = quote(self.whatsapp_message or "")
+        return f"https://wa.me/{self.whatsapp_number}?text={msg}"

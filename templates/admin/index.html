@@ -14,11 +14,42 @@
 
 {% block content %}
 <div class="flex flex-col gap-6">
-    {% if pending_distributors %}
-    <a href="{% url 'admin:accounts_user_changelist' %}?role__exact=distribuidor&amp;distributor_approved__exact=0"
-       class="block p-4 border border-amber-500/40 bg-amber-500/10 rounded-lg text-amber-200 hover:bg-amber-500/20 transition">
-        <span class="font-semibold">{{ pending_distributors }}</span> distribuidor{{ pending_distributors|pluralize:"es" }} esperando aprobación. Click para revisar.
-    </a>
+    {% if needs_action %}
+    <section class="border border-primary-500/40 bg-gradient-to-br from-primary-500/10 to-primary-700/5 rounded-xl p-5">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-base font-bold text-primary-100 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary-400">priority_high</span>
+                    Necesita acción
+                </h2>
+                <p class="text-xs text-primary-300/70 mt-0.5">Lo más urgente para resolver hoy</p>
+            </div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-primary-300 bg-primary-500/20 px-2.5 py-1 rounded-full">
+                {{ needs_action|length }} item{{ needs_action|length|pluralize }}
+            </span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {% for it in needs_action %}
+            <a href="{{ it.link }}"
+               class="group flex items-center gap-3 p-3 rounded-lg border {{ it.classes }} hover:opacity-90 transition">
+                <div class="shrink-0 w-10 h-10 rounded-md bg-white/10 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-white">{{ it.icon }}</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="text-2xl font-bold text-white leading-none">{{ it.count }}</div>
+                    <div class="text-xs text-white/80 mt-1 truncate">{{ it.label }}</div>
+                </div>
+                <span class="material-symbols-outlined text-white/60 group-hover:translate-x-0.5 transition shrink-0">chevron_right</span>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% else %}
+    <div class="border border-green-500 bg-green-500/20 rounded-xl p-5 text-center">
+        <span class="material-symbols-outlined text-white text-3xl">task_alt</span>
+        <h2 class="text-base font-bold text-white mt-2">Todo al día</h2>
+        <p class="text-sm text-white/80 mt-1">No hay tareas urgentes en este momento</p>
+    </div>
     {% endif %}
 
     {% if kpi %}

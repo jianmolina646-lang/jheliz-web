@@ -326,3 +326,51 @@ class OrderItem(models.Model):
     @property
     def subtotal(self) -> Decimal:
         return self.unit_price * self.quantity
+
+
+class EmailLog(models.Model):
+    """Registro de cada email transaccional enviado.
+
+    Útil para diagnosticar entregas fallidas, reenviar, ver historial por
+    cliente y auditar comunicaciones automáticas.
+    """
+
+    class Kind(models.TextChoices):
+        ORDER_RECEIVED = "order_received", "Pedido recibido"
+        ORDER_PREPARING = "order_preparing", "Pedido en preparación"
+        ORDER_DELIVERED = "order_delivered", "Pedido entregado (credenciales)"
+        YAPE_RECEIVED = "yape_received", "Yape — comprobante recibido"
+        YAPE_REJECTED = "yape_rejected", "Yape — comprobante rechazado"
+        EXPIRY_REMINDER = "expiry_reminder", "Recordatorio de vencimiento"
+        REVIEW_REQUEST = "review_request", "Solicitud de reseña"
+        OTHER = "other", "Otro"
+
+    class Status(models.TextChoices):
+        SENT = "sent", "Enviado"
+        FAILED = "failed", "Falló"
+
+    kind = models.CharField(
+        "Tipo", max_length=30, choices=Kind.choices, default=Kind.OTHER, db_index=True,
+    )
+    status = models.CharField(
+        "Estado", max_length=10, choices=Status.choices, default=Status.SENT, db_index=True,
+    )
+    to_email = models.EmailField("Destinatario", db_index=True)
+    subject = models.CharField("Asunto", max_length=200)
+    order = models.ForeignKey(
+        "Order", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="email_logs",
+    )
+    error = models.TextField("Error", blank=True)
+    sent_at = models.DateTimeField("Enviado", auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-sent_at",)
+        verbose_name = "Log de email"
+        verbose_name_plural = "Logs de emails"
+        indexes = [
+            models.Index(fields=["-sent_at"], name="emaillog_sent_at_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"[{self.get_kind_display()}] {self.to_email} ({self.status})"
