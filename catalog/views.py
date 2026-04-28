@@ -87,11 +87,25 @@ def _recent_purchases(limit: int = 8):
     return out
 
 
+def _audience_filter(user):
+    """Oculta productos sin planes visibles para esta audiencia.
+
+    Si el usuario es distribuidor aprobado, ve productos con al menos un plan
+    activo visible para distribuidor. Si no, ve productos con al menos un plan
+    activo visible para cliente final.
+    """
+    if user and getattr(user, "is_distributor", False):
+        return Q(plans__is_active=True, plans__available_for_distributor=True)
+    return Q(plans__is_active=True, plans__available_for_customer=True)
+
+
 def home(request):
     featured = (
         Product.objects.filter(is_active=True, is_featured=True)
+        .filter(_audience_filter(request.user))
         .select_related("category")
         .prefetch_related("plans")
+        .distinct()
     )
     top_categories = Category.objects.filter(is_active=True)[:6]
     # Productos destacados con precio mínimo desde — para hero strip
@@ -127,18 +141,6 @@ def home(request):
             "starter_strip": starter_strip,
         },
     )
-
-
-def _audience_filter(user):
-    """Oculta productos sin planes visibles para esta audiencia.
-
-    Si el usuario es distribuidor aprobado, ve productos con al menos un plan
-    activo visible para distribuidor. Si no, ve productos con al menos un plan
-    activo visible para cliente final.
-    """
-    if user and getattr(user, "is_distributor", False):
-        return Q(plans__is_active=True, plans__available_for_distributor=True)
-    return Q(plans__is_active=True, plans__available_for_customer=True)
 
 
 def product_list(request):
