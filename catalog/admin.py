@@ -187,8 +187,10 @@ class StockImportForm(forms.Form):
 @admin.register(StockItem)
 class StockItemAdmin(ModelAdmin):
     list_display = (
-        "product", "plan", "status_badge", "label", "created_at", "sold_at",
+        "product", "plan", "status_badge", "status", "label",
+        "created_at", "sold_at",
     )
+    list_editable = ("status", "label")
     list_filter = ("status", "product", "plan")
     search_fields = ("product__name", "label", "credentials")
     autocomplete_fields = ("product", "plan")
@@ -264,16 +266,21 @@ class StockItemAdmin(ModelAdmin):
                     )
                 else:
                     content = form.cleaned_data["pasted"]
-                created = self._process_file(
+                created, skipped = self._process_file_with_stats(
                     content,
                     product=form.cleaned_data["product"],
                     plan=form.cleaned_data["plan"],
                 )
-                messages.success(
-                    request,
+                msg = (
                     f"Se importaron {created} entradas de stock para "
-                    f"{form.cleaned_data['product'].name}.",
+                    f"{form.cleaned_data['product'].name}."
                 )
+                if skipped:
+                    msg += (
+                        f" Se omitieron {skipped} duplicado(s) "
+                        "(email ya existía en el stock)."
+                    )
+                messages.success(request, msg)
                 return redirect(reverse("admin:catalog_stockitem_changelist"))
         else:
             initial = {}
@@ -295,19 +302,38 @@ class StockItemAdmin(ModelAdmin):
         )
 
     def _process_file(self, content: str, product: Product, plan: Plan | None) -> int:
-        """Importa stock soportando varios formatos:
+        """Wrapper retro-compat: devuelve solo el número de creados."""
+        created, _skipped = self._process_file_with_stats(content, product, plan)
+        return created
 
+    def _process_file_with_stats(
+        self, content: str, product: Product, plan: Plan | None
+    ) -> tuple[int, int]:
+        """Importa stock soportando varios formatos.
+
+        Devuelve ``(created, skipped_duplicates)``. Detecta duplicados por
+        el correo dentro del bloque ``credentials`` para el mismo producto.
+
+        Formatos soportados:
         1. CSV/TSV con cabecera (separador autodetectado: ``,``, ``;`` o tab).
-           Cabeceras esperadas (case-insensitive, acentos opcionales):
-           ``email``/``correo``, ``password``/``contraseña``/``clave``,
+           Cabeceras esperadas: ``email``/``correo``, ``password``/``clave``,
            ``profile``/``perfil``, ``pin``, ``label``/``etiqueta``.
         2. Una línea por cuenta separada por ``|``, ``,``, ``;``, tab o espacios:
            ``correo|clave|perfil|pin``.
         3. Bloques multilinea separados por línea en blanco (formato libre).
         """
+        # Carga set de emails ya existentes para este producto, para evitar
+        # duplicados. Se hace una sola query.
+        self._existing_emails = set()
+        existing_qs = StockItem.objects.filter(product=product).only("credentials")
+        for it in existing_qs:
+            for email in self._extract_emails(it.credentials or ""):
+                self._existing_emails.add(email.lower())
+        self._duplicates_skipped = 0
+
         content = content.strip()
         if not content:
-            return 0
+            return 0, 0
         lines = content.splitlines()
         non_empty = [l for l in lines if l.strip()]
 
@@ -319,7 +345,8 @@ class StockItemAdmin(ModelAdmin):
             and any(sep in first for sep in (",", ";", "\t"))
         )
         if is_csv_like:
-            return self._import_csv(content, product, plan)
+            created = self._import_csv(content, product, plan)
+            return created, self._duplicates_skipped
 
         # Formato 3: bloques multilinea (cuando hay líneas vacías separadoras).
         # Solo aplicamos si hay al menos una línea vacía entre líneas no vacías;
@@ -329,11 +356,27 @@ class StockItemAdmin(ModelAdmin):
             for i in range(len(lines))
         )
         if has_blank_separators:
-            return self._import_blocks(content, product, plan)
+            created = self._import_blocks(content, product, plan)
+            return created, self._duplicates_skipped
 
         # Formato 2: una línea por cuenta. Aceptamos cualquier separador común
         # (|, tab, ;, ,) o múltiples espacios entre email y clave.
-        return self._import_lines(non_empty, product, plan)
+        created = self._import_lines(non_empty, product, plan)
+        return created, self._duplicates_skipped
+
+    @staticmethod
+    def _extract_emails(text: str) -> list[str]:
+        import re
+        return re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text)
+
+    def _is_duplicate(self, email: str) -> bool:
+        """True si el email ya está en stock para este producto. Marca un strike."""
+        if not email:
+            return False
+        if email.lower() in getattr(self, "_existing_emails", set()):
+            self._duplicates_skipped += 1
+            return True
+        return False
 
     def _import_csv(self, content: str, product: Product, plan: Plan | None) -> int:
         import csv
@@ -373,6 +416,8 @@ class StockItemAdmin(ModelAdmin):
             password = data.get("password", "")
             if not email or not password:
                 continue
+            if self._is_duplicate(email):
+                continue
             creds = f"Correo: {email}\nContraseña: {password}"
             if data.get("profile"):
                 creds += f"\nPerfil: {data['profile']}"
@@ -382,6 +427,7 @@ class StockItemAdmin(ModelAdmin):
                 product=product, plan=plan,
                 credentials=creds, label=data.get("label", "")[:80],
             )
+            self._existing_emails.add(email.lower())
             created += 1
         return created
 
@@ -414,12 +460,19 @@ class StockItemAdmin(ModelAdmin):
                     break
             else:
                 # Línea con un solo token — la guardamos como bloque libre.
+                emails_in_line = self._extract_emails(line)
+                if emails_in_line and self._is_duplicate(emails_in_line[0]):
+                    continue
                 StockItem.objects.create(
                     product=product, plan=plan, credentials=line,
                 )
+                for em in emails_in_line:
+                    self._existing_emails.add(em.lower())
                 created += 1
                 continue
             email, password, *rest = parts
+            if self._is_duplicate(email):
+                continue
             creds = f"Correo: {email}\nContraseña: {password}"
             if rest:
                 perfil = rest[0] if len(rest) > 0 else ""
@@ -431,6 +484,7 @@ class StockItemAdmin(ModelAdmin):
             StockItem.objects.create(
                 product=product, plan=plan, credentials=creds,
             )
+            self._existing_emails.add(email.lower())
             created += 1
         return created
 
@@ -438,9 +492,14 @@ class StockItemAdmin(ModelAdmin):
         created = 0
         blocks = [b.strip() for b in content.split("\n\n") if b.strip()]
         for block in blocks:
+            emails_in_block = self._extract_emails(block)
+            if emails_in_block and self._is_duplicate(emails_in_block[0]):
+                continue
             StockItem.objects.create(
                 product=product, plan=plan, credentials=block,
             )
+            for em in emails_in_block:
+                self._existing_emails.add(em.lower())
             created += 1
         return created
 
