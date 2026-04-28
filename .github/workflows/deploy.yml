@@ -1,0 +1,45 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH + git pull + docker compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${VPS_PROJECT_PATH:-/srv/jheliz}"
+            echo "→ Pulling latest from main..."
+            git fetch --all --prune
+            git checkout main
+            git pull --ff-only origin main
+            echo "→ Rebuilding containers..."
+            docker compose pull || true
+            docker compose up -d --build
+            echo "→ Running migrations..."
+            docker compose exec -T web python manage.py migrate --noinput
+            echo "→ Collecting static files..."
+            docker compose exec -T web python manage.py collectstatic --noinput
+            echo "→ Restarting web service to pick up new code..."
+            docker compose restart web
+            echo "✓ Deploy completado: $(git rev-parse --short HEAD)"
+        env:
+          VPS_PROJECT_PATH: ${{ vars.VPS_PROJECT_PATH }}
