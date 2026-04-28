@@ -12,12 +12,15 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import Count, Max, Sum
 from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 
 def _admin_context(request, **extra):
@@ -419,3 +422,139 @@ def notifications_count(request):
     }
     data["total"] = data["verifying"] + data["preparing"] + data["open_tickets"]
     return JsonResponse(data)
+
+
+# ---------------------------------------------------------------------------
+# Renovaciones pendientes (#nuevo) — items próximos a vencer + 1-click renew
+# ---------------------------------------------------------------------------
+
+_RENEWAL_WINDOWS = {
+    "expired": ("Vencidos", -180, 0),
+    "today": ("Vencen hoy", 0, 1),
+    "3d": ("Próx. 3 días", 0, 4),
+    "7d": ("Próx. 7 días", 0, 8),
+    "30d": ("Próx. 30 días", 0, 31),
+}
+
+
+@staff_member_required
+def renewals_view(request):
+    """Lista items próximos a vencer agrupados por filtro de ventana."""
+    from orders.models import Order, OrderItem
+
+    window_key = request.GET.get("w", "7d")
+    if window_key not in _RENEWAL_WINDOWS:
+        window_key = "7d"
+    label, start_offset, end_offset = _RENEWAL_WINDOWS[window_key]
+
+    now = timezone.now()
+    start = now + timedelta(days=start_offset) if start_offset < 0 else now
+    end = now + timedelta(days=end_offset)
+
+    qs = (
+        OrderItem.objects.filter(
+            expires_at__isnull=False,
+            expires_at__gte=start,
+            expires_at__lt=end,
+            order__status__in=(
+                Order.Status.PAID,
+                Order.Status.PREPARING,
+                Order.Status.DELIVERED,
+            ),
+        )
+        .select_related("order", "order__user", "product", "plan")
+        .order_by("expires_at")
+    )
+
+    items = []
+    for it in qs[:200]:
+        days_left = (it.expires_at - now).days if it.expires_at else None
+        items.append({
+            "id": it.pk,
+            "order_id": it.order_id,
+            "order_short": str(it.order.uuid)[:8] if it.order.uuid else "",
+            "customer_email": it.order.email or "",
+            "customer_phone": it.order.phone or "",
+            "product_name": it.product_name,
+            "plan_name": it.plan_name,
+            "expires_at": it.expires_at,
+            "days_left": days_left,
+            "reminder_3d": bool(it.expiry_reminder_3d_sent_at),
+            "reminder_1d": bool(it.expiry_reminder_1d_sent_at),
+            "order_change_url": reverse("admin:orders_order_change", args=[it.order_id]),
+            "renew_url": reverse("admin_renew_item", args=[it.pk]),
+            "whatsapp_url": _whatsapp_link(it),
+        })
+
+    ctx = _admin_context(
+        request,
+        title="Renovaciones pendientes",
+        items=items,
+        window_key=window_key,
+        window_label=label,
+        windows=_RENEWAL_WINDOWS,
+    )
+    return render(request, "admin/renewals.html", ctx)
+
+
+def _whatsapp_link(item) -> str:
+    """Genera un link wa.me con texto pre-rellenado para invitar al cliente
+    a renovar.
+    """
+    import urllib.parse
+    phone = (item.order.phone or "").strip().replace(" ", "").replace("+", "")
+    if not phone:
+        return ""
+    if not phone.startswith("51") and len(phone) == 9:
+        phone = "51" + phone
+    fecha = item.expires_at.strftime("%d/%m/%Y") if item.expires_at else ""
+    txt = (
+        f"Hola! Te recordamos que tu *{item.product_name} ({item.plan_name})* "
+        f"vence el {fecha}. ¿Quieres renovarlo? Te paso el link de pago."
+    )
+    return f"https://wa.me/{phone}?text={urllib.parse.quote(txt)}"
+
+
+@staff_member_required
+@require_POST
+def renew_item(request, item_id: int):
+    """Crea un pedido nuevo (PENDING) clonando el item original."""
+    from orders.models import Order, OrderItem
+
+    original = get_object_or_404(
+        OrderItem.objects.select_related("order", "product", "plan"),
+        pk=item_id,
+    )
+
+    with transaction.atomic():
+        new_order = Order.objects.create(
+            user=original.order.user,
+            email=original.order.email,
+            phone=original.order.phone,
+            telegram_username=original.order.telegram_username,
+            channel=Order.Channel.MANUAL,
+            status=Order.Status.PENDING,
+            currency=original.order.currency,
+            notes=f"Renovación del pedido #{original.order_id} (item #{original.pk})",
+        )
+        OrderItem.objects.create(
+            order=new_order,
+            product=original.product,
+            plan=original.plan,
+            product_name=original.product_name,
+            plan_name=original.plan_name,
+            unit_price=original.plan.price_customer if original.plan else original.unit_price,
+            quantity=original.quantity,
+            requested_profile_name=original.requested_profile_name,
+            requested_pin=original.requested_pin,
+            customer_notes=original.customer_notes,
+        )
+        new_order.recompute_total()
+
+    messages.success(
+        request,
+        f"Pedido de renovación #{new_order.pk} creado para "
+        f"{original.order.email or original.order.phone or 'cliente'}. "
+        "Ahora genera el link de pago y envíalo al cliente.",
+    )
+    return redirect("admin:orders_order_change", new_order.pk)
