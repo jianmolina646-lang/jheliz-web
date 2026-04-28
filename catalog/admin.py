@@ -238,19 +238,16 @@ class StockItemAdmin(ModelAdmin):
         )
 
     def _process_file(self, content: str, product: Product, plan: Plan | None) -> int:
-        """Importa stock soportando 3 formatos:
+        """Importa stock soportando varios formatos:
 
         1. CSV/TSV con cabecera (separador autodetectado: ``,``, ``;`` o tab).
            Cabeceras esperadas (case-insensitive, acentos opcionales):
            ``email``/``correo``, ``password``/``contraseña``/``clave``,
            ``profile``/``perfil``, ``pin``, ``label``/``etiqueta``.
-        2. Una línea por cuenta sin cabecera, separadas por ``|``:
+        2. Una línea por cuenta separada por ``|``, ``,``, ``;``, tab o espacios:
            ``correo|clave|perfil|pin``.
-        3. Bloques de texto libre separados por línea en blanco.
+        3. Bloques multilinea separados por línea en blanco (formato libre).
         """
-        import csv
-        import io
-
         content = content.strip()
         if not content:
             return 0
@@ -267,12 +264,19 @@ class StockItemAdmin(ModelAdmin):
         if is_csv_like:
             return self._import_csv(content, product, plan)
 
-        # Formato 2: pipe-separated, una por línea.
-        if all("|" in line for line in non_empty):
-            return self._import_pipe(non_empty, product, plan)
+        # Formato 3: bloques multilinea (cuando hay líneas vacías separadoras).
+        # Solo aplicamos si hay al menos una línea vacía entre líneas no vacías;
+        # si no, asumimos "una línea = una cuenta".
+        has_blank_separators = any(
+            not lines[i].strip() and i > 0 and i < len(lines) - 1
+            for i in range(len(lines))
+        )
+        if has_blank_separators:
+            return self._import_blocks(content, product, plan)
 
-        # Formato 3: bloques.
-        return self._import_blocks(content, product, plan)
+        # Formato 2: una línea por cuenta. Aceptamos cualquier separador común
+        # (|, tab, ;, ,) o múltiples espacios entre email y clave.
+        return self._import_lines(non_empty, product, plan)
 
     def _import_csv(self, content: str, product: Product, plan: Plan | None) -> int:
         import csv
@@ -324,11 +328,39 @@ class StockItemAdmin(ModelAdmin):
             created += 1
         return created
 
-    def _import_pipe(self, lines: list[str], product: Product, plan: Plan | None) -> int:
+    def _import_lines(self, lines: list[str], product: Product, plan: Plan | None) -> int:
+        """Importa una cuenta por línea, autodetectando separadores comunes.
+
+        Soporta como separadores entre email y clave: ``|``, tab, ``;``, ``,``,
+        o múltiples espacios. Columnas: email, password, perfil (opcional),
+        pin (opcional).
+        """
+        import re
+
         created = 0
-        for line in lines:
-            parts = [p.strip() for p in line.strip().split("|")]
-            if len(parts) < 2:
+        for raw in lines:
+            line = raw.strip()
+            if not line:
+                continue
+            # Autodetectar el separador. Probamos en orden de especificidad.
+            for sep_pattern in (
+                r"\s*\|\s*",       # pipe
+                r"\t+",             # tab
+                r"\s*;\s*",         # semicolon
+                r"\s+:\s+",         # ' : '  (con espacios — más específico que ',' simple)
+                r"\s*,\s*",         # comma
+                r"\s{2,}",          # múltiples espacios
+                r"\s+",             # espacios simples (último recurso)
+            ):
+                parts = [p.strip() for p in re.split(sep_pattern, line) if p.strip()]
+                if len(parts) >= 2:
+                    break
+            else:
+                # Línea con un solo token — la guardamos como bloque libre.
+                StockItem.objects.create(
+                    product=product, plan=plan, credentials=line,
+                )
+                created += 1
                 continue
             email, password, *rest = parts
             creds = f"Correo: {email}\nContraseña: {password}"
