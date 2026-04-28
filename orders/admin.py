@@ -15,7 +15,7 @@ from unfold.contrib.import_export.forms import ExportForm, ImportForm, Selectabl
 from unfold.decorators import display
 
 from . import emails
-from .models import Coupon, DistributorOrder, Order, OrderItem, PaymentSettings
+from .models import Coupon, DistributorOrder, EmailLog, Order, OrderItem, PaymentSettings
 
 
 class OrderResource(resources.ModelResource):
@@ -158,7 +158,11 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     )
     inlines = [OrderItemInline]
     date_hierarchy = "created_at"
-    actions = ("mark_preparing", "mark_delivered", "confirm_yape_payment", "reject_yape_payment")
+    actions = (
+        "mark_preparing", "mark_delivered",
+        "confirm_yape_payment", "reject_yape_payment",
+        "resend_delivered_emails",
+    )
     list_filter_submit = True
     compressed_fields = True
     list_select_related = ("user",)
@@ -488,6 +492,29 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             level=messages.WARNING,
         )
 
+    @admin.action(description="↻ Reenviar correo con credenciales (entregados)")
+    def resend_delivered_emails(self, request, queryset):
+        sent = 0
+        skipped = 0
+        for order in queryset:
+            if order.status != Order.Status.DELIVERED:
+                skipped += 1
+                continue
+            emails.send_order_delivered(order)
+            sent += 1
+        if sent:
+            self.message_user(
+                request,
+                f"Reenviadas las credenciales a {sent} cliente(s).",
+                level=messages.SUCCESS,
+            )
+        if skipped:
+            self.message_user(
+                request,
+                f"{skipped} pedido(s) ignorado(s) por no estar en estado Entregado.",
+                level=messages.WARNING,
+            )
+
 
 @admin.register(DistributorOrder)
 class DistributorOrderAdmin(OrderAdmin):
@@ -596,3 +623,34 @@ class CouponAdmin(ModelAdmin):
     def activate_coupons(self, request, queryset):
         updated = queryset.update(is_active=True)
         self.message_user(request, f"{updated} cupón(es) activados.")
+
+
+@admin.register(EmailLog)
+class EmailLogAdmin(ModelAdmin):
+    """Auditoría de emails transaccionales enviados."""
+
+    list_display = ("sent_at", "kind", "to_email", "subject", "display_status", "order")
+    list_filter = ("kind", "status", "sent_at")
+    search_fields = ("to_email", "subject", "order__uuid")
+    autocomplete_fields = ("order",)
+    readonly_fields = ("kind", "status", "to_email", "subject", "order", "error", "sent_at")
+    date_hierarchy = "sent_at"
+    list_filter_submit = True
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # Solo lectura — los logs no se editan, solo se consultan.
+        return False
+
+    @display(
+        description="Estado",
+        ordering="status",
+        label={
+            EmailLog.Status.SENT: "success",
+            EmailLog.Status.FAILED: "danger",
+        },
+    )
+    def display_status(self, obj: EmailLog):
+        return obj.status, obj.get_status_display()
