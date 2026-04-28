@@ -1,0 +1,215 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}<h1>📦 Stock por producto</h1>{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- KPIs arriba -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="rounded-xl p-4 bg-gray-800/40 border border-gray-700">
+            <div class="text-xs uppercase text-gray-400">Productos</div>
+            <div class="text-2xl font-bold text-white mt-1">{{ totals.products }}</div>
+        </div>
+        <div class="rounded-xl p-4 bg-emerald-500/10 border border-emerald-500/30">
+            <div class="text-xs uppercase text-emerald-300">Disponibles</div>
+            <div class="text-2xl font-bold text-emerald-200 mt-1">{{ totals.available }}</div>
+        </div>
+        <div class="rounded-xl p-4 bg-blue-500/10 border border-blue-500/30">
+            <div class="text-xs uppercase text-blue-300">Vendidas</div>
+            <div class="text-2xl font-bold text-blue-200 mt-1">{{ totals.sold }}</div>
+        </div>
+        <div class="rounded-xl p-4 bg-red-500/10 border border-red-500/30">
+            <div class="text-xs uppercase text-red-300">Caídas</div>
+            <div class="text-2xl font-bold text-red-200 mt-1">{{ totals.defective }}</div>
+        </div>
+        <div class="rounded-xl p-4 bg-amber-500/10 border border-amber-500/30">
+            <div class="text-xs uppercase text-amber-300">Bajo / Sin stock</div>
+            <div class="text-2xl font-bold text-amber-200 mt-1">{{ totals.low_or_empty }}</div>
+        </div>
+    </div>
+
+    <p class="text-sm text-gray-400">
+        Vista por producto: cuántas cuentas tienes <span class="text-emerald-300">disponibles</span>,
+        <span class="text-blue-300">vendidas</span> y <span class="text-red-300">caídas</span>.
+        Click <strong class="text-pink-300">"+ Agregar"</strong> para pegar varias cuentas a la vez sin salir de esta página.
+    </p>
+
+    {% if cards %}
+    <div id="stock-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for c in cards %}
+        <div class="rounded-xl p-4 border bg-gray-800/40 border-gray-700 hover:border-pink-500/40 transition flex flex-col gap-3">
+
+            <!-- Header: nombre + badge -->
+            <div class="flex items-start justify-between gap-2">
+                <div>
+                    <div class="font-semibold text-white text-lg leading-tight">{{ c.product.name }}</div>
+                    <div class="text-xs text-gray-500 mt-0.5">{{ c.product.category.name|default:"" }}</div>
+                </div>
+                {% if c.level == "empty" %}
+                <span class="text-xs px-2 py-1 rounded-full bg-red-500/15 text-red-300 border border-red-500/40 whitespace-nowrap">
+                    Sin stock
+                </span>
+                {% elif c.level == "low" %}
+                <span class="text-xs px-2 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/40 whitespace-nowrap">
+                    ⚠ Bajo
+                </span>
+                {% else %}
+                <span class="text-xs px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">
+                    ✓ OK
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- Counts grid -->
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="rounded-md p-2 bg-emerald-500/10 border border-emerald-500/20">
+                    <div class="text-[10px] uppercase text-emerald-300">Disponibles</div>
+                    <div class="text-xl font-bold text-emerald-200">{{ c.available }}</div>
+                </div>
+                <div class="rounded-md p-2 bg-blue-500/10 border border-blue-500/20">
+                    <div class="text-[10px] uppercase text-blue-300">Vendidas</div>
+                    <div class="text-xl font-bold text-blue-200">{{ c.sold }}</div>
+                </div>
+                <div class="rounded-md p-2 bg-red-500/10 border border-red-500/20">
+                    <div class="text-[10px] uppercase text-red-300">Caídas</div>
+                    <div class="text-xl font-bold text-red-200">{{ c.defective }}</div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex flex-wrap gap-2 pt-2 border-t border-gray-700">
+                <button type="button"
+                        class="quick-add-btn text-sm px-3 py-1.5 rounded-md bg-pink-500 hover:bg-pink-600 text-white font-semibold flex-1"
+                        data-product-id="{{ c.product.pk }}"
+                        data-product-name="{{ c.product.name|escapejs }}">
+                    + Agregar
+                </button>
+                <a href="{{ c.list_url }}"
+                   class="text-sm px-3 py-1.5 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-100 flex-1 text-center">
+                    Ver lista
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="rounded-xl p-8 text-center text-gray-400 bg-gray-800/40 border border-gray-700">
+        No hay productos activos. Crea productos primero en
+        <a href="/jheliz-admin/catalog/product/" class="text-pink-300 underline">Catálogo → Productos</a>.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal de agregado rápido -->
+<div id="quick-add-modal"
+     class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+     style="backdrop-filter: blur(4px);">
+    <div class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col"
+         style="max-height: 90vh;">
+        <form method="post" action="{% url 'admin_stock_quick_add' %}"
+              class="flex flex-col h-full overflow-hidden">
+            {% csrf_token %}
+            <input type="hidden" name="product_id" id="qa-product-id">
+
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-700">
+                <div>
+                    <div class="text-xs uppercase text-gray-400">Agregar stock a:</div>
+                    <div id="qa-product-name" class="text-lg font-bold text-white"></div>
+                </div>
+                <button type="button" id="qa-close"
+                        class="text-gray-400 hover:text-white text-2xl leading-none">×</button>
+            </div>
+
+            <div class="px-5 py-4 space-y-3 overflow-y-auto">
+                <div class="text-xs text-gray-400 bg-gray-800 rounded p-3 leading-relaxed">
+                    📋 <strong class="text-pink-300">Pega tus cuentas</strong>, una por línea. Soporta múltiples formatos:
+                    <pre class="text-[11px] text-gray-300 mt-2 overflow-x-auto">correo1@gmail.com|password1
+correo2@gmail.com:password2
+correo3@gmail.com,password3,Perfil1
+correo4@gmail.com    password4</pre>
+                    Separadores válidos: <code class="text-pink-300">|</code>, <code class="text-pink-300">,</code>, <code class="text-pink-300">;</code>, <code class="text-pink-300">:</code>, tab o espacios.
+                </div>
+
+                <textarea name="pasted" required rows="10"
+                          placeholder="Pega aquí tus cuentas — una por línea"
+                          class="w-full rounded-md bg-gray-950 border border-gray-700 text-white text-sm font-mono p-3 focus:border-pink-500 focus:outline-none"></textarea>
+
+                <div id="qa-counter" class="text-xs text-gray-400">0 cuentas detectadas</div>
+            </div>
+
+            <div class="flex justify-end gap-2 px-5 py-3 border-t border-gray-700 bg-gray-900">
+                <button type="button" id="qa-cancel"
+                        class="px-4 py-2 rounded-md bg-gray-700 hover:bg-gray-600 text-white text-sm">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 rounded-md bg-pink-500 hover:bg-pink-600 text-white font-semibold text-sm">
+                    Agregar cuentas
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    const modal = document.getElementById('quick-add-modal');
+    const productIdInput = document.getElementById('qa-product-id');
+    const productNameLabel = document.getElementById('qa-product-name');
+    const textarea = modal.querySelector('textarea[name="pasted"]');
+    const counter = document.getElementById('qa-counter');
+
+    function openModal(productId, productName) {
+        productIdInput.value = productId;
+        productNameLabel.textContent = productName;
+        textarea.value = '';
+        counter.textContent = '0 cuentas detectadas';
+        modal.classList.remove('hidden');
+        setTimeout(() => textarea.focus(), 50);
+    }
+    function closeModal() {
+        modal.classList.add('hidden');
+    }
+
+    document.querySelectorAll('.quick-add-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            openModal(this.dataset.productId, this.dataset.productName);
+        });
+    });
+    document.getElementById('qa-close').addEventListener('click', closeModal);
+    document.getElementById('qa-cancel').addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+    });
+
+    textarea.addEventListener('input', function() {
+        const text = this.value.trim();
+        if (!text) {
+            counter.textContent = '0 cuentas detectadas';
+            counter.className = 'text-xs text-gray-400';
+            return;
+        }
+        // Heuristic count: line-based unless we detect blank-line blocks
+        const lines = text.split(/\r?\n/);
+        const hasBlankBlocks = lines.some((l, i) =>
+            !l.trim() && i > 0 && i < lines.length - 1
+        );
+        let count;
+        if (hasBlankBlocks) {
+            count = text.split(/\n\s*\n/).filter(b => b.trim()).length;
+        } else {
+            count = lines.filter(l => l.trim()).length;
+        }
+        counter.textContent = `${count} cuenta${count === 1 ? '' : 's'} detectada${count === 1 ? '' : 's'}`;
+        counter.className = count > 0
+            ? 'text-xs text-emerald-300 font-medium'
+            : 'text-xs text-amber-300';
+    });
+})();
+</script>
+{% endblock %}

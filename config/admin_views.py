@@ -558,3 +558,173 @@ def renew_item(request, item_id: int):
         "Ahora genera el link de pago y envíalo al cliente.",
     )
     return redirect("admin:orders_order_change", new_order.pk)
+
+
+# ---------------------------------------------------------------------------
+# Stock — vista moderna por producto (Pack A)
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def stock_overview(request):
+    """Galería de productos con totales de stock por estado.
+
+    Click en una tarjeta muestra acciones rápidas (agregar más, ver lista).
+    """
+    from catalog.models import Product, StockItem
+
+    products = (
+        Product.objects.filter(is_active=True)
+        .order_by("category__order", "order", "name")
+    )
+
+    by_product: dict[int, dict] = {}
+    for p in products:
+        by_product[p.pk] = {
+            "product": p,
+            "available": 0,
+            "sold": 0,
+            "reserved": 0,
+            "defective": 0,
+            "disabled": 0,
+            "total": 0,
+            "low_stock_threshold": 0,
+        }
+        if p.plans.exists():
+            by_product[p.pk]["low_stock_threshold"] = max(
+                (pl.low_stock_threshold for pl in p.plans.all()), default=3
+            )
+
+    counts = (
+        StockItem.objects.values("product_id", "status")
+        .annotate(c=Count("id"))
+    )
+    for row in counts:
+        if row["product_id"] in by_product:
+            data = by_product[row["product_id"]]
+            data[row["status"]] = row["c"]
+            data["total"] += row["c"]
+
+    cards = []
+    for pid, data in by_product.items():
+        avail = data["available"]
+        threshold = data["low_stock_threshold"] or 3
+        if avail == 0:
+            level = "empty"
+        elif avail < threshold:
+            level = "low"
+        else:
+            level = "ok"
+        cards.append({
+            **data,
+            "level": level,
+            "list_url": (
+                reverse("admin:catalog_stockitem_changelist")
+                + f"?product__id__exact={data['product'].pk}"
+            ),
+            "import_url": (
+                reverse("admin:catalog_stockitem_import")
+                + f"?product={data['product'].pk}"
+            ),
+        })
+
+    cards.sort(
+        key=lambda c: (
+            0 if c["level"] == "empty" else (1 if c["level"] == "low" else 2),
+            -c["available"],
+            c["product"].name.lower(),
+        )
+    )
+
+    totals = {
+        "products": len(cards),
+        "available": sum(c["available"] for c in cards),
+        "sold": sum(c["sold"] for c in cards),
+        "defective": sum(c["defective"] for c in cards),
+        "low_or_empty": sum(1 for c in cards if c["level"] in ("low", "empty")),
+    }
+
+    ctx = _admin_context(
+        request,
+        title="Stock por producto",
+        cards=cards,
+        totals=totals,
+    )
+    return render(request, "admin/stock_overview.html", ctx)
+
+
+@staff_member_required
+@require_POST
+def stock_quick_add(request):
+    """Agrega varias cuentas a un producto desde el modal en stock_overview.
+
+    Recibe POST con: product_id, plan_id (opcional), pasted (texto multilínea).
+    Reusa el parser de StockItemAdmin._process_file.
+    """
+    from catalog.admin import StockItemAdmin
+    from catalog.models import Product, Plan, StockItem
+    from django.contrib.admin.sites import site as admin_site
+
+    product_id = request.POST.get("product_id")
+    plan_id = request.POST.get("plan_id") or None
+    pasted = (request.POST.get("pasted") or "").strip()
+
+    if not product_id or not pasted:
+        messages.error(request, "Falta el producto o las credenciales pegadas.")
+        return redirect("admin_stock_overview")
+
+    product = get_object_or_404(Product, pk=product_id)
+    plan = None
+    if plan_id:
+        plan = get_object_or_404(Plan, pk=plan_id, product=product)
+
+    admin_obj = StockItemAdmin(StockItem, admin_site)
+    try:
+        created = admin_obj._process_file(pasted, product=product, plan=plan)
+    except Exception as exc:  # pragma: no cover - defensive
+        messages.error(request, f"Error procesando: {exc}")
+        return redirect("admin_stock_overview")
+
+    if created:
+        messages.success(
+            request,
+            f"Se agregaron {created} cuenta(s) a {product.name}.",
+        )
+    else:
+        messages.warning(
+            request,
+            "No se detectó ninguna cuenta válida. Revisa el formato.",
+        )
+    return redirect("admin_stock_overview")
+
+
+@staff_member_required
+@require_POST
+def stock_quick_action(request, item_id: int):
+    """Acciones rápidas sobre un StockItem (mark_defective / duplicate / disable)."""
+    from catalog.models import StockItem
+
+    action = request.POST.get("action", "")
+    item = get_object_or_404(StockItem, pk=item_id)
+    next_url = request.POST.get("next") or reverse("admin_stock_overview")
+
+    if action == "mark_defective":
+        item.status = StockItem.Status.DEFECTIVE
+        item.save(update_fields=["status"])
+        messages.success(request, f"Stock #{item.pk} marcado como caída.")
+    elif action == "mark_available":
+        item.status = StockItem.Status.AVAILABLE
+        item.save(update_fields=["status"])
+        messages.success(request, f"Stock #{item.pk} marcado como disponible.")
+    elif action == "duplicate":
+        clone = StockItem.objects.create(
+            product=item.product,
+            plan=item.plan,
+            credentials=item.credentials,
+            label=item.label,
+            status=StockItem.Status.AVAILABLE,
+        )
+        messages.success(request, f"Stock duplicado: nuevo #{clone.pk}.")
+    else:
+        messages.error(request, f"Acción desconocida: {action}")
+
+    return redirect(next_url)
