@@ -279,5 +279,56 @@
         });
     }
 })();
+
+// ---------------------------------------------------------------------------
+// Notificaciones de nueva venta (#6) — polling al endpoint JSON
+// ---------------------------------------------------------------------------
+(function(){
+    var url = "{% url 'admin_notifications_count' %}";
+    var lastTotal = null;
+    var POLL_MS = 30000;  // 30s
+    var STORAGE_KEY = "jheliz_admin_last_total";
+
+    function notify(verifying, preparing){
+        if(!("Notification" in window)) return;
+        if(Notification.permission !== "granted") return;
+        var msg = [];
+        if(verifying) msg.push(verifying + " comprobante(s) Yape por verificar");
+        if(preparing) msg.push(preparing + " pedido(s) en preparación");
+        new Notification("Jheliz — nueva actividad", {
+            body: msg.join("\n"),
+            icon: "/manifest-icon.png",
+        });
+    }
+
+    function tick(){
+        fetch(url, { credentials: "same-origin" })
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .then(function(d){
+                if(!d) return;
+                if(lastTotal === null){
+                    var stored = sessionStorage.getItem(STORAGE_KEY);
+                    lastTotal = stored !== null ? parseInt(stored, 10) : d.total;
+                }
+                if(d.total > lastTotal){
+                    notify(d.verifying, d.preparing);
+                }
+                lastTotal = d.total;
+                sessionStorage.setItem(STORAGE_KEY, String(d.total));
+            })
+            .catch(function(){ /* silencioso */ });
+    }
+
+    if("Notification" in window && Notification.permission === "default"){
+        // Pide permiso al primer click en el dashboard.
+        document.addEventListener("click", function once(){
+            Notification.requestPermission();
+            document.removeEventListener("click", once);
+        }, { once: true });
+    }
+
+    tick();
+    setInterval(tick, POLL_MS);
+})();
 </script>
 {% endblock %}
