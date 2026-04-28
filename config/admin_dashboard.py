@@ -192,6 +192,54 @@ def dashboard_callback(request, context):
         method_data.append(r["qty"])
     method_chart = {"labels": method_labels, "data": method_data}
 
+    # ---- Chart 4: stock vs ventas (top productos) ---------------------------
+    # Útil para saber qué reponer: barras de "stock disponible" vs "vendidos
+    # últimos 7 días" lado a lado.
+    last_7d = today - timedelta(days=6)
+    sold_per_product = (
+        OrderItem.objects.filter(
+            order__created_at__date__gte=last_7d,
+            order__status__in=paid_statuses,
+        )
+        .values("product_id", "product_name")
+        .annotate(sold=Count("id"))
+    )
+    sold_map = {r["product_id"]: r["sold"] for r in sold_per_product}
+    sold_name_map = {r["product_id"]: r["product_name"] for r in sold_per_product}
+
+    available_per_product = (
+        StockItem.objects.filter(status=StockItem.Status.AVAILABLE)
+        .values("product_id", "product__name")
+        .annotate(avail=Count("id"))
+    )
+    avail_map = {r["product_id"]: r["avail"] for r in available_per_product}
+    avail_name_map = {r["product_id"]: r["product__name"] for r in available_per_product}
+
+    stock_product_ids = set(sold_map.keys()) | set(avail_map.keys())
+    stock_rows = []
+    for pid in stock_product_ids:
+        name = sold_name_map.get(pid) or avail_name_map.get(pid) or "—"
+        stock_rows.append({
+            "name": name,
+            "available": avail_map.get(pid, 0),
+            "sold": sold_map.get(pid, 0),
+        })
+    # Orden: primero los que tienen más ventas pero menos stock (urgente
+    # reponer), después los que solo tienen stock alto sin ventas.
+    stock_rows.sort(
+        key=lambda r: (
+            -(r["sold"] - min(r["available"], r["sold"])),
+            -r["sold"],
+            r["available"],
+        )
+    )
+    stock_rows = stock_rows[:8]
+    stock_chart = {
+        "labels": [r["name"] for r in stock_rows],
+        "available": [r["available"] for r in stock_rows],
+        "sold": [r["sold"] for r in stock_rows],
+    }
+
     arrow = "↑" if delta_pct >= 0 else "↓"
 
     # ---- Necesita acción: lista consolidada de cosas urgentes ---------------
@@ -327,6 +375,7 @@ def dashboard_callback(request, context):
             "sales_chart_json": json.dumps(sales_chart),
             "top_chart_json": json.dumps(top_chart),
             "method_chart_json": json.dumps(method_chart),
+            "stock_chart_json": json.dumps(stock_chart),
             "recent_orders": list(
                 Order.objects.select_related("user")
                 .order_by("-created_at")[:8]

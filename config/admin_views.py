@@ -679,15 +679,23 @@ def stock_quick_add(request):
 
     admin_obj = StockItemAdmin(StockItem, admin_site)
     try:
-        created = admin_obj._process_file(pasted, product=product, plan=plan)
+        created, skipped = admin_obj._process_file_with_stats(
+            pasted, product=product, plan=plan,
+        )
     except Exception as exc:  # pragma: no cover - defensive
         messages.error(request, f"Error procesando: {exc}")
         return redirect("admin_stock_overview")
 
     if created:
-        messages.success(
+        msg = f"Se agregaron {created} cuenta(s) a {product.name}."
+        if skipped:
+            msg += f" Se omitieron {skipped} duplicado(s)."
+        messages.success(request, msg)
+    elif skipped:
+        messages.warning(
             request,
-            f"Se agregaron {created} cuenta(s) a {product.name}.",
+            f"Todas las cuentas pegadas ({skipped}) ya existían en el stock. "
+            "No se creó nada nuevo.",
         )
     else:
         messages.warning(
