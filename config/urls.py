@@ -46,6 +46,16 @@ urlpatterns = [
         admin_views.reply_templates_json,
         name="admin_reply_templates_json",
     ),
+    path(
+        "jheliz-admin/renewals/",
+        admin_views.renewals_view,
+        name="admin_renewals",
+    ),
+    path(
+        "jheliz-admin/renewals/<int:item_id>/renew/",
+        admin_views.renew_item,
+        name="admin_renew_item",
+    ),
     path("jheliz-admin/", admin.site.urls),
     # SEO / PWA endpoints (root-level)
     path("robots.txt", robots_txt, name="robots_txt"),

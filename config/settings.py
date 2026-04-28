@@ -229,6 +229,11 @@ UNFOLD = {
                         "link": "/jheliz-admin/top-customers/",
                     },
                     {
+                        "title": "Renovaciones",
+                        "icon": "autorenew",
+                        "link": "/jheliz-admin/renewals/",
+                    },
+                    {
                         "title": "Estado de servicios",
                         "icon": "health_and_safety",
                         "link": "/jheliz-admin/health/",
