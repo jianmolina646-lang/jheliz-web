@@ -117,3 +117,9 @@ class BlogPost(models.Model):
         type(self).objects.filter(pk=self.pk).update(
             views_count=models.F("views_count") + 1,
         )
+
+    @property
+    def read_time_minutes(self) -> int:
+        """Tiempo estimado de lectura en minutos (~200 palabras/min)."""
+        words = len((self.body or "").split())
+        return max(1, round(words / 200))
