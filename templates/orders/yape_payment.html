@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Pagar con Yape — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <h1 class="text-3xl font-extrabold">Paga tu pedido con Yape</h1>
+  <p class="text-white/60 mt-1">
+    Pedido <span class="font-mono">#{{ order.short_uuid }}</span> · Total
+    <span class="font-bold text-white">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</span>
+  </p>
+
+  {% if order.payment_rejection_reason %}
+  <div class="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 text-red-200 p-4 text-sm">
+    <strong>No pudimos validar tu comprobante anterior:</strong><br>
+    {{ order.payment_rejection_reason }}
+  </div>
+  {% endif %}
+
+  <div class="grid md:grid-cols-2 gap-6 mt-8">
+    <div class="card-glass rounded-2xl p-6 text-center">
+      <h2 class="text-lg font-bold">1. Escanea el QR</h2>
+      <p class="text-white/60 text-sm mt-1">Abre tu app Yape → Escanea QR</p>
+      {% if settings.yape_qr %}
+      <div class="mt-4 bg-white rounded-2xl p-4 inline-block">
+        <img src="{{ settings.yape_qr.url }}" alt="QR Yape Jheliz" class="w-64 h-64 object-contain">
+      </div>
+      {% endif %}
+      <div class="mt-4 text-sm space-y-1">
+        {% if settings.yape_holder_name %}
+        <div><span class="text-white/60">Titular:</span> <strong>{{ settings.yape_holder_name }}</strong></div>
+        {% endif %}
+        {% if settings.yape_phone %}
+        <div><span class="text-white/60">Número Yape:</span> <strong>{{ settings.yape_phone }}</strong></div>
+        {% endif %}
+        <div class="text-lg mt-2">
+          Monto a transferir:
+          <strong class="text-fuchsia-300">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</strong>
+        </div>
+      </div>
+      {% if settings.yape_instructions %}
+      <p class="text-xs text-white/60 mt-4 whitespace-pre-line">{{ settings.yape_instructions }}</p>
+      {% endif %}
+    </div>
+
+    <div class="card-glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold">2. Sube el comprobante</h2>
+      <p class="text-white/60 text-sm mt-1">
+        Captura la pantalla de Yape donde aparece el monto transferido y el destinatario.
+      </p>
+      <form method="post" enctype="multipart/form-data" class="mt-4 space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm text-white/70 mb-2">Captura del comprobante *</label>
+          {{ form.proof }}
+          {% if form.proof.help_text %}<p class="text-xs text-white/50 mt-1">{{ form.proof.help_text }}</p>{% endif %}
+          {% if form.proof.errors %}<p class="text-xs text-red-300 mt-1">{{ form.proof.errors|join:", " }}</p>{% endif %}
+        </div>
+        <button type="submit" class="w-full btn-primary text-white font-semibold py-3 rounded-xl">
+          Enviar comprobante
+        </button>
+        <p class="text-xs text-white/60 text-center">
+          Tras enviarlo verificamos tu pago en menos de 30 minutos y te avisamos por correo.
+        </p>
+      </form>
+      <div class="mt-6 pt-6 border-t border-white/10 text-xs text-white/60">
+        ¿Tienes problemas? Escríbenos por WhatsApp al
+        {% if WHATSAPP_NUMBER %}<a class="text-fuchsia-300 font-semibold" href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+' }}?text=Hola,%20pedido%20%23{{ order.short_uuid }}">{{ WHATSAPP_NUMBER }}</a>{% else %}nuestro soporte{% endif %}.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

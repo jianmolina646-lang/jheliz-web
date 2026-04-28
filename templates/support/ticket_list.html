@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Soporte — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<section class="flex items-center justify-between gap-4 flex-wrap">
+  <div>
+    <h1 class="text-3xl font-extrabold">Soporte</h1>
+    <p class="text-white/70 mt-1">Tus tickets y respuestas del equipo</p>
+  </div>
+  <a href="{% url 'support:create' %}" class="btn-primary text-white font-semibold px-4 py-2 rounded-xl text-sm">+ Nuevo ticket</a>
+</section>
+
+{% if tickets %}
+  <div class="mt-6 space-y-3">
+    {% for t in tickets %}
+      <a href="{% url 'support:detail' t.pk %}" class="card-glass rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 hover:border-jheliz-400/50 block">
+        <div>
+          <div class="font-semibold">#{{ t.id }} — {{ t.subject }}</div>
+          <div class="text-xs text-white/60">Actualizado {{ t.updated_at|date:"d/m/Y H:i" }}{% if t.order %} · Pedido #{{ t.order.short_uuid }}{% endif %}</div>
+        </div>
+        <span class="text-xs px-2 py-1 rounded-full border
+          {% if t.status == 'resolved' or t.status == 'closed' %}text-emerald-300 border-emerald-400/40 bg-emerald-400/10
+          {% elif t.status == 'pending_admin' %}text-amber-300 border-amber-400/40 bg-amber-400/10
+          {% elif t.status == 'pending_user' %}text-sky-300 border-sky-400/40 bg-sky-400/10
+          {% else %}text-white/70 border-white/10 bg-white/5{% endif %}">
+          {{ t.get_status_display }}
+        </span>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="card-glass rounded-2xl p-8 mt-6 text-center text-white/70">
+    Aún no tienes tickets. <a class="text-jheliz-300" href="{% url 'support:create' %}">Abre uno nuevo →</a>
+    <p class="mt-3 text-xs">También puedes escribirnos por WhatsApp {{ WHATSAPP_NUMBER }}.</p>
+  </div>
+{% endif %}
+{% endblock %}

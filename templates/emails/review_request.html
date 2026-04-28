@@ -1,0 +1,23 @@
+{% extends "emails/_base.html" %}
+{% block body %}
+<div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:8px;">¿Cómo te fue con tu compra?</div>
+<p style="margin:0 0 16px 0;">
+  ¡Gracias por confiar en {{ SITE_NAME }}, {{ order.user.first_name|default:"crack" }}!
+  Tu opinión ayuda a otros clientes y a que mejoremos. Te toma 30 segundos.
+</p>
+
+{% for link in review_links %}
+  <div style="margin:14px 0;padding:14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;">
+    <div style="font-weight:600;color:#fff;">{{ link.product.name }}</div>
+    <a href="{{ link.url }}"
+       style="display:inline-block;margin-top:10px;background:#f472b6;color:#0b0217;font-weight:700;text-decoration:none;padding:10px 18px;border-radius:8px;">
+      Dejar reseña en 1 clic →
+    </a>
+  </div>
+{% endfor %}
+
+<p style="margin:16px 0 0 0;color:rgba(255,255,255,0.7);font-size:13px;">
+  Tu reseña aparecerá con la insignia <b>✓ Compra verificada</b> porque está
+  ligada a tu pedido <b>#{{ order.short_uuid }}</b>.
+</p>
+{% endblock %}

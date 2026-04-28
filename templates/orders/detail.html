@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Pedido #{{ order.short_uuid }} — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-extrabold">Pedido #{{ order.short_uuid }}</h1>
+<p class="text-white/60 text-sm">Creado {{ order.created_at|date:"d/m/Y H:i" }} · Estado: <span class="text-jheliz-300">{{ order.get_status_display }}</span></p>
+
+{% if order.status == 'pending' and order.payment_provider == 'yape' %}
+  <div class="mt-5 rounded-2xl border border-fuchsia-400/30 bg-fuchsia-500/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <div class="font-bold">Te falta subir el comprobante Yape</div>
+      <div class="text-sm text-white/70">Termina tu compra pagando por QR y enviando la captura.</div>
+    </div>
+    <a href="{% url 'orders:yape_payment' uuid=order.uuid %}" class="btn-primary text-white font-semibold px-5 py-2 rounded-xl text-sm text-center">Pagar con Yape →</a>
+  </div>
+{% elif order.status == 'verifying' %}
+  <div class="mt-5 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
+    <div class="font-bold">⏳ Verificando tu pago</div>
+    <div class="text-sm text-white/70 mt-1">Recibimos tu comprobante. En menos de 30 minutos te confirmamos y empezamos a preparar tu pedido.</div>
+  </div>
+{% elif order.status == 'pending' and order.payment_rejection_reason %}
+  <div class="mt-5 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <div class="font-bold text-red-100">Comprobante rechazado</div>
+      <div class="text-sm text-white/70 mt-1">{{ order.payment_rejection_reason }}</div>
+    </div>
+    <a href="{% url 'orders:yape_payment' uuid=order.uuid %}" class="btn-primary text-white font-semibold px-5 py-2 rounded-xl text-sm text-center">Subir otro comprobante</a>
+  </div>
+{% endif %}
+
+<div class="mt-6 grid md:grid-cols-[1fr_320px] gap-6">
+  <div class="space-y-4">
+    {% for it in order.items.all %}
+      <div class="card-glass rounded-2xl p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <div class="text-xs text-white/50">{{ it.plan_name }}</div>
+            <h3 class="text-lg font-bold">{{ it.product_name }}</h3>
+            {% if it.expires_at %}
+              <div class="text-xs text-white/60 mt-1">Vence el {{ it.expires_at|date:"d/m/Y" }}</div>
+            {% endif %}
+          </div>
+          <div class="text-right text-sm">{{ CURRENCY_SYMBOL }} {{ it.unit_price|floatformat:2|intcomma }}</div>
+        </div>
+        {% if it.requested_profile_name or it.requested_pin or it.customer_notes %}
+          <div class="mt-4 rounded-xl bg-white/5 border border-white/10 p-4 text-sm space-y-1">
+            <div class="text-xs uppercase tracking-wider text-white/50 mb-1">Tus preferencias</div>
+            {% if it.requested_profile_name %}<div>Nombre del perfil: <span class="font-semibold">{{ it.requested_profile_name }}</span></div>{% endif %}
+            {% if it.requested_pin %}<div>PIN solicitado: <span class="font-semibold">{{ it.requested_pin }}</span></div>{% endif %}
+            {% if it.customer_notes %}<div>Notas: <span class="font-semibold">{{ it.customer_notes }}</span></div>{% endif %}
+          </div>
+        {% endif %}
+
+        {% if it.delivered_credentials %}
+          <div class="mt-4 rounded-xl bg-black/40 border border-white/10 p-4 font-mono text-sm whitespace-pre-wrap select-all">{{ it.delivered_credentials }}</div>
+          <p class="text-xs text-white/50 mt-2">No cambies el correo ni la contraseña. Si pierdes los datos, abre un ticket.</p>
+        {% elif order.status == 'pending' %}
+          <p class="text-amber-300 text-sm mt-3">Esperando confirmación del pago.</p>
+        {% elif order.status == 'preparing' %}
+          <p class="text-fuchsia-300 text-sm mt-3">Estamos creando tu perfil con el nombre y PIN que pediste. Te avisamos por correo en cuanto esté listo.</p>
+        {% else %}
+          <p class="text-white/60 text-sm mt-3">La entrega se está procesando.</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <aside class="space-y-4">
+    <div class="card-glass rounded-2xl p-6">
+      <h3 class="font-bold">Resumen</h3>
+      {% if order.discount_amount > 0 %}
+        <div class="mt-3 flex justify-between text-sm text-white/70"><span>Subtotal</span><span>{{ CURRENCY_SYMBOL }} {{ order.subtotal|floatformat:2|intcomma }}</span></div>
+        <div class="mt-1 flex justify-between text-sm text-pink-300"><span>Cupón {{ order.coupon_code }}</span><span>−{{ CURRENCY_SYMBOL }} {{ order.discount_amount|floatformat:2|intcomma }}</span></div>
+      {% endif %}
+      <div class="mt-3 flex justify-between text-sm"><span>Total</span><span class="font-bold">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</span></div>
+      {% if order.payment_reference %}
+        <div class="mt-3 text-xs text-white/50">Ref: {{ order.payment_reference }}</div>
+      {% endif %}
+    </div>
+    {% if user.is_authenticated and order.user_id == user.id %}
+      <div class="card-glass rounded-2xl p-6">
+        <h3 class="font-bold">¿Necesitas ayuda?</h3>
+        <a href="{% url 'support:create' %}?pedido={{ order.uuid }}" class="mt-3 block text-center btn-primary text-white font-semibold px-4 py-2 rounded-xl text-sm">Abrir ticket sobre este pedido</a>
+        <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}?text={% spaceless %}Hola%2C%20quiero%20ayuda%20con%20mi%20pedido%20%23{{ order.short_uuid }}.{% endspaceless %}" target="_blank" rel="noopener" class="mt-2 block text-center px-4 py-2 rounded-xl text-sm bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/30 font-semibold">WhatsApp {{ WHATSAPP_NUMBER }}</a>
+      </div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

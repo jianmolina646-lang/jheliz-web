@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load catalog_extras %}
+
+{% block title %}{{ product.name }} — {{ SITE_NAME }}{% endblock %}
+{% block meta_description %}{% if product.short_description %}{{ product.short_description }}{% else %}{{ product.name }} con entrega inmediata en Perú. Precio desde {{ CURRENCY_SYMBOL }} {{ product.plans.first.price_customer|default:"" }}.{% endif %}{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_title %}{{ product.name }} — {{ SITE_NAME }}{% endblock %}
+{% block og_description %}{% if product.short_description %}{{ product.short_description }}{% endif %}{% endblock %}
+{% block og_image %}{% if product.image %}{{ request.scheme }}://{{ request.get_host }}{{ product.image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+
+{% block extra_head %}
+{% if product_schema %}<script type="application/ld+json">{{ product_schema|safe }}</script>{% endif %}
+{% endblock %}
+
+{% block content %}
+<nav class="text-xs text-zinc-500 mb-6 flex items-center gap-1.5">
+  <a href="{% url 'catalog:home' %}" class="hover:text-white transition">Inicio</a>
+  <span class="text-zinc-700">/</span>
+  <a href="{{ product.category.get_absolute_url }}" class="hover:text-white transition">{{ product.category.name }}</a>
+  <span class="text-zinc-700">/</span>
+  <span class="text-zinc-300">{{ product.name }}</span>
+</nav>
+
+<section class="grid lg:grid-cols-[1.1fr_1fr] gap-6">
+  <!-- Left: product info ------------------------------------------------- -->
+  <div class="surface rounded-2xl overflow-hidden">
+    <!-- Hero banner del producto -->
+    <div class="relative aspect-[16/8] md:aspect-[16/7] overflow-hidden"
+         {% if not product.image %}style="{% product_gradient product %}"{% endif %}>
+      {% if product.image %}
+        <img src="{{ product.image.url }}" alt="{{ product.name }}"
+             class="absolute inset-0 w-full h-full object-cover"
+             loading="eager" decoding="async">
+      {% else %}
+        <div class="absolute inset-0 flex items-center justify-center text-9xl drop-shadow-2xl opacity-90" aria-hidden="true">
+          {{ product.icon|default:product.category.emoji }}
+        </div>
+      {% endif %}
+      <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none"></div>
+      <span class="absolute top-4 left-4 text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-black/50 text-zinc-100 backdrop-blur-sm font-semibold">
+        {{ product.category.emoji }} {{ product.category.name }}
+      </span>
+    </div>
+
+    <div class="p-6 md:p-8">
+      <div class="min-w-0">
+        <h1 class="font-display text-3xl md:text-4xl font-bold leading-tight tracking-tight">{{ product.name }}</h1>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <span class="chip">
+            <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:13px;height:13px;color:#fbbf24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            {{ product.rating }}
+          </span>
+          <span class="chip">
+            {% if product.delivery_is_instant %}
+              <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px;color:#34d399"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Entrega inmediata
+            {% else %}
+              <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px;color:#34d399"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Entrega manual (en minutos)
+            {% endif %}
+          </span>
+          <span class="chip">{{ product.get_mode_display }}</span>
+          {% with urgency=product.stock_urgency_level stock=product.available_stock %}
+            {% if urgency == 'critical' %}
+              <span class="chip" style="background:rgba(244,63,94,0.12);border-color:rgba(244,63,94,0.4);color:#fda4af;font-weight:600">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
+                Quedan solo {{ stock }} a este precio
+              </span>
+            {% elif urgency == 'low' %}
+              <span class="chip" style="background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.4);color:#fcd34d;font-weight:600">
+                🔥 Quedan {{ stock }} a este precio
+              </span>
+            {% endif %}
+          {% endwith %}
+        </div>
+      </div>
+
+      {% if product.short_description %}
+        <p class="mt-6 text-zinc-200 leading-relaxed">{{ product.short_description }}</p>
+      {% endif %}
+
+    {% if product.description %}
+      <div class="mt-6 prose prose-invert prose-zinc max-w-none text-zinc-300 leading-relaxed whitespace-pre-line">{{ product.description }}</div>
+    {% endif %}
+
+    <!-- Why buy from us inline -->
+    <div class="mt-8 pt-6 border-t hairline grid sm:grid-cols-3 gap-4 text-sm">
+      <div class="flex items-start gap-2.5">
+        <svg class="icon mt-0.5 text-jheliz-400" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <div><div class="font-semibold text-zinc-100">Entrega rápida</div><div class="text-xs text-zinc-500">Apenas confirmamos tu pago</div></div>
+      </div>
+      <div class="flex items-start gap-2.5">
+        <svg class="icon mt-0.5 text-jheliz-400" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <div><div class="font-semibold text-zinc-100">Garantía real</div><div class="text-xs text-zinc-500">Reposición sin preguntas</div></div>
+      </div>
+      <div class="flex items-start gap-2.5">
+        <svg class="icon mt-0.5 text-jheliz-400" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <div><div class="font-semibold text-zinc-100">Soporte humano</div><div class="text-xs text-zinc-500">WhatsApp y tickets</div></div>
+      </div>
+    </div>
+    </div>{# /p-6 #}
+  </div>{# /surface #}
+
+  <!-- Right: plans + add to cart ----------------------------------------- -->
+  <div class="surface rounded-2xl p-6 md:p-8 h-max lg:sticky lg:top-20">
+    <h2 class="font-display text-lg font-bold tracking-tight">Elige tu plan</h2>
+    <p class="text-zinc-500 text-sm mt-1">
+      Precio en {{ CURRENCY_CODE }}.
+      {% if product.requires_customer_profile_data %}Dinos con qué nombre y PIN creamos tu perfil.{% else %}Te entregamos la licencia tras el pago.{% endif %}
+    </p>
+
+    {% if messages %}
+      <div class="mt-3 space-y-1">
+        {% for m in messages %}<div class="text-xs text-amber-300">{{ m }}</div>{% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post"
+          action="{% url 'orders:add_to_cart' %}"
+          hx-post="{% url 'orders:add_to_cart' %}"
+          hx-swap="none"
+          hx-on::after-request="if(event.detail.successful){const b=document.getElementById('cart-count-badge');if(b)b.classList.remove('hidden');}"
+          class="mt-5 space-y-2.5">
+      {% csrf_token %}
+      {% for plan in plans %}
+        <label class="flex items-center justify-between gap-3 p-4 rounded-xl border hairline bg-white/[0.02] hover:border-zinc-600 cursor-pointer transition has-[:checked]:border-jheliz-500 has-[:checked]:bg-jheliz-500/[0.06]">
+          <div class="flex items-start gap-3">
+            <input type="radio" name="plan_id" value="{{ plan.id }}" {% if forloop.first %}checked{% endif %} class="mt-1 accent-jheliz-500">
+            <div>
+              <div class="font-display font-semibold text-zinc-100">{{ plan.name }}</div>
+              <div class="text-xs text-zinc-500 mt-0.5">
+                {% if plan.duration_days %}{{ plan.duration_days }} días{% else %}Sin expiración{% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="text-right">
+            {% if user.is_distributor and plan.price_distributor %}
+              <div class="text-lg font-display font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
+              <div class="text-[11px] text-jheliz-400 font-medium">Distribuidor</div>
+            {% else %}
+              <div class="text-lg font-display font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+            {% endif %}
+          </div>
+        </label>
+      {% empty %}
+        <div class="text-zinc-500 text-sm p-4 rounded-xl border hairline">Pronto habrá planes disponibles.</div>
+      {% endfor %}
+
+      {% if plans %}
+        {% if product.requires_customer_profile_data %}
+        <div class="pt-4 mt-2 space-y-3 border-t hairline">
+          <div>
+            <label class="block text-xs font-medium text-zinc-400 mb-1.5">Nombre del perfil <span class="text-jheliz-400">*</span></label>
+            <input type="text" name="profile_name" maxlength="60" required placeholder="Ej. Jhonatan" class="field">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-zinc-400 mb-1.5">PIN (4 dígitos) <span class="text-jheliz-400">*</span></label>
+            <input type="text" name="pin" maxlength="8" required inputmode="numeric" pattern="[0-9]*" placeholder="1234" class="field">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-zinc-400 mb-1.5">Notas (opcional)</label>
+            <textarea name="notes" rows="2" placeholder="Ej. idioma español, avísame por correo" class="field"></textarea>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="pt-2">
+          <label class="block text-xs font-medium text-zinc-400 mb-1.5">Cantidad</label>
+          <input type="number" name="quantity" value="1" min="1" max="10" class="field" style="width:6rem">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg btn-block mt-4">
+          Agregar al carrito
+          <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </button>
+      {% endif %}
+    </form>
+
+    <p class="text-xs text-zinc-500 mt-4 text-center flex items-center justify-center gap-2">
+      <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/></svg>
+      Mercado Pago · Yape · Tarjeta
+    </p>
+  </div>
+</section>
+
+<!-- Reviews ------------------------------------------------------------- -->
+<section class="mt-10">
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-5">
+    <div>
+      <h2 class="font-display text-2xl font-bold tracking-tight">Reseñas verificadas</h2>
+      <p class="text-zinc-500 text-sm mt-1">
+        {% if review_count %}
+          {{ review_count }} reseña{{ review_count|pluralize:"s" }} de clientes con compra verificada.
+        {% else %}
+          Aún no hay reseñas verificadas para este producto. ¡Sé el primero!
+        {% endif %}
+      </p>
+    </div>
+    {% if review_count %}
+      <div class="flex items-center gap-3">
+        <div class="text-right">
+          <div class="text-3xl font-display font-bold text-white tracking-tight leading-none">{{ avg_rating }}</div>
+          <div class="text-xs text-zinc-500 mt-1">de 5</div>
+        </div>
+        <div class="flex flex-col items-start">
+          <div class="flex items-center gap-0.5 text-amber-400">
+            {% for i in "12345" %}
+              {% if forloop.counter <= avg_rating %}
+                <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:14px;height:14px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              {% else %}
+                <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px;color:rgba(255,255,255,0.2)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <div class="text-[11px] text-zinc-500 mt-1">{{ review_count }} reseña{{ review_count|pluralize:"s" }}</div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if review_count %}
+    <div class="surface rounded-xl p-4 mb-5 max-w-md">
+      {% for row in rating_breakdown %}
+        <div class="flex items-center gap-2 text-xs text-zinc-400 py-1">
+          <span class="w-6 text-right">{{ row.star }}★</span>
+          <div class="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+            <div class="h-full bg-amber-400" style="width: {{ row.pct }}%"></div>
+          </div>
+          <span class="w-8 text-right tabular-nums">{{ row.count }}</span>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      {% for review in reviews %}
+        {% include "catalog/_review_card.html" with review=review %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="surface rounded-xl p-6 text-center text-zinc-500 text-sm">
+      Las reseñas se recopilan tras cada compra entregada.
+      Si compraste este producto, recibirás un correo con un enlace para reseñar.
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

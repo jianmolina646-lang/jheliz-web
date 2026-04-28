@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block title %}Registro — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto surface rounded-2xl p-8 md:p-10 mt-4">
+  <h1 class="font-display text-2xl font-bold tracking-tight">Crear cuenta</h1>
+  <p class="text-zinc-400 text-sm mt-1.5">¿Ya tienes cuenta? <a class="text-jheliz-400 hover:text-jheliz-300 font-medium" href="{% url 'accounts:login' %}">Ingresar</a>.</p>
+  <form method="post" class="mt-6 space-y-4">
+    {% csrf_token %}
+    {% for field in form %}
+      <div>
+        <label class="block text-xs font-medium text-zinc-400 mb-1.5">{{ field.label }}</label>
+        {% if field.name == 'role' %}
+          <div class="grid grid-cols-2 gap-3 mt-1">
+            {% for radio in field %}
+              <label class="flex items-center gap-2.5 rounded-xl border hairline bg-white/[0.02] px-4 py-3 cursor-pointer hover:border-zinc-600 transition has-[:checked]:border-jheliz-500 has-[:checked]:bg-jheliz-500/[0.06]">
+                {{ radio.tag }}
+                <span class="text-sm font-medium text-zinc-200">{{ radio.choice_label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        {% else %}
+          {{ field|add_class:"field" }}
+        {% endif %}
+        {% if field.help_text %}<p class="text-xs text-zinc-500 mt-1">{{ field.help_text }}</p>{% endif %}
+        {% if field.errors %}<p class="text-xs text-red-400 mt-1.5">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary btn-lg btn-block mt-2">
+      Crear cuenta
+      <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+    </button>
+  </form>
+</div>
+{% endblock %}

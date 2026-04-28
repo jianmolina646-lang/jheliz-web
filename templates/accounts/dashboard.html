@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mi cuenta — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<!-- Header --------------------------------------------------------------- -->
+<section class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+  <div>
+    <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Mi cuenta</p>
+    <h1 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-1">Hola, {{ user.first_name|default:user.username }}</h1>
+    <p class="text-sm text-zinc-400 mt-1.5">
+      Rol:
+      <span class="text-jheliz-400 font-medium">{{ user.get_role_display }}</span>
+      {% if user.role == 'distribuidor' and not user.distributor_approved %}
+        <span class="ml-2 text-xs px-2 py-0.5 rounded-full" style="background:rgba(251,191,36,.1); color:#fbbf24; border:1px solid rgba(251,191,36,.3)">Pendiente de aprobación</span>
+      {% endif %}
+    </p>
+  </div>
+  <div class="surface rounded-xl px-5 py-4 flex items-center justify-between gap-6 min-w-[200px]">
+    <div>
+      <div class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Saldo</div>
+      <div class="font-display text-2xl font-bold text-white mt-0.5">{{ CURRENCY_SYMBOL }} {{ user.wallet_balance|floatformat:2|intcomma }}</div>
+    </div>
+    <svg class="icon-lg icon text-zinc-500" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+  </div>
+</section>
+
+<!-- KPIs ----------------------------------------------------------------- -->
+<section class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+  <div class="surface rounded-xl p-4">
+    <div class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Cuentas activas</div>
+    <div class="font-display text-2xl font-bold mt-1">{{ stats.active }}</div>
+  </div>
+  <div class="surface rounded-xl p-4 {% if stats.expiring_soon %}border-amber-500/40{% endif %}">
+    <div class="text-[11px] uppercase tracking-wider {% if stats.expiring_soon %}text-amber-400{% else %}text-zinc-500{% endif %} font-semibold">Vencen pronto</div>
+    <div class="font-display text-2xl font-bold mt-1">{{ stats.expiring_soon }}</div>
+  </div>
+  <div class="surface rounded-xl p-4">
+    <div class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Entregadas</div>
+    <div class="font-display text-2xl font-bold mt-1">{{ stats.delivered }}</div>
+  </div>
+  <div class="surface rounded-xl p-4">
+    <div class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Total pedidos</div>
+    <div class="font-display text-2xl font-bold mt-1">{{ stats.total_orders }}</div>
+  </div>
+</section>
+
+<!-- Distributor banner --------------------------------------------------- -->
+{% if user.is_distributor %}
+  <section class="mt-6 surface rounded-xl p-5 flex items-center justify-between gap-4 flex-wrap" style="background: rgba(236,72,153,.06); border-color: rgba(236,72,153,.3);">
+    <div>
+      <div class="text-[11px] uppercase tracking-wider text-jheliz-400 font-semibold">Modo distribuidor</div>
+      <div class="font-display font-semibold mt-0.5">Estás viendo precios mayoristas</div>
+    </div>
+    <a href="{% url 'catalog:distributor_panel' %}" class="btn btn-primary">
+      Ir al panel mayorista
+      <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+    </a>
+  </section>
+{% endif %}
+
+<!-- Próximos a vencer ---------------------------------------------------- -->
+{% if expiring_soon %}
+<section class="mt-6">
+  <div class="flex items-end justify-between mb-3">
+    <h2 class="font-display text-lg font-bold tracking-tight">⚡ Próximos a vencer</h2>
+    <span class="text-xs text-amber-400">Renueva antes para no quedarte sin acceso</span>
+  </div>
+  <div class="space-y-2">
+    {% for item in expiring_soon %}
+      <div class="surface rounded-xl p-4 flex items-center justify-between gap-3 flex-wrap" style="border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.04);">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-lg surface-soft flex items-center justify-center text-lg shrink-0">
+            {{ item.plan.product.icon|default:item.plan.product.category.emoji }}
+          </div>
+          <div class="min-w-0">
+            <div class="font-display font-semibold truncate">{{ item.product_name }}</div>
+            <div class="text-xs text-amber-400">Vence {{ item.expires_at|naturaltime }}</div>
+          </div>
+        </div>
+        <a href="{% url 'orders:renew_item' item.pk %}" class="btn btn-primary text-sm" style="padding:0.45rem 0.9rem">
+          Renovar 1-clic
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- Cuentas activas ------------------------------------------------------ -->
+{% if active_items %}
+<section class="mt-6">
+  <h2 class="font-display text-lg font-bold tracking-tight mb-3">Mis cuentas activas</h2>
+  <div class="grid sm:grid-cols-2 gap-3">
+    {% for item in active_items %}
+      <div class="surface rounded-xl p-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg surface-soft flex items-center justify-center text-lg shrink-0">
+            {{ item.plan.product.icon|default:item.plan.product.category.emoji }}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="font-display font-semibold truncate">{{ item.product_name }}</div>
+            <div class="text-xs text-zinc-500">{{ item.plan_name }}</div>
+          </div>
+        </div>
+        <div class="mt-3 pt-3 border-t hairline flex items-center justify-between text-xs">
+          <span class="text-zinc-500">Vence</span>
+          <span class="text-zinc-200 font-medium">{{ item.expires_at|date:"d M Y" }}</span>
+        </div>
+        <a href="{% url 'orders:renew_item' item.pk %}" class="mt-3 inline-flex items-center justify-center gap-1.5 w-full text-xs font-semibold text-jheliz-300 hover:text-jheliz-200 transition py-2 rounded-lg" style="background:rgba(236,72,153,.08); border:1px solid rgba(236,72,153,.2)">
+          <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Renovar este plan
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- Quick links ---------------------------------------------------------- -->
+<section class="mt-6 grid sm:grid-cols-3 gap-3">
+  <a href="{% url 'support:list' %}" class="surface rounded-xl p-5 hover:border-zinc-600 transition group">
+    <svg class="icon-lg icon text-jheliz-400" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <div class="font-display font-semibold mt-3">Mis tickets</div>
+    <div class="text-xs text-zinc-500 mt-1">Solicita soporte o reporta una falla</div>
+  </a>
+  <a href="{% url 'accounts:profile' %}" class="surface rounded-xl p-5 hover:border-zinc-600 transition group">
+    <svg class="icon-lg icon text-jheliz-400" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <div class="font-display font-semibold mt-3">Mi perfil</div>
+    <div class="text-xs text-zinc-500 mt-1">Datos de contacto y dirección</div>
+  </a>
+  {% if WHATSAPP_NUMBER %}
+  <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="surface rounded-xl p-5 hover:border-emerald-500/40 transition group">
+    <svg class="icon-lg icon" viewBox="0 0 24 24" style="color:#25d366"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+    <div class="font-display font-semibold mt-3">WhatsApp</div>
+    <div class="text-xs text-zinc-500 mt-1">Habla con soporte ahora mismo</div>
+  </a>
+  {% endif %}
+</section>
+
+<!-- Pedidos -------------------------------------------------------------- -->
+<section class="mt-8">
+  <h2 class="font-display text-lg font-bold tracking-tight mb-3">Mis pedidos</h2>
+  {% if orders %}
+    <div class="space-y-2">
+      {% for o in orders %}
+        <a href="{% url 'orders:detail' o.uuid %}" class="surface rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 hover:border-zinc-600 transition">
+          <div class="min-w-0">
+            <div class="text-[11px] text-zinc-500 font-mono">#{{ o.short_uuid }} · {{ o.created_at|date:"d/m/Y H:i" }}</div>
+            <div class="font-display font-semibold mt-0.5 truncate">
+              {% for it in o.items.all %}{{ it.product_name }} — {{ it.plan_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-medium text-zinc-200">{{ CURRENCY_SYMBOL }} {{ o.total|floatformat:2|intcomma }}</span>
+            <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full
+              {% if o.status == 'delivered' %}text-emerald-300 bg-emerald-500/10 border border-emerald-500/30
+              {% elif o.status == 'preparing' %}text-fuchsia-300 bg-fuchsia-500/10 border border-fuchsia-500/30
+              {% elif o.status == 'paid' %}text-sky-300 bg-sky-500/10 border border-sky-500/30
+              {% elif o.status == 'pending' %}text-amber-300 bg-amber-500/10 border border-amber-500/30
+              {% else %}text-rose-300 bg-rose-500/10 border border-rose-500/30{% endif %}">
+              {{ o.get_status_display }}
+            </span>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="surface rounded-xl p-10 text-center">
+      <svg class="icon mx-auto text-zinc-600" viewBox="0 0 24 24" style="width:32px;height:32px"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      <p class="text-sm text-zinc-400 mt-3">Aún no tienes pedidos.</p>
+      <a class="btn btn-primary mt-4" href="{% url 'catalog:products' %}">
+        Ver productos
+        <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

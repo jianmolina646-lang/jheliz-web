@@ -1,0 +1,10 @@
+{% extends "emails/_base.html" %}
+{% block body %}
+  <h2 style="margin:0 0 8px 0;font-size:20px;">Te respondimos tu ticket</h2>
+  <p>Hola {{ ticket.user.username }}, hay una respuesta nueva en tu ticket <strong>#{{ ticket.id }} — {{ ticket.subject }}</strong>.</p>
+  <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:14px 16px;border-radius:12px;margin:12px 0;">
+    <div style="color:rgba(255,255,255,0.6);font-size:13px;">🛟 Soporte Jheliz</div>
+    <div style="white-space:pre-wrap;margin-top:6px;">{{ message.body }}</div>
+  </div>
+  <p>Puedes responder desde <a href="https://jhelizservicestv.xyz/soporte/{{ ticket.id }}/" style="color:#f472b6;">tu ticket</a>.</p>
+{% endblock %}

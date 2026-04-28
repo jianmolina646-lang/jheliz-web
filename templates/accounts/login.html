@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+{% block title %}Ingresar — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto surface rounded-2xl p-8 md:p-10 mt-4">
+  <h1 class="font-display text-2xl font-bold tracking-tight">Ingresar</h1>
+  <p class="text-zinc-400 text-sm mt-1.5">¿No tienes cuenta? <a class="text-jheliz-400 hover:text-jheliz-300 font-medium" href="{% url 'accounts:signup' %}">Crear cuenta</a>.</p>
+  <form method="post" class="mt-6 space-y-4">
+    {% csrf_token %}
+    {% for field in form %}
+      <div>
+        <label class="block text-xs font-medium text-zinc-400 mb-1.5">{{ field.label }}</label>
+        {{ field|add_class:"field" }}
+        {% if field.errors %}<p class="text-xs text-red-400 mt-1.5">{{ field.errors.0 }}</p>{% endif %}
+      </div>
+    {% endfor %}
+    {% if form.non_field_errors %}<p class="text-xs text-red-400">{{ form.non_field_errors.0 }}</p>{% endif %}
+    <button type="submit" class="btn btn-primary btn-lg btn-block">
+      Entrar
+      <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+    </button>
+  </form>
+</div>
+{% endblock %}

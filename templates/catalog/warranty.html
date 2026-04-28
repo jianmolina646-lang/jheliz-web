@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Garantía — {{ SITE_NAME }}{% endblock %}
+{% block meta_description %}Política de garantía de {{ SITE_NAME }}: reposición sin costo durante el periodo contratado.{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl">
+  <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Garantía</p>
+  <h1 class="font-display text-3xl md:text-5xl font-bold tracking-tight mt-1">Garantía durante todo el periodo contratado</h1>
+  <p class="text-zinc-400 mt-3 text-lg leading-relaxed">Si algo falla durante el periodo de tu plan y la causa no es atribuible a ti, reponemos la cuenta sin preguntas.</p>
+
+  <div class="mt-10 grid sm:grid-cols-2 gap-3">
+    <div class="surface rounded-xl p-5">
+      <svg class="icon-lg icon text-emerald-400" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+      <h3 class="font-display font-semibold mt-3">Qué cubre</h3>
+      <ul class="mt-2 text-sm text-zinc-400 space-y-1.5 list-disc list-outside ml-4">
+        <li>La cuenta deja de funcionar por causas ajenas a ti</li>
+        <li>Te bloquean el acceso desde el proveedor</li>
+        <li>El perfil que reservaste se pierde por update del servicio</li>
+        <li>La cuenta no entrega los datos prometidos en el plan</li>
+      </ul>
+    </div>
+    <div class="surface rounded-xl p-5">
+      <svg class="icon-lg icon text-rose-400" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+      <h3 class="font-display font-semibold mt-3">Qué no cubre</h3>
+      <ul class="mt-2 text-sm text-zinc-400 space-y-1.5 list-disc list-outside ml-4">
+        <li>Cambiar el correo o contraseña de la cuenta</li>
+        <li>Cambiar la foto, nombre o PIN del perfil ajeno</li>
+        <li>Compartir las credenciales con terceros</li>
+        <li>Usar la cuenta fuera del país sin VPN cuando aplica</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="mt-6 surface rounded-2xl p-6 md:p-8">
+    <h2 class="font-display text-lg font-bold">¿Cómo activo la garantía?</h2>
+    <ol class="mt-3 space-y-3 text-sm text-zinc-300">
+      <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-xs font-bold text-jheliz-300 shrink-0">1</span> Entra a <a href="{% url 'support:list' %}" class="text-jheliz-400 hover:text-jheliz-300 underline">Mis tickets</a> y abre uno con el problema. O escríbenos por WhatsApp.</li>
+      <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-xs font-bold text-jheliz-300 shrink-0">2</span> Verificamos en minutos. Si aplica, te reponemos la cuenta inmediatamente.</li>
+      <li class="flex gap-3"><span class="w-6 h-6 rounded-full bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-xs font-bold text-jheliz-300 shrink-0">3</span> Si no aplica, te explicamos el motivo y las opciones de renovación con descuento.</li>
+    </ol>
+  </div>
+
+  <div class="mt-12 surface rounded-2xl p-6 md:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div>
+      <h2 class="font-display text-lg font-bold">¿Tienes un problema ahora?</h2>
+      <p class="text-sm text-zinc-400 mt-1">Te ayudamos en minutos.</p>
+    </div>
+    <div class="flex gap-2">
+      {% if user.is_authenticated %}
+        <a href="{% url 'support:list' %}" class="btn btn-secondary">Abrir ticket</a>
+      {% endif %}
+      <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="btn btn-primary">
+        WhatsApp
+        <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

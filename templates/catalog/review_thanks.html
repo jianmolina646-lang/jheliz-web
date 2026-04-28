@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}¡Gracias por tu reseña! · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="max-w-xl mx-auto text-center surface rounded-2xl p-10">
+  <div class="text-5xl mb-4">🙌</div>
+  <h1 class="font-display text-3xl font-bold tracking-tight">¡Gracias por tu reseña!</h1>
+  <p class="text-zinc-400 mt-3">
+    La revisamos rapidito y la publicamos con tu insignia
+    <span class="text-emerald-400 font-semibold">✓ Compra verificada</span>.
+    Si quisieras agregar algo, escríbenos por WhatsApp.
+  </p>
+  <a href="{% url 'catalog:home' %}" class="btn btn-primary mt-6 inline-block">Volver al inicio</a>
+</section>
+{% endblock %}

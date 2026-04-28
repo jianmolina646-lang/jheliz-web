@@ -1,0 +1,78 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-6">
+  <div>
+    <h1 class="text-2xl font-bold text-base-900 dark:text-white">{{ title }}</h1>
+    <p class="mt-1 text-sm text-base-500 dark:text-base-400">
+      Carga muchas cuentas a la vez. Soporta archivos CSV/TXT o pegar directo desde Excel/Google Sheets.
+    </p>
+  </div>
+
+  <div class="p-4 border border-pink-500/20 bg-pink-500/5 rounded-lg text-sm">
+    <div class="font-semibold text-pink-300 mb-2">📋 Formatos soportados:</div>
+    <div class="space-y-3 text-base-200">
+      <div>
+        <strong class="text-pink-200">1. CSV con cabecera</strong> (recomendado, copia desde Excel/Sheets):
+        <pre class="mt-1 p-2 bg-black/40 rounded text-xs">email,password,perfil,pin
+juan@gmail.com,Abc123,Perfil 1,1234
+maria@gmail.com,Xyz789,Perfil 2,5678</pre>
+      </div>
+      <div>
+        <strong class="text-pink-200">2. Línea por línea</strong> con pipe:
+        <pre class="mt-1 p-2 bg-black/40 rounded text-xs">juan@gmail.com|Abc123|Perfil 1|1234
+maria@gmail.com|Xyz789|Perfil 2|5678</pre>
+      </div>
+      <div>
+        <strong class="text-pink-200">3. Bloques de texto libre</strong> (separados por línea en blanco):
+        <pre class="mt-1 p-2 bg-black/40 rounded text-xs">Correo: juan@gmail.com
+Clave: Abc123
+Perfil: Perfil 1
+
+Correo: maria@gmail.com
+Clave: Xyz789</pre>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data"
+        class="flex flex-col gap-4 p-6 border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="p-3 border border-red-500/40 bg-red-500/10 rounded text-sm text-red-200">
+      {{ form.non_field_errors }}
+    </div>
+    {% endif %}
+
+    {% for field in form %}
+    <div>
+      <label class="block text-sm font-medium text-base-900 dark:text-white mb-1">
+        {{ field.label }}{% if field.field.required %}<span class="text-pink-400">*</span>{% endif %}
+      </label>
+      {{ field }}
+      {% if field.help_text %}
+      <p class="mt-1 text-xs text-base-500">{{ field.help_text|safe }}</p>
+      {% endif %}
+      {% if field.errors %}
+      <p class="mt-1 text-xs text-red-300">{{ field.errors|join:", " }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="flex gap-3 pt-3 border-t border-base-200 dark:border-base-800">
+      <button type="submit"
+              class="px-5 py-2 rounded bg-primary-500 hover:bg-primary-600 text-white font-semibold">
+        📥 Importar stock
+      </button>
+      <a href="{% url 'admin:catalog_stockitem_changelist' %}"
+         class="px-5 py-2 rounded border border-base-200 dark:border-base-700 hover:bg-base-50 dark:hover:bg-base-800">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

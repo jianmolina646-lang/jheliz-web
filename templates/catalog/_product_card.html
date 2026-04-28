@@ -1,0 +1,93 @@
+{% load humanize %}
+{% load catalog_extras %}
+<a href="{{ product.get_absolute_url }}" class="surface rounded-xl overflow-hidden hover:border-zinc-600 transition block group relative product-card">
+  <!-- Banner ilustrado del producto ----------------------------------- -->
+  <div class="product-card__banner relative aspect-[16/9] overflow-hidden"
+       {% if not product.image %}style="{% product_gradient product %}"{% endif %}>
+    {% if product.image %}
+      <img src="{{ product.image.url }}" alt="{{ product.name }}"
+           class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+           loading="lazy" decoding="async">
+    {% else %}
+      <div class="absolute inset-0 flex items-center justify-center text-7xl drop-shadow-lg" aria-hidden="true">
+        {{ product.icon|default:product.category.emoji }}
+      </div>
+    {% endif %}
+
+    <!-- Sombrita inferior para que el texto del card resalte -->
+    <div class="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent pointer-events-none"></div>
+
+    <!-- Badges sobre el banner -->
+    {% if product.is_featured %}
+      <span class="absolute top-3 right-3 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded chip-pink font-semibold">Top</span>
+    {% endif %}
+
+    {% with urgency=product.stock_urgency_level stock=product.available_stock %}
+      {% if urgency == 'critical' %}
+        <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-100 border border-rose-400/40 font-bold backdrop-blur-sm">
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-300 animate-pulse"></span>
+          Quedan {{ stock }}
+        </span>
+      {% elif urgency == 'low' %}
+        <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-100 border border-amber-400/40 font-bold backdrop-blur-sm">
+          🔥 Quedan {{ stock }}
+        </span>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Categoría -->
+    <span class="absolute bottom-3 left-3 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-black/50 text-zinc-100 backdrop-blur-sm font-semibold">
+      {{ product.category.emoji }} {{ product.category.name }}
+    </span>
+  </div>
+
+  <!-- Contenido del card --------------------------------------------- -->
+  <div class="p-5">
+    <h3 class="font-display font-semibold text-zinc-100 leading-tight truncate">{{ product.name }}</h3>
+    {% if product.short_description %}
+      <p class="mt-2 text-sm text-zinc-400 line-clamp-2 leading-relaxed">{{ product.short_description }}</p>
+    {% endif %}
+
+    <div class="mt-4 pt-4 border-t hairline flex items-end justify-between gap-3">
+      <div class="min-w-0">
+        {% with plan=product.plans.first %}
+          {% if plan %}
+            {% if user.is_distributor %}
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-jheliz-400">Mayorista desde</div>
+              <div class="text-xl font-display font-bold text-white tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
+              <div class="text-[11px] text-zinc-500 line-through">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+            {% else %}
+              <div class="text-[11px] uppercase tracking-wider text-zinc-500">Desde</div>
+              <div class="text-xl font-display font-bold text-white tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+            {% endif %}
+          {% else %}
+            <div class="text-xs text-zinc-500">Pronto disponible</div>
+          {% endif %}
+        {% endwith %}
+      </div>
+      <div class="text-right text-[11px] text-zinc-500 leading-tight shrink-0">
+        <div class="flex items-center gap-1 justify-end text-amber-400/90">
+          <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:11px;height:11px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span class="text-zinc-300">{{ product.rating }}</span>
+        </div>
+        {% if product.sold_badge %}<div class="mt-1">{{ product.sold_badge }} vendidos</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="mt-4 flex items-center justify-between text-xs">
+      <span class="inline-flex items-center gap-1.5 text-emerald-400">
+        {% if product.delivery_is_instant %}
+          <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Inmediata
+        {% else %}
+          <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Manual
+        {% endif %}
+      </span>
+      <span class="text-zinc-400 group-hover:text-jheliz-400 transition inline-flex items-center gap-1">
+        Ver
+        <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </span>
+    </div>
+  </div>
+</a>

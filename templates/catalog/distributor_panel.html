@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Panel distribuidor — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<section class="mb-8 card-glass rounded-3xl p-6 md:p-8">
+  <div class="flex items-start gap-4">
+    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-jheliz-500/30 border border-white/10 flex items-center justify-center text-3xl">💼</div>
+    <div>
+      <h1 class="text-2xl md:text-3xl font-extrabold">Panel de distribuidor</h1>
+      <p class="text-white/70 mt-1">
+        Hola {{ user.get_full_name|default:user.username }}, estos son los precios
+        <strong class="text-jheliz-300">mayoristas</strong> de Jheliz.
+        Al agregar al carrito ya se aplica tu descuento automáticamente.
+      </p>
+    </div>
+  </div>
+</section>
+
+<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+  {% for product in products %}
+    {% include "catalog/_product_card.html" with product=product %}
+  {% empty %}
+    <div class="card-glass rounded-2xl p-8 text-center text-white/70 md:col-span-3">
+      Todavía no hay productos con plan mayorista activo.
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

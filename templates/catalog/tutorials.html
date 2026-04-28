@@ -1,0 +1,519 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Tutoriales — {{ SITE_NAME }} · Activa Netflix, Disney+, Office y más{% endblock %}
+{% block meta_description %}Aprende cómo comprar, activar y renovar tus cuentas premium paso a paso. Tutoriales con imágenes, soluciones a problemas comunes y soporte 24/7.{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Glow del hero */
+  .hero-glow::before {
+    content: ''; position: absolute; inset: -40% -20% auto -20%; height: 70%;
+    background: radial-gradient(60% 60% at 50% 20%, rgba(236,72,153,0.18), transparent 70%);
+    z-index: -1; pointer-events: none;
+  }
+  .step-num {
+    width: 2.25rem; height: 2.25rem; border-radius: 0.6rem;
+    background: linear-gradient(135deg, #ec4899, #be185d);
+    color: #fff; font-weight: 700; font-family: 'Inter Tight';
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 18px -6px rgba(236,72,153,.6);
+    flex-shrink: 0;
+  }
+  .step-line { background: linear-gradient(180deg, rgba(236,72,153,.4), transparent); }
+  /* Tabs filtro */
+  .tab-btn { transition: all 150ms ease; }
+  .tab-btn[aria-selected="true"] {
+    background: rgba(236,72,153,0.12); color: #f9a8d4;
+    border-color: rgba(236,72,153,.4);
+  }
+  /* Acordeon */
+  details.faq summary {
+    cursor: pointer; list-style: none;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; padding: 1.1rem 1.4rem;
+  }
+  details.faq summary::-webkit-details-marker { display: none; }
+  details.faq summary .chev { transition: transform 200ms ease; }
+  details.faq[open] summary .chev { transform: rotate(180deg); }
+  details.faq[open] { background: rgba(255,255,255,.02); }
+  /* Hover en tutorial cards */
+  .tut-card { transition: transform 150ms ease, border-color 150ms ease, box-shadow 200ms ease; }
+  .tut-card:hover {
+    transform: translateY(-2px); border-color: rgba(236,72,153,.4);
+    box-shadow: 0 12px 30px -10px rgba(236,72,153,.18);
+  }
+  /* Badges de plataforma */
+  .platform-icon {
+    width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; flex-shrink: 0;
+  }
+  .platform-netflix { background: linear-gradient(135deg, #e50914, #831010); }
+  .platform-disney { background: linear-gradient(135deg, #1d4ed8, #0c1d52); }
+  .platform-prime { background: linear-gradient(135deg, #00a8e1, #00688f); }
+  .platform-spotify { background: linear-gradient(135deg, #1ed760, #0a6e2f); }
+  .platform-office { background: linear-gradient(135deg, #ea580c, #7c2d12); }
+  .platform-windows { background: linear-gradient(135deg, #0078d4, #003d6b); }
+  .platform-hbo { background: linear-gradient(135deg, #6e2da6, #2d0f4e); }
+  .platform-youtube { background: linear-gradient(135deg, #ff0000, #7a0000); }
+  /* Foto de portada en cada card */
+  .platform-cover {
+    position: relative; aspect-ratio: 16 / 8; overflow: hidden;
+    background: #0a0a0a;
+  }
+  .platform-cover img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 320ms ease;
+  }
+  .tut-card:hover .platform-cover img { transform: scale(1.05); }
+  .platform-cover::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 30%, rgba(0,0,0,0.55) 80%, rgba(0,0,0,0.78));
+  }
+  .platform-cover-info {
+    position: absolute; left: 1rem; right: 1rem; bottom: 1rem;
+    display: flex; align-items: center; gap: 0.75rem; z-index: 1;
+  }
+  .platform-cover-info h3 { color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.7); }
+  .platform-cover-info p { color: rgba(255,255,255,.85); text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero ──────────────────────────────────────────────────── -->
+<section class="hero-glow relative -mx-6 px-6 py-12 md:py-16 mb-12">
+  <div class="max-w-3xl">
+    <span class="chip chip-pink">📚 Centro de tutoriales</span>
+    <h1 class="font-display text-4xl md:text-6xl font-bold tracking-tight mt-4 leading-[1.05]">
+      Aprende a usar tu<br>cuenta como un pro.
+    </h1>
+    <p class="text-lg text-zinc-400 mt-4 leading-relaxed max-w-2xl">
+      Guías visuales paso a paso para comprar, activar y aprovechar al máximo tus cuentas premium.
+      Si algo no funciona, tenemos la solución acá.
+    </p>
+    <div class="mt-7 flex flex-wrap gap-3">
+      <a href="#flujo" class="btn btn-primary">Ver tutorial paso a paso</a>
+      <a href="#problemas" class="btn btn-secondary">Solucionar un problema</a>
+      <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="btn btn-secondary">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Soporte por WhatsApp
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ── KPI strip ─────────────────────────────────────────────── -->
+<section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-14">
+  <div class="surface rounded-2xl p-5">
+    <div class="text-3xl font-display font-bold tracking-tight">2 min</div>
+    <div class="text-xs text-zinc-500 mt-1">Tiempo de activación</div>
+  </div>
+  <div class="surface rounded-2xl p-5">
+    <div class="text-3xl font-display font-bold tracking-tight">30 días</div>
+    <div class="text-xs text-zinc-500 mt-1">Garantía total</div>
+  </div>
+  <div class="surface rounded-2xl p-5">
+    <div class="text-3xl font-display font-bold tracking-tight">24/7</div>
+    <div class="text-xs text-zinc-500 mt-1">Soporte WhatsApp</div>
+  </div>
+  <div class="surface rounded-2xl p-5">
+    <div class="text-3xl font-display font-bold tracking-tight">+1.000</div>
+    <div class="text-xs text-zinc-500 mt-1">Clientes felices</div>
+  </div>
+</section>
+
+<!-- ── Flujo de 4 pasos ──────────────────────────────────────── -->
+<section id="flujo" class="mb-20 scroll-mt-20">
+  <div class="mb-10">
+    <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Paso a paso</p>
+    <h2 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-2">
+      De pago a tu cuenta activa, en 4 pasos
+    </h2>
+    <p class="text-zinc-400 mt-2 max-w-2xl">
+      El flujo completo desde que eliges el producto hasta que estás viendo Netflix en tu tele.
+    </p>
+  </div>
+
+  <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+    <!-- Paso 1 -->
+    <div class="surface tut-card rounded-2xl p-6 relative">
+      <span class="step-num">1</span>
+      <h3 class="font-display text-xl font-bold mt-4">Elige tu plan</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">
+        Entra a <a href="{% url 'catalog:products' %}" class="text-jheliz-300 hover:text-jheliz-200">Productos</a>,
+        elige Netflix / Disney+ / Office, etc. Selecciona la duración (1, 3 o 6 meses) y agrega al carrito.
+      </p>
+      <div class="mt-4 text-xs text-zinc-500 flex items-center gap-2">
+        <svg class="icon text-zinc-600" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+        Carrito guardado en tu sesión
+      </div>
+    </div>
+
+    <!-- Paso 2 -->
+    <div class="surface tut-card rounded-2xl p-6">
+      <span class="step-num">2</span>
+      <h3 class="font-display text-xl font-bold mt-4">Paga con Yape o tarjeta</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">
+        En el checkout eliges:
+        <strong class="text-zinc-200">Yape</strong> (escaneas QR + subes comprobante) o
+        <strong class="text-zinc-200">Mercado Pago</strong> (tarjeta, Yape PLIN, agora pago).
+      </p>
+      <div class="mt-4 text-xs text-zinc-500 flex items-center gap-2">
+        <svg class="icon text-zinc-600" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+        Pago 100% seguro y verificado
+      </div>
+    </div>
+
+    <!-- Paso 3 -->
+    <div class="surface tut-card rounded-2xl p-6">
+      <span class="step-num">3</span>
+      <h3 class="font-display text-xl font-bold mt-4">Recibe tu cuenta por email</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">
+        Confirmamos tu pago y te llega un email con
+        <strong class="text-zinc-200">correo, contraseña, perfil y PIN</strong>.
+        También aparece en <a href="{% url 'accounts:dashboard' %}" class="text-jheliz-300 hover:text-jheliz-200">Mi cuenta</a>.
+      </p>
+      <div class="mt-4 text-xs text-zinc-500 flex items-center gap-2">
+        <svg class="icon text-zinc-600" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Email + dashboard en vivo
+      </div>
+    </div>
+
+    <!-- Paso 4 -->
+    <div class="surface tut-card rounded-2xl p-6">
+      <span class="step-num">4</span>
+      <h3 class="font-display text-xl font-bold mt-4">Activa y disfruta</h3>
+      <p class="text-sm text-zinc-400 mt-2 leading-relaxed">
+        Abre la app oficial, inicia sesión con las credenciales, entra a tu perfil con tu PIN.
+        ¡Listo! Empezamos a contar tu garantía de 30 días.
+      </p>
+      <div class="mt-4 text-xs text-zinc-500 flex items-center gap-2">
+        <svg class="icon text-zinc-600" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Garantía y soporte automático
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Tutoriales por plataforma ─────────────────────────────── -->
+<section class="mb-20">
+  <div class="flex items-end justify-between gap-6 flex-wrap mb-6">
+    <div>
+      <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Por plataforma</p>
+      <h2 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-2">
+        Activa cualquier plataforma en minutos
+      </h2>
+    </div>
+    <a href="{% url 'catalog:products' %}" class="text-sm text-jheliz-300 hover:text-jheliz-200">Ver catálogo →</a>
+  </div>
+
+  <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+    {# Card Netflix #}
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/netflix.jpg' %}" alt="TV con Netflix" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-netflix">🎬</div>
+          <div><h3 class="font-display text-lg font-bold">Netflix</h3><p class="text-xs mt-0.5">Activación en 2 min</p></div>
+        </div>
+      </div>
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+        <li>Inicia en <strong class="text-zinc-100">netflix.com</strong> con tus credenciales.</li>
+        <li>Selecciona el perfil con <strong class="text-zinc-100">tu nombre</strong>.</li>
+        <li>Pon tu <strong class="text-zinc-100">PIN de 4 dígitos</strong>.</li>
+        <li>Conecta tu Smart TV solo <strong class="text-zinc-100">después</strong>.</li>
+      </ol>
+    </div>
+
+    {# Card Disney+ #}
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/disney.jpg' %}" alt="Logo Disney+" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-disney">✨</div>
+          <div><h3 class="font-display text-lg font-bold">Disney+</h3><p class="text-xs mt-0.5">Activación en 2 min</p></div>
+        </div>
+      </div>
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+        <li>Abre <strong class="text-zinc-100">disneyplus.com</strong>.</li>
+        <li>Inicia con correo y contraseña.</li>
+        <li>Entra al <strong class="text-zinc-100">perfil asignado</strong>.</li>
+        <li>Disfruta sin saltar perfiles.</li>
+      </ol>
+    </div>
+
+    {# Card Prime Video #}
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/prime.jpg' %}" alt="TV con Prime Video" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-prime">📦</div>
+          <div><h3 class="font-display text-lg font-bold">Prime Video</h3><p class="text-xs mt-0.5">Activación en 2 min</p></div>
+        </div>
+      </div>
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+        <li>Entra a <strong class="text-zinc-100">primevideo.com</strong>.</li>
+        <li>Inicia sesión con tus datos.</li>
+        <li>Selecciona tu perfil.</li>
+        <li>Si pide código, <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" class="text-jheliz-300">escríbenos</a>.</li>
+      </ol>
+    </div>
+
+    {# Card HBO Max #}
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/hbo.jpg' %}" alt="Logo Max" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-hbo">🎥</div>
+          <div><h3 class="font-display text-lg font-bold">HBO Max</h3><p class="text-xs mt-0.5">Activación en 2 min</p></div>
+        </div>
+      </div>
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+        <li>Abre <strong class="text-zinc-100">max.com</strong> o la app.</li>
+        <li>Pon correo y contraseña.</li>
+        <li>Selecciona tu perfil.</li>
+        <li>Si pide código, escríbenos por WhatsApp.</li>
+      </ol>
+    </div>
+
+    {# Card Spotify #}
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/spotify.jpg' %}" alt="Spotify en celular" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-spotify">🎵</div>
+          <div><h3 class="font-display text-lg font-bold">Spotify Premium</h3><p class="text-xs mt-0.5">Activación inmediata</p></div>
+        </div>
+      </div>
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+        <li>Inicia sesión con el correo entregado.</li>
+        <li><strong class="text-red-300">No</strong> cambies la contraseña.</li>
+        <li>En tu app móvil verás <strong class="text-zinc-100">Premium</strong> activo.</li>
+        <li>Disfruta sin anuncios.</li>
+      </ol>
+    </div>
+
+    {# Card Office 365 #}
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/office.jpg' %}" alt="Laptop con documento abierto" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-office">📊</div>
+          <div><h3 class="font-display text-lg font-bold">Office 365</h3><p class="text-xs mt-0.5">Activación en 5 min</p></div>
+        </div>
+      </div>
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+        <li>Entra a <strong class="text-zinc-100">office.com</strong>.</li>
+        <li>Inicia con la cuenta entregada.</li>
+        <li>Descarga Office para Windows o Mac.</li>
+        <li>Activa con tu cuenta Microsoft.</li>
+      </ol>
+    </div>
+
+    {# Card Windows #}
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/windows.jpg' %}" alt="Laptop con Windows 11" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-windows">💻</div>
+          <div><h3 class="font-display text-lg font-bold">Windows 10/11 Pro</h3><p class="text-xs mt-0.5">Activación en 5 min</p></div>
+        </div>
+      </div>
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+        <li>Configuración → <strong class="text-zinc-100">Activación</strong>.</li>
+        <li>Pega la clave entregada.</li>
+        <li>Espera 1-2 min para validar.</li>
+        <li>Reinicia para confirmar.</li>
+      </ol>
+    </div>
+
+    {# Card YouTube Premium #}
+    <div class="surface tut-card rounded-2xl overflow-hidden">
+      <div class="platform-cover">
+        <img src="{% static 'img/tutoriales/youtube.jpg' %}" alt="YouTube Premium en pantalla" loading="lazy">
+        <div class="platform-cover-info">
+          <div class="platform-icon platform-youtube">▶️</div>
+          <div><h3 class="font-display text-lg font-bold">YouTube Premium</h3><p class="text-xs mt-0.5">Activación en 2 min</p></div>
+        </div>
+      </div>
+      <ol class="p-6 space-y-2.5 text-sm text-zinc-300 list-decimal list-inside marker:text-jheliz-400">
+        <li>Inicia sesión con la cuenta entregada.</li>
+        <li>Activa el <strong class="text-zinc-100">perfil asignado</strong>.</li>
+        <li>Sin anuncios + descarga offline.</li>
+        <li>YT Music incluido.</li>
+      </ol>
+    </div>
+    <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="surface tut-card rounded-2xl p-6 flex flex-col items-center justify-center text-center min-h-[260px]">
+      <div class="text-5xl">🤔</div>
+      <h3 class="font-display text-lg font-bold mt-4">¿Otra plataforma?</h3>
+      <p class="text-sm text-zinc-400 mt-2">Escríbenos por WhatsApp y te guiamos paso a paso.</p>
+      <div class="mt-4 text-jheliz-300 text-sm font-semibold">Contactar soporte →</div>
+    </a>
+  </div>
+</section>
+
+<!-- ── Tips importantes ──────────────────────────────────────── -->
+<section class="mb-20">
+  <div class="surface rounded-2xl p-7 md:p-10">
+    <div class="grid md:grid-cols-[1fr_2fr] gap-8 items-start">
+      <div>
+        <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Reglas de oro</p>
+        <h2 class="font-display text-2xl md:text-3xl font-bold tracking-tight mt-2">
+          5 cosas que debes saber para que tu cuenta dure todo el mes.
+        </h2>
+        <p class="text-sm text-zinc-400 mt-3">
+          Si rompes alguna de estas reglas, la cuenta puede bloquearse y la garantía no aplica.
+        </p>
+      </div>
+      <ul class="space-y-3">
+        {% for tip in "1234567"|make_list %}{% endfor %}
+        <li class="flex items-start gap-3 p-4 surface-soft rounded-xl">
+          <span class="text-jheliz-400 text-xl mt-0.5">✓</span>
+          <div>
+            <div class="font-semibold text-zinc-100">No cambies la contraseña</div>
+            <p class="text-sm text-zinc-400 mt-0.5">La cuenta es compartida con otros perfiles. Si la cambias, todos se quedan fuera y se cancela tu garantía.</p>
+          </div>
+        </li>
+        <li class="flex items-start gap-3 p-4 surface-soft rounded-xl">
+          <span class="text-jheliz-400 text-xl mt-0.5">✓</span>
+          <div>
+            <div class="font-semibold text-zinc-100">Solo entra al perfil asignado</div>
+            <p class="text-sm text-zinc-400 mt-0.5">Tu perfil tiene un PIN que solo tú tienes. No abras otros perfiles ni los edites.</p>
+          </div>
+        </li>
+        <li class="flex items-start gap-3 p-4 surface-soft rounded-xl">
+          <span class="text-jheliz-400 text-xl mt-0.5">✓</span>
+          <div>
+            <div class="font-semibold text-zinc-100">Inicia primero en celular o PC</div>
+            <p class="text-sm text-zinc-400 mt-0.5">Antes de poner la cuenta en tu Smart TV, entra primero desde el celular. Algunas plataformas piden verificación y es más fácil hacerlo desde móvil.</p>
+          </div>
+        </li>
+        <li class="flex items-start gap-3 p-4 surface-soft rounded-xl">
+          <span class="text-jheliz-400 text-xl mt-0.5">✓</span>
+          <div>
+            <div class="font-semibold text-zinc-100">Si pide código de verificación, escríbenos</div>
+            <p class="text-sm text-zinc-400 mt-0.5">A veces el sistema pide un código al correo del dueño. Mándanos un WhatsApp y te lo enviamos en menos de 5 min.</p>
+          </div>
+        </li>
+        <li class="flex items-start gap-3 p-4 surface-soft rounded-xl">
+          <span class="text-jheliz-400 text-xl mt-0.5">✓</span>
+          <div>
+            <div class="font-semibold text-zinc-100">Renueva 1 día antes</div>
+            <p class="text-sm text-zinc-400 mt-0.5">Te avisamos por email 24h antes con el botón de "Renovar 1-clic". Si renuevas a tiempo no pierdes tu perfil ni tu progreso.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ── Problemas comunes (FAQ) ───────────────────────────────── -->
+<section id="problemas" class="mb-20 scroll-mt-20">
+  <div class="mb-8">
+    <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Solución a problemas</p>
+    <h2 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-2">
+      ¿Algo no funciona? Resuélvelo acá.
+    </h2>
+  </div>
+
+  <div class="surface rounded-2xl divide-y hairline overflow-hidden">
+    <details class="faq">
+      <summary>
+        <span class="font-semibold text-zinc-100">"Me pide un código de verificación"</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        Es normal: la plataforma manda un código al correo del dueño cuando inicias desde un dispositivo nuevo.
+        <strong class="text-zinc-200">Mándanos un WhatsApp con el correo de tu cuenta</strong> y te enviamos el código en
+        menos de 5 minutos. <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" class="text-jheliz-300">Chatear ahora →</a>
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>
+        <span class="font-semibold text-zinc-100">"La contraseña no funciona"</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        99% de las veces es por copiar/pegar mal. Las contraseñas tienen mayúsculas, números y signos.
+        Cópialas <strong class="text-zinc-200">desde tu pedido en /cuenta/</strong> con doble click → click derecho → copiar.
+        Si aún no entra, abre un <a href="{% url 'support:create' %}" class="text-jheliz-300">ticket de soporte</a>
+        y te respondemos en máx 1 hora.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>
+        <span class="font-semibold text-zinc-100">"Me dice que la cuenta está en muchos dispositivos"</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        Pasa cuando demasiada gente ve la cuenta a la vez. Cierra sesión en tu Smart TV viejo o consola que ya no usas.
+        Si insiste, escríbenos y te <strong class="text-zinc-200">cerramos sesiones de los demás dispositivos</strong>
+        sin afectar al tuyo.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>
+        <span class="font-semibold text-zinc-100">"Pagué con Yape pero mi pedido sigue en 'verificando'"</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        Verificamos los pagos Yape <strong class="text-zinc-200">en máximo 2 horas (días hábiles 8am–11pm)</strong>.
+        Si pagaste fuera de horario o ya pasaron 2h, escríbenos por WhatsApp con el ID del pedido y lo confirmamos al toque.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>
+        <span class="font-semibold text-zinc-100">"Mi cuenta dejó de funcionar antes del mes"</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        <strong class="text-zinc-200">Si fue por algo nuestro, te la reponemos sin costo</strong> (es nuestra
+        garantía de 30 días). Abre un <a href="{% url 'support:create' %}" class="text-jheliz-300">ticket de soporte</a>
+        con el ID del pedido y te entregamos una nueva cuenta el mismo día.
+        Más detalles en <a href="{% url 'catalog:warranty' %}" class="text-jheliz-300">/garantia</a>.
+      </div>
+    </details>
+
+    <details class="faq">
+      <summary>
+        <span class="font-semibold text-zinc-100">"¿Cómo veo mis cuentas activas y fechas de vencimiento?"</span>
+        <svg class="chev icon text-zinc-500" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="px-5 md:px-7 pb-5 text-sm text-zinc-400 leading-relaxed">
+        Entra a <a href="{% url 'accounts:dashboard' %}" class="text-jheliz-300">Mi cuenta</a> con tu correo y contraseña.
+        Vas a ver el dashboard con todas tus cuentas activas, cuándo vencen y un botón
+        <strong class="text-zinc-200">"Renovar 1-clic"</strong> para los que vencen pronto.
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ── CTA final ─────────────────────────────────────────────── -->
+<section class="mb-12">
+  <div class="rounded-2xl p-8 md:p-12 text-center relative overflow-hidden"
+       style="background: radial-gradient(120% 100% at 50% 0%, rgba(236,72,153,0.18), rgba(0,0,0,0) 60%), rgba(255,255,255,0.02); border: 1px solid rgba(236,72,153,.18);">
+    <h2 class="font-display text-3xl md:text-4xl font-bold tracking-tight">¿Aún tienes dudas?</h2>
+    <p class="text-zinc-400 mt-3 max-w-xl mx-auto">
+      Estamos por WhatsApp 24/7. Te respondemos en máximo 5 minutos en horario hábil.
+    </p>
+    <div class="mt-7 flex flex-wrap justify-center gap-3">
+      <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="btn btn-primary btn-lg">
+        Escribir por WhatsApp
+      </a>
+      <a href="{% url 'support:create' %}" class="btn btn-secondary btn-lg">
+        Abrir ticket de soporte
+      </a>
+      <a href="{% url 'catalog:products' %}" class="btn btn-secondary btn-lg">
+        Ver catálogo
+      </a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
