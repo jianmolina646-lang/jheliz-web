@@ -116,6 +116,9 @@ class ProductAdmin(ModelAdmin):
     inlines = [PlanInline]
     list_filter_submit = True
     compressed_fields = True
+    # Drag & drop en el changelist usando el campo `order` (#11).
+    ordering_field = "order"
+    hide_ordering_field = True
 
     @display(description="Producto", ordering="name")
     def product_preview(self, obj: Product) -> str:

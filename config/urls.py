@@ -36,6 +36,16 @@ urlpatterns = [
         admin_views.notifications_count,
         name="admin_notifications_count",
     ),
+    path(
+        "jheliz-admin/search/",
+        admin_views.global_search,
+        name="admin_global_search",
+    ),
+    path(
+        "jheliz-admin/reply-templates.json",
+        admin_views.reply_templates_json,
+        name="admin_reply_templates_json",
+    ),
     path("jheliz-admin/", admin.site.urls),
     # SEO / PWA endpoints (root-level)
     path("robots.txt", robots_txt, name="robots_txt"),
