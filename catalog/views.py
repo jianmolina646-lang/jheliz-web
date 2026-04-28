@@ -129,13 +129,27 @@ def home(request):
     )
 
 
+def _audience_filter(user):
+    """Oculta productos sin planes visibles para esta audiencia.
+
+    Si el usuario es distribuidor aprobado, ve productos con al menos un plan
+    activo visible para distribuidor. Si no, ve productos con al menos un plan
+    activo visible para cliente final.
+    """
+    if user and getattr(user, "is_distributor", False):
+        return Q(plans__is_active=True, plans__available_for_distributor=True)
+    return Q(plans__is_active=True, plans__available_for_customer=True)
+
+
 def product_list(request):
     q = request.GET.get("q", "").strip()
     category_slug = request.GET.get("categoria")
     products = (
         Product.objects.filter(is_active=True)
+        .filter(_audience_filter(request.user))
         .select_related("category")
         .prefetch_related("plans")
+        .distinct()
     )
     if q:
         products = products.filter(
@@ -162,8 +176,10 @@ def category_detail(request, slug: str):
     category = get_object_or_404(Category, slug=slug, is_active=True)
     products = (
         category.products.filter(is_active=True)
+        .filter(_audience_filter(request.user))
         .select_related("category")
         .prefetch_related("plans")
+        .distinct()
     )
     categories = Category.objects.filter(is_active=True)
     return render(
