@@ -8,11 +8,34 @@ from django.views.static import serve as static_serve
 from blog.sitemaps import BlogPostSitemap
 from catalog.seo_views import manifest_json, robots_txt
 from catalog.sitemaps import SITEMAPS
+from config import admin_views
 from orders import media_views as orders_media_views
 
 SITEMAPS_ALL = {**SITEMAPS, "blog": BlogPostSitemap}
 
 urlpatterns = [
+    # Vistas extra del admin (deben ir antes de admin.site.urls).
+    path("jheliz-admin/reports/", admin_views.reports_view, name="admin_reports"),
+    path(
+        "jheliz-admin/reports/export.csv",
+        admin_views.reports_export_csv,
+        name="admin_reports_export_csv",
+    ),
+    path(
+        "jheliz-admin/top-customers/",
+        admin_views.top_customers_view,
+        name="admin_top_customers",
+    ),
+    path(
+        "jheliz-admin/health/",
+        admin_views.health_check_view,
+        name="admin_health_check",
+    ),
+    path(
+        "jheliz-admin/notifications/count.json",
+        admin_views.notifications_count,
+        name="admin_notifications_count",
+    ),
     path("jheliz-admin/", admin.site.urls),
     # SEO / PWA endpoints (root-level)
     path("robots.txt", robots_txt, name="robots_txt"),

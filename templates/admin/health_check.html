@@ -1,0 +1,43 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}<h1>Estado de servicios</h1>{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <p class="text-sm text-gray-500 dark:text-gray-400">
+        Verifica conectividad con servicios externos. Resultados en vivo (no se cachean).
+    </p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {% for s in services %}
+        <div class="rounded-xl p-4 border
+            {% if s.ok is None %}border-yellow-500 bg-yellow-500/20
+            {% elif s.ok %}border-green-500 bg-green-500/20
+            {% else %}border-red-500 bg-red-500/20{% endif %}">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-white">{{ s.icon }}</span>
+                <div class="flex-1">
+                    <div class="text-sm font-bold text-white">{{ s.name }}</div>
+                    <div class="text-xs text-white/80 mt-0.5">{{ s.detail }}</div>
+                </div>
+                <div class="text-2xl">
+                    {% if s.ok is None %}
+                        <span title="No configurado" class="text-white">—</span>
+                    {% elif s.ok %}
+                        <span title="OK" class="text-white">✓</span>
+                    {% else %}
+                        <span title="Falla" class="text-white">✕</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="text-xs text-gray-500 mt-2">
+        Recarga la página para volver a verificar.
+        <a href="?" class="underline">Recargar</a>.
+    </div>
+</div>
+{% endblock %}

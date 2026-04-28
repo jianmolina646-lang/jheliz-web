@@ -215,6 +215,21 @@ UNFOLD = {
                         "link": "/jheliz-admin/",
                     },
                     {
+                        "title": "Reportes financieros",
+                        "icon": "monitoring",
+                        "link": "/jheliz-admin/reports/",
+                    },
+                    {
+                        "title": "Clientes valiosos",
+                        "icon": "workspace_premium",
+                        "link": "/jheliz-admin/top-customers/",
+                    },
+                    {
+                        "title": "Estado de servicios",
+                        "icon": "health_and_safety",
+                        "link": "/jheliz-admin/health/",
+                    },
+                    {
                         "title": "Ver tienda",
                         "icon": "public",
                         "link": "/",
