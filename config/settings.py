@@ -185,6 +185,10 @@ UNFOLD = {
     "SHOW_VIEW_ON_SITE": True,
     "THEME": "dark",
     "BORDER_RADIUS": "8px",
+    "SCRIPTS": [
+        lambda request: f"{STATIC_URL}admin/global_search.js",
+        lambda request: f"{STATIC_URL}admin/ticket_templates.js",
+    ],
     "COLORS": {
         "primary": {
             "50": "253 244 255",

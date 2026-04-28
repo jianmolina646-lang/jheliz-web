@@ -277,6 +277,129 @@ def health_check_view(request):
 # Notificaciones de nueva venta — endpoint JSON para polling (#6)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Global search (#7) — endpoint JSON para el modal Cmd+K
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def global_search(request):
+    """Busca en pedidos, clientes, productos, planes y tickets."""
+    from django.urls import reverse as _reverse
+    from django.db.models import Q
+
+    from accounts.models import User
+    from catalog.models import Plan, Product
+    from orders.models import Order
+    from support.models import Ticket
+
+    q = (request.GET.get("q") or "").strip()
+    if len(q) < 2:
+        return JsonResponse({
+            "orders": [], "customers": [], "products": [], "plans": [], "tickets": [],
+        })
+
+    LIMIT = 5
+
+    # Pedidos: por uuid, email, teléfono, referencia.
+    order_filter = (
+        Q(email__icontains=q) | Q(phone__icontains=q) | Q(payment_reference__icontains=q)
+    )
+    if len(q) >= 6:
+        order_filter |= Q(uuid__icontains=q)
+    orders = []
+    for o in Order.objects.filter(order_filter).order_by("-created_at")[:LIMIT]:
+        orders.append({
+            "label": f"Pedido {str(o.uuid)[:8]} — {o.email or o.phone or '—'}",
+            "meta": f"{o.get_status_display()} · {o.currency} {o.total or 0}",
+            "url": _reverse("admin:orders_order_change", args=[o.pk]),
+        })
+
+    # Clientes
+    user_filter = (
+        Q(username__icontains=q) | Q(email__icontains=q)
+        | Q(first_name__icontains=q) | Q(last_name__icontains=q)
+    )
+    customers = []
+    for u in User.objects.filter(user_filter).order_by("-id")[:LIMIT]:
+        customers.append({
+            "label": u.get_full_name() or u.username,
+            "meta": u.email or "",
+            "url": _reverse("admin:accounts_user_change", args=[u.pk]),
+        })
+
+    # Productos
+    products = []
+    for p in Product.objects.filter(
+        Q(name__icontains=q) | Q(slug__icontains=q),
+    ).order_by("-id")[:LIMIT]:
+        products.append({
+            "label": p.name,
+            "meta": "activo" if p.is_active else "inactivo",
+            "url": _reverse("admin:catalog_product_change", args=[p.pk]),
+        })
+
+    # Planes
+    plans = []
+    for pl in (
+        Plan.objects.filter(name__icontains=q)
+        .select_related("product").order_by("-id")[:LIMIT]
+    ):
+        plans.append({
+            "label": f"{pl.product.name} — {pl.name}" if pl.product else pl.name,
+            "meta": f"{pl.currency} {pl.price}",
+            "url": _reverse("admin:catalog_plan_change", args=[pl.pk]),
+        })
+
+    # Tickets
+    ticket_filter = Q(subject__icontains=q)
+    if hasattr(Ticket, "code"):
+        ticket_filter |= Q(code__icontains=q)
+    tickets = []
+    for t in Ticket.objects.filter(ticket_filter).order_by("-created_at")[:LIMIT]:
+        tickets.append({
+            "label": t.subject or f"Ticket #{t.pk}",
+            "meta": t.get_status_display() if hasattr(t, "get_status_display") else "",
+            "url": _reverse("admin:support_ticket_change", args=[t.pk]),
+        })
+
+    return JsonResponse({
+        "orders": orders,
+        "customers": customers,
+        "products": products,
+        "plans": plans,
+        "tickets": tickets,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Reply templates JSON (#13)
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def reply_templates_json(request):
+    """Devuelve las plantillas activas, con body renderizado si se pasa
+    `?ticket_id=N` (sustituye {nombre}, {pedido}, etc).
+    """
+    from support.models import ReplyTemplate, Ticket
+
+    ticket = None
+    ticket_id = request.GET.get("ticket_id")
+    if ticket_id and ticket_id.isdigit():
+        ticket = Ticket.objects.filter(pk=int(ticket_id)).select_related("user", "order").first()
+
+    out = []
+    for t in ReplyTemplate.objects.filter(is_active=True).order_by("category", "name"):
+        out.append({
+            "id": t.pk,
+            "name": t.name,
+            "category": t.category,
+            "category_label": t.get_category_display(),
+            "subject": t.subject,
+            "body_rendered": t.render(ticket=ticket),
+        })
+    return JsonResponse({"templates": out})
+
+
 @staff_member_required
 def notifications_count(request):
     """Devuelve los conteos de items urgentes para el badge del header.
