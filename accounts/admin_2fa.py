@@ -38,5 +38,16 @@ def _patch_admin_site_for_otp() -> None:
 
     site.has_permission = has_permission  # type: ignore[method-assign]
 
+    # Cuando 2FA es obligatorio, el form de login necesita pedir el código
+    # TOTP además de usuario/contraseña. django-otp provee
+    # OTPAuthenticationForm que añade el campo "OTP token" al formulario.
+    if getattr(settings, "ADMIN_2FA_ENFORCED", False):
+        try:
+            from django_otp.forms import OTPAuthenticationForm
+
+            site.login_form = OTPAuthenticationForm
+        except ImportError:  # pragma: no cover
+            pass
+
 
 _patch_admin_site_for_otp()
