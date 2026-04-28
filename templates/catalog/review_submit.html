@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load widget_tweaks %}
+
+{% block title %}Deja tu reseña — {{ product.name }} · {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="max-w-2xl mx-auto">
+  <a href="{{ product.get_absolute_url }}" class="text-xs text-zinc-500 hover:text-white inline-flex items-center gap-1">
+    <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Volver al producto
+  </a>
+
+  <div class="surface rounded-2xl p-6 md:p-8 mt-4">
+    <div class="flex items-start gap-3">
+      <div class="w-12 h-12 rounded-xl surface-soft flex items-center justify-center text-2xl">
+        {{ product.icon|default:product.category.emoji }}
+      </div>
+      <div>
+        <h1 class="font-display text-2xl md:text-3xl font-bold tracking-tight">¿Cómo te fue con {{ product.name }}?</h1>
+        <p class="text-zinc-400 text-sm mt-1">Tu reseña tendrá la insignia <span class="text-emerald-400 font-semibold">✓ Compra verificada</span> porque está ligada a tu pedido.</p>
+      </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="mt-6 space-y-5">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Tu calificación</label>
+        <div class="flex flex-wrap gap-2">
+          {% for radio in form.rating %}
+            <label class="cursor-pointer select-none">
+              <input type="radio" name="{{ form.rating.html_name }}" value="{{ radio.choice_value }}"
+                {% if radio.choice_value|stringformat:"s" == form.rating.value|stringformat:"s" %}checked{% endif %}
+                class="peer sr-only">
+              <span class="inline-flex items-center gap-1 px-3 py-2 rounded-lg surface-soft border border-zinc-700 peer-checked:border-jheliz-400 peer-checked:bg-jheliz-500/10 peer-checked:text-jheliz-300 transition">
+                {{ radio.choice_label }}
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+        {% if form.rating.errors %}<p class="text-xs text-rose-400 mt-1">{{ form.rating.errors|join:", " }}</p>{% endif %}
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">{{ form.author_name.label }}</label>
+          {{ form.author_name|add_class:"field" }}
+          {% if form.author_name.errors %}<p class="text-xs text-rose-400 mt-1">{{ form.author_name.errors|join:", " }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">{{ form.city.label }}</label>
+          {{ form.city|add_class:"field" }}
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">{{ form.title.label }}</label>
+        {{ form.title|add_class:"field" }}
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">{{ form.comment.label }}</label>
+        {{ form.comment|add_class:"field" }}
+        {% if form.comment.errors %}<p class="text-xs text-rose-400 mt-1">{{ form.comment.errors|join:", " }}</p>{% endif %}
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5">{{ form.photo.label }}</label>
+        {{ form.photo }}
+        <p class="text-xs text-zinc-500 mt-1">Opcional. Captura de pantalla o foto de la cuenta funcionando. Máx. 2 MB.</p>
+        {% if form.photo.errors %}<p class="text-xs text-rose-400 mt-1">{{ form.photo.errors|join:", " }}</p>{% endif %}
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg btn-block">
+        Publicar reseña
+      </button>
+
+      <p class="text-xs text-zinc-500 text-center">
+        Tu reseña pasa por una revisión rápida antes de aparecer públicamente.
+      </p>
+    </form>
+  </div>
+</section>
+{% endblock %}

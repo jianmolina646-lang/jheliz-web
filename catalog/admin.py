@@ -12,6 +12,8 @@ from .models import (
     DistributorPlan,
     Plan,
     Product,
+    ProductReview,
+    PromoBanner,
     StockItem,
     Testimonial,
 )
@@ -361,3 +363,86 @@ class TestimonialAdmin(ModelAdmin):
         (None, {"fields": ("author", "city", "rating", "text", "product")}),
         ("Publicación", {"fields": ("is_published", "order")}),
     )
+
+
+@admin.register(ProductReview)
+class ProductReviewAdmin(ModelAdmin):
+    list_display = (
+        "author_name", "product", "rating_display", "is_verified",
+        "status", "has_photo", "created_at",
+    )
+    list_filter = ("status", "is_verified", "rating", "created_at")
+    search_fields = ("author_name", "email", "comment", "title", "product__name")
+    list_editable = ("status",)
+    autocomplete_fields = ("product", "user", "order")
+    readonly_fields = ("token", "token_used_at", "created_at", "updated_at")
+    actions = ("approve_reviews", "reject_reviews")
+    fieldsets = (
+        ("Reseña", {
+            "fields": (
+                "product", "author_name", "city", "email",
+                "rating", "title", "comment", "photo",
+            ),
+        }),
+        ("Verificación y moderación", {
+            "fields": (
+                "order", "user", "is_verified",
+                "status", "moderation_notes",
+            ),
+        }),
+        ("Metadata", {
+            "classes": ("collapse",),
+            "fields": ("token", "token_used_at", "created_at", "updated_at"),
+        }),
+    )
+
+    @display(description="Estrellas")
+    def rating_display(self, obj):
+        return "★" * obj.rating + "☆" * (5 - obj.rating)
+
+    @display(description="Foto", boolean=True)
+    def has_photo(self, obj):
+        return bool(obj.photo)
+
+    @admin.action(description="Aprobar reseñas seleccionadas")
+    def approve_reviews(self, request, queryset):
+        n = queryset.update(status=ProductReview.Status.APPROVED)
+        self.message_user(request, f"{n} reseña(s) aprobadas.", level=messages.SUCCESS)
+
+    @admin.action(description="Rechazar reseñas seleccionadas")
+    def reject_reviews(self, request, queryset):
+        n = queryset.update(status=ProductReview.Status.REJECTED)
+        self.message_user(request, f"{n} reseña(s) rechazadas.", level=messages.WARNING)
+
+
+@admin.register(PromoBanner)
+class PromoBannerAdmin(ModelAdmin):
+    list_display = (
+        "name", "text_preview", "style", "is_active",
+        "starts_at", "ends_at", "is_currently_active_display", "order",
+    )
+    list_filter = ("is_active", "style", "show_only_on_home")
+    list_editable = ("is_active", "order")
+    search_fields = ("name", "text", "coupon_code")
+    fieldsets = (
+        ("Contenido", {
+            "fields": ("name", "text", "style"),
+        }),
+        ("Llamada a la acción", {
+            "fields": ("cta_label", "cta_url", "coupon_code", "countdown_to"),
+        }),
+        ("Programación", {
+            "fields": (
+                "is_active", "starts_at", "ends_at",
+                "show_only_on_home", "order",
+            ),
+        }),
+    )
+
+    @display(description="Texto")
+    def text_preview(self, obj):
+        return (obj.text[:60] + "…") if len(obj.text) > 60 else obj.text
+
+    @display(description="En vivo", boolean=True)
+    def is_currently_active_display(self, obj):
+        return obj.is_currently_active

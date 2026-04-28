@@ -16,4 +16,6 @@ urlpatterns = [
     path("garantia/", views.warranty, name="warranty"),
     path("preguntas-frecuentes/", seo_views.faq, name="faq"),
     path("estado/", seo_views.status_page, name="status"),
+    path("resena/gracias/", views.review_thanks, name="review_thanks"),
+    path("resena/<str:token>/", views.submit_review, name="review_submit"),
 ]

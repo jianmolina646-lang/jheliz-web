@@ -1,7 +1,10 @@
+import secrets
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.text import slugify
 
 
@@ -118,6 +121,34 @@ class Product(models.Model):
     def available_stock(self) -> int:
         return sum(p.available_stock for p in self.plans.all())
 
+    @property
+    def low_stock_threshold(self) -> int:
+        """M\u00e1ximo umbral de stock bajo entre los planes del producto.
+
+        Sirve como gatillo para mostrar el badge de urgencia en la tarjeta
+        del producto. Si ning\u00fan plan define umbral, usa 5 por defecto.
+        """
+        thresholds = [p.low_stock_threshold for p in self.plans.all() if p.low_stock_threshold]
+        return max(thresholds) if thresholds else 5
+
+    @property
+    def is_low_stock(self) -> bool:
+        """True si queda poco stock disponible (gatilla badge de urgencia)."""
+        stock = self.available_stock
+        return 0 < stock <= self.low_stock_threshold
+
+    @property
+    def stock_urgency_level(self) -> str:
+        """`critical` (\u22642), `low` (\u22645), o `''` si hay holgura."""
+        stock = self.available_stock
+        if stock <= 0:
+            return ""
+        if stock <= 2:
+            return "critical"
+        if stock <= self.low_stock_threshold:
+            return "low"
+        return ""
+
 
 class Plan(models.Model):
     """Variante de un producto: duraci\u00f3n y precio."""
@@ -162,6 +193,11 @@ class Plan(models.Model):
     @property
     def available_stock(self) -> int:
         return self.stock_items.filter(status=StockItem.Status.AVAILABLE).count()
+
+    @property
+    def is_low_stock(self) -> bool:
+        stock = self.available_stock
+        return 0 < stock <= (self.low_stock_threshold or 0)
 
 
 class CustomerPlan(Plan):
@@ -241,3 +277,174 @@ class Testimonial(models.Model):
 
     def __str__(self) -> str:
         return f"{self.author} ({self.rating}★)"
+
+
+def _generate_review_token() -> str:
+    return secrets.token_urlsafe(24)
+
+
+class ProductReview(models.Model):
+    """Reseña enviada por un cliente con compra verificada.
+
+    Se crea v\u00eda link m\u00e1gico que se manda por correo cuando el pedido
+    pasa a *Entregado*. El cliente puede subir una foto opcional. Las rese\u00f1as
+    pasan por moderaci\u00f3n antes de mostrarse en la ficha de producto.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pendiente moderaci\u00f3n"
+        APPROVED = "approved", "Aprobada"
+        REJECTED = "rejected", "Rechazada"
+
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="reviews",
+        verbose_name="Producto",
+    )
+    order = models.ForeignKey(
+        "orders.Order", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="reviews", verbose_name="Pedido",
+        help_text="Pedido que origin\u00f3 la rese\u00f1a (verificaci\u00f3n).",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="reviews",
+    )
+    author_name = models.CharField("Nombre", max_length=80)
+    email = models.EmailField("Correo", blank=True)
+    city = models.CharField("Ciudad", max_length=80, blank=True, default="")
+    rating = models.PositiveSmallIntegerField(
+        "Estrellas", default=5,
+        choices=[(i, f"{i} \u2605") for i in range(1, 6)],
+    )
+    title = models.CharField("T\u00edtulo", max_length=120, blank=True)
+    comment = models.TextField("Comentario")
+    photo = models.ImageField(
+        "Foto", upload_to="reviews/", blank=True, null=True,
+        help_text="Captura o foto opcional (m\u00e1x. ~2MB).",
+    )
+    is_verified = models.BooleanField(
+        "Compra verificada", default=False,
+        help_text="True si la rese\u00f1a est\u00e1 ligada a un pedido entregado.",
+    )
+    status = models.CharField(
+        "Estado", max_length=12, choices=Status.choices, default=Status.PENDING,
+        db_index=True,
+    )
+    moderation_notes = models.TextField("Notas internas", blank=True)
+    token = models.CharField(
+        "Token", max_length=48, unique=True, default=_generate_review_token,
+        editable=False,
+        help_text="Token \u00fanico para el link m\u00e1gico de env\u00edo.",
+    )
+    token_used_at = models.DateTimeField(null=True, blank=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Rese\u00f1a verificada"
+        verbose_name_plural = "Rese\u00f1as verificadas"
+        indexes = [
+            models.Index(fields=["product", "status"], name="review_prod_status_idx"),
+            models.Index(fields=["status", "-created_at"], name="review_status_created_idx"),
+        ]
+
+    def __str__(self) -> str:
+        verified = " \u2713" if self.is_verified else ""
+        return f"{self.author_name} ({self.rating}\u2605) \u2014 {self.product.name}{verified}"
+
+    def get_absolute_url(self) -> str:
+        return reverse("catalog:review_submit", args=[self.token])
+
+    def mark_used(self) -> None:
+        if self.token_used_at is None:
+            self.token_used_at = timezone.now()
+            self.save(update_fields=["token_used_at"])
+
+
+class PromoBanner(models.Model):
+    """Banner promocional editable que se muestra arriba del header.
+
+    El admin puede programar fechas, color, texto y c\u00f3digo de cup\u00f3n.
+    Se oculta autom\u00e1ticamente cuando expira.
+    """
+
+    class Style(models.TextChoices):
+        PINK = "pink", "Rosa Jheliz (recomendado)"
+        DARK = "dark", "Negro"
+        AMBER = "amber", "\u00c1mbar / oferta"
+        EMERALD = "emerald", "Verde / nuevo"
+        SLATE = "slate", "Gris claro"
+
+    name = models.CharField(
+        "Nombre interno", max_length=80,
+        help_text="Solo para identificarlo en el admin, ej: 'Black Friday 2026'.",
+    )
+    text = models.CharField(
+        "Texto", max_length=180,
+        help_text="Texto principal del banner. Soporta emojis.",
+    )
+    coupon_code = models.CharField(
+        "C\u00f3digo de cup\u00f3n", max_length=40, blank=True,
+        help_text="Si se llena, se muestra un bot\u00f3n 'Copiar c\u00f3digo'.",
+    )
+    cta_label = models.CharField(
+        "Texto del bot\u00f3n", max_length=40, blank=True, default="Ver ofertas",
+    )
+    cta_url = models.CharField(
+        "URL del bot\u00f3n", max_length=200, blank=True,
+        help_text="Ruta relativa (ej. /productos/) o URL completa.",
+    )
+    countdown_to = models.DateTimeField(
+        "Cuenta regresiva hasta", null=True, blank=True,
+        help_text="Si se llena, se muestra un contador. Suele coincidir con 'Termina'.",
+    )
+    style = models.CharField(
+        "Estilo", max_length=10, choices=Style.choices, default=Style.PINK,
+    )
+    is_active = models.BooleanField("Activo", default=True)
+    starts_at = models.DateTimeField(
+        "Empieza", null=True, blank=True,
+        help_text="Vac\u00edo = empieza inmediatamente.",
+    )
+    ends_at = models.DateTimeField(
+        "Termina", null=True, blank=True,
+        help_text="Vac\u00edo = sin fecha de fin (siempre visible mientras est\u00e9 activo).",
+    )
+    show_only_on_home = models.BooleanField(
+        "Solo en la p\u00e1gina de inicio", default=False,
+        help_text="Si lo desactivas, se muestra en todas las p\u00e1ginas.",
+    )
+    order = models.PositiveIntegerField("Orden", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("order", "-created_at")
+        verbose_name = "Banner promocional"
+        verbose_name_plural = "Banners promocionales"
+
+    def __str__(self) -> str:
+        return self.name
+
+    @property
+    def is_currently_active(self) -> bool:
+        if not self.is_active:
+            return False
+        now = timezone.now()
+        if self.starts_at and self.starts_at > now:
+            return False
+        if self.ends_at and self.ends_at <= now:
+            return False
+        return True
+
+    @classmethod
+    def get_active(cls, *, on_home: bool = False) -> "PromoBanner | None":
+        """Devuelve el banner activo de mayor prioridad para esta vista."""
+        now = timezone.now()
+        qs = cls.objects.filter(is_active=True)
+        qs = qs.filter(models.Q(starts_at__isnull=True) | models.Q(starts_at__lte=now))
+        qs = qs.filter(models.Q(ends_at__isnull=True) | models.Q(ends_at__gt=now))
+        if not on_home:
+            qs = qs.filter(show_only_on_home=False)
+        return qs.order_by("order", "-created_at").first()
