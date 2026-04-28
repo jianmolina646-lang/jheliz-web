@@ -191,7 +191,17 @@ class OrderAdmin(ExportMixin, ModelAdmin):
 
     @display(description="Cliente")
     def display_customer(self, obj: Order):
+        from urllib.parse import quote as _q
         name = (obj.user.get_full_name() if obj.user else "") or obj.email or obj.phone or "—"
+        if obj.email:
+            link = f"/jheliz-admin/customers/{_q(obj.email, safe='')}/"
+            return format_html(
+                '<div style="line-height:1.2">'
+                '<div><a href="{}" title="Ver vista 360°" style="color:inherit;border-bottom:1px dotted #f472b6">{}</a></div>'
+                '<div style="font-size:11px;color:#94a3b8">{}</div>'
+                '</div>',
+                link, name, obj.email,
+            )
         return format_html(
             '<div style="line-height:1.2">'
             '<div>{}</div>'
