@@ -15,7 +15,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import connection, transaction
-from django.db.models import Count, Max, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -736,3 +736,199 @@ def stock_quick_action(request, item_id: int):
         messages.error(request, f"Acción desconocida: {action}")
 
     return redirect(next_url)
+
+
+# ---------------------------------------------------------------------------
+# Customer 360° (Pack-F)
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def customer_index(request):
+    """Listado de clientes (por email único) ordenados por gasto total.
+
+    Es el punto de entrada a la vista 360°. Combina pedidos pagados con
+    su cliente derivado del email (o del FK user si está vinculado).
+    """
+    from orders.models import Order
+
+    paid_statuses = (
+        Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+    )
+    q = (request.GET.get("q") or "").strip()
+
+    rows = (
+        Order.objects.exclude(email="")
+        .values("email")
+        .annotate(
+            orders_count=Count("id"),
+            spent=Sum("total", filter=Q(status__in=paid_statuses)),
+            last_at=Max("created_at"),
+        )
+        .order_by("-spent", "-last_at")
+    )
+    if q:
+        rows = rows.filter(email__icontains=q)
+    rows = list(rows[:200])
+
+    for r in rows:
+        r["spent"] = r["spent"] or Decimal("0")
+
+    ctx = _admin_context(
+        request,
+        title="Clientes 360°",
+        customers=rows,
+        q=q,
+    )
+    return render(request, "admin/customer_index.html", ctx)
+
+
+@staff_member_required
+def customer_detail(request, email: str):
+    """Vista 360° del cliente: timeline + stats + acciones rápidas."""
+    from catalog.models import ProductReview
+    from orders.models import Order, EmailLog
+    from support.models import Ticket
+
+    paid_statuses = (
+        Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+    )
+
+    email = (email or "").strip().lower()
+    if not email:
+        messages.error(request, "Email vacío.")
+        return redirect("admin_customer_index")
+
+    orders = (
+        Order.objects.filter(email__iexact=email)
+        .order_by("-created_at")
+        .prefetch_related("items__product", "items__plan")
+    )
+    if not orders.exists():
+        messages.warning(request, f"No encontramos pedidos con el email {email}.")
+        return redirect("admin_customer_index")
+
+    # Ticket no tiene campo email — se busca por user.email del FK.
+    tickets = (
+        Ticket.objects.filter(user__email__iexact=email)
+        .select_related("user", "order")
+        .order_by("-created_at")
+    )
+    reviews = ProductReview.objects.filter(email__iexact=email).order_by("-created_at")
+    emails_log = EmailLog.objects.filter(to_email__iexact=email).order_by("-sent_at")[:50]
+
+    # Stats
+    paid_orders = orders.filter(status__in=paid_statuses)
+    total_spent = paid_orders.aggregate(s=Sum("total"))["s"] or Decimal("0")
+    orders_count = orders.count()
+    delivered_count = orders.filter(status=Order.Status.DELIVERED).count()
+    last_order = orders.first()
+    last_paid_at = paid_orders.aggregate(m=Max("paid_at"))["m"]
+    days_since = (
+        (timezone.now() - last_paid_at).days if last_paid_at else None
+    )
+
+    # Producto favorito (más comprado)
+    fav = (
+        Order.objects.filter(email__iexact=email, items__product__isnull=False)
+        .values("items__product__name")
+        .annotate(c=Count("items"))
+        .order_by("-c")
+        .first()
+    )
+    favorite_product = fav["items__product__name"] if fav else None
+
+    # Datos de contacto agregados (último pedido manda)
+    first_name = ""
+    phone = ""
+    user_id = None
+    if last_order:
+        phone = last_order.phone or ""
+        if last_order.user:
+            user_id = last_order.user_id
+            first_name = last_order.user.first_name or last_order.user.username
+
+    # Timeline unificada
+    timeline = []
+    for o in orders:
+        timeline.append({
+            "kind": "order",
+            "icon": "shopping_bag",
+            "color": _ORDER_COLORS.get(o.status, "#94a3b8"),
+            "when": o.created_at,
+            "title": f"Pedido #{o.short_uuid} — {o.get_status_display()}",
+            "detail": f"{o.currency} {o.total} · {o.channel}",
+            "link": reverse("admin:orders_order_change", args=[o.pk]),
+        })
+    for t in tickets:
+        timeline.append({
+            "kind": "ticket",
+            "icon": "support_agent",
+            "color": "#06b6d4",
+            "when": t.created_at,
+            "title": f"Ticket: {t.subject}",
+            "detail": t.get_status_display() if hasattr(t, "get_status_display") else "",
+            "link": reverse("admin:support_ticket_change", args=[t.pk]),
+        })
+    for r in reviews:
+        timeline.append({
+            "kind": "review",
+            "icon": "star",
+            "color": "#f59e0b",
+            "when": r.created_at,
+            "title": f"Reseña ({r.rating}★) — {r.product.name}",
+            "detail": (r.body or "")[:120],
+            "link": reverse("admin:catalog_productreview_change", args=[r.pk]),
+        })
+    for e in emails_log:
+        timeline.append({
+            "kind": "email",
+            "icon": "mail",
+            "color": "#a78bfa",
+            "when": e.sent_at,
+            "title": f"Correo: {e.subject}",
+            "detail": e.get_kind_display() if hasattr(e, "get_kind_display") else e.kind,
+            "link": reverse("admin:orders_emaillog_change", args=[e.pk]),
+        })
+    timeline.sort(key=lambda x: x["when"], reverse=True)
+
+    whatsapp_url = ""
+    if phone:
+        clean = "".join(ch for ch in phone if ch.isdigit())
+        if clean:
+            from urllib.parse import quote
+            msg = quote(f"Hola! Te escribimos de Jheliz. Vimos tu compra y queremos saber cómo te ha ido.")
+            whatsapp_url = f"https://wa.me/{clean}?text={msg}"
+
+    ctx = _admin_context(
+        request,
+        title=f"Cliente 360° — {email}",
+        customer_email=email,
+        customer_first_name=first_name,
+        customer_phone=phone,
+        customer_user_id=user_id,
+        whatsapp_url=whatsapp_url,
+        total_spent=total_spent,
+        orders_count=orders_count,
+        delivered_count=delivered_count,
+        last_paid_at=last_paid_at,
+        days_since=days_since,
+        favorite_product=favorite_product,
+        orders=orders,
+        tickets=tickets,
+        reviews=reviews,
+        emails_log=emails_log,
+        timeline=timeline,
+        last_order=last_order,
+    )
+    return render(request, "admin/customer_360.html", ctx)
+
+
+_ORDER_COLORS = {
+    "pending":   "#f59e0b",
+    "verifying": "#f97316",
+    "paid":      "#22d3ee",
+    "preparing": "#a78bfa",
+    "delivered": "#10b981",
+    "cancelled": "#ef4444",
+    "refunded":  "#94a3b8",
+}

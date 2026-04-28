@@ -239,6 +239,11 @@ UNFOLD = {
                         "link": "/jheliz-admin/stock/",
                     },
                     {
+                        "title": "Clientes 360°",
+                        "icon": "groups",
+                        "link": "/jheliz-admin/customers/",
+                    },
+                    {
                         "title": "Estado de servicios",
                         "icon": "health_and_safety",
                         "link": "/jheliz-admin/health/",
