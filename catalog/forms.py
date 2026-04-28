@@ -42,3 +42,68 @@ class ProductReviewForm(forms.ModelForm):
         if len(comment) < 10:
             raise forms.ValidationError("Cu\u00e9ntanos un poquito m\u00e1s (m\u00ednimo 10 caracteres).")
         return comment
+
+
+class ReclamacionForm(forms.ModelForm):
+    """Formulario público del Libro de Reclamaciones (Indecopi).
+
+    Validaciones extra:
+    - Si es_menor=True → padre_nombre y padre_documento son obligatorios.
+    - documento_numero formato básico (DNI 8 dígitos numéricos).
+    """
+
+    declaracion_jurada = forms.BooleanField(
+        label=("Declaro bajo juramento que la información proporcionada es "
+               "verdadera y autorizo el tratamiento de mis datos para "
+               "atender este reclamo (Ley 29733)."),
+        required=True,
+    )
+
+    class Meta:
+        from .models import Reclamacion
+        model = Reclamacion
+        fields = (
+            "nombre", "documento_tipo", "documento_numero",
+            "domicilio", "telefono", "email",
+            "es_menor", "padre_nombre", "padre_documento",
+            "tipo_bien", "monto", "descripcion_bien", "pedido_referencia",
+            "tipo", "detalle", "pedido_consumidor",
+        )
+        widgets = {
+            "detalle": forms.Textarea(attrs={
+                "rows": 5,
+                "placeholder": "Describe lo que sucedió. Sé claro/a y específico/a.",
+            }),
+            "pedido_consumidor": forms.Textarea(attrs={
+                "rows": 3,
+                "placeholder": "Ej. Solicito reposición de la cuenta o devolución del importe pagado.",
+            }),
+            "descripcion_bien": forms.TextInput(attrs={
+                "placeholder": "Ej. Cuenta Netflix Premium 1 mes",
+            }),
+            "pedido_referencia": forms.TextInput(attrs={
+                "placeholder": "Ej. AB12CD (opcional)",
+            }),
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("es_menor"):
+            if not cleaned.get("padre_nombre"):
+                self.add_error(
+                    "padre_nombre",
+                    "Si eres menor de edad, este campo es obligatorio.",
+                )
+            if not cleaned.get("padre_documento"):
+                self.add_error(
+                    "padre_documento",
+                    "Si eres menor de edad, este campo es obligatorio.",
+                )
+        doc_tipo = cleaned.get("documento_tipo")
+        doc_num = (cleaned.get("documento_numero") or "").strip()
+        if doc_tipo == "DNI" and doc_num and (not doc_num.isdigit() or len(doc_num) != 8):
+            self.add_error(
+                "documento_numero",
+                "El DNI peruano debe tener exactamente 8 dígitos.",
+            )
+        return cleaned

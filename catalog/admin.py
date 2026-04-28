@@ -14,6 +14,7 @@ from .models import (
     Product,
     ProductReview,
     PromoBanner,
+    Reclamacion,
     SiteSettings,
     StockItem,
     Testimonial,
@@ -645,3 +646,89 @@ class SiteSettingsAdmin(ModelAdmin):
         from django.shortcuts import redirect
         from django.urls import reverse as _reverse
         return redirect(_reverse("admin:catalog_sitesettings_change", args=[obj.pk]))
+
+
+@admin.register(Reclamacion)
+class ReclamacionAdmin(ModelAdmin):
+    """Libro de Reclamaciones digital (Indecopi).
+
+    Las reclamaciones son inmutables (no editables salvo el estado y la
+    respuesta). Mantenemos un registro auditable.
+    """
+
+    list_display = (
+        "numero", "display_cliente", "tipo", "estado",
+        "display_dias_restantes", "created_at",
+    )
+    list_filter = ("estado", "tipo", "tipo_bien", "created_at")
+    search_fields = ("numero", "nombre", "email", "documento_numero", "telefono")
+    date_hierarchy = "created_at"
+    readonly_fields = (
+        "numero", "nombre", "documento_tipo", "documento_numero",
+        "domicilio", "telefono", "email",
+        "es_menor", "padre_nombre", "padre_documento",
+        "tipo_bien", "monto", "descripcion_bien", "pedido_referencia",
+        "tipo", "detalle", "pedido_consumidor",
+        "ip_address", "user_agent", "created_at",
+    )
+    fieldsets = (
+        ("Identificación", {
+            "fields": ("numero", "created_at", "estado"),
+        }),
+        ("Datos del consumidor", {
+            "fields": (
+                "nombre", ("documento_tipo", "documento_numero"),
+                "domicilio", ("telefono", "email"),
+                ("es_menor", "padre_nombre", "padre_documento"),
+            ),
+        }),
+        ("Bien contratado", {
+            "fields": (
+                ("tipo_bien", "monto"),
+                "descripcion_bien", "pedido_referencia",
+            ),
+        }),
+        ("Reclamo", {
+            "fields": ("tipo", "detalle", "pedido_consumidor"),
+        }),
+        ("Respuesta del proveedor", {
+            "fields": ("respuesta", "respondido_en"),
+        }),
+        ("Auditoría", {
+            "classes": ("collapse",),
+            "fields": ("ip_address", "user_agent"),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False  # Solo se crean por el formulario público
+
+    def has_delete_permission(self, request, obj=None):
+        return False  # Inmutables (Indecopi exige conservación)
+
+    @display(description="Cliente")
+    def display_cliente(self, obj: Reclamacion):
+        return format_html(
+            '<div style="line-height:1.2"><div>{}</div>'
+            '<div style="font-size:11px;color:#94a3b8">{}</div></div>',
+            obj.nombre, obj.email,
+        )
+
+    @display(description="Vence en")
+    def display_dias_restantes(self, obj: Reclamacion):
+        d = obj.dias_restantes
+        if obj.estado in ("respondido", "cerrado"):
+            color = "#94a3b8"
+            txt = "—"
+        elif d == 0:
+            color = "#ef4444"
+            txt = "VENCIDO"
+        elif d <= 3:
+            color = "#f59e0b"
+            txt = f"{d}d"
+        else:
+            color = "#10b981"
+            txt = f"{d}d"
+        return format_html(
+            '<span style="color:{};font-weight:600">{}</span>', color, txt,
+        )

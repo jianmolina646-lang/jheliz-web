@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Libro de Reclamaciones — {{ SITE_NAME }}{% endblock %}
+{% block meta_description %}Libro de Reclamaciones digital de {{ SITE_NAME }}. Conforme al Código de Protección y Defensa del Consumidor (Ley 29571).{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl">
+  <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Indecopi</p>
+  <h1 class="font-display text-3xl md:text-5xl font-bold tracking-tight mt-1">📕 Libro de Reclamaciones</h1>
+  <p class="text-zinc-400 mt-3 text-lg leading-relaxed">
+    Conforme al <strong>Código de Protección y Defensa del Consumidor (Ley 29571)</strong> y al <strong>D.S. 011-2011-PCM</strong>.
+  </p>
+
+  <div class="mt-6 rounded-xl border border-amber-400/30 bg-amber-500/5 p-4 text-amber-200/90 text-sm">
+    <p>📌 <strong>Importante:</strong> el plazo máximo de respuesta del proveedor es de <strong>30 días calendario</strong> desde la presentación. La respuesta se enviará al correo que indiques.</p>
+  </div>
+
+  <form method="post" class="mt-8 surface rounded-2xl p-6 md:p-8 space-y-6">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+    <div class="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-200">
+      {{ form.non_field_errors }}
+    </div>
+    {% endif %}
+
+    <fieldset class="space-y-4">
+      <legend class="text-sm font-semibold uppercase tracking-wider text-zinc-300">1. Datos del consumidor</legend>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="text-xs text-zinc-400">Nombre completo *</label>
+          {{ form.nombre|safe }}
+          {% if form.nombre.errors %}<p class="text-xs text-red-300 mt-1">{{ form.nombre.errors|join:" " }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="text-xs text-zinc-400">Tipo de documento *</label>
+          {{ form.documento_tipo|safe }}
+        </div>
+        <div>
+          <label class="text-xs text-zinc-400">Número de documento *</label>
+          {{ form.documento_numero|safe }}
+          {% if form.documento_numero.errors %}<p class="text-xs text-red-300 mt-1">{{ form.documento_numero.errors|join:" " }}</p>{% endif %}
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-xs text-zinc-400">Domicilio</label>
+          {{ form.domicilio|safe }}
+        </div>
+        <div>
+          <label class="text-xs text-zinc-400">Teléfono *</label>
+          {{ form.telefono|safe }}
+          {% if form.telefono.errors %}<p class="text-xs text-red-300 mt-1">{{ form.telefono.errors|join:" " }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="text-xs text-zinc-400">Correo electrónico *</label>
+          {{ form.email|safe }}
+          {% if form.email.errors %}<p class="text-xs text-red-300 mt-1">{{ form.email.errors|join:" " }}</p>{% endif %}
+        </div>
+      </div>
+
+      <label class="flex items-start gap-2 text-sm text-zinc-300 cursor-pointer">
+        {{ form.es_menor|safe }}
+        <span>Soy menor de edad</span>
+      </label>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs text-zinc-400">Nombre del padre / madre / representante</label>
+          {{ form.padre_nombre|safe }}
+          {% if form.padre_nombre.errors %}<p class="text-xs text-red-300 mt-1">{{ form.padre_nombre.errors|join:" " }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="text-xs text-zinc-400">Documento del representante</label>
+          {{ form.padre_documento|safe }}
+          {% if form.padre_documento.errors %}<p class="text-xs text-red-300 mt-1">{{ form.padre_documento.errors|join:" " }}</p>{% endif %}
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="space-y-4 border-t border-zinc-800 pt-5">
+      <legend class="text-sm font-semibold uppercase tracking-wider text-zinc-300">2. Identificación del bien contratado</legend>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs text-zinc-400">Tipo de bien *</label>
+          {{ form.tipo_bien|safe }}
+        </div>
+        <div>
+          <label class="text-xs text-zinc-400">Monto reclamado (S/)</label>
+          {{ form.monto|safe }}
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-xs text-zinc-400">Descripción del producto / servicio *</label>
+          {{ form.descripcion_bien|safe }}
+          {% if form.descripcion_bien.errors %}<p class="text-xs text-red-300 mt-1">{{ form.descripcion_bien.errors|join:" " }}</p>{% endif %}
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-xs text-zinc-400">N° de pedido (si aplica)</label>
+          {{ form.pedido_referencia|safe }}
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="space-y-4 border-t border-zinc-800 pt-5">
+      <legend class="text-sm font-semibold uppercase tracking-wider text-zinc-300">3. Detalle del reclamo o queja</legend>
+      <div>
+        <label class="text-xs text-zinc-400">Tipo *</label>
+        {{ form.tipo|safe }}
+        {% if form.tipo.errors %}<p class="text-xs text-red-300 mt-1">{{ form.tipo.errors|join:" " }}</p>{% endif %}
+        <p class="mt-1 text-xs text-zinc-500"><strong>Reclamo:</strong> disconformidad con el producto/servicio. <strong>Queja:</strong> disconformidad con la atención.</p>
+      </div>
+      <div>
+        <label class="text-xs text-zinc-400">Detalle *</label>
+        {{ form.detalle|safe }}
+        {% if form.detalle.errors %}<p class="text-xs text-red-300 mt-1">{{ form.detalle.errors|join:" " }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="text-xs text-zinc-400">Pedido del consumidor *</label>
+        {{ form.pedido_consumidor|safe }}
+        {% if form.pedido_consumidor.errors %}<p class="text-xs text-red-300 mt-1">{{ form.pedido_consumidor.errors|join:" " }}</p>{% endif %}
+      </div>
+    </fieldset>
+
+    <div class="border-t border-zinc-800 pt-5">
+      <label class="flex items-start gap-3 text-sm text-zinc-200 cursor-pointer">
+        {{ form.declaracion_jurada|safe }}
+        <span>{{ form.declaracion_jurada.label }}</span>
+      </label>
+      {% if form.declaracion_jurada.errors %}<p class="text-xs text-red-300 mt-1">{{ form.declaracion_jurada.errors|join:" " }}</p>{% endif %}
+    </div>
+
+    <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-jheliz-500 hover:bg-jheliz-400 text-white font-semibold transition shadow-lg">
+      Enviar reclamación
+    </button>
+  </form>
+
+  <div class="mt-8 text-sm text-zinc-400">
+    <p>Si prefieres consultar primero, escríbenos por <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="text-jheliz-400 hover:text-jheliz-300 underline">WhatsApp</a> o a <a href="mailto:ventas@jhelizservicestv.xyz" class="text-jheliz-400 hover:text-jheliz-300 underline">ventas@jhelizservicestv.xyz</a> — muchas veces se resuelve en minutos.</p>
+  </div>
+</section>
+
+<style>
+  /* Auto-style del formulario sin tener que tocar widgets de Django uno por uno */
+  form input[type="text"],
+  form input[type="email"],
+  form input[type="tel"],
+  form input[type="number"],
+  form select,
+  form textarea {
+    width: 100%;
+    background: rgba(24,24,27,0.6);
+    border: 1px solid rgba(63,63,70,0.6);
+    color: #fafafa;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  form input:focus, form select:focus, form textarea:focus {
+    outline: none;
+    border-color: rgba(244,114,182,0.6);
+    box-shadow: 0 0 0 3px rgba(244,114,182,0.2);
+  }
+  form input[type="checkbox"] {
+    width: 18px; height: 18px;
+    accent-color: #f472b6;
+    margin-top: 2px;
+  }
+</style>
+{% endblock %}

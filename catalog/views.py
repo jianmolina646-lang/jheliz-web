@@ -339,3 +339,105 @@ def terms(request):
 
 def warranty(request):
     return render(request, "catalog/warranty.html", {})
+
+
+def privacy(request):
+    """Política de privacidad y protección de datos personales (Ley 29733)."""
+    return render(request, "catalog/privacy.html", {})
+
+
+def cookies_policy(request):
+    """Política de cookies."""
+    return render(request, "catalog/cookies.html", {})
+
+
+def reclamaciones(request):
+    """Libro de reclamaciones digital (Indecopi).
+
+    GET → muestra el formulario público.
+    POST → valida, guarda, envía email al cliente y al admin, muestra confirmación.
+    """
+    from .forms import ReclamacionForm
+    from .models import Reclamacion
+
+    if request.method == "POST":
+        form = ReclamacionForm(request.POST)
+        if form.is_valid():
+            obj: Reclamacion = form.save(commit=False)
+            obj.ip_address = (
+                request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
+                or request.META.get("REMOTE_ADDR")
+            )
+            obj.user_agent = request.META.get("HTTP_USER_AGENT", "")[:300]
+            obj.save()
+            try:
+                _send_reclamacion_emails(obj)
+            except Exception:
+                pass
+            return render(
+                request, "catalog/reclamaciones_ok.html",
+                {"reclamacion": obj},
+            )
+    else:
+        initial = {}
+        if request.user.is_authenticated:
+            initial["nombre"] = request.user.get_full_name() or request.user.username
+            initial["email"] = request.user.email
+        form = ReclamacionForm(initial=initial)
+    return render(
+        request, "catalog/reclamaciones.html",
+        {"form": form},
+    )
+
+
+def _send_reclamacion_emails(obj):
+    """Manda copia al cliente y notifica al admin."""
+    from django.conf import settings as dj_settings
+    from django.core.mail import EmailMultiAlternatives
+    from django.template.loader import render_to_string
+
+    site_name = "Jheliz"
+    subject = f"Confirmación reclamación #{obj.numero} — {site_name}"
+    ctx = {"reclamacion": obj, "site_name": site_name}
+
+    # Email al cliente
+    try:
+        body = render_to_string("emails/reclamacion_recibida.txt", ctx)
+        html = render_to_string("emails/reclamacion_recibida.html", ctx)
+    except Exception:
+        body = (
+            f"Hola {obj.nombre},\n\n"
+            f"Recibimos tu reclamación #{obj.numero}. "
+            f"Tenemos hasta 30 días calendario para responder.\n\n"
+            f"Detalle: {obj.detalle}\n\n"
+            f"Gracias.\n{site_name}"
+        )
+        html = body.replace("\n", "<br>")
+    msg = EmailMultiAlternatives(
+        subject, body,
+        getattr(dj_settings, "DEFAULT_FROM_EMAIL", "ventas@jhelizservicestv.xyz"),
+        [obj.email],
+    )
+    msg.attach_alternative(html, "text/html")
+    msg.send(fail_silently=True)
+
+    # Email al admin
+    admin_email = getattr(dj_settings, "DEFAULT_FROM_EMAIL", None)
+    if admin_email:
+        admin_msg = (
+            f"Nueva reclamación recibida:\n\n"
+            f"Número: {obj.numero}\n"
+            f"Cliente: {obj.nombre} ({obj.email}, {obj.telefono})\n"
+            f"Tipo: {obj.get_tipo_display()}\n"
+            f"Monto: {obj.monto or '—'}\n"
+            f"Pedido: {obj.pedido_referencia or '—'}\n\n"
+            f"Detalle:\n{obj.detalle}\n\n"
+            f"Pedido del consumidor:\n{obj.pedido_consumidor}\n\n"
+            f"Vence: {obj.vence_at.strftime('%d/%m/%Y')}"
+        )
+        EmailMultiAlternatives(
+            f"[Reclamación nueva] #{obj.numero} — {obj.nombre}",
+            admin_msg,
+            admin_email,
+            [admin_email],
+        ).send(fail_silently=True)
