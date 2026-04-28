@@ -119,7 +119,13 @@ class Product(models.Model):
 
     @property
     def available_stock(self) -> int:
-        return sum(p.available_stock for p in self.plans.all())
+        """Cuenta TODOS los stock items disponibles del producto.
+
+        Incluye tanto stock atado a un plan espec\u00edfico como stock gen\u00e9rico
+        (sin plan), porque a nivel producto cualquier StockItem disponible
+        cuenta para urgencia / badge "Quedan X".
+        """
+        return self.stock_items.filter(status=StockItem.Status.AVAILABLE).count()
 
     @property
     def low_stock_threshold(self) -> int:
