@@ -184,7 +184,10 @@ UNFOLD = {
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,
     "THEME": "dark",
-    "BORDER_RADIUS": "8px",
+    "BORDER_RADIUS": "12px",
+    "STYLES": [
+        lambda request: f"{STATIC_URL}admin/jheliz_polish.css",
+    ],
     "SCRIPTS": [
         lambda request: f"{STATIC_URL}admin/global_search.js",
         lambda request: f"{STATIC_URL}admin/ticket_templates.js",

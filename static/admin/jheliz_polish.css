@@ -1,0 +1,203 @@
+/* Jheliz admin — visual polish (Pack-G).
+ * Degradados rosa→violeta, animaciones suaves, sombras estilo macOS,
+ * fuente Inter y ajustes mobile.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+    --jh-shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.06);
+    --jh-shadow:    0 6px 16px -4px rgba(0,0,0,0.18);
+    --jh-shadow-lg: 0 18px 40px -10px rgba(0,0,0,0.35);
+    --jh-grad-pink: linear-gradient(135deg, #f472b6 0%, #d946ef 50%, #a855f7 100%);
+    --jh-grad-pink-soft: linear-gradient(135deg, rgba(244,114,182,.15), rgba(168,85,247,.10));
+    --jh-radius: 12px;
+}
+
+/* Fuente moderna en todo el admin (sin tocar code/pre). */
+html body,
+body.dashboard,
+body.change-form,
+body.change-list {
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+                 "Segoe UI", Roboto, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.01em;
+}
+
+/* Headings un poco más juicy. */
+.unfold body h1,
+.unfold body h2,
+.unfold body h3 {
+    letter-spacing: -0.02em;
+    font-weight: 700;
+}
+
+/* Sombras estilo macOS en cards comunes. */
+.unfold .card,
+.unfold .border.rounded-xl,
+.unfold .border.rounded-lg,
+.unfold .module {
+    box-shadow: var(--jh-shadow);
+    transition: box-shadow .25s ease, transform .25s ease;
+}
+
+/* Animación sutil de entrada en cards/secciones. */
+@keyframes jhFadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes jhFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Aplica la animación a todos los hijos directos del contenido principal
+ * (dashboard, changelist, change_form), con stagger sencillo. */
+#content-main > .flex.flex-col > section,
+#content-main > .flex.flex-col > div,
+#content-main > .flex.flex-col > aside,
+.flex.flex-col.gap-6 > section,
+.flex.flex-col.gap-6 > div {
+    animation: jhFadeInUp .35s ease both;
+}
+.flex.flex-col.gap-6 > *:nth-child(2) { animation-delay: .04s; }
+.flex.flex-col.gap-6 > *:nth-child(3) { animation-delay: .08s; }
+.flex.flex-col.gap-6 > *:nth-child(4) { animation-delay: .12s; }
+.flex.flex-col.gap-6 > *:nth-child(5) { animation-delay: .16s; }
+.flex.flex-col.gap-6 > *:nth-child(6) { animation-delay: .20s; }
+
+/* Reduce el efecto si el usuario tiene reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+    .flex.flex-col.gap-6 > *,
+    #content-main > * {
+        animation: none !important;
+    }
+    * { transition: none !important; }
+}
+
+/* Botones primarios con gradient pink→violet en hover-translate. */
+.unfold button.bg-primary-500,
+.unfold a.bg-primary-500,
+.unfold .button.default,
+.unfold input[type="submit"].default,
+.unfold input[type="submit"]:not(.bg-base-700):not([class*="cancel"]) {
+    background-image: var(--jh-grad-pink);
+    border: none;
+    box-shadow: 0 4px 12px -2px rgba(217,70,239,0.4);
+    transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.unfold button.bg-primary-500:hover,
+.unfold a.bg-primary-500:hover,
+.unfold .button.default:hover,
+.unfold input[type="submit"].default:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -2px rgba(217,70,239,0.5);
+    filter: brightness(1.08);
+}
+
+/* Sidebar items con hover más sabroso. */
+.unfold aside a:hover {
+    background-color: rgba(244,114,182,0.08) !important;
+}
+
+/* Tablas: filas con transición suave en hover. */
+.unfold table tbody tr {
+    transition: background-color .15s ease;
+}
+
+/* Inputs con focus rosa elegante. */
+.unfold input[type="text"]:focus,
+.unfold input[type="email"]:focus,
+.unfold input[type="search"]:focus,
+.unfold input[type="number"]:focus,
+.unfold input[type="password"]:focus,
+.unfold textarea:focus,
+.unfold select:focus {
+    outline: none;
+    border-color: rgba(244,114,182,0.6) !important;
+    box-shadow: 0 0 0 3px rgba(244,114,182,0.18) !important;
+}
+
+/* Avatar circular gradient (helper). */
+.jh-avatar {
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 9999px;
+    background: var(--jh-grad-pink);
+    color: #fff; font-weight: 700; text-transform: uppercase;
+    box-shadow: var(--jh-shadow);
+}
+
+/* Skeleton loader (se puede usar en futuras vistas). */
+@keyframes jhSkeletonShimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+}
+.jh-skeleton {
+    background: linear-gradient(90deg,
+        rgba(255,255,255,0.04) 0%,
+        rgba(255,255,255,0.10) 50%,
+        rgba(255,255,255,0.04) 100%);
+    background-size: 200% 100%;
+    animation: jhSkeletonShimmer 1.4s linear infinite;
+    border-radius: 8px;
+}
+
+/* Mobile polish ----------------------------------------------------------- */
+@media (max-width: 768px) {
+    /* Más aire respirable en móvil. */
+    .unfold body { font-size: 14px; }
+    .unfold h1 { font-size: 1.4rem !important; }
+    .unfold h2 { font-size: 1.1rem !important; }
+
+    /* KPI grid más compacto. */
+    .unfold .grid.grid-cols-1.sm\:grid-cols-2 { gap: .75rem !important; }
+
+    /* Botones más cómodos al pulgar. */
+    .unfold button,
+    .unfold a.bg-primary-500,
+    .unfold input[type="submit"] {
+        min-height: 38px;
+    }
+
+    /* Tablas Django admin: padding reducido. */
+    .unfold table th,
+    .unfold table td { padding: 8px 10px !important; }
+
+    /* Espacio inferior para que sticky bar / FAB no tapen el último botón. */
+    body { padding-bottom: 90px; }
+    body.change-form { padding-bottom: 130px; }
+}
+
+/* Tip sutil sobre links de tabla en hover. */
+.unfold table a:hover {
+    text-decoration: underline;
+    text-decoration-color: rgba(244,114,182,0.7);
+    text-underline-offset: 3px;
+}
+
+/* "Todo al día" — pulso suave del corazón verde. */
+@keyframes jhSoftPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.04); }
+}
+.border-green-500\/40 .text-5xl {
+    display: inline-block;
+    animation: jhSoftPulse 2.5s ease-in-out infinite;
+}
+
+/* Scroll suave para anchors. */
+html { scroll-behavior: smooth; }
+
+/* Scrollbar fina y con color del brand. */
+.unfold ::-webkit-scrollbar { width: 8px; height: 8px; }
+.unfold ::-webkit-scrollbar-thumb {
+    background: rgba(244,114,182,0.35);
+    border-radius: 9999px;
+}
+.unfold ::-webkit-scrollbar-thumb:hover {
+    background: rgba(244,114,182,0.55);
+}
+.unfold ::-webkit-scrollbar-track { background: transparent; }
