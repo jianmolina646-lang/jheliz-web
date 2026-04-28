@@ -5,7 +5,11 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .models import Category, Plan, Product, Testimonial
+from django.db.models import Avg, Count
+from django.utils import timezone
+
+from .forms import ProductReviewForm
+from .models import Category, Plan, Product, ProductReview, Testimonial
 
 
 def _product_schema(request, product, plans):
@@ -181,6 +185,23 @@ def product_detail(request, slug: str):
         is_active=True,
     )
     plans = list(product.active_plans(request.user))
+
+    reviews_qs = (
+        product.reviews
+        .filter(status=ProductReview.Status.APPROVED)
+        .order_by("-created_at")
+    )
+    review_stats = reviews_qs.aggregate(
+        avg=Avg("rating"), count=Count("id"),
+    )
+    avg_rating = float(review_stats["avg"] or product.rating or 5)
+    rating_breakdown = []
+    total = review_stats["count"] or 0
+    for star in range(5, 0, -1):
+        n = reviews_qs.filter(rating=star).count()
+        pct = int(round((n / total) * 100)) if total else 0
+        rating_breakdown.append({"star": star, "count": n, "pct": pct})
+
     return render(
         request,
         "catalog/product_detail.html",
@@ -188,8 +209,50 @@ def product_detail(request, slug: str):
             "product": product,
             "plans": plans,
             "product_schema": _product_schema(request, product, plans),
+            "reviews": list(reviews_qs[:12]),
+            "review_count": total,
+            "avg_rating": round(avg_rating, 1),
+            "rating_breakdown": rating_breakdown,
         },
     )
+
+
+def submit_review(request, token: str):
+    """Formulario de rese\u00f1a accesible v\u00eda magic link enviado al cliente."""
+    review = get_object_or_404(
+        ProductReview.objects.select_related("product", "order"),
+        token=token,
+    )
+    if review.status == ProductReview.Status.APPROVED:
+        messages.info(request, "Esta rese\u00f1a ya fue publicada. \u00a1Gracias!")
+        return redirect("catalog:review_thanks")
+
+    if request.method == "POST":
+        form = ProductReviewForm(request.POST, request.FILES, instance=review)
+        if form.is_valid():
+            review = form.save(commit=False)
+            review.status = ProductReview.Status.PENDING
+            if review.order_id:
+                review.is_verified = True
+            review.token_used_at = timezone.now()
+            review.save()
+            return redirect("catalog:review_thanks")
+    else:
+        form = ProductReviewForm(instance=review)
+
+    return render(
+        request,
+        "catalog/review_submit.html",
+        {
+            "form": form,
+            "review": review,
+            "product": review.product,
+        },
+    )
+
+
+def review_thanks(request):
+    return render(request, "catalog/review_thanks.html", {})
 
 
 def distributor_landing(request):

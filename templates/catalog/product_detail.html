@@ -46,6 +46,18 @@
             {% endif %}
           </span>
           <span class="chip">{{ product.get_mode_display }}</span>
+          {% with urgency=product.stock_urgency_level stock=product.available_stock %}
+            {% if urgency == 'critical' %}
+              <span class="chip" style="background:rgba(244,63,94,0.12);border-color:rgba(244,63,94,0.4);color:#fda4af;font-weight:600">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
+                Quedan solo {{ stock }} a este precio
+              </span>
+            {% elif urgency == 'low' %}
+              <span class="chip" style="background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.4);color:#fcd34d;font-weight:600">
+                🔥 Quedan {{ stock }} a este precio
+              </span>
+            {% endif %}
+          {% endwith %}
         </div>
       </div>
     </div>
@@ -155,5 +167,66 @@
       Mercado Pago · Yape · Tarjeta
     </p>
   </div>
+</section>
+
+<!-- Reviews ------------------------------------------------------------- -->
+<section class="mt-10">
+  <div class="flex items-end justify-between gap-4 flex-wrap mb-5">
+    <div>
+      <h2 class="font-display text-2xl font-bold tracking-tight">Reseñas verificadas</h2>
+      <p class="text-zinc-500 text-sm mt-1">
+        {% if review_count %}
+          {{ review_count }} reseña{{ review_count|pluralize:"s" }} de clientes con compra verificada.
+        {% else %}
+          Aún no hay reseñas verificadas para este producto. ¡Sé el primero!
+        {% endif %}
+      </p>
+    </div>
+    {% if review_count %}
+      <div class="flex items-center gap-3">
+        <div class="text-right">
+          <div class="text-3xl font-display font-bold text-white tracking-tight leading-none">{{ avg_rating }}</div>
+          <div class="text-xs text-zinc-500 mt-1">de 5</div>
+        </div>
+        <div class="flex flex-col items-start">
+          <div class="flex items-center gap-0.5 text-amber-400">
+            {% for i in "12345" %}
+              {% if forloop.counter <= avg_rating %}
+                <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:14px;height:14px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              {% else %}
+                <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px;color:rgba(255,255,255,0.2)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <div class="text-[11px] text-zinc-500 mt-1">{{ review_count }} reseña{{ review_count|pluralize:"s" }}</div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if review_count %}
+    <div class="surface rounded-xl p-4 mb-5 max-w-md">
+      {% for row in rating_breakdown %}
+        <div class="flex items-center gap-2 text-xs text-zinc-400 py-1">
+          <span class="w-6 text-right">{{ row.star }}★</span>
+          <div class="flex-1 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+            <div class="h-full bg-amber-400" style="width: {{ row.pct }}%"></div>
+          </div>
+          <span class="w-8 text-right tabular-nums">{{ row.count }}</span>
+        </div>
+      {% endfor %}
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      {% for review in reviews %}
+        {% include "catalog/_review_card.html" with review=review %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="surface rounded-xl p-6 text-center text-zinc-500 text-sm">
+      Las reseñas se recopilan tras cada compra entregada.
+      Si compraste este producto, recibirás un correo con un enlace para reseñar.
+    </div>
+  {% endif %}
 </section>
 {% endblock %}

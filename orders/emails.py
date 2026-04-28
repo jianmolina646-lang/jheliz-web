@@ -90,3 +90,72 @@ def send_expiry_reminder(order, items, days_left: int) -> None:
     )
     message.content_subtype = "html"
     message.send(fail_silently=True)
+
+
+def send_review_requests(order) -> None:
+    """Crea tokens de rese\u00f1a y env\u00eda un correo con magic links.
+
+    Una rese\u00f1a por cada producto comprado en el pedido. El cliente entra al
+    link, escribe rating + comentario opcional con foto y queda en estado
+    ``pending`` para moderaci\u00f3n.
+    """
+    if not order.email:
+        return
+
+    from catalog.models import ProductReview  # local import to avoid circular
+
+    items = list(order.items.select_related("plan__product").all())
+    if not items:
+        return
+
+    review_links = []
+    seen_products = set()
+    for item in items:
+        plan = getattr(item, "plan", None)
+        if not plan:
+            continue
+        product = plan.product
+        if product.id in seen_products:
+            continue
+        seen_products.add(product.id)
+        review = (
+            ProductReview.objects
+            .filter(order=order, product=product)
+            .first()
+        )
+        if review is None:
+            review = ProductReview.objects.create(
+                product=product,
+                order=order,
+                user=order.user,
+                author_name=(order.user.first_name if order.user else "") or "Cliente",
+                email=order.email,
+                rating=5,
+                comment="",
+                status=ProductReview.Status.PENDING,
+                is_verified=True,
+            )
+        review_links.append({
+            "product": product,
+            "url": f"{settings.SITE_URL}{reverse('catalog:review_submit', args=[review.token])}",
+        })
+
+    if not review_links:
+        return
+
+    context = {
+        "order": order,
+        "review_links": review_links,
+        "SITE_NAME": settings.SITE_NAME,
+        "SITE_URL": settings.SITE_URL,
+        "WHATSAPP_NUMBER": settings.WHATSAPP_NUMBER,
+    }
+    body = render_to_string("emails/review_request.html", context)
+    message = EmailMessage(
+        subject=f"\u00bfQu\u00e9 te pareci\u00f3 tu compra? \u2014 #{order.short_uuid}",
+        body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[order.email],
+    )
+    message.content_subtype = "html"
+    message.send(fail_silently=True)

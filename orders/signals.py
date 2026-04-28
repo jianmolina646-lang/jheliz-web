@@ -32,3 +32,9 @@ def _order_status_transitions(sender, instance: Order, **kwargs):
         if instance.delivered_at is None:
             instance.delivered_at = now
         emails.send_order_delivered(instance)
+        # Pide rese\u00f1a verificada via magic link.
+        try:
+            emails.send_review_requests(instance)
+        except Exception:
+            # No bloqueamos la entrega si falla la creaci\u00f3n de tokens.
+            pass
