@@ -90,6 +90,28 @@ def home(request):
         .prefetch_related("plans")
     )
     top_categories = Category.objects.filter(is_active=True)[:6]
+    # Productos destacados con precio mínimo desde — para hero strip
+    starter_products = (
+        Product.objects.filter(
+            is_active=True,
+            plans__is_active=True,
+            plans__available_for_customer=True,
+        )
+        .select_related("category")
+        .prefetch_related("plans")
+        .order_by("-is_featured", "name")
+        .distinct()[:6]
+    )
+    starter_strip = []
+    for p in starter_products:
+        plans = [pl for pl in p.plans.all() if pl.is_active and pl.available_for_customer and pl.price_customer > 0]
+        if not plans:
+            continue
+        cheapest = min(plans, key=lambda pl: pl.price_customer)
+        starter_strip.append({
+            "product": p,
+            "from_price": cheapest.price_customer,
+        })
     return render(
         request,
         "catalog/home.html",
@@ -98,6 +120,7 @@ def home(request):
             "top_categories": top_categories,
             "testimonios": _testimonios(),
             "recent_purchases": _recent_purchases(),
+            "starter_strip": starter_strip,
         },
     )
 
