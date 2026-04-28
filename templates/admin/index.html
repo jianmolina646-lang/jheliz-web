@@ -14,6 +14,42 @@
 
 {% block content %}
 <div class="flex flex-col gap-6">
+    <!-- Hello banner -->
+    <section class="relative overflow-hidden rounded-xl border border-primary-500/30 bg-gradient-to-br from-primary-500/15 via-primary-600/10 to-violet-500/15 p-6">
+        <div class="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-primary-500/20 blur-3xl pointer-events-none"></div>
+        <div class="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-white">
+                    {{ dashboard_greeting }}{% if dashboard_user_first_name %}, <span class="text-primary-300">{{ dashboard_user_first_name|capfirst }}</span>{% endif %} 👋
+                </h1>
+                <p class="text-sm text-base-300 mt-1">
+                    Hoy llevas
+                    <strong class="text-white">{{ dashboard_orders_today }} pedido{{ dashboard_orders_today|pluralize }}</strong>
+                    y
+                    <strong class="text-emerald-300">S/ {{ dashboard_sales_today|floatformat:2 }}</strong>
+                    en ventas{% if dashboard_pending_orders_count %} ·
+                    <a href="{% url 'admin:orders_order_changelist' %}?status__exact=verifying" class="text-amber-300 underline-offset-2 hover:underline">
+                        {{ dashboard_pending_orders_count }} pendiente{{ dashboard_pending_orders_count|pluralize }} de revisar
+                    </a>{% endif %}.
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2 shrink-0">
+                <a href="/jheliz-admin/stock/" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-medium transition">
+                    <span class="material-symbols-outlined" style="font-size:16px;">inventory_2</span>
+                    Stock
+                </a>
+                <a href="/jheliz-admin/renewals/" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-medium transition">
+                    <span class="material-symbols-outlined" style="font-size:16px;">autorenew</span>
+                    Renovaciones
+                </a>
+                <a href="/jheliz-admin/reports/" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-medium transition">
+                    <span class="material-symbols-outlined" style="font-size:16px;">monitoring</span>
+                    Reportes
+                </a>
+            </div>
+        </div>
+    </section>
+
     {% if needs_action %}
     <section class="border border-primary-500/40 bg-gradient-to-br from-primary-500/10 to-primary-700/5 rounded-xl p-5">
         <div class="flex items-center justify-between mb-4">
@@ -45,10 +81,21 @@
         </div>
     </section>
     {% else %}
-    <div class="border border-green-500 bg-green-500/20 rounded-xl p-5 text-center">
-        <span class="material-symbols-outlined text-white text-3xl">task_alt</span>
-        <h2 class="text-base font-bold text-white mt-2">Todo al día</h2>
-        <p class="text-sm text-white/80 mt-1">No hay tareas urgentes en este momento</p>
+    <div class="relative overflow-hidden border border-green-500/40 bg-gradient-to-br from-green-500/15 to-emerald-500/5 rounded-xl p-6 text-center">
+        <div class="text-5xl mb-2">🎉</div>
+        <h2 class="text-lg font-bold text-white">¡Todo al día!</h2>
+        <p class="text-sm text-emerald-200/90 mt-1">No hay tareas urgentes ahora mismo. Aprovecha para promocionar la web.</p>
+        <div class="mt-4 flex flex-wrap justify-center gap-2">
+            <a href="/jheliz-admin/catalog/product/add/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/10 hover:bg-white/15 text-white text-xs font-medium transition">
+                <span class="material-symbols-outlined" style="font-size:16px;">add_box</span> Nuevo producto
+            </a>
+            <a href="/jheliz-admin/stock/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/10 hover:bg-white/15 text-white text-xs font-medium transition">
+                <span class="material-symbols-outlined" style="font-size:16px;">inventory_2</span> Cargar stock
+            </a>
+            <a href="/blog/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white/10 hover:bg-white/15 text-white text-xs font-medium transition">
+                <span class="material-symbols-outlined" style="font-size:16px;">edit</span> Escribir post
+            </a>
+        </div>
     </div>
     {% endif %}
 

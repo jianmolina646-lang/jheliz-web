@@ -188,6 +188,8 @@ UNFOLD = {
     "SCRIPTS": [
         lambda request: f"{STATIC_URL}admin/global_search.js",
         lambda request: f"{STATIC_URL}admin/ticket_templates.js",
+        lambda request: f"{STATIC_URL}admin/fab.js",
+        lambda request: f"{STATIC_URL}admin/toasts.js",
     ],
     "COLORS": {
         "primary": {

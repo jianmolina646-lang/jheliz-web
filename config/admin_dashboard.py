@@ -242,6 +242,20 @@ def dashboard_callback(request, context):
 
     arrow = "↑" if delta_pct >= 0 else "↓"
 
+    # ---- Saludo personalizado para el header del dashboard ------------------
+    hour = now.hour
+    if hour < 12:
+        greeting = "Buenos días"
+    elif hour < 19:
+        greeting = "Buenas tardes"
+    else:
+        greeting = "Buenas noches"
+    user_first_name = (
+        getattr(request.user, "first_name", "")
+        or getattr(request.user, "username", "")
+        or ""
+    ).split()[0] if hasattr(request, "user") else ""
+
     # ---- Necesita acción: lista consolidada de cosas urgentes ---------------
     # Tones limited to colors compiled in Unfold's Tailwind: red, orange, yellow, green, blue.
     _TONE_CLASSES = {
@@ -299,6 +313,11 @@ def dashboard_callback(request, context):
 
     context.update(
         {
+            "dashboard_greeting": greeting,
+            "dashboard_user_first_name": user_first_name,
+            "dashboard_orders_today": orders_today,
+            "dashboard_sales_today": sales_today,
+            "dashboard_pending_orders_count": pending_orders + verifying_orders,
             "needs_action": needs_action,
             "kpi": [
                 {
