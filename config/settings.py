@@ -193,6 +193,7 @@ UNFOLD = {
         lambda request: f"{STATIC_URL}admin/ticket_templates.js",
         lambda request: f"{STATIC_URL}admin/fab.js",
         lambda request: f"{STATIC_URL}admin/toasts.js",
+        lambda request: f"{STATIC_URL}admin/keyboard_shortcuts.js",
     ],
     "COLORS": {
         "primary": {

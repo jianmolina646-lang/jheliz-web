@@ -166,6 +166,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     list_filter_submit = True
     compressed_fields = True
     list_select_related = ("user",)
+    change_form_template = "admin/orders/order/change_form.html"
 
     def get_queryset(self, request):
         # Trae el FK user de un solo JOIN (display_customer lo usa).
