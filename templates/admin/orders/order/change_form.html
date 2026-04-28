@@ -1,0 +1,145 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block extrahead %}{{ block.super }}
+{% if original %}
+<style>
+.jh-sticky-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 80;
+    background: rgba(15,23,42,0.97);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(244,114,182,0.25);
+    box-shadow: 0 -8px 24px -8px rgba(0,0,0,0.5);
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap;
+}
+.jh-sticky-bar .jh-info {
+    display: flex; align-items: center; gap: 10px;
+    margin-right: auto;
+    color: #e2e8f0;
+    font-size: 13px;
+}
+.jh-sticky-bar .jh-status-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: #94a3b8;
+}
+.jh-sticky-bar .jh-status-dot.pending  { background: #f59e0b; }
+.jh-sticky-bar .jh-status-dot.verifying{ background: #f97316; }
+.jh-sticky-bar .jh-status-dot.paid     { background: #22d3ee; }
+.jh-sticky-bar .jh-status-dot.preparing{ background: #a78bfa; }
+.jh-sticky-bar .jh-status-dot.delivered{ background: #10b981; }
+.jh-sticky-bar .jh-status-dot.cancelled{ background: #ef4444; }
+.jh-sticky-bar .jh-action {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 9999px;
+    background: rgba(255,255,255,0.06);
+    color: #fff; font-size: 13px; text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer; transition: background .15s ease, transform .15s ease;
+    font-family: inherit;
+}
+.jh-sticky-bar .jh-action:hover { background: rgba(255,255,255,0.12); transform: translateY(-1px); }
+.jh-sticky-bar .jh-action.primary { background: linear-gradient(135deg, #f472b6, #d946ef); border-color: transparent; }
+.jh-sticky-bar .jh-action.success { background: linear-gradient(135deg, #10b981, #059669); border-color: transparent; }
+.jh-sticky-bar .jh-action.danger  { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+.jh-sticky-bar .jh-action.whatsapp{ background: linear-gradient(135deg, #25d366, #128c7e); border-color: transparent; }
+.jh-sticky-bar .jh-action .material-symbols-outlined { font-size: 18px; }
+
+/* Add bottom padding to body so sticky bar doesn't cover form actions. */
+body.change-form { padding-bottom: 80px; }
+@media (max-width: 640px) {
+    .jh-sticky-bar { padding: 8px 10px; gap: 6px; }
+    .jh-sticky-bar .jh-action { padding: 7px 10px; font-size: 12px; }
+    .jh-sticky-bar .jh-info { font-size: 12px; }
+}
+</style>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{{ block.super }}
+
+{% if original %}
+<div class="jh-sticky-bar">
+    <div class="jh-info">
+        <span class="jh-status-dot {{ original.status }}"></span>
+        <span><strong>#{{ original.short_uuid }}</strong></span>
+        <span class="hidden sm:inline" style="color:#94a3b8">·</span>
+        <span class="hidden sm:inline">{{ original.get_status_display }}</span>
+        <span class="hidden md:inline" style="color:#94a3b8">·</span>
+        <span class="hidden md:inline" style="color:#94a3b8">
+            {% firstof original.email original.phone "—" %}
+        </span>
+        <span class="hidden md:inline" style="color:#fff;font-weight:600">
+            {{ original.currency }} {{ original.total }}
+        </span>
+    </div>
+
+    {% if original.status == "verifying" and original.payment_provider == "yape" %}
+    <a class="jh-action success"
+       href="{% url 'admin:orders_order_confirm_yape' original.pk %}"
+       data-confirm="¿Confirmar el pago Yape de #{{ original.short_uuid }}?"
+       title="Confirmar pago Yape y pasar a En preparación">
+        <span class="material-symbols-outlined">verified</span>
+        Confirmar Yape
+    </a>
+    <a class="jh-action danger"
+       href="{% url 'admin:orders_order_reject_yape' original.pk %}"
+       title="Rechazar comprobante (motivo opcional)">
+        <span class="material-symbols-outlined">block</span>
+        Rechazar
+    </a>
+    {% endif %}
+
+    {% if original.status == "preparing" or original.status == "paid" %}
+    <a class="jh-action primary"
+       href="{% url 'admin:orders_order_deliver' original.pk %}"
+       title="Entregar credenciales y marcar como Entregado">
+        <span class="material-symbols-outlined">send</span>
+        Entregar credenciales
+    </a>
+    {% endif %}
+
+    {% if original.status == "delivered" %}
+    <a class="jh-action"
+       href="{% url 'admin:orders_order_resend' original.pk %}"
+       data-confirm="¿Reenviar el correo con credenciales al cliente?"
+       title="Reenviar correo con credenciales al cliente">
+        <span class="material-symbols-outlined">forward_to_inbox</span>
+        Reenviar correo
+    </a>
+    {% endif %}
+
+    {% if original.phone %}
+    <a class="jh-action whatsapp"
+       href="https://wa.me/{{ original.phone|cut:'+'|cut:' '|cut:'-' }}?text=Hola%21%20Te%20escribimos%20de%20Jheliz%20por%20tu%20pedido%20%23{{ original.short_uuid }}."
+       target="_blank" rel="noopener"
+       title="Abrir WhatsApp con el cliente">
+        <span class="material-symbols-outlined">chat</span>
+        WhatsApp
+    </a>
+    {% endif %}
+
+    {% if original.email %}
+    <a class="jh-action"
+       href="mailto:{{ original.email }}?subject=Pedido%20%23{{ original.short_uuid }}%20-%20Jheliz"
+       title="Enviar email manual">
+        <span class="material-symbols-outlined">mail</span>
+        Email
+    </a>
+    {% endif %}
+</div>
+
+<script>
+(function() {
+    document.body.classList.add("change-form");
+    document.querySelectorAll(".jh-sticky-bar a[data-confirm]").forEach(function(a){
+        a.addEventListener("click", function(e){
+            if (!confirm(a.dataset.confirm)) e.preventDefault();
+        });
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}
