@@ -15,31 +15,46 @@
     </div>
   </div>
 
-  <div class="mt-6 space-y-3">
-    {% for m in messages_thread %}
-      <div class="card-glass rounded-2xl p-4 {% if m.is_from_staff %}border-jheliz-400/40{% endif %}">
-        <div class="text-xs text-white/50 mb-1">
-          {% if m.is_from_staff %}🛟 Soporte Jheliz{% else %}👤 {{ m.author.username|default:"Tú" }}{% endif %}
-          · {{ m.created_at|date:"d/m/Y H:i" }}
-        </div>
-        <div class="whitespace-pre-wrap text-sm">{{ m.body }}</div>
-      </div>
-    {% empty %}
-      <div class="text-white/60 text-sm">Sin mensajes aún.</div>
-    {% endfor %}
-  </div>
-
-  {% if ticket.status != 'closed' %}
-    <form method="post" action="{% url 'support:reply' ticket.pk %}" class="mt-6 card-glass rounded-2xl p-5 space-y-3">
-      {% csrf_token %}
-      {{ reply_form.body }}
-      {{ reply_form.body.errors }}
-      <button type="submit" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">Enviar respuesta</button>
-    </form>
-  {% else %}
-    <div class="mt-6 card-glass rounded-2xl p-4 text-center text-white/60">
-      Este ticket está cerrado. Si necesitas más ayuda, abre uno nuevo.
+  <div class="mt-4 card-glass rounded-2xl p-4 md:p-5 flex flex-col" style="min-height: 60vh;">
+    <div class="flex-1 overflow-y-auto pr-1" id="ticket-chat-scroll" style="max-height: 60vh;">
+      {% include "support/_messages.html" %}
     </div>
-  {% endif %}
+
+    {% if not ticket.is_closed %}
+      <form method="post"
+            action="{% url 'support:reply' ticket.pk %}"
+            hx-post="{% url 'support:reply' ticket.pk %}"
+            hx-target="#ticket-messages"
+            hx-swap="outerHTML"
+            hx-on::after-request="this.querySelector('textarea').value=''; const s=document.getElementById('ticket-chat-scroll'); if(s){s.scrollTop=s.scrollHeight;}"
+            class="mt-4 border-t border-white/10 pt-4 flex flex-col md:flex-row gap-2">
+        {% csrf_token %}
+        <textarea name="body" rows="2" required
+                  placeholder="Escribe tu mensaje…"
+                  class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-white/40 focus:border-fuchsia-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/40 resize-none"></textarea>
+        <button type="submit" class="btn-primary text-white font-semibold px-5 py-2.5 rounded-xl whitespace-nowrap">
+          Enviar
+        </button>
+      </form>
+      <div class="text-[11px] text-white/40 mt-2">Las respuestas aparecen automáticamente cada pocos segundos.</div>
+    {% else %}
+      <div class="mt-4 border-t border-white/10 pt-4 text-center text-white/60 text-sm">
+        Este ticket está cerrado. Si necesitas más ayuda, abre uno nuevo.
+      </div>
+    {% endif %}
+  </div>
 </section>
+
+<script>
+  (function () {
+    var s = document.getElementById('ticket-chat-scroll');
+    if (s) { s.scrollTop = s.scrollHeight; }
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+      if (evt.target && evt.target.id === 'ticket-messages') {
+        var sc = document.getElementById('ticket-chat-scroll');
+        if (sc) { sc.scrollTop = sc.scrollHeight; }
+      }
+    });
+  })();
+</script>
 {% endblock %}
