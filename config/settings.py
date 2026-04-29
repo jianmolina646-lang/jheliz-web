@@ -173,7 +173,7 @@ TELEGRAM_ADMIN_CHAT_ID = config("TELEGRAM_ADMIN_CHAT_ID", default="")
 
 # Brand
 SITE_NAME = "Jheliz"
-SITE_TAGLINE = "Streaming y licencias al mejor precio"
+SITE_TAGLINE = "Netflix, Disney+ y Office en Perú desde S/ 7"
 
 # Unfold admin theme
 UNFOLD = {

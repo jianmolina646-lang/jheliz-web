@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% load static humanize %}
 
-{% block title %}{% if category %}{{ category.name }} — {% endif %}Blog Jheliz — Tips, guías y novedades{% endblock %}
-{% block meta_description %}{% if category %}Artículos sobre {{ category.name|lower }} en {{ SITE_NAME }}.{% else %}Guías paso a paso sobre cuentas premium, streaming, software original y trucos para sacarle más a tu suscripción.{% endif %}{% endblock %}
-{% block og_title %}{% if category %}{{ category.name }} — {% endif %}Blog Jheliz{% endblock %}
-{% block og_description %}{% if category %}Artículos sobre {{ category.name|lower }}.{% else %}Guías paso a paso sobre cuentas premium, streaming y software original.{% endif %}{% endblock %}
+{% block title %}{% if category %}{{ category.emoji }} {{ category.name }} · Guías 2026 | Blog {{ SITE_NAME }}{% else %}Blog Jheliz ✦ Guías Netflix, Disney+ y Office actualizadas 2026{% endif %}{% endblock %}
+{% block meta_description %}{% if category %}📰 Guías y tips sobre {{ category.name|lower }}: cómo activar tu cuenta, qué hacer si falla y comparativas reales. Lectura rápida, sin paja.{% else %}📰 Todo lo que necesitas saber de streaming y software premium en Perú: cómo activar Netflix, Disney+, Office y trucos para aprovechar tu suscripción al máximo.{% endif %}{% endblock %}
+{% block og_title %}{% if category %}{{ category.emoji }} {{ category.name }} — Blog {{ SITE_NAME }}{% else %}Blog {{ SITE_NAME }} ✦ Guías Netflix, Disney+ y Office 2026{% endif %}{% endblock %}
+{% block og_description %}{% if category %}📰 Guías sobre {{ category.name|lower }} actualizadas en 2026.{% else %}📰 Guías paso a paso sobre Netflix, Disney+ y software premium. Lectura rápida, sin paja.{% endif %}{% endblock %}
 
 {% block extra_head %}
 <link rel="alternate" type="application/rss+xml" title="Blog Jheliz RSS" href="{% url 'blog:feed' %}">

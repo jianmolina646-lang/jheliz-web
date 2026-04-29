@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Productos — {{ SITE_NAME }}{% endblock %}
+{% block title %}{% if active_category %}{{ active_category.name }} barato en Perú ✦ {{ active_category.emoji }} desde S/ 7 | {{ SITE_NAME }}{% else %}Catálogo {{ SITE_NAME }} ✦ Netflix, Disney+, Office y más desde S/ 7{% endif %}{% endblock %}
+{% block meta_description %}{% if active_category %}🎬 Las mejores cuentas de {{ active_category.name|lower }} en Perú: entrega en 2 min, pago con Yape, garantía 30 días. Desde S/ 7.{% else %}🎬 Netflix, Disney+, HBO Max, Prime, Office y Windows al mejor precio del Perú. Entrega en minutos, Yape o Mercado Pago, garantía real.{% endif %}{% endblock %}
 
 {% block content %}
 <section class="mesh-accent flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-10 pt-2 pb-2">
