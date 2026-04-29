@@ -144,25 +144,34 @@ class ProductAdmin(ModelAdmin):
     available_stock_count.short_description = "Stock disp."
 
 
+_INPUT_CLS = (
+    "w-full rounded-md bg-base-950 border border-base-700 text-white text-sm "
+    "px-3 py-2 focus:border-primary-500 focus:outline-none"
+)
+
+
 class StockImportForm(forms.Form):
     product = forms.ModelChoiceField(
         queryset=Product.objects.all(), label="Producto",
+        widget=forms.Select(attrs={"class": _INPUT_CLS}),
     )
     plan = forms.ModelChoiceField(
         queryset=Plan.objects.all(), required=False, label="Plan (opcional)",
         help_text="Si lo dejas en blanco, el stock servir\u00e1 para cualquier plan del producto.",
+        widget=forms.Select(attrs={"class": _INPUT_CLS}),
     )
     file = forms.FileField(
         label="Archivo .txt / .csv",
         required=False,
         help_text="Sube un archivo, o pega el contenido en el cuadro de abajo.",
+        widget=forms.ClearableFileInput(attrs={"class": _INPUT_CLS + " file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:bg-primary-500 file:text-white"}),
     )
     pasted = forms.CharField(
         label="O pega aquí (Excel, Sheets, .csv, .txt)",
         required=False,
         widget=forms.Textarea(attrs={
             "rows": 12,
-            "style": "font-family:Menlo,Consolas,monospace;font-size:13px;width:100%;",
+            "class": _INPUT_CLS + " font-mono resize-y",
             "placeholder": (
                 "Acepta varios formatos:\n\n"
                 "1) CSV con cabecera (separador ',' o ';' o tab):\n"
@@ -291,13 +300,18 @@ class StockItemAdmin(ModelAdmin):
                 except (ValueError, Product.DoesNotExist):
                     pass
             form = StockImportForm(initial=initial)
+        from config.admin_views import stock_module_kpis
+
         return render(
             request,
             "admin/catalog/stock_import.html",
             {
+                **self.admin_site.each_context(request),
                 "form": form,
-                "title": "Importar stock — masivo",
+                "title": "Stock — Importar",
                 "opts": StockItem._meta,
+                "stock_kpis": stock_module_kpis(),
+                "active_tab": "importar",
             },
         )
 

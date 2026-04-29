@@ -561,14 +561,13 @@ def renew_item(request, item_id: int):
 
 
 # ---------------------------------------------------------------------------
-# Stock — vista moderna por producto (Pack A)
+# Stock — módulo unificado: Resumen · Cuentas · Importar
 # ---------------------------------------------------------------------------
 
-@staff_member_required
-def stock_overview(request):
-    """Galería de productos con totales de stock por estado.
+def _stock_cards_and_kpis():
+    """Devuelve (cards ordenadas, kpis) para el dashboard de stock.
 
-    Click en una tarjeta muestra acciones rápidas (agregar más, ver lista).
+    Reutilizado por el header común y por la vista resumen.
     """
     from catalog.models import Product, StockItem
 
@@ -605,7 +604,7 @@ def stock_overview(request):
             data["total"] += row["c"]
 
     cards = []
-    for pid, data in by_product.items():
+    for data in by_product.values():
         avail = data["available"]
         threshold = data["low_stock_threshold"] or 3
         if avail == 0:
@@ -614,18 +613,7 @@ def stock_overview(request):
             level = "low"
         else:
             level = "ok"
-        cards.append({
-            **data,
-            "level": level,
-            "list_url": (
-                reverse("admin:catalog_stockitem_changelist")
-                + f"?product__id__exact={data['product'].pk}"
-            ),
-            "import_url": (
-                reverse("admin:catalog_stockitem_import")
-                + f"?product={data['product'].pk}"
-            ),
-        })
+        cards.append({**data, "level": level})
 
     cards.sort(
         key=lambda c: (
@@ -635,21 +623,127 @@ def stock_overview(request):
         )
     )
 
-    totals = {
+    kpis = {
         "products": len(cards),
         "available": sum(c["available"] for c in cards),
         "sold": sum(c["sold"] for c in cards),
         "defective": sum(c["defective"] for c in cards),
         "low_or_empty": sum(1 for c in cards if c["level"] in ("low", "empty")),
     }
+    return cards, kpis
+
+
+def stock_module_kpis():
+    """Solo los KPIs (para vistas que no muestran las cards, ej. importar)."""
+    _, kpis = _stock_cards_and_kpis()
+    return kpis
+
+
+@staff_member_required
+def stock_overview(request):
+    """Resumen de stock: cards por producto, búsqueda live."""
+    q = (request.GET.get("q") or "").strip()
+
+    cards, kpis = _stock_cards_and_kpis()
+    if q:
+        needle = q.lower()
+        cards = [c for c in cards if needle in c["product"].name.lower()]
 
     ctx = _admin_context(
         request,
-        title="Stock por producto",
+        title="Stock — Resumen",
         cards=cards,
-        totals=totals,
+        stock_kpis=kpis,
+        active_tab="resumen",
+        q=q,
     )
-    return render(request, "admin/stock_overview.html", ctx)
+    return render(request, "admin/stock/overview.html", ctx)
+
+
+@staff_member_required
+def stock_list(request):
+    """Vista moderna de la lista de cuentas (reemplaza el changelist clásico)."""
+    from catalog.models import Product, StockItem
+    from django.core.paginator import Paginator
+    from urllib.parse import urlencode
+
+    status = (request.GET.get("status") or "all").strip()
+    product_filter = (request.GET.get("product") or "").strip()
+    q = (request.GET.get("q") or "").strip()
+
+    qs = StockItem.objects.select_related("product", "plan").order_by("-created_at")
+
+    valid_statuses = {s for s, _ in StockItem.Status.choices}
+    if status in valid_statuses:
+        qs = qs.filter(status=status)
+
+    if product_filter.isdigit():
+        qs = qs.filter(product_id=int(product_filter))
+
+    if q:
+        qs = qs.filter(
+            Q(credentials__icontains=q)
+            | Q(label__icontains=q)
+        )
+
+    base_qs = StockItem.objects.all()
+    if product_filter.isdigit():
+        base_qs = base_qs.filter(product_id=int(product_filter))
+    counts_by_status = {
+        row["status"]: row["c"]
+        for row in base_qs.values("status").annotate(c=Count("id"))
+    }
+    total_count = sum(counts_by_status.values())
+    status_options = [
+        {"value": "all", "label": "Todos", "count": total_count},
+        {"value": "available", "label": "Disponibles", "count": counts_by_status.get("available", 0)},
+        {"value": "sold", "label": "Vendidas", "count": counts_by_status.get("sold", 0)},
+        {"value": "reserved", "label": "Reservadas", "count": counts_by_status.get("reserved", 0)},
+        {"value": "defective", "label": "Caídas", "count": counts_by_status.get("defective", 0)},
+        {"value": "disabled", "label": "Deshabilitadas", "count": counts_by_status.get("disabled", 0)},
+    ]
+
+    products_in_use = (
+        Product.objects.filter(stock_items__isnull=False)
+        .distinct()
+        .order_by("name")
+    )
+
+    paginator = Paginator(qs, 50)
+    page_number = request.GET.get("page") or 1
+    page_obj = paginator.get_page(page_number)
+
+    def _qs_for(page: int) -> str:
+        params = {}
+        if status and status != "all":
+            params["status"] = status
+        if product_filter:
+            params["product"] = product_filter
+        if q:
+            params["q"] = q
+        params["page"] = page
+        return urlencode(params)
+
+    ctx = _admin_context(
+        request,
+        title="Stock — Cuentas",
+        items=page_obj.object_list,
+        page_obj=page_obj,
+        paginator=paginator,
+        querystring_prev=_qs_for(page_obj.previous_page_number()) if page_obj.has_previous() else "",
+        querystring_next=_qs_for(page_obj.next_page_number()) if page_obj.has_next() else "",
+        status=status,
+        status_options=status_options,
+        product_filter=product_filter,
+        product_options=products_in_use,
+        q=q,
+        stock_kpis=stock_module_kpis(),
+        active_tab="cuentas",
+    )
+
+    if request.headers.get("HX-Request"):
+        return render(request, "admin/stock/_list_table.html", ctx)
+    return render(request, "admin/stock/list.html", ctx)
 
 
 @staff_member_required

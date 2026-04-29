@@ -1,0 +1,204 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-5">
+
+  {% include "admin/stock/_header.html" %}
+
+  {# Toolbar: búsqueda live HTMX #}
+  <section class="rounded-xl border border-base-700 bg-base-900 px-5 py-4 flex flex-wrap items-center gap-3">
+    <label for="stock-search" class="text-sm text-base-300">Buscar producto</label>
+    <input id="stock-search" type="search" name="q" value="{{ q|default:'' }}"
+           placeholder="ej. Netflix, Disney…"
+           hx-get="{% url 'admin_stock_overview' %}"
+           hx-trigger="keyup changed delay:250ms, search"
+           hx-target="#stock-cards"
+           hx-select="#stock-cards"
+           hx-swap="outerHTML"
+           hx-push-url="true"
+           class="flex-1 max-w-md rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2
+                  focus:border-primary-500 focus:outline-none">
+    <span class="text-xs text-base-500">{{ cards|length }} producto{{ cards|length|pluralize:"s" }}</span>
+  </section>
+
+  {% if cards %}
+  <div id="stock-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for c in cards %}
+    <article class="group flex flex-col gap-4 rounded-xl border border-base-700 bg-base-900 p-5
+                    hover:border-primary-500/60 transition-colors">
+
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-base font-semibold text-white truncate">{{ c.product.name }}</div>
+          <div class="text-xs text-base-400 mt-0.5 truncate">{{ c.product.category.name|default:"Sin categoría" }}</div>
+        </div>
+        {% if c.level == "empty" %}
+          <span class="shrink-0 text-[11px] px-2 py-1 rounded-full bg-red-500/10 text-red-300 border border-red-500/40 whitespace-nowrap">
+            Sin stock
+          </span>
+        {% elif c.level == "low" %}
+          <span class="shrink-0 text-[11px] px-2 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/40 whitespace-nowrap">
+            Bajo
+          </span>
+        {% else %}
+          <span class="shrink-0 text-[11px] px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">
+            OK
+          </span>
+        {% endif %}
+      </div>
+
+      <dl class="grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
+        <dt class="text-[11px] uppercase tracking-wide text-emerald-300/80">Disp.</dt>
+        <dt class="text-[11px] uppercase tracking-wide text-blue-300/80">Vend.</dt>
+        <dt class="text-[11px] uppercase tracking-wide text-red-300/80">Caídas</dt>
+        <dd class="text-xl font-semibold text-emerald-200 leading-tight">{{ c.available }}</dd>
+        <dd class="text-xl font-semibold text-blue-200 leading-tight">{{ c.sold }}</dd>
+        <dd class="text-xl font-semibold text-red-200 leading-tight">{{ c.defective }}</dd>
+      </dl>
+
+      <div class="flex flex-wrap gap-2 pt-3 border-t border-base-800">
+        <button type="button"
+                class="quick-add-btn flex-1 px-3 py-2 rounded-md bg-primary-500 hover:bg-primary-400 text-white text-sm font-semibold transition"
+                data-product-id="{{ c.product.pk }}"
+                data-product-name="{{ c.product.name|escapejs }}">
+          + Agregar cuentas
+        </button>
+        <a href="{% url 'admin_stock_list' %}?product={{ c.product.pk }}"
+           class="flex-1 px-3 py-2 rounded-md border border-base-700 hover:border-base-500 hover:bg-base-800 text-base-200 text-sm text-center transition">
+          Ver cuentas
+        </a>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div id="stock-cards" class="rounded-xl border border-dashed border-base-700 bg-base-900 p-10 text-center text-base-400">
+    {% if q %}
+      No hay productos que coincidan con <strong class="text-white">{{ q }}</strong>.
+    {% else %}
+      No hay productos activos. Crea productos primero en
+      <a href="/jheliz-admin/catalog/product/" class="text-primary-300 underline">Catálogo → Productos</a>.
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+
+{# Modal Quick-Add — restyled, mismo backend. #}
+<div id="quick-add-modal"
+     class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+     style="backdrop-filter: blur(4px);">
+  <div class="bg-base-900 border border-base-700 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col"
+       style="max-height: 90vh;">
+    <form method="post" action="{% url 'admin_stock_quick_add' %}"
+          class="flex flex-col h-full overflow-hidden">
+      {% csrf_token %}
+      <input type="hidden" name="product_id" id="qa-product-id">
+
+      <div class="flex items-center justify-between px-5 py-4 border-b border-base-700">
+        <div>
+          <div class="text-xs uppercase tracking-wide text-base-400">Agregar cuentas a</div>
+          <div id="qa-product-name" class="text-lg font-semibold text-white"></div>
+        </div>
+        <button type="button" id="qa-close"
+                class="text-base-400 hover:text-white text-2xl leading-none">×</button>
+      </div>
+
+      <div class="px-5 py-4 space-y-3 overflow-y-auto">
+        <div class="text-xs text-base-300 bg-base-950 border border-base-800 rounded-lg p-3 leading-relaxed">
+          Pega tus cuentas, una por línea. Soporta múltiples formatos:
+          <pre class="text-[11px] text-base-200 mt-2 overflow-x-auto">correo1@gmail.com|password1
+correo2@gmail.com:password2
+correo3@gmail.com,password3,Perfil1</pre>
+          Separadores válidos: <code class="text-primary-300">|</code>, <code class="text-primary-300">,</code>, <code class="text-primary-300">;</code>, <code class="text-primary-300">:</code>, tab o espacios.
+        </div>
+
+        <textarea name="pasted" required rows="10"
+                  placeholder="Pega aquí tus cuentas — una por línea"
+                  class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm font-mono p-3
+                         focus:border-primary-500 focus:outline-none resize-none"></textarea>
+
+        <div id="qa-counter" class="text-xs text-base-400">0 cuentas detectadas</div>
+      </div>
+
+      <div class="flex justify-end gap-2 px-5 py-3 border-t border-base-700 bg-base-900">
+        <button type="button" id="qa-cancel"
+                class="px-4 py-2 rounded-md border border-base-700 hover:bg-base-800 text-base-200 text-sm">
+          Cancelar
+        </button>
+        <button type="submit"
+                class="px-4 py-2 rounded-md bg-primary-500 hover:bg-primary-400 text-white font-semibold text-sm">
+          Agregar cuentas
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  const modal = document.getElementById('quick-add-modal');
+  if (!modal) return;
+  const productIdInput = document.getElementById('qa-product-id');
+  const productNameLabel = document.getElementById('qa-product-name');
+  const textarea = modal.querySelector('textarea[name="pasted"]');
+  const counter = document.getElementById('qa-counter');
+
+  function openModal(productId, productName) {
+    productIdInput.value = productId;
+    productNameLabel.textContent = productName;
+    textarea.value = '';
+    counter.textContent = '0 cuentas detectadas';
+    counter.className = 'text-xs text-base-400';
+    modal.classList.remove('hidden');
+    setTimeout(() => textarea.focus(), 50);
+  }
+  function closeModal() { modal.classList.add('hidden'); }
+
+  function bindButtons() {
+    document.querySelectorAll('.quick-add-btn').forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', function() {
+        openModal(this.dataset.productId, this.dataset.productName);
+      });
+    });
+  }
+  bindButtons();
+  document.body.addEventListener('htmx:afterSwap', bindButtons);
+
+  document.getElementById('qa-close').addEventListener('click', closeModal);
+  document.getElementById('qa-cancel').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+  });
+
+  textarea.addEventListener('input', function() {
+    const text = this.value.trim();
+    if (!text) {
+      counter.textContent = '0 cuentas detectadas';
+      counter.className = 'text-xs text-base-400';
+      return;
+    }
+    const lines = text.split(/\r?\n/);
+    const hasBlankBlocks = lines.some((l, i) => !l.trim() && i > 0 && i < lines.length - 1);
+    let n;
+    if (hasBlankBlocks) {
+      n = text.split(/\n\s*\n/).filter(b => b.trim()).length;
+    } else {
+      n = lines.filter(l => l.trim()).length;
+    }
+    counter.textContent = n + ' cuenta' + (n === 1 ? '' : 's') + ' detectada' + (n === 1 ? '' : 's');
+    counter.className = n > 0 ? 'text-xs text-emerald-300' : 'text-xs text-base-400';
+  });
+})();
+</script>
+{% endblock %}

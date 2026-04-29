@@ -1,0 +1,78 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-5">
+
+  {% include "admin/stock/_header.html" %}
+
+  {# Toolbar: filtros + búsqueda live #}
+  <section class="rounded-xl border border-base-700 bg-base-900 px-5 py-4 flex flex-col gap-3">
+
+    <form id="stock-filter-form" method="get" action="{% url 'admin_stock_list' %}"
+          hx-get="{% url 'admin_stock_list' %}"
+          hx-trigger="change from:select, keyup changed delay:250ms from:input[type=search]"
+          hx-target="#stock-list-results"
+          hx-select="#stock-list-results"
+          hx-swap="outerHTML"
+          hx-push-url="true"
+          class="flex flex-col gap-3">
+
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs uppercase tracking-wide text-base-400 mr-1">Estado:</span>
+        {% with current_status=status %}
+          {% for opt in status_options %}
+            <label class="cursor-pointer">
+              <input type="radio" name="status" value="{{ opt.value }}"
+                     {% if current_status == opt.value %}checked{% endif %}
+                     class="sr-only peer">
+              <span class="px-3 py-1 rounded-full text-xs font-medium border transition
+                           {% if current_status == opt.value %}
+                             border-primary-500 bg-primary-500/15 text-primary-200
+                           {% else %}
+                             border-base-700 text-base-300 hover:border-base-500 hover:text-white
+                           {% endif %}">
+                {{ opt.label }}
+                {% if opt.count is not None %}
+                  <span class="ml-1 text-base-500">{{ opt.count }}</span>
+                {% endif %}
+              </span>
+            </label>
+          {% endfor %}
+        {% endwith %}
+      </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <select name="product"
+                class="rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2 focus:border-primary-500 focus:outline-none">
+          <option value="">Todos los productos</option>
+          {% for p in product_options %}
+            <option value="{{ p.pk }}" {% if product_filter == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+
+        <input type="search" name="q" value="{{ q|default:'' }}"
+               placeholder="Buscar correo, etiqueta o perfil…"
+               class="flex-1 min-w-[200px] rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2
+                      focus:border-primary-500 focus:outline-none">
+
+        {% if q or status != 'all' or product_filter %}
+          <a href="{% url 'admin_stock_list' %}"
+             class="text-xs text-base-400 hover:text-white underline-offset-2 hover:underline">
+            Limpiar
+          </a>
+        {% endif %}
+      </div>
+    </form>
+  </section>
+
+  {% include "admin/stock/_list_table.html" %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{# Header común del módulo Stock — KPIs + tabs. #}
+{# Espera en contexto: stock_kpis (dict), active_tab ('resumen'|'cuentas'|'importar'). #}
+<section class="flex flex-col gap-4 rounded-xl border border-base-700 bg-base-900 p-5">
+
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <div class="text-xs uppercase tracking-wide text-base-400">Inventario</div>
+      <h1 class="text-2xl font-bold text-white leading-tight">Stock</h1>
+      <p class="text-sm text-base-400 mt-0.5">Resumen, búsqueda de cuentas e importación masiva.</p>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 flex-1 max-w-2xl">
+      <div class="rounded-lg border border-base-700 bg-base-950 px-3 py-2">
+        <div class="text-[10px] uppercase tracking-wide text-base-400">Productos</div>
+        <div class="text-lg font-semibold text-white">{{ stock_kpis.products|default:0 }}</div>
+      </div>
+      <div class="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2">
+        <div class="text-[10px] uppercase tracking-wide text-emerald-300">Disponibles</div>
+        <div class="text-lg font-semibold text-emerald-200">{{ stock_kpis.available|default:0 }}</div>
+      </div>
+      <div class="rounded-lg border border-blue-500/30 bg-blue-500/5 px-3 py-2">
+        <div class="text-[10px] uppercase tracking-wide text-blue-300">Vendidas</div>
+        <div class="text-lg font-semibold text-blue-200">{{ stock_kpis.sold|default:0 }}</div>
+      </div>
+      <div class="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+        <div class="text-[10px] uppercase tracking-wide text-amber-300">Bajo / sin stock</div>
+        <div class="text-lg font-semibold text-amber-200">{{ stock_kpis.low_or_empty|default:0 }}</div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="flex flex-wrap gap-1 border-t border-base-700 pt-3">
+    {% with active=active_tab %}
+    <a href="{% url 'admin_stock_overview' %}"
+       class="px-4 py-1.5 rounded-md text-sm font-medium transition
+              {% if active == 'resumen' %}bg-primary-500 text-white{% else %}text-base-300 hover:bg-base-800 hover:text-white{% endif %}">
+      Resumen
+    </a>
+    <a href="{% url 'admin_stock_list' %}"
+       class="px-4 py-1.5 rounded-md text-sm font-medium transition
+              {% if active == 'cuentas' %}bg-primary-500 text-white{% else %}text-base-300 hover:bg-base-800 hover:text-white{% endif %}">
+      Cuentas
+    </a>
+    <a href="{% url 'admin:catalog_stockitem_import' %}"
+       class="px-4 py-1.5 rounded-md text-sm font-medium transition
+              {% if active == 'importar' %}bg-primary-500 text-white{% else %}text-base-300 hover:bg-base-800 hover:text-white{% endif %}">
+      Importar
+    </a>
+
+    <span class="ml-auto text-xs text-base-500 self-center">
+      <a href="{% url 'admin:catalog_stockitem_changelist' %}" class="hover:text-white underline-offset-2 hover:underline">
+        Vista clásica
+      </a>
+    </span>
+    {% endwith %}
+  </nav>
+
+</section>
