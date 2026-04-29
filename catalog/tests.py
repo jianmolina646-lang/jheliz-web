@@ -1,10 +1,12 @@
 from datetime import timedelta
 from decimal import Decimal
 
+from django.contrib.admin.sites import site as admin_site
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from catalog.admin import StockItemAdmin
 from catalog.models import (
     Category,
     Plan,
@@ -50,6 +52,89 @@ class StockUrgencyTests(TestCase):
         self._add_stock(10)
         self.assertEqual(self.product.stock_urgency_level, "")
         self.assertFalse(self.product.is_low_stock)
+
+
+class StockImportDuplicateTests(TestCase):
+    def setUp(self):
+        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.product = Product.objects.create(
+            category=self.cat,
+            name="Netflix Premium — 1 perfil",
+            slug="netflix-premium-1-perfil",
+            is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product,
+            name="1 mes",
+            price_customer=Decimal("25.00"),
+        )
+        self.admin = StockItemAdmin(StockItem, admin_site)
+
+    def test_allows_same_email_when_profile_is_different(self):
+        StockItem.objects.create(
+            product=self.product,
+            plan=self.plan,
+            credentials=(
+                "Correo: cuenta@netflix.com\n"
+                "Contraseña: secret\n"
+                "Perfil: Perfil 1\n"
+                "PIN: 1111"
+            ),
+        )
+
+        created, skipped = self.admin._process_file_with_stats(
+            "cuenta@netflix.com|otra-clave|Perfil 2|2222",
+            product=self.product,
+            plan=self.plan,
+        )
+
+        self.assertEqual(created, 1)
+        self.assertEqual(skipped, 0)
+        self.assertEqual(self.product.stock_items.count(), 2)
+
+    def test_rejects_same_email_and_same_profile(self):
+        StockItem.objects.create(
+            product=self.product,
+            plan=self.plan,
+            credentials=(
+                "Correo: cuenta@netflix.com\n"
+                "Contraseña: secret\n"
+                "Perfil: Perfil 1\n"
+                "PIN: 1111"
+            ),
+        )
+
+        created, skipped = self.admin._process_file_with_stats(
+            "cuenta@netflix.com|otra-clave|Perfil 1|9999",
+            product=self.product,
+            plan=self.plan,
+        )
+
+        self.assertEqual(created, 0)
+        self.assertEqual(skipped, 1)
+        self.assertEqual(self.product.stock_items.count(), 1)
+
+    def test_rejects_generic_account_when_same_email_already_exists(self):
+        StockItem.objects.create(
+            product=self.product,
+            plan=self.plan,
+            credentials=(
+                "Correo: cuenta@netflix.com\n"
+                "Contraseña: secret\n"
+                "Perfil: Perfil 1\n"
+                "PIN: 1111"
+            ),
+        )
+
+        created, skipped = self.admin._process_file_with_stats(
+            "cuenta@netflix.com|otra-clave",
+            product=self.product,
+            plan=self.plan,
+        )
+
+        self.assertEqual(created, 0)
+        self.assertEqual(skipped, 1)
+        self.assertEqual(self.product.stock_items.count(), 1)
 
 
 class PromoBannerTests(TestCase):
