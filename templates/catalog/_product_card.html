@@ -23,7 +23,12 @@
     {% endif %}
 
     {% with urgency=product.stock_urgency_level stock=product.available_stock %}
-      {% if urgency == 'critical' %}
+      {% if stock == 0 %}
+        <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-700/70 text-zinc-200 border border-zinc-500/40 font-bold backdrop-blur-sm">
+          <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+          Sin stock
+        </span>
+      {% elif urgency == 'critical' %}
         <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-100 border border-rose-400/40 font-bold backdrop-blur-sm">
           <span class="w-1.5 h-1.5 rounded-full bg-rose-300 animate-pulse"></span>
           Quedan {{ stock }}
@@ -31,6 +36,11 @@
       {% elif urgency == 'low' %}
         <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-100 border border-amber-400/40 font-bold backdrop-blur-sm">
           🔥 Quedan {{ stock }}
+        </span>
+      {% else %}
+        <span class="absolute top-3 left-3 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-100 border border-emerald-400/40 font-bold backdrop-blur-sm">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+          {{ stock }} disp.
         </span>
       {% endif %}
     {% endwith %}

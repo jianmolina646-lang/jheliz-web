@@ -62,7 +62,12 @@
           </span>
           <span class="chip">{{ product.get_mode_display }}</span>
           {% with urgency=product.stock_urgency_level stock=product.available_stock %}
-            {% if urgency == 'critical' %}
+            {% if stock == 0 %}
+              <span class="chip" style="background:rgba(113,113,122,0.18);border-color:rgba(113,113,122,0.5);color:#e4e4e7;font-weight:600">
+                <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+                Sin stock por ahora
+              </span>
+            {% elif urgency == 'critical' %}
               <span class="chip" style="background:rgba(244,63,94,0.12);border-color:rgba(244,63,94,0.4);color:#fda4af;font-weight:600">
                 <span class="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
                 Quedan solo {{ stock }} a este precio
@@ -70,6 +75,11 @@
             {% elif urgency == 'low' %}
               <span class="chip" style="background:rgba(245,158,11,0.12);border-color:rgba(245,158,11,0.4);color:#fcd34d;font-weight:600">
                 🔥 Quedan {{ stock }} a este precio
+              </span>
+            {% else %}
+              <span class="chip" style="background:rgba(16,185,129,0.12);border-color:rgba(16,185,129,0.4);color:#a7f3d0;font-weight:600">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                {{ stock }} disponibles
               </span>
             {% endif %}
           {% endwith %}
