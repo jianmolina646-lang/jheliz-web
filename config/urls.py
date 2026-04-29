@@ -81,6 +81,21 @@ urlpatterns = [
         admin_views.customer_detail,
         name="admin_customer_detail",
     ),
+    path(
+        "jheliz-admin/support/ticket/<int:ticket_id>/chat/",
+        admin_views.support_chat_view,
+        name="admin_support_chat",
+    ),
+    path(
+        "jheliz-admin/support/ticket/<int:ticket_id>/chat/reply/",
+        admin_views.support_chat_reply,
+        name="admin_support_chat_reply",
+    ),
+    path(
+        "jheliz-admin/support/ticket/<int:ticket_id>/chat/messages/",
+        admin_views.support_chat_messages,
+        name="admin_support_chat_messages",
+    ),
     path("jheliz-admin/", admin.site.urls),
     # SEO / PWA endpoints (root-level)
     path("robots.txt", robots_txt, name="robots_txt"),

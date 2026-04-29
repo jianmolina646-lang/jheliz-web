@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import display
 
@@ -38,7 +40,9 @@ class TicketMessageInline(TabularInline):
 
 @admin.register(Ticket)
 class TicketAdmin(ModelAdmin):
-    list_display = ("id", "user", "subject", "display_status", "order", "updated_at")
+    list_display = (
+        "id", "user", "subject", "display_status", "order", "updated_at", "chat_link",
+    )
     list_filter = ("status",)
     search_fields = ("subject", "user__username", "user__email")
     autocomplete_fields = ("user", "order")
@@ -58,3 +62,13 @@ class TicketAdmin(ModelAdmin):
     )
     def display_status(self, obj: Ticket):
         return obj.status, obj.get_status_display()
+
+    @admin.display(description="Chat")
+    def chat_link(self, obj: Ticket) -> str:
+        url = reverse("admin_support_chat", args=[obj.pk])
+        return format_html(
+            '<a href="{}" class="inline-flex items-center gap-1 px-3 py-1 rounded-md '
+            'bg-primary-500 hover:bg-primary-400 text-white text-xs font-semibold">'
+            '💬 Responder</a>',
+            url,
+        )

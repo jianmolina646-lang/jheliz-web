@@ -1,0 +1,117 @@
+{% extends 'admin/base.html' %}
+{% load i18n %}
+
+{% block title %}Chat — Ticket #{{ ticket.id }} | Soporte{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+  <!-- Header -->
+  <section class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-base-700 bg-base-900 p-4">
+    <div class="min-w-0">
+      <a href="{% url 'admin:support_ticket_changelist' %}" class="text-xs text-base-400 hover:text-white">← Volver a tickets</a>
+      <h1 class="text-lg sm:text-xl font-bold text-white truncate mt-1">
+        #{{ ticket.id }} — {{ ticket.subject }}
+      </h1>
+      <div class="text-xs text-base-300 mt-0.5 flex flex-wrap gap-2 items-center">
+        <span>Cliente: <strong class="text-white">{{ ticket.user.username }}</strong>{% if ticket.user.email %} <span class="text-base-400">({{ ticket.user.email }})</span>{% endif %}</span>
+        <span>·</span>
+        <span>Estado: <span class="text-primary-300">{{ ticket.get_status_display }}</span></span>
+        {% if ticket.order %}
+          <span>·</span>
+          <span>Pedido <a href="{% url 'admin:orders_order_change' ticket.order.pk %}" class="text-primary-300 hover:underline">#{{ ticket.order.short_uuid }}</a></span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{% url 'admin:support_ticket_change' ticket.pk %}"
+         class="text-xs px-3 py-1.5 rounded-md border border-base-600 text-base-200 hover:bg-base-800">
+        Editar (admin clásico)
+      </a>
+    </div>
+  </section>
+
+  <!-- Chat -->
+  <section class="rounded-xl border border-base-700 bg-base-900 p-4 flex flex-col" style="min-height: 65vh;">
+    <div id="ticket-chat-scroll" class="flex-1 overflow-y-auto pr-1" style="max-height: 65vh;">
+      {% include "support/_messages.html" %}
+    </div>
+
+    {% if not ticket.is_closed %}
+      <form method="post"
+            action="{% url 'admin_support_chat_reply' ticket.pk %}"
+            hx-post="{% url 'admin_support_chat_reply' ticket.pk %}"
+            hx-target="#ticket-messages"
+            hx-swap="outerHTML"
+            hx-on::after-request="this.querySelector('textarea').value=''; const s=document.getElementById('ticket-chat-scroll'); if(s){s.scrollTop=s.scrollHeight;}"
+            class="mt-4 border-t border-base-700 pt-4 flex flex-col gap-2">
+        {% csrf_token %}
+
+        {% if reply_templates %}
+        <div class="flex flex-wrap items-center gap-2">
+          <label for="qa-template" class="text-xs text-base-300">Plantilla:</label>
+          <select id="qa-template" name="template_id"
+                  class="bg-base-950 border border-base-700 text-white text-xs rounded-md px-2 py-1 focus:border-primary-500 focus:outline-none">
+            <option value="">— Sin plantilla —</option>
+            {% regroup reply_templates by get_category_display as grouped_templates %}
+            {% for group in grouped_templates %}
+              <optgroup label="{{ group.grouper }}">
+                {% for tpl in group.list %}
+                  <option value="{{ tpl.pk }}" data-body="{{ tpl.body|escape }}">{{ tpl.name }}</option>
+                {% endfor %}
+              </optgroup>
+            {% endfor %}
+          </select>
+          <span class="text-[11px] text-base-400">Variables: {nombre} {pedido} {producto} {telefono} {fecha}</span>
+        </div>
+        {% endif %}
+
+        <div class="flex flex-col md:flex-row gap-2">
+          <textarea name="body" rows="3" required
+                    placeholder="Escribe tu respuesta…"
+                    class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm font-mono p-3 focus:border-primary-500 focus:outline-none resize-none"></textarea>
+          <button type="submit" class="self-stretch md:self-auto px-5 py-2.5 rounded-md bg-primary-500 hover:bg-primary-400 text-white text-sm font-semibold whitespace-nowrap">
+            Enviar
+          </button>
+        </div>
+        <div class="text-[11px] text-base-400">El cliente verá tu respuesta al instante en su web. El estado pasa a "Esperando al cliente".</div>
+      </form>
+    {% else %}
+      <div class="mt-4 border-t border-base-700 pt-4 text-center text-base-300 text-sm">
+        Este ticket está cerrado. Puedes reabrirlo desde la edición clásica.
+      </div>
+    {% endif %}
+  </section>
+</div>
+
+<script>
+  (function () {
+    var s = document.getElementById('ticket-chat-scroll');
+    if (s) { s.scrollTop = s.scrollHeight; }
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+      if (evt.target && evt.target.id === 'ticket-messages') {
+        var sc = document.getElementById('ticket-chat-scroll');
+        if (sc) { sc.scrollTop = sc.scrollHeight; }
+      }
+    });
+
+    // Pre-fill textarea cuando se elige una plantilla
+    var sel = document.getElementById('qa-template');
+    if (sel) {
+      sel.addEventListener('change', function () {
+        var opt = sel.options[sel.selectedIndex];
+        var body = opt && opt.getAttribute('data-body');
+        if (!body) return;
+        var ta = document.querySelector('textarea[name="body"]');
+        if (ta && (ta.value.trim() === '' || confirm('¿Reemplazar el texto actual con la plantilla?'))) {
+          ta.value = body;
+          ta.focus();
+        }
+      });
+    }
+  })();
+</script>
+{% endblock %}
