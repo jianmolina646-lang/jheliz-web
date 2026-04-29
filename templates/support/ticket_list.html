@@ -4,7 +4,7 @@
 <section class="flex items-center justify-between gap-4 flex-wrap">
   <div>
     <h1 class="text-3xl font-extrabold">Soporte</h1>
-    <p class="text-white/70 mt-1">Tus tickets y respuestas del equipo</p>
+    <p class="text-white/70 mt-1">Conversa con nosotros desde tus tickets — chat en vivo, sin salir de la web.</p>
   </div>
   <a href="{% url 'support:create' %}" class="btn-primary text-white font-semibold px-4 py-2 rounded-xl text-sm">+ Nuevo ticket</a>
 </section>
@@ -14,7 +14,12 @@
     {% for t in tickets %}
       <a href="{% url 'support:detail' t.pk %}" class="card-glass rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 hover:border-jheliz-400/50 block">
         <div>
-          <div class="font-semibold">#{{ t.id }} — {{ t.subject }}</div>
+          <div class="font-semibold flex items-center gap-2">
+            <span>#{{ t.id }} — {{ t.subject }}</span>
+            {% if t.status == 'pending_user' %}
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-jheliz-500/20 border border-jheliz-400/40 text-jheliz-200">Respondido</span>
+            {% endif %}
+          </div>
           <div class="text-xs text-white/60">Actualizado {{ t.updated_at|date:"d/m/Y H:i" }}{% if t.order %} · Pedido #{{ t.order.short_uuid }}{% endif %}</div>
         </div>
         <span class="text-xs px-2 py-1 rounded-full border

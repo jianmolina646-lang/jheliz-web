@@ -30,6 +30,10 @@ class Ticket(models.Model):
     def __str__(self) -> str:
         return f"#{self.pk} {self.subject}"
 
+    @property
+    def is_closed(self) -> bool:
+        return self.status in {self.Status.RESOLVED, self.Status.CLOSED}
+
 
 class TicketMessage(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="messages")

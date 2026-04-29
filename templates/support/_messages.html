@@ -1,0 +1,31 @@
+{% load tz %}
+<div id="ticket-messages"
+     class="space-y-3"
+     {% if not ticket.is_closed %}hx-get="{% url 'support:messages' ticket.pk %}"
+     hx-trigger="every 6s"
+     hx-swap="outerHTML"
+     hx-select="#ticket-messages"{% endif %}>
+  {% for m in messages_thread %}
+    {% if m.is_from_staff %}
+      <div class="flex justify-start">
+        <div class="max-w-[78%] rounded-2xl rounded-tl-sm px-4 py-2.5 bg-white/[0.06] border border-white/10 shadow-sm">
+          <div class="text-[11px] uppercase tracking-wide text-jheliz-300/90 mb-0.5">Soporte Jheliz</div>
+          <div class="whitespace-pre-wrap text-sm leading-relaxed text-white">{{ m.body }}</div>
+          <div class="text-[10px] text-white/40 mt-1 text-right">{{ m.created_at|date:"d/m H:i" }}</div>
+        </div>
+      </div>
+    {% else %}
+      <div class="flex justify-end">
+        <div class="max-w-[78%] rounded-2xl rounded-tr-sm px-4 py-2.5 bg-jheliz-500/15 border border-jheliz-400/30">
+          <div class="text-[11px] uppercase tracking-wide text-white/60 mb-0.5 text-right">
+            {% if m.author and m.author.is_staff %}Staff · {{ m.author.username }}{% else %}Tú{% endif %}
+          </div>
+          <div class="whitespace-pre-wrap text-sm leading-relaxed text-white">{{ m.body }}</div>
+          <div class="text-[10px] text-white/40 mt-1 text-right">{{ m.created_at|date:"d/m H:i" }}</div>
+        </div>
+      </div>
+    {% endif %}
+  {% empty %}
+    <div class="text-white/50 text-sm text-center py-6">Sin mensajes aún. Escribe abajo para comenzar.</div>
+  {% endfor %}
+</div>
