@@ -67,10 +67,11 @@
           </select>
           <span class="text-[11px] text-base-400">Variables: {nombre} {pedido} {producto} {telefono} {fecha}</span>
         </div>
+        {{ chat_vars_json|json_script:"qa-chat-vars" }}
         {% endif %}
 
         <div class="flex flex-col md:flex-row gap-2">
-          <textarea name="body" rows="3" required
+          <textarea name="body" rows="3"
                     placeholder="Escribe tu respuesta…"
                     class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm font-mono p-3 focus:border-primary-500 focus:outline-none resize-none"></textarea>
           <button type="submit" class="self-stretch md:self-auto px-5 py-2.5 rounded-md bg-primary-500 hover:bg-primary-400 text-white text-sm font-semibold whitespace-nowrap">
@@ -98,13 +99,24 @@
       }
     });
 
-    // Pre-fill textarea cuando se elige una plantilla
+    // Pre-fill textarea cuando se elige una plantilla, con variables ya sustituidas
+    var varsNode = document.getElementById('qa-chat-vars');
+    var chatVars = {};
+    if (varsNode) {
+      try { chatVars = JSON.parse(varsNode.textContent || '{}'); } catch (e) { chatVars = {}; }
+    }
+    function renderTemplateBody(raw) {
+      return String(raw || '').replace(/\{(nombre|pedido|producto|telefono|fecha)\}/g, function (_, k) {
+        return chatVars[k] != null ? chatVars[k] : '';
+      });
+    }
     var sel = document.getElementById('qa-template');
     if (sel) {
       sel.addEventListener('change', function () {
         var opt = sel.options[sel.selectedIndex];
-        var body = opt && opt.getAttribute('data-body');
-        if (!body) return;
+        var raw = opt && opt.getAttribute('data-body');
+        if (!raw) return;
+        var body = renderTemplateBody(raw);
         var ta = document.querySelector('textarea[name="body"]');
         if (ta && (ta.value.trim() === '' || confirm('¿Reemplazar el texto actual con la plantilla?'))) {
           ta.value = body;

@@ -8,6 +8,7 @@ que Django las matchee primero.
 from __future__ import annotations
 
 import csv
+import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -938,6 +939,31 @@ _ORDER_COLORS = {
 # Support chat (admin side) — vista tipo chat para responder tickets
 # ---------------------------------------------------------------------------
 
+def _ticket_template_vars(ticket) -> dict:
+    """Dict con las variables que sustituye ReplyTemplate.render para este ticket."""
+    user = ticket.user
+    order = ticket.order
+    nombre = ""
+    if user:
+        nombre = user.get_full_name() or user.username or ""
+    pedido = ""
+    telefono = ""
+    producto = ""
+    if order:
+        pedido = order.short_uuid if hasattr(order, "short_uuid") else str(order.pk)
+        telefono = getattr(order, "phone", "") or ""
+        first_item = order.items.first() if hasattr(order, "items") else None
+        if first_item:
+            producto = getattr(first_item, "product_name", "") or ""
+    return {
+        "nombre": nombre,
+        "pedido": pedido,
+        "producto": producto,
+        "telefono": telefono,
+        "fecha": timezone.localdate().strftime("%d/%m/%Y"),
+    }
+
+
 @staff_member_required
 def support_chat_view(request, ticket_id: int):
     """Chat dentro del admin para responder un ticket en formato burbujas."""
@@ -953,6 +979,7 @@ def support_chat_view(request, ticket_id: int):
         ticket=ticket,
         messages_thread=ticket.messages.all(),
         reply_templates=templates,
+        chat_vars_json=json.dumps(_ticket_template_vars(ticket)),
         title=f"Chat — Ticket #{ticket.pk}",
     )
     return render(request, "admin/support/chat.html", ctx)
