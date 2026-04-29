@@ -26,17 +26,6 @@
 
 {% block extra_head %}
 <style>
-  .home-hero {
-    position: relative;
-    overflow: visible;
-  }
-  .home-hero::before {
-    content: ''; position: absolute; inset: -10% -20% auto -20%; height: 90%;
-    background:
-      radial-gradient(50% 50% at 80% 20%, rgba(236,72,153,0.18), transparent 70%),
-      radial-gradient(40% 50% at 20% 60%, rgba(168,85,247,0.10), transparent 70%);
-    z-index: -1; pointer-events: none;
-  }
   .price-pill {
     background: rgba(255,255,255,.03); border: 1px solid var(--line);
     border-radius: 999px; padding: 0.45rem 0.85rem;
@@ -51,54 +40,87 @@
   .price-pill .nm { font-size: 0.78rem; color: #d4d4d8; font-weight: 600; }
   .price-pill .pr { font-size: 0.72rem; color: #f9a8d4; font-family: monospace; }
   .step-mini {
-    width: 2rem; height: 2rem; border-radius: 0.55rem;
-    background: linear-gradient(135deg, #ec4899, #be185d);
-    color: #fff; font-weight: 700;
+    width: 2.25rem; height: 2.25rem; border-radius: 0.7rem;
+    background: linear-gradient(135deg, #ec4899, #a855f7);
+    color: #fff; font-weight: 800;
     display: inline-flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 18px -6px rgba(236,72,153,.6);
-    font-size: 0.85rem;
+    box-shadow: 0 8px 24px -8px rgba(236,72,153,.7), inset 0 1px 0 rgba(255,255,255,.25);
+    font-size: 0.95rem;
   }
   .stat-num {
-    font-family: 'Inter Tight', system-ui, sans-serif;
-    font-weight: 700; font-size: 2.25rem; line-height: 1;
+    font-family: 'Geist', system-ui, sans-serif;
+    font-weight: 800; font-size: 2.5rem; line-height: 1;
+    letter-spacing: -0.04em;
     background: linear-gradient(180deg, #fafafa, #a1a1aa);
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  @media (min-width: 768px) { .stat-num { font-size: 3rem; } }
+  @media (min-width: 768px) { .stat-num { font-size: 3.25rem; } }
+  .hero-title {
+    font-family: 'Geist', system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    line-height: 0.96;
+    font-size: clamp(2.6rem, 8vw, 5.5rem);
+  }
+  .hero-italic {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: -0.02em;
+  }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.35rem 0.85rem; border-radius: 9999px;
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em;
+    color: #f9a8d4;
+    background: linear-gradient(135deg, rgba(236,72,153,.14), rgba(168,85,247,.12));
+    border: 1px solid rgba(236,72,153,.25);
+    box-shadow: 0 6px 24px -10px rgba(236,72,153,.5);
+  }
+  .badge-glow { position: relative; }
+  .badge-glow::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    box-shadow: 0 0 0 4px rgba(236,72,153,.15); animation: pulseGlow 2.5s ease-out infinite;
+  }
+  @keyframes pulseGlow {
+    0% { box-shadow: 0 0 0 0 rgba(236,72,153,.45); }
+    70% { box-shadow: 0 0 0 12px rgba(236,72,153,0); }
+    100% { box-shadow: 0 0 0 0 rgba(236,72,153,0); }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 
 <!-- Hero ----------------------------------------------------------------- -->
-<section class="home-hero pt-6 md:pt-12 pb-14 md:pb-20">
-  <div class="max-w-3xl">
-    <div class="inline-flex items-center gap-2 chip mb-6">
-      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-      Entrega inmediata · Soporte 24/7
-    </div>
-    <h1 class="font-display text-5xl md:text-7xl font-bold leading-[1.02] tracking-tight">
-      Streaming y licencias<br>
-      <span class="bg-gradient-to-r from-jheliz-300 via-fuchsia-300 to-jheliz-200 bg-clip-text text-transparent">al mejor precio</span>
-      <span class="text-zinc-500">de Perú.</span>
+<section class="mesh-accent pt-10 md:pt-20 pb-16 md:pb-24 text-center">
+  <div class="max-w-4xl mx-auto">
+    <span class="hero-eyebrow badge-glow">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+      Entrega inmediata · Soporte 24/7 en Perú
+    </span>
+    <h1 class="hero-title mt-7">
+      Streaming &amp; licencias<br>
+      <span class="hero-italic text-zinc-300">al mejor</span>
+      <span class="text-grad">precio del 2026</span>
     </h1>
-    <p class="mt-6 text-lg text-zinc-400 max-w-xl leading-relaxed">
-      Netflix, Disney+, Prime, Windows, Office y más.
-      Pago con Mercado Pago o Yape, cuenta en tu correo en minutos.
+    <p class="mt-7 text-base md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+      Netflix, Disney+, HBO Max, Prime, Crunchyroll, Windows, Office y más.
+      Pago con Mercado Pago o Yape; cuenta en tu correo en minutos.
     </p>
-    <div class="mt-8 flex flex-wrap gap-3">
+    <div class="mt-9 flex flex-wrap gap-3 justify-center">
       <a href="{% url 'catalog:products' %}" class="btn btn-primary btn-lg">
-        Ver productos
+        Explorar catálogo
         <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
       </a>
-      <a href="{% url 'catalog:distributor' %}" class="btn btn-secondary btn-lg">Soy distribuidor</a>
+      <a href="{% url 'catalog:distributor' %}" class="btn btn-secondary btn-lg" style="border-radius:9999px">Soy distribuidor</a>
     </div>
 
     <!-- Trust row -->
-    <div class="mt-10 flex flex-wrap items-center gap-x-8 gap-y-3 text-xs text-zinc-500">
+    <div class="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-zinc-500">
       <div class="flex items-center gap-2">
         <svg class="icon" viewBox="0 0 24 24" style="color:#34d399"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-        Más de 5 000 entregas
+        Más de 5 000 entregas
       </div>
       <div class="flex items-center gap-2">
         <svg class="icon icon-filled" viewBox="0 0 24 24" style="color:#fbbf24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -113,9 +135,9 @@
 
   {% if starter_strip %}
   <!-- Strip de productos con precio desde -->
-  <div class="mt-12">
-    <p class="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-3">Desde S/ 7 · entrega en minutos</p>
-    <div class="flex flex-wrap gap-2">
+  <div class="mt-14 max-w-4xl mx-auto">
+    <p class="text-[11px] text-zinc-500 uppercase tracking-[.18em] font-semibold mb-3 text-center">Desde S/ 7 · entrega en minutos</p>
+    <div class="flex flex-wrap gap-2 justify-center">
       {% for s in starter_strip %}
         <a href="{{ s.product.get_absolute_url }}" class="price-pill">
           <span class="em">{{ s.product.category.emoji|default:'🎬' }}</span>
@@ -167,19 +189,20 @@
 
 <!-- Categories ----------------------------------------------------------- -->
 {% if top_categories %}
-<section class="py-10 border-t hairline">
-  <div class="flex items-end justify-between mb-6">
+<section class="py-12 border-t hairline">
+  <div class="flex items-end justify-between mb-8">
     <div>
-      <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Catálogo</p>
-      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1">Explora por categoría</h2>
+      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-zinc-500">Catálogo</p>
+      <h2 class="font-display text-3xl md:text-5xl font-extrabold mt-2 tracking-tight">Explora por categoría</h2>
     </div>
     <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition hidden sm:inline">Ver todo →</a>
   </div>
   <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
     {% for c in top_categories %}
-      <a href="{{ c.get_absolute_url }}" class="surface rounded-xl p-4 text-center transition group">
-        <div class="text-2xl">{{ c.emoji }}</div>
-        <div class="mt-2 text-sm font-medium text-zinc-200 group-hover:text-white">{{ c.name }}</div>
+      <a href="{{ c.get_absolute_url }}" class="surface surface-lift rounded-2xl p-5 text-center transition group relative overflow-hidden">
+        <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br from-jheliz-500/10 via-fuchsia-500/5 to-transparent pointer-events-none"></div>
+        <div class="text-3xl relative z-10">{{ c.emoji }}</div>
+        <div class="mt-3 text-sm font-semibold text-zinc-200 group-hover:text-white relative z-10">{{ c.name }}</div>
       </a>
     {% endfor %}
   </div>
@@ -187,11 +210,11 @@
 {% endif %}
 
 <!-- Featured products ---------------------------------------------------- -->
-<section class="py-10 border-t hairline">
-  <div class="flex items-end justify-between mb-6">
+<section class="py-12 border-t hairline">
+  <div class="flex items-end justify-between mb-8">
     <div>
-      <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Destacados</p>
-      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1">Los más vendidos del mes</h2>
+      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Destacados</p>
+      <h2 class="font-display text-3xl md:text-5xl font-extrabold mt-2 tracking-tight">Los más vendidos del mes</h2>
     </div>
     <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition">Ver todos →</a>
   </div>
@@ -208,9 +231,9 @@
 </section>
 
 <!-- Value props ---------------------------------------------------------- -->
-<section class="py-14 border-t hairline">
-  <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Por qué Jheliz</p>
-  <h2 class="font-display text-2xl md:text-3xl font-bold mt-1 mb-8">La forma más rápida de comprar streaming en Perú</h2>
+<section class="py-16 border-t hairline">
+  <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-zinc-500">Por qué Jheliz</p>
+  <h2 class="font-display text-3xl md:text-5xl font-extrabold mt-2 mb-10 tracking-tight max-w-3xl">La forma más rápida de comprar streaming <span class="hero-italic text-zinc-400">en Perú</span>.</h2>
   <div class="grid md:grid-cols-3 gap-3">
     <div class="surface rounded-xl p-6">
       <div class="w-10 h-10 rounded-lg bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-jheliz-300">
@@ -295,12 +318,13 @@
 {% endif %}
 
 <!-- CTA strip ------------------------------------------------------------ -->
-<section class="mt-6 surface rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-  <div>
-    <h2 class="font-display text-xl md:text-2xl font-bold tracking-tight">¿Vendes cuentas? Trabaja con nosotros.</h2>
-    <p class="text-sm text-zinc-400 mt-2">Precios mayoristas, panel de gestión propio y entrega automatizada.</p>
+<section class="mt-8 mesh-accent surface rounded-3xl p-8 md:p-14 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden relative">
+  <div class="max-w-xl relative z-10">
+    <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Para distribuidores</p>
+    <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight mt-2">¿Vendes cuentas? <span class="hero-italic text-zinc-400">Trabaja</span> con nosotros.</h2>
+    <p class="text-base text-zinc-400 mt-3 leading-relaxed">Precios mayoristas, panel de gestión propio y entrega automatizada.</p>
   </div>
-  <a href="{% url 'catalog:distributor' %}" class="btn btn-secondary btn-lg whitespace-nowrap">
+  <a href="{% url 'catalog:distributor' %}" class="btn btn-primary btn-lg whitespace-nowrap relative z-10">
     Quiero ser distribuidor
     <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
   </a>
