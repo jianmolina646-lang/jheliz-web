@@ -37,7 +37,7 @@
 
     <div class="mt-4 pt-4 border-t hairline flex items-end justify-between gap-3">
       <div class="min-w-0">
-        {% with plan=product.plans.first %}
+        {% with plan=product|cheapest_plan_for:user %}
           {% if plan %}
             {% if user.is_distributor %}
               <div class="text-[11px] font-semibold uppercase tracking-wider text-jheliz-400">Mayorista desde</div>

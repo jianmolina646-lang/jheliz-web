@@ -2,10 +2,12 @@
 {% load humanize %}
 {% load catalog_extras %}
 
-{% block title %}{{ product.name }}{% if product.plans.first %} — {{ CURRENCY_SYMBOL }} {{ product.plans.first.price_customer|floatformat:0 }}{% endif %} · Entrega en 2 min | {{ SITE_NAME }}{% endblock %}
-{% block meta_description %}{% if product.short_description %}{{ product.short_description }} ✦ {% endif %}{{ product.name }}{% if product.plans.first %} desde {{ CURRENCY_SYMBOL }} {{ product.plans.first.price_customer|floatformat:0 }}{% endif %} en Perú. 🎬 Entrega en minutos, Yape o Mercado Pago, garantía 30 días.{% endblock %}
+{% with seo_plan=product|cheapest_plan_for:user %}
+{% block title %}{{ product.name }}{% if seo_plan %} — {{ CURRENCY_SYMBOL }} {{ seo_plan.price_customer|floatformat:0 }}{% endif %} · Entrega en 2 min | {{ SITE_NAME }}{% endblock %}
+{% block meta_description %}{% if product.short_description %}{{ product.short_description }} ✦ {% endif %}{{ product.name }}{% if seo_plan %} desde {{ CURRENCY_SYMBOL }} {{ seo_plan.price_customer|floatformat:0 }}{% endif %} en Perú. 🎬 Entrega en minutos, Yape o Mercado Pago, garantía 30 días.{% endblock %}
 {% block og_type %}product{% endblock %}
-{% block og_title %}{{ product.name }}{% if product.plans.first %} — {{ CURRENCY_SYMBOL }} {{ product.plans.first.price_customer|floatformat:0 }}{% endif %} | {{ SITE_NAME }}{% endblock %}
+{% block og_title %}{{ product.name }}{% if seo_plan %} — {{ CURRENCY_SYMBOL }} {{ seo_plan.price_customer|floatformat:0 }}{% endif %} | {{ SITE_NAME }}{% endblock %}
+{% endwith %}
 {% block og_description %}{% if product.short_description %}{{ product.short_description }} ✦ {% endif %}🎬 Entrega en 2 min, pago con Yape o Mercado Pago, garantía 30 días.{% endblock %}
 {% block og_image %}{% if product.image %}{{ request.scheme }}://{{ request.get_host }}{{ product.image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
 
