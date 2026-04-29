@@ -3,7 +3,7 @@
 {% block title %}Ingresar — {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="max-w-md mx-auto surface rounded-2xl p-8 md:p-10 mt-4">
-  <h1 class="font-display text-2xl font-bold tracking-tight">Ingresar</h1>
+  <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight" style="letter-spacing:-0.04em">Ingresar</h1>
   <p class="text-zinc-400 text-sm mt-1.5">¿No tienes cuenta? <a class="text-jheliz-400 hover:text-jheliz-300 font-medium" href="{% url 'accounts:signup' %}">Crear cuenta</a>.</p>
   <form method="post" class="mt-6 space-y-4">
     {% csrf_token %}

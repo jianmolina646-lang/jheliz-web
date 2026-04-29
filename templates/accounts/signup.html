@@ -3,7 +3,7 @@
 {% block title %}Registro — {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="max-w-xl mx-auto surface rounded-2xl p-8 md:p-10 mt-4">
-  <h1 class="font-display text-2xl font-bold tracking-tight">Crear cuenta</h1>
+  <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight" style="letter-spacing:-0.04em">Crear cuenta</h1>
   <p class="text-zinc-400 text-sm mt-1.5">¿Ya tienes cuenta? <a class="text-jheliz-400 hover:text-jheliz-300 font-medium" href="{% url 'accounts:login' %}">Ingresar</a>.</p>
   <form method="post" class="mt-6 space-y-4">
     {% csrf_token %}
