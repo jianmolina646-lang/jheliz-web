@@ -8,7 +8,6 @@ que Django las matchee primero.
 from __future__ import annotations
 
 import csv
-import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -979,7 +978,7 @@ def support_chat_view(request, ticket_id: int):
         ticket=ticket,
         messages_thread=ticket.messages.all(),
         reply_templates=templates,
-        chat_vars_json=json.dumps(_ticket_template_vars(ticket)),
+        chat_vars=_ticket_template_vars(ticket),
         title=f"Chat — Ticket #{ticket.pk}",
     )
     return render(request, "admin/support/chat.html", ctx)

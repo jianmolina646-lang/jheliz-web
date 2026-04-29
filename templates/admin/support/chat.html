@@ -67,7 +67,7 @@
           </select>
           <span class="text-[11px] text-base-400">Variables: {nombre} {pedido} {producto} {telefono} {fecha}</span>
         </div>
-        {{ chat_vars_json|json_script:"qa-chat-vars" }}
+        {{ chat_vars|json_script:"qa-chat-vars" }}
         {% endif %}
 
         <div class="flex flex-col md:flex-row gap-2">
