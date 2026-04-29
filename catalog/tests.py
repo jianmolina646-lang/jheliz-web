@@ -2,6 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.admin.sites import site as admin_site
+from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -238,3 +239,124 @@ class ProductReviewTests(TestCase):
     def test_pending_review_hidden_on_product_page(self):
         resp = Client().get(self.product.get_absolute_url())
         self.assertNotContains(resp, "Top, llegó al toque")
+
+
+class StockModuleViewsTests(TestCase):
+    """Verifica el rediseño del módulo de stock: overview, list HTMX, header común."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="stockstaff", email="ss@example.com", password="pwd1234!", is_staff=True,
+        )
+        self.user = User.objects.create_user(
+            username="cliente", email="c@example.com", password="pwd1234!",
+        )
+        self.cat = Category.objects.create(name="Streaming", slug="streaming-mod")
+        self.product_a = Product.objects.create(
+            category=self.cat, name="Netflix Demo", slug="netflix-demo", is_active=True,
+        )
+        self.product_b = Product.objects.create(
+            category=self.cat, name="Disney Demo", slug="disney-demo", is_active=True,
+        )
+        Plan.objects.create(
+            product=self.product_a, name="1 mes",
+            price_customer=Decimal("10.00"), low_stock_threshold=3,
+        )
+        StockItem.objects.create(
+            product=self.product_a, credentials="alice@x.com|pw1", label="Perfil 1",
+        )
+        StockItem.objects.create(
+            product=self.product_a, credentials="alice@x.com|pw1", label="Perfil 2",
+            status=StockItem.Status.SOLD,
+        )
+        StockItem.objects.create(
+            product=self.product_b, credentials="bob@x.com|pw2",
+        )
+
+    def test_overview_requires_staff(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("admin_stock_overview"))
+        self.assertNotEqual(resp.status_code, 200)
+
+    def test_overview_renders_kpis_and_tabs(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_stock_overview"))
+        self.assertEqual(resp.status_code, 200)
+        # KPIs visibles en el header
+        self.assertContains(resp, "Disponibles")
+        # Cards de productos
+        self.assertContains(resp, "Netflix Demo")
+        self.assertContains(resp, "Disney Demo")
+        # Tabs visibles (link al list view)
+        self.assertContains(resp, reverse("admin_stock_list"))
+        # Resumen tab activo (clase distintiva primary-500)
+        self.assertContains(resp, "bg-primary-500")
+
+    def test_overview_search_filters_cards(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_stock_overview") + "?q=netflix")
+        self.assertContains(resp, "Netflix Demo")
+        self.assertNotContains(resp, "Disney Demo")
+
+    def test_list_requires_staff(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("admin_stock_list"))
+        self.assertNotEqual(resp.status_code, 200)
+
+    def test_list_full_page_renders_filters_and_rows(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_stock_list"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Netflix Demo")
+        self.assertContains(resp, "Disney Demo")
+        # Filtro de status presente con los 5 estados
+        for label in ("Disponibles", "Vendidas", "Reservadas", "Caídas", "Deshabilitadas"):
+            self.assertContains(resp, label)
+        # Vista del header común (KPIs)
+        self.assertContains(resp, "Inventario")
+
+    def test_list_status_filter(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_stock_list") + "?status=sold")
+        # Solo la del item vendido (alice@x.com con label Perfil 2) debería aparecer
+        # Both rows show "alice@x.com" credentials so check via label
+        self.assertContains(resp, "Perfil 2")
+        self.assertNotContains(resp, "Perfil 1")
+
+    def test_list_product_filter(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_stock_list") + f"?product={self.product_b.pk}")
+        self.assertContains(resp, "Disney Demo")
+        # No debe aparecer el item de Netflix
+        self.assertNotContains(resp, "Perfil 1")
+
+    def test_list_search_q(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_stock_list") + "?q=alice")
+        self.assertContains(resp, "Perfil 1")
+        self.assertNotContains(resp, "bob@x.com")
+
+    def test_list_htmx_returns_partial_only(self):
+        """Una request HTMX debe devolver solo la tabla, sin el header completo."""
+        self.client.force_login(self.staff)
+        resp = self.client.get(
+            reverse("admin_stock_list"),
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 200)
+        # El partial NO incluye el header común (Inventario / tabs)
+        self.assertNotContains(resp, "Inventario")
+        # Pero SÍ debe incluir la tabla con resultados
+        self.assertContains(resp, "Netflix Demo")
+        # Y el wrapper usado para hx-target / hx-select
+        self.assertContains(resp, 'id="stock-list-results"')
+
+    def test_import_view_uses_unified_header(self):
+        """La vista de import también muestra el header común con tabs."""
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:catalog_stockitem_import"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Inventario")  # header
+        self.assertContains(resp, reverse("admin_stock_overview"))
+        self.assertContains(resp, reverse("admin_stock_list"))

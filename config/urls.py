@@ -62,6 +62,11 @@ urlpatterns = [
         name="admin_stock_overview",
     ),
     path(
+        "jheliz-admin/stock/cuentas/",
+        admin_views.stock_list,
+        name="admin_stock_list",
+    ),
+    path(
         "jheliz-admin/stock/quick-add/",
         admin_views.stock_quick_add,
         name="admin_stock_quick_add",
