@@ -312,7 +312,9 @@ class StockItemAdmin(ModelAdmin):
         """Importa stock soportando varios formatos.
 
         Devuelve ``(created, skipped_duplicates)``. Detecta duplicados por
-        el correo dentro del bloque ``credentials`` para el mismo producto.
+        cuenta dentro del mismo producto: para stock compartido permite el
+        mismo correo si cambia el perfil, pero evita repetir la misma
+        combinación correo+perfil (o una cuenta genérica sin perfil).
 
         Formatos soportados:
         1. CSV/TSV con cabecera (separador autodetectado: ``,``, ``;`` o tab).
@@ -322,13 +324,13 @@ class StockItemAdmin(ModelAdmin):
            ``correo|clave|perfil|pin``.
         3. Bloques multilinea separados por línea en blanco (formato libre).
         """
-        # Carga set de emails ya existentes para este producto, para evitar
-        # duplicados. Se hace una sola query.
-        self._existing_emails = set()
+        # Carga las cuentas ya existentes para este producto. Para stock por
+        # perfiles guardamos email -> perfiles ya usados; el perfil vacío
+        # representa una cuenta genérica/sin perfil.
+        self._existing_profiles_by_email: dict[str, set[str]] = {}
         existing_qs = StockItem.objects.filter(product=product).only("credentials")
         for it in existing_qs:
-            for email in self._extract_emails(it.credentials or ""):
-                self._existing_emails.add(email.lower())
+            self._remember_text_duplicate_keys(it.credentials or "")
         self._duplicates_skipped = 0
 
         content = content.strip()
@@ -369,14 +371,54 @@ class StockItemAdmin(ModelAdmin):
         import re
         return re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text)
 
-    def _is_duplicate(self, email: str) -> bool:
-        """True si el email ya está en stock para este producto. Marca un strike."""
-        if not email:
+    @staticmethod
+    def _normalize_profile(profile: str) -> str:
+        return " ".join((profile or "").strip().lower().split())
+
+    @classmethod
+    def _extract_profile(cls, text: str) -> str:
+        import re
+
+        match = re.search(r"(?im)^(?:perfil|profile)\s*:\s*(.+)$", text)
+        if not match:
+            return ""
+        return cls._normalize_profile(match.group(1))
+
+    def _remember_duplicate_key(self, email: str, profile: str = "") -> None:
+        email_key = (email or "").strip().lower()
+        if not email_key:
+            return
+        profile_key = self._normalize_profile(profile)
+        self._existing_profiles_by_email.setdefault(email_key, set()).add(profile_key)
+
+    def _remember_text_duplicate_keys(self, text: str) -> None:
+        profile = self._extract_profile(text)
+        for email in self._extract_emails(text):
+            self._remember_duplicate_key(email, profile)
+
+    def _is_duplicate(self, email: str, profile: str = "") -> bool:
+        """True si la cuenta/perfil ya existe en stock para este producto."""
+        email_key = (email or "").strip().lower()
+        if not email_key:
             return False
-        if email.lower() in getattr(self, "_existing_emails", set()):
+
+        existing_profiles = self._existing_profiles_by_email.get(email_key, set())
+        incoming_profile = self._normalize_profile(profile)
+        if not incoming_profile:
+            is_duplicate = bool(existing_profiles)
+        else:
+            is_duplicate = incoming_profile in existing_profiles or "" in existing_profiles
+
+        if is_duplicate:
             self._duplicates_skipped += 1
-            return True
-        return False
+        return is_duplicate
+
+    def _is_duplicate_text(self, text: str) -> bool:
+        emails = self._extract_emails(text)
+        if not emails:
+            return False
+        profile = self._extract_profile(text)
+        return any(self._is_duplicate(email, profile) for email in emails)
 
     def _import_csv(self, content: str, product: Product, plan: Plan | None) -> int:
         import csv
@@ -416,7 +458,7 @@ class StockItemAdmin(ModelAdmin):
             password = data.get("password", "")
             if not email or not password:
                 continue
-            if self._is_duplicate(email):
+            if self._is_duplicate(email, data.get("profile", "")):
                 continue
             creds = f"Correo: {email}\nContraseña: {password}"
             if data.get("profile"):
@@ -427,7 +469,7 @@ class StockItemAdmin(ModelAdmin):
                 product=product, plan=plan,
                 credentials=creds, label=data.get("label", "")[:80],
             )
-            self._existing_emails.add(email.lower())
+            self._remember_duplicate_key(email, data.get("profile", ""))
             created += 1
         return created
 
@@ -460,18 +502,16 @@ class StockItemAdmin(ModelAdmin):
                     break
             else:
                 # Línea con un solo token — la guardamos como bloque libre.
-                emails_in_line = self._extract_emails(line)
-                if emails_in_line and self._is_duplicate(emails_in_line[0]):
+                if self._is_duplicate_text(line):
                     continue
                 StockItem.objects.create(
                     product=product, plan=plan, credentials=line,
                 )
-                for em in emails_in_line:
-                    self._existing_emails.add(em.lower())
+                self._remember_text_duplicate_keys(line)
                 created += 1
                 continue
             email, password, *rest = parts
-            if self._is_duplicate(email):
+            if self._is_duplicate(email, rest[0] if rest else ""):
                 continue
             creds = f"Correo: {email}\nContraseña: {password}"
             if rest:
@@ -484,7 +524,7 @@ class StockItemAdmin(ModelAdmin):
             StockItem.objects.create(
                 product=product, plan=plan, credentials=creds,
             )
-            self._existing_emails.add(email.lower())
+            self._remember_duplicate_key(email, rest[0] if rest else "")
             created += 1
         return created
 
@@ -492,14 +532,12 @@ class StockItemAdmin(ModelAdmin):
         created = 0
         blocks = [b.strip() for b in content.split("\n\n") if b.strip()]
         for block in blocks:
-            emails_in_block = self._extract_emails(block)
-            if emails_in_block and self._is_duplicate(emails_in_block[0]):
+            if self._is_duplicate_text(block):
                 continue
             StockItem.objects.create(
                 product=product, plan=plan, credentials=block,
             )
-            for em in emails_in_block:
-                self._existing_emails.add(em.lower())
+            self._remember_text_duplicate_keys(block)
             created += 1
         return created
 
