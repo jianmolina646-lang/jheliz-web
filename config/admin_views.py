@@ -15,7 +15,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import connection, transaction
-from django.db.models import Count, Max, Q, Sum
+from django.db.models import Count, F, Max, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -977,6 +977,7 @@ def support_chat_view(request, ticket_id: int):
         request,
         ticket=ticket,
         messages_thread=ticket.messages.all(),
+        messages_poll_url=reverse("admin_support_chat_messages", args=[ticket.pk]),
         reply_templates=templates,
         chat_vars=_ticket_template_vars(ticket),
         title=f"Chat — Ticket #{ticket.pk}",
@@ -998,7 +999,7 @@ def support_chat_reply(request, ticket_id: int):
         if tpl and not body:
             body = tpl.render(ticket=ticket)
         if tpl:
-            tpl.use_count = (tpl.use_count or 0) + 1
+            tpl.use_count = F("use_count") + 1
             tpl.last_used_at = timezone.now()
             tpl.save(update_fields=["use_count", "last_used_at"])
 
@@ -1018,7 +1019,13 @@ def support_chat_reply(request, ticket_id: int):
         return render(
             request,
             "support/_messages.html",
-            {"ticket": ticket, "messages_thread": ticket.messages.all()},
+            {
+                "ticket": ticket,
+                "messages_thread": ticket.messages.all(),
+                "messages_poll_url": reverse(
+                    "admin_support_chat_messages", args=[ticket.pk]
+                ),
+            },
         )
     messages.success(request, "Respuesta enviada al cliente.")
     return redirect("admin_support_chat", ticket_id=ticket.pk)
@@ -1033,5 +1040,11 @@ def support_chat_messages(request, ticket_id: int):
     return render(
         request,
         "support/_messages.html",
-        {"ticket": ticket, "messages_thread": ticket.messages.all()},
+        {
+            "ticket": ticket,
+            "messages_thread": ticket.messages.all(),
+            "messages_poll_url": reverse(
+                "admin_support_chat_messages", args=[ticket.pk]
+            ),
+        },
     )

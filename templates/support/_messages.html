@@ -1,7 +1,8 @@
 {% load tz %}
+{% url 'support:messages' ticket.pk as default_messages_poll_url %}
 <div id="ticket-messages"
      class="space-y-3"
-     {% if not ticket.is_closed %}hx-get="{% url 'support:messages' ticket.pk %}"
+     {% if not ticket.is_closed %}hx-get="{{ messages_poll_url|default:default_messages_poll_url }}"
      hx-trigger="every 6s"
      hx-swap="outerHTML"
      hx-select="#ticket-messages"{% endif %}>
