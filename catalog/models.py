@@ -105,8 +105,7 @@ class Product(models.Model):
 
     def price_for(self, user) -> Decimal | None:
         """Precio m\u00ednimo visible para el usuario actual."""
-        plans = self.active_plans(user).order_by("price_customer")
-        plan = plans.first()
+        plan = self.cheapest_visible_plan(user)
         if not plan:
             return None
         return plan.price_for(user)
@@ -116,6 +115,23 @@ class Product(models.Model):
         if user and getattr(user, "is_distributor", False):
             return qs
         return qs.filter(available_for_customer=True)
+
+    def cheapest_visible_plan(self, user=None):
+        """Plan m\u00e1s barato visible al usuario, ignorando precios en 0.
+
+        Sirve para mostrar el `DESDE S/ X` en cards y SEO titles sin que
+        un plan en S/ 0 o un plan oculto contamine la vista p\u00fablica.
+        """
+        plans = [
+            p
+            for p in self.active_plans(user)
+            if (p.price_distributor if user and getattr(user, "is_distributor", False) else p.price_customer) > 0
+        ]
+        if not plans:
+            return None
+        if user and getattr(user, "is_distributor", False):
+            return min(plans, key=lambda p: p.price_distributor)
+        return min(plans, key=lambda p: p.price_customer)
 
     @property
     def available_stock(self) -> int:

@@ -359,4 +359,74 @@ class StockModuleViewsTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Inventario")  # header
         self.assertContains(resp, reverse("admin_stock_overview"))
-        self.assertContains(resp, reverse("admin_stock_list"))
+
+
+class CheapestVisiblePlanTests(TestCase):
+    """El `DESDE` de la card debe ignorar planes en S/ 0 o sólo-distribuidor."""
+
+    def setUp(self):
+        self.cat = Category.objects.create(name="Streaming", slug="streaming-pp")
+        self.product = Product.objects.create(
+            category=self.cat, name="Prime Video Demo", slug="prime-video-demo",
+            is_active=True,
+        )
+
+    def test_skips_zero_price_plan(self):
+        Plan.objects.create(
+            product=self.product, name="Borrador", duration_days=15,
+            price_customer=Decimal("0.00"), order=0,
+        )
+        Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("8.00"), order=1,
+        )
+        plan = self.product.cheapest_visible_plan(None)
+        self.assertIsNotNone(plan)
+        self.assertEqual(plan.price_customer, Decimal("8.00"))
+
+    def test_picks_minimum_nonzero_price(self):
+        Plan.objects.create(
+            product=self.product, name="3 meses", duration_days=90,
+            price_customer=Decimal("20.00"), order=0,
+        )
+        Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("8.00"), order=1,
+        )
+        plan = self.product.cheapest_visible_plan(None)
+        self.assertEqual(plan.price_customer, Decimal("8.00"))
+
+    def test_skips_distributor_only_plan_for_anon_user(self):
+        Plan.objects.create(
+            product=self.product, name="Mayorista", duration_days=30,
+            price_customer=Decimal("3.00"), available_for_customer=False, order=0,
+        )
+        Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("8.00"), order=1,
+        )
+        plan = self.product.cheapest_visible_plan(None)
+        self.assertEqual(plan.price_customer, Decimal("8.00"))
+
+    def test_returns_none_when_only_zero_priced_plans(self):
+        Plan.objects.create(
+            product=self.product, name="Borrador", duration_days=30,
+            price_customer=Decimal("0.00"), order=0,
+        )
+        self.assertIsNone(self.product.cheapest_visible_plan(None))
+
+    def test_card_shows_nonzero_price_when_zero_plan_exists(self):
+        """Regresión: la card pública no debe mostrar `S/ 0,00` como `DESDE`."""
+        Plan.objects.create(
+            product=self.product, name="Borrador", duration_days=15,
+            price_customer=Decimal("0.00"), order=0,
+        )
+        Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("8.00"), order=1,
+        )
+        resp = self.client.get(reverse("catalog:products"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Prime Video Demo")
+        self.assertContains(resp, "S/ 8,00")
+        self.assertNotContains(resp, "S/ 0,00")

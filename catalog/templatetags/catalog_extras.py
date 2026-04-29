@@ -62,3 +62,15 @@ def product_accent(product) -> str:
     seed = (getattr(product, "slug", "") or getattr(product, "name", "") or "x")
     c1, _ = _palette_for(seed)
     return c1
+
+
+@register.filter
+def cheapest_plan_for(product, user):
+    """Plan m\u00e1s barato visible al usuario, ignorando precios en S/ 0.
+
+    Usa `Product.cheapest_visible_plan(user)` para mostrar el `DESDE`
+    correcto en cards y SEO, evitando que un plan en 0 lo contamine.
+    """
+    if product is None:
+        return None
+    return product.cheapest_visible_plan(user)
