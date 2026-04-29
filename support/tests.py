@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import F
 from django.test import TestCase
 from django.urls import reverse
 
@@ -147,3 +148,52 @@ class AdminSupportChatTests(TestCase):
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'id="ticket-messages"')
+
+    def test_admin_chat_polls_admin_endpoint_not_customer_one(self):
+        """El partial del admin debe pollear el endpoint admin, no el del cliente."""
+        self.client.force_login(self.staff)
+        url = reverse("admin_support_chat", args=[self.ticket.pk])
+        resp = self.client.get(url)
+        admin_poll = reverse("admin_support_chat_messages", args=[self.ticket.pk])
+        customer_poll = reverse("support:messages", args=[self.ticket.pk])
+        self.assertContains(resp, f'hx-get="{admin_poll}"')
+        self.assertNotContains(resp, f'hx-get="{customer_poll}"')
+
+    def test_customer_chat_still_polls_customer_endpoint(self):
+        """Regresión: el cliente sigue pollando su propio endpoint."""
+        self.client.force_login(self.user)
+        url = reverse("support:detail", args=[self.ticket.pk])
+        resp = self.client.get(url)
+        customer_poll = reverse("support:messages", args=[self.ticket.pk])
+        self.assertContains(resp, f'hx-get="{customer_poll}"')
+
+    def test_template_use_count_survives_concurrent_update(self):
+        """Race condition: si la BD cambia entre fetch y save del request, F() lo absorbe."""
+        tpl = ReplyTemplate.objects.create(
+            name="Saludo", category=ReplyTemplate.Category.GENERAL,
+            body="Hola.", is_active=True, use_count=5,
+        )
+        self.client.force_login(self.staff)
+        url = reverse("admin_support_chat_reply", args=[self.ticket.pk])
+        # Simulamos otro worker incrementando el contador mientras el request está en
+        # vuelo: monkey-patch ReplyTemplate.save para meter +1 directo en BD justo
+        # antes del save real.
+        original_save = ReplyTemplate.save
+
+        def racing_save(self, *args, **kwargs):
+            ReplyTemplate.objects.filter(pk=self.pk).update(use_count=F("use_count") + 1)
+            return original_save(self, *args, **kwargs)
+
+        ReplyTemplate.save = racing_save
+        try:
+            self.client.post(
+                url, {"body": "a", "template_id": str(tpl.pk)},
+                HTTP_HX_REQUEST="true",
+            )
+        finally:
+            ReplyTemplate.save = original_save
+
+        tpl.refresh_from_db()
+        # Con F(): 5 + 1 (otro worker) + 1 (request) = 7. Con read-modify-write
+        # ingenuo: 5 + 1 (otro) + 1 (request usa el 5 cacheado) = 6. Esperamos 7.
+        self.assertEqual(tpl.use_count, 7)
