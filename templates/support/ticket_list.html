@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Soporte — {{ SITE_NAME }}{% endblock %}
 {% block content %}
-<section class="flex items-center justify-between gap-4 flex-wrap">
+<section class="mesh-accent flex items-end justify-between gap-4 flex-wrap pb-3">
   <div>
-    <h1 class="text-3xl font-extrabold">Soporte</h1>
-    <p class="text-white/70 mt-1">Conversa con nosotros desde tus tickets — chat en vivo, sin salir de la web.</p>
+    <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Soporte</p>
+    <h1 class="font-display text-4xl md:text-6xl font-extrabold tracking-tight mt-2" style="letter-spacing:-0.04em;line-height:.96">¿En qué te <span class="hero-italic text-zinc-300">ayudamos?</span></h1>
+    <p class="text-zinc-400 mt-3 max-w-xl">Conversa con nosotros desde tus tickets — chat en vivo, sin salir de la web.</p>
   </div>
-  <a href="{% url 'support:create' %}" class="btn-primary text-white font-semibold px-4 py-2 rounded-xl text-sm">+ Nuevo ticket</a>
+  <a href="{% url 'support:create' %}" class="btn btn-primary btn-lg" style="border-radius:9999px">+ Nuevo ticket</a>
 </section>
 
 {% if tickets %}

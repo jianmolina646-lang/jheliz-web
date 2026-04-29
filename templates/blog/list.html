@@ -59,15 +59,15 @@
 {% block content %}
 
 <!-- Hero ----------------------------------------------------------------- -->
-<section class="blog-hero -mx-6 px-6 py-10 md:py-14 mb-10">
+<section class="mesh-accent -mx-6 px-6 py-12 md:py-20 mb-10">
   <div class="max-w-3xl">
-    <span class="chip chip-pink">{% if category %}📂 Categoría{% else %}📰 Blog Jheliz{% endif %}</span>
-    <h1 class="font-display text-4xl md:text-6xl font-bold tracking-tight mt-4 leading-[1.05]">
+    <span class="hero-eyebrow badge-glow">{% if category %}📂 Categoría{% else %}📰 Blog Jheliz · 2026{% endif %}</span>
+    <h1 class="font-display font-extrabold tracking-tight mt-5 leading-[0.96]" style="font-size:clamp(2.6rem,7.5vw,5.25rem);letter-spacing:-0.045em">
       {% if category %}
-        {{ category.emoji }} {{ category.name }}
+        {{ category.emoji }} <span class="text-grad">{{ category.name }}</span>
       {% else %}
         Guías, tips<br>
-        <span class="bg-gradient-to-r from-jheliz-300 via-fuchsia-300 to-jheliz-200 bg-clip-text text-transparent">y novedades.</span>
+        <span class="hero-italic text-zinc-300">y</span> <span class="text-grad">novedades.</span>
       {% endif %}
     </h1>
     <p class="text-lg text-zinc-400 mt-4 leading-relaxed max-w-2xl">

@@ -40,9 +40,9 @@
 </script>
 <style>
   .blog-content h1, .blog-content h2, .blog-content h3 {
-    font-family: 'Inter Tight', Inter, system-ui, sans-serif;
+    font-family: 'Geist', Inter, system-ui, sans-serif;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.025em;
     color: #f4f4f5;
     margin-top: 2rem;
     margin-bottom: 0.75rem;
@@ -156,7 +156,7 @@
         {{ post.category.emoji }} {{ post.category.name }}
       </a>
     {% endif %}
-    <h1 class="font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mt-4 leading-[1.1]">{{ post.title }}</h1>
+    <h1 class="font-display font-extrabold tracking-tight mt-4 leading-[0.98]" style="font-size:clamp(2rem,5.5vw,3.75rem);letter-spacing:-0.04em">{{ post.title }}</h1>
     <p class="text-lg text-zinc-400 mt-5 leading-relaxed">{{ post.excerpt }}</p>
 
     <!-- Meta + author + share -->

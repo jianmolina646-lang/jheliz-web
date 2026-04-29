@@ -2,7 +2,7 @@
 {% block title %}Mi perfil — {{ SITE_NAME }}{% endblock %}
 {% block content %}
 <div class="max-w-xl card-glass rounded-3xl p-8">
-  <h1 class="text-2xl font-extrabold">Mi perfil</h1>
+  <h1 class="font-display text-3xl md:text-5xl font-extrabold tracking-tight" style="letter-spacing:-0.04em;line-height:.96">Mi <span class="hero-italic text-zinc-300">perfil</span></h1>
   <form method="post" class="mt-6 space-y-4">
     {% csrf_token %}
     {% for field in form %}
