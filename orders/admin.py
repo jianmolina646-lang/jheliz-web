@@ -14,6 +14,7 @@ from unfold.admin import ModelAdmin, TabularInline
 from unfold.contrib.import_export.forms import ExportForm, ImportForm, SelectableFieldsExportForm
 from unfold.decorators import display
 
+from . import credentials as creds_utils
 from . import emails
 from .models import Coupon, DistributorOrder, EmailLog, Order, OrderItem, PaymentSettings
 
@@ -668,6 +669,172 @@ class OrderItemAdmin(ModelAdmin):
         "requested_profile_name", "requested_pin",
     )
     autocomplete_fields = ("order", "product", "plan", "stock_item")
+    actions = ("action_replace_account", "action_rollback_replacement")
+
+    # ------------------------------------------------------------------
+    # Reemplazo seguro de cuenta
+    # ------------------------------------------------------------------
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "replace-account/",
+                self.admin_site.admin_view(self.replace_account_view),
+                name="orders_orderitem_replace_account",
+            ),
+        ]
+        return custom + urls
+
+    @admin.action(description="Reemplazar cuenta (correo + contraseña)")
+    def action_replace_account(self, request, queryset):
+        # Restringe a items que ya tienen credenciales entregadas
+        ids = list(queryset.values_list("pk", flat=True))
+        if not ids:
+            self.message_user(
+                request, "Seleccioná al menos un item.", level=messages.WARNING,
+            )
+            return None
+        url = reverse("admin:orders_orderitem_replace_account")
+        qs = "&".join(f"ids={pk}" for pk in ids)
+        return HttpResponseRedirect(f"{url}?{qs}")
+
+    @admin.action(description="Deshacer último reemplazo de cuenta")
+    def action_rollback_replacement(self, request, queryset):
+        from datetime import timedelta
+
+        rollback_window = timezone.now() - timedelta(days=30)
+        done = 0
+        skipped = 0
+        with transaction.atomic():
+            for item in queryset.select_for_update():
+                if (
+                    not item.previous_delivered_credentials
+                    or item.credentials_replaced_at is None
+                    or item.credentials_replaced_at < rollback_window
+                ):
+                    skipped += 1
+                    continue
+                item.delivered_credentials = item.previous_delivered_credentials
+                item.previous_delivered_credentials = ""
+                item.credentials_replaced_at = None
+                item.save(update_fields=[
+                    "delivered_credentials",
+                    "previous_delivered_credentials",
+                    "credentials_replaced_at",
+                ])
+                done += 1
+        if done:
+            self.message_user(
+                request,
+                f"{done} item(s) restaurado(s) a las credenciales anteriores.",
+                level=messages.SUCCESS,
+            )
+        if skipped:
+            self.message_user(
+                request,
+                f"{skipped} item(s) no tenían reemplazo reciente — no se tocaron.",
+                level=messages.WARNING,
+            )
+
+    def replace_account_view(self, request):
+        """Vista con preview + doble confirmación + ejecución atómica."""
+        raw_ids = request.GET.getlist("ids") or request.POST.getlist("ids")
+        try:
+            ids = [int(x) for x in raw_ids if x]
+        except ValueError:
+            ids = []
+        items = list(
+            OrderItem.objects
+            .filter(pk__in=ids)
+            .select_related("order", "order__user", "product")
+            .order_by("order__created_at")
+        )
+        # Enriquecer con info parseada y rol
+        enriched = []
+        for item in items:
+            parsed = creds_utils.parse(item.delivered_credentials)
+            user = item.order.user
+            is_distributor = bool(user and getattr(user, "is_distributor", False))
+            enriched.append({
+                "item": item,
+                "old_email": parsed.email,
+                "old_password": parsed.password,
+                "has_email": parsed.has_email_line,
+                "has_password": parsed.has_password_line,
+                "is_distributor": is_distributor,
+                "role_label": "Distribuidor" if is_distributor else "Cliente",
+            })
+
+        error = ""
+        if request.method == "POST" and request.POST.get("confirm") == "1":
+            new_email = (request.POST.get("new_email") or "").strip()
+            new_password = (request.POST.get("new_password") or "").strip()
+            confirm_email = (request.POST.get("confirm_email") or "").strip()
+            notify = request.POST.get("notify") == "on"
+            selected = set(request.POST.getlist("apply"))
+
+            if not new_email or not new_password:
+                error = "Completá el nuevo correo y la nueva contraseña."
+            elif confirm_email != new_email:
+                error = "El correo de confirmación no coincide con el nuevo correo."
+            else:
+                updated = 0
+                notified = 0
+                now = timezone.now()
+                with transaction.atomic():
+                    for entry in enriched:
+                        item = entry["item"]
+                        if str(item.pk) not in selected:
+                            continue
+                        if not item.delivered_credentials:
+                            continue
+                        new_text = creds_utils.replace_account(
+                            item.delivered_credentials, new_email, new_password,
+                        )
+                        item.previous_delivered_credentials = item.delivered_credentials
+                        item.delivered_credentials = new_text
+                        item.credentials_replaced_at = now
+                        item.save(update_fields=[
+                            "delivered_credentials",
+                            "previous_delivered_credentials",
+                            "credentials_replaced_at",
+                        ])
+                        updated += 1
+                        if notify:
+                            transaction.on_commit(
+                                lambda it=item, d=entry["is_distributor"]:
+                                emails.send_account_credentials_updated(
+                                    it, is_distributor=d,
+                                )
+                            )
+                            notified += 1
+                self.message_user(
+                    request,
+                    f"{updated} item(s) con credenciales actualizadas."
+                    + (f" {notified} email(s) enviado(s)." if notify else ""),
+                    level=messages.SUCCESS,
+                )
+                return redirect("admin:orders_orderitem_changelist")
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Reemplazar cuenta (correo + contraseña)",
+            "opts": self.model._meta,
+            "entries": enriched,
+            "ids": ids,
+            "error": error,
+            "posted": request.method == "POST" and request.POST.get("confirm") == "1",
+            "form_values": {
+                "new_email": request.POST.get("new_email", "") if request.method == "POST" else "",
+                "new_password": request.POST.get("new_password", "") if request.method == "POST" else "",
+            },
+        }
+        return TemplateResponse(
+            request,
+            "admin/orders/orderitem/replace_account.html",
+            context,
+        )
 
 
 @admin.register(Coupon)

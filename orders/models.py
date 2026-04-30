@@ -456,6 +456,11 @@ class OrderItem(models.Model):
         help_text="Preferencias adicionales (idioma, recordatorio de vencimiento, etc).",
     )
     delivered_credentials = EncryptedTextField(blank=True)
+    # Snapshot de las credenciales anteriores para habilitar rollback 1-click
+    # cuando el admin reemplaza email+contraseña por un cambio de cuenta.
+    # Se vacía al expirar el período de rollback (30 días).
+    previous_delivered_credentials = EncryptedTextField(blank=True)
+    credentials_replaced_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     # Recordatorios de vencimiento ya enviados (evita duplicados):
     expiry_reminder_3d_sent_at = models.DateTimeField(null=True, blank=True)

@@ -1,0 +1,237 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} — {{ site_title }}{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<style>
+.jh-rep-wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.jh-rep-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px; padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-wrap: wrap;
+}
+.jh-rep-header h1 {
+    margin: 0; font-size: 20px; font-weight: 700; color: #f8fafc;
+    display: flex; align-items: center; gap: 8px;
+}
+.jh-rep-header h1 .material-symbols-outlined { color: #f472b6; }
+.jh-rep-back {
+    margin-left: auto; color: #94a3b8; text-decoration: none; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.jh-rep-back:hover { color: #e2e8f0; }
+
+.jh-rep-warn {
+    background: rgba(251,191,36,0.08);
+    border: 1px solid rgba(251,191,36,0.35);
+    color: #fcd34d;
+    padding: 14px 16px; border-radius: 10px; margin-bottom: 18px;
+    font-size: 13.5px; line-height: 1.6;
+}
+.jh-rep-error {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.4);
+    color: #fca5a5;
+    padding: 12px 14px; border-radius: 10px; margin-bottom: 16px;
+    font-size: 13.5px;
+}
+
+.jh-rep-table {
+    width: 100%; border-collapse: collapse; margin-bottom: 22px;
+    background: rgba(15,23,42,0.5); border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.jh-rep-table th, .jh-rep-table td {
+    padding: 10px 12px; text-align: left; font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    vertical-align: middle;
+}
+.jh-rep-table thead { background: rgba(255,255,255,0.03); }
+.jh-rep-table th { color: #94a3b8; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+.jh-rep-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+.jh-rep-table code {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: #f9a8d4;
+}
+.jh-rep-table .missing {
+    color: #fca5a5; font-size: 12px; font-style: italic;
+}
+
+.jh-badge {
+    display: inline-block; padding: 2px 9px; border-radius: 9999px;
+    font-size: 11px; font-weight: 600;
+}
+.jh-badge-cliente { background: rgba(99,102,241,0.18); color: #a5b4fc; }
+.jh-badge-distribuidor { background: rgba(16,185,129,0.18); color: #6ee7b7; }
+
+.jh-rep-form {
+    background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 18px 20px;
+}
+.jh-rep-form h2 { margin: 0 0 14px 0; font-size: 16px; font-weight: 700; color: #f1f5f9; }
+.jh-rep-form label {
+    display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600;
+}
+.jh-rep-form input[type=text], .jh-rep-form input[type=password], .jh-rep-form input[type=email] {
+    width: 100%; padding: 10px 12px; border-radius: 10px;
+    background: rgba(15,23,42,0.7); color: #f8fafc;
+    border: 1px solid rgba(255,255,255,0.1);
+    font-size: 14px; font-family: Menlo, Consolas, monospace;
+    margin-bottom: 14px;
+}
+.jh-rep-form input:focus {
+    outline: none; border-color: rgba(244,114,182,0.6);
+    box-shadow: 0 0 0 3px rgba(244,114,182,0.15);
+}
+.jh-rep-actions {
+    display: flex; gap: 10px; margin-top: 12px; align-items: center;
+}
+.jh-rep-actions button {
+    padding: 10px 18px; border-radius: 10px;
+    background: #f472b6; color: #fff; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.jh-rep-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+.jh-rep-actions a {
+    padding: 10px 16px; border-radius: 10px;
+    color: #94a3b8; text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.1);
+    font-size: 14px;
+}
+.jh-rep-checkbox {
+    display: flex; align-items: center; gap: 8px;
+    color: #cbd5e1; font-size: 13px; margin-top: 4px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="jh-rep-wrap">
+  <div class="jh-rep-header">
+    <h1>
+      <span class="material-symbols-outlined">sync_alt</span>
+      Reemplazar cuenta
+      <span style="color:#94a3b8;font-weight:500;font-size:13px;">({{ entries|length }} item{{ entries|length|pluralize }})</span>
+    </h1>
+    <a href="{% url 'admin:orders_orderitem_changelist' %}" class="jh-rep-back">
+      ← Volver al listado
+    </a>
+  </div>
+
+  {% if not entries %}
+    <div class="jh-rep-warn">Seleccioná items desde el listado usando la acción <strong>“Reemplazar cuenta (correo + contraseña)”</strong>.</div>
+  {% else %}
+    <div class="jh-rep-warn">
+      Al confirmar, <strong>sobrescribimos</strong> el correo y la contraseña de las credenciales entregadas de cada item. Perfil y PIN no se tocan. El cliente recibe un email (si está activada la opción). Podés deshacer el cambio durante 30 días desde el mismo listado.
+    </div>
+
+    {% if error %}
+      <div class="jh-rep-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="confirm" value="1">
+      {% for id in ids %}<input type="hidden" name="ids" value="{{ id }}">{% endfor %}
+
+      <table class="jh-rep-table">
+        <thead>
+          <tr>
+            <th style="width: 36px;"><input type="checkbox" id="jh-check-all" checked></th>
+            <th>Pedido</th>
+            <th>Rol</th>
+            <th>Producto / Plan</th>
+            <th>Correo actual</th>
+            <th>Contraseña actual</th>
+            <th>Perfil / PIN</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in entries %}
+            <tr>
+              <td>
+                <input type="checkbox" name="apply" value="{{ e.item.pk }}" class="jh-apply-box" checked>
+              </td>
+              <td>
+                <a href="{% url 'admin:orders_order_change' e.item.order.pk %}"
+                   style="color:#a5b4fc;text-decoration:none;">
+                  #{{ e.item.order.short_uuid }}
+                </a>
+                <div style="color:#94a3b8;font-size:12px;">{{ e.item.order.email|default:"(invitado)" }}</div>
+              </td>
+              <td><span class="jh-badge {% if e.is_distributor %}jh-badge-distribuidor{% else %}jh-badge-cliente{% endif %}">{{ e.role_label }}</span></td>
+              <td>
+                <div>{{ e.item.product_name }}</div>
+                <div style="color:#94a3b8;font-size:12px;">{{ e.item.plan_name }}</div>
+              </td>
+              <td>
+                {% if e.has_email %}<code>{{ e.old_email }}</code>{% else %}<span class="missing">sin línea de correo</span>{% endif %}
+              </td>
+              <td>
+                {% if e.has_password %}<code>{{ e.old_password }}</code>{% else %}<span class="missing">sin línea de contraseña</span>{% endif %}
+              </td>
+              <td>
+                {% if e.item.requested_profile_name %}{{ e.item.requested_profile_name }}{% if e.item.requested_pin %} · PIN {{ e.item.requested_pin }}{% endif %}{% else %}<span class="missing">—</span>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="jh-rep-form">
+        <h2>Nuevos datos de la cuenta</h2>
+
+        <label for="id_new_email">Nuevo correo (va a reemplazar el actual en todos los items seleccionados)</label>
+        <input type="email" id="id_new_email" name="new_email" required
+               value="{{ form_values.new_email }}"
+               autocomplete="off" spellcheck="false">
+
+        <label for="id_new_password">Nueva contraseña</label>
+        <input type="text" id="id_new_password" name="new_password" required
+               value="{{ form_values.new_password }}"
+               autocomplete="off" spellcheck="false">
+
+        <label for="id_confirm_email">Confirmá tipeando el nuevo correo otra vez</label>
+        <input type="email" id="id_confirm_email" name="confirm_email" required
+               autocomplete="off" spellcheck="false">
+
+        <label class="jh-rep-checkbox">
+          <input type="checkbox" name="notify" checked> Notificar por email a cada cliente
+        </label>
+
+        <div class="jh-rep-actions">
+          <button type="submit" id="jh-submit">Aplicar cambios</button>
+          <a href="{% url 'admin:orders_orderitem_changelist' %}">Cancelar</a>
+        </div>
+      </div>
+    </form>
+
+    <script>
+      (function () {
+        var checkAll = document.getElementById('jh-check-all');
+        var boxes = document.querySelectorAll('.jh-apply-box');
+        if (checkAll) {
+          checkAll.addEventListener('change', function () {
+            boxes.forEach(function (b) { b.checked = checkAll.checked; });
+          });
+        }
+        var emailA = document.getElementById('id_new_email');
+        var emailB = document.getElementById('id_confirm_email');
+        var submitBtn = document.getElementById('jh-submit');
+        function refresh() {
+          var match = emailA.value && emailA.value.trim() === emailB.value.trim();
+          submitBtn.disabled = !match;
+        }
+        [emailA, emailB].forEach(function (el) {
+          el.addEventListener('input', refresh);
+        });
+        refresh();
+      })();
+    </script>
+  {% endif %}
+</div>
+{% endblock %}
