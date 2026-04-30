@@ -1,0 +1,39 @@
+{% extends "emails/_base.html" %}
+{% load humanize %}
+{% block body %}
+  {% if days_left <= 1 %}
+    <h2 style="margin:0 0 8px 0;font-size:20px;">⚠️ Cuenta de tu cliente vence mañana</h2>
+    <p>Tienes menos de <strong>24 horas</strong> antes de que tu cliente final pierda el acceso. Renueva ahora para evitar reclamos.</p>
+  {% elif days_left <= 3 %}
+    <h2 style="margin:0 0 8px 0;font-size:20px;">Cuenta de tu cliente vence en {{ days_left }} días</h2>
+    <p>Pedido <strong>#{{ order.short_uuid }}</strong> próximo a vencer. Renueva con anticipación y avisa a tu cliente final para que no se corte el servicio.</p>
+  {% else %}
+    <h2 style="margin:0 0 8px 0;font-size:20px;">Recordatorio: cuentas que vencen en {{ days_left }} días</h2>
+    <p>Faltan {{ days_left }} días para que venzan estas cuentas que tienes activas. Renueva con anticipación y avisa a tus clientes finales.</p>
+  {% endif %}
+  {% for it in items %}
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:14px 16px;border-radius:12px;margin:12px 0;">
+      <div style="font-weight:700;">{{ it.product_name }} — {{ it.plan_name }}</div>
+      {% if it.requested_profile_name or it.requested_pin %}
+        <div style="color:rgba(255,255,255,0.6);font-size:13px;">
+          Perfil <strong>{{ it.requested_profile_name|default:"-" }}</strong>
+          {% if it.requested_pin %} · PIN <strong>{{ it.requested_pin }}</strong>{% endif %}
+        </div>
+      {% endif %}
+      {% if it.final_customer_name or it.final_customer_whatsapp %}
+        <div style="color:#a7f3d0;font-size:13px;margin-top:4px;">
+          Cliente final: <strong>{{ it.final_customer_name|default:"(sin registrar)" }}</strong>
+          {% if it.final_customer_whatsapp %} · WhatsApp {{ it.final_customer_whatsapp }}{% endif %}
+        </div>
+      {% endif %}
+      {% if it.expires_at %}<div style="color:rgba(255,255,255,0.6);font-size:13px;margin-top:4px;">Vence: {{ it.expires_at|date:"d/m/Y H:i" }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  <p style="margin-top:24px;">
+    <a href="{{ SITE_URL }}/distribuidor/panel/" style="background:#10b981;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;display:inline-block;font-weight:600;">Ver panel y renovar</a>
+  </p>
+  <p style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:18px;">
+    💡 Recordá que en tu panel ya tenés el WhatsApp del cliente final cargado, para avisar de la renovación con un click.
+    Si necesitás ayuda escribinos al WhatsApp {{ WHATSAPP_NUMBER }}.
+  </p>
+{% endblock %}

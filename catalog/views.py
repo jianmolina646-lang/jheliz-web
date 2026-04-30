@@ -421,7 +421,7 @@ def distributor_catalog(request):
     if redirect_response is not None:
         return redirect_response
 
-    products = (
+    products = list(
         Product.objects.filter(
             is_active=True,
             plans__is_active=True,
@@ -431,6 +431,10 @@ def distributor_catalog(request):
         .prefetch_related("plans")
         .distinct()
     )
+    # Calcula el copy de WhatsApp por producto para que el template no tenga
+    # que importar nada y JS pueda copiarlo de un atributo data-*.
+    for product in products:
+        product.whatsapp_pitch = product.whatsapp_pitch_for(request.user)
     return render(
         request,
         "catalog/distributor_catalog.html",

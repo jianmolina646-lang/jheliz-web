@@ -82,10 +82,12 @@ def send_yape_proof_rejected(order) -> None:
           "emails/order_yape_rejected.html", kind="yape_rejected")
 
 
-def send_expiry_reminder(order, items, days_left: int) -> None:
+def send_expiry_reminder(order, items, days_left: int, *, for_distributor: bool = False) -> None:
     """Recordatorio de renovaci\u00f3n N d\u00edas antes del vencimiento.
 
     ``items`` es una lista de ``OrderItem`` que vencen en ``days_left`` d\u00edas.
+    Si ``for_distributor`` es True, se usa un template con copy específico para
+    revendedores (menciona a sus clientes finales y linkea al panel mayorista).
     """
     if not order.email or not items:
         return
@@ -99,11 +101,18 @@ def send_expiry_reminder(order, items, days_left: int) -> None:
         "CURRENCY_SYMBOL": settings.DEFAULT_CURRENCY_SYMBOL,
         "WHATSAPP_NUMBER": settings.WHATSAPP_NUMBER,
     }
-    body = render_to_string("emails/order_expiring.html", context)
-    if days_left <= 1:
-        subject = f"Tu suscripci\u00f3n vence ma\u00f1ana \u2014 #{order.short_uuid}"
+    if for_distributor:
+        body = render_to_string("emails/order_expiring_distribuidor.html", context)
+        if days_left <= 1:
+            subject = f"⚠️ Cuenta de tu cliente vence mañana — #{order.short_uuid}"
+        else:
+            subject = f"Tu cuenta vence en {days_left} días — #{order.short_uuid}"
     else:
-        subject = f"Tu suscripci\u00f3n vence en {days_left} d\u00edas \u2014 #{order.short_uuid}"
+        body = render_to_string("emails/order_expiring.html", context)
+        if days_left <= 1:
+            subject = f"Tu suscripci\u00f3n vence ma\u00f1ana \u2014 #{order.short_uuid}"
+        else:
+            subject = f"Tu suscripci\u00f3n vence en {days_left} d\u00edas \u2014 #{order.short_uuid}"
     message = EmailMessage(
         subject=subject,
         body=body,

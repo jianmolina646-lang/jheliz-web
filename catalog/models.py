@@ -83,6 +83,14 @@ class Product(models.Model):
         "Etiqueta de ventas", max_length=20, blank=True,
         help_text="Ej: +500, +10K",
     )
+    whatsapp_sales_copy = models.TextField(
+        "Plantilla para WhatsApp (distribuidores)", blank=True,
+        help_text=(
+            "Texto pre-armado que el distribuidor copia al instante para reenviar"
+            " a sus clientes finales. Si está vacío se genera uno automático con"
+            " nombre del producto y precios. Podés usar emojis y saltos de línea."
+        ),
+    )
     order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -102,6 +110,34 @@ class Product(models.Model):
 
     def get_absolute_url(self) -> str:
         return reverse("catalog:product", args=[self.slug])
+
+    def whatsapp_pitch_for(self, user=None) -> str:
+        """Texto pre-armado para que un distribuidor lo reenvíe a su cliente final.
+
+        Si el admin configuró un copy personalizado en `whatsapp_sales_copy`, se
+        usa ese. Si no, generamos uno con el nombre del producto y los planes
+        visibles para el cliente final (usa precio público, no mayorista).
+        """
+        if self.whatsapp_sales_copy.strip():
+            return self.whatsapp_sales_copy
+        from django.conf import settings
+
+        currency = getattr(settings, "DEFAULT_CURRENCY_SYMBOL", "S/")
+        lines = [f"{self.icon or '🎬'} *{self.name}*"]
+        if self.short_description:
+            lines.append(self.short_description)
+        plans = self.plans.filter(is_active=True, available_for_customer=True).order_by("order", "duration_days")
+        for plan in plans:
+            if plan.price_customer <= 0:
+                continue
+            duration = f"{plan.duration_days} días" if plan.duration_days else "sin expiración"
+            lines.append(f"• {plan.name} ({duration}) — {currency} {plan.price_customer:.2f}")
+        lines.append("")
+        lines.append("✅ Garantía durante toda la suscripción")
+        lines.append("✅ Entrega rápida")
+        lines.append("")
+        lines.append("DM para apartar 👇")
+        return "\n".join(lines)
 
     def price_for(self, user) -> Decimal | None:
         """Precio m\u00ednimo visible para el usuario actual."""

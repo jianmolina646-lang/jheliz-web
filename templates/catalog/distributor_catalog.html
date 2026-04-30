@@ -21,11 +21,64 @@
 
 <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
   {% for product in products %}
-    {% include "catalog/_product_card.html" with product=product %}
+    <div class="space-y-2">
+      {% include "catalog/_product_card.html" with product=product %}
+      <button type="button"
+              class="copy-pitch-btn w-full text-xs px-3 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200 transition border border-emerald-500/30 inline-flex items-center justify-center gap-1.5"
+              data-pitch="{{ product.whatsapp_pitch|escape }}"
+              data-product="{{ product.name|escape }}">
+        <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copiar texto para WhatsApp
+      </button>
+    </div>
   {% empty %}
     <div class="card-glass rounded-2xl p-8 text-center text-white/70 md:col-span-3">
       Todavía no hay productos con plan mayorista activo.
     </div>
   {% endfor %}
 </div>
+
+<div id="copy-toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 hidden z-50 px-5 py-3 rounded-xl bg-emerald-500/95 text-white text-sm font-medium shadow-lg backdrop-blur whitespace-nowrap">
+  📋 Texto copiado — pegalo en WhatsApp
+</div>
+
+<script>
+(function () {
+  const toast = document.getElementById("copy-toast");
+  let toastTimer = null;
+  function showToast(text) {
+    if (!toast) return;
+    toast.textContent = "📋 " + text;
+    toast.classList.remove("hidden");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.add("hidden"); }, 2200);
+  }
+  document.querySelectorAll(".copy-pitch-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      const pitch = btn.getAttribute("data-pitch") || "";
+      const productName = btn.getAttribute("data-product") || "";
+      if (!pitch) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(pitch).then(
+          function () { showToast(productName + " copiado"); },
+          function () { fallback(); }
+        );
+      } else {
+        fallback();
+      }
+      function fallback() {
+        const ta = document.createElement("textarea");
+        ta.value = pitch;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try { document.execCommand("copy"); showToast(productName + " copiado"); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}
