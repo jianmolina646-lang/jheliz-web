@@ -105,6 +105,17 @@
         if(!any){
             html = '<div class="jh-cmd-empty">Sin resultados.</div>';
         }
+        // Footer: link a la página completa de resultados.
+        var q = input.value.trim();
+        if(q.length >= 2){
+            html += (
+                '<a class="jh-cmd-item jh-cmd-seeall" href="' + API_URL +
+                '?full=1&q=' + encodeURIComponent(q) + '">' +
+                '  <span>Ver todos los resultados para "' + escapeHtml(q) + '"</span>' +
+                '  <span class="jh-cmd-meta">↵</span>' +
+                '</a>'
+            );
+        }
         results.innerHTML = html;
         activeIdx = -1;
     }

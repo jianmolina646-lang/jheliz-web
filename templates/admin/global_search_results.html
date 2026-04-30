@@ -1,0 +1,179 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} — {{ site_title }}{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<style>
+.jh-search-wrap {
+    max-width: 900px; margin: 0 auto; padding: 16px;
+}
+.jh-search-header {
+    padding-bottom: 16px; margin-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.jh-search-header h1 {
+    margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #f8fafc;
+    display: flex; align-items: center; gap: 8px;
+}
+.jh-search-header h1 .material-symbols-outlined { color: #f472b6; }
+.jh-search-form {
+    display: flex; gap: 8px;
+}
+.jh-search-form input[type="text"] {
+    flex: 1;
+    background: #0b0217;
+    color: #f1f5f9;
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 10px 14px; border-radius: 10px;
+    font-size: 14px; font-family: inherit;
+}
+.jh-search-form input[type="text"]:focus {
+    outline: none; border-color: #f472b6;
+    box-shadow: 0 0 0 3px rgba(244,114,182,0.18);
+}
+.jh-search-form button {
+    background: linear-gradient(135deg, #f472b6, #d946ef);
+    color: #fff; border: none; padding: 10px 20px;
+    border-radius: 10px; font-weight: 600; cursor: pointer;
+    font-family: inherit; font-size: 13px;
+}
+.jh-search-form button:hover { filter: brightness(1.08); }
+
+.jh-search-summary {
+    margin-top: 12px; font-size: 13px; color: #94a3b8;
+}
+.jh-search-summary strong { color: #f472b6; }
+
+.jh-section {
+    margin-bottom: 24px;
+    background: rgba(15,23,42,0.55);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+}
+.jh-section-head {
+    padding: 10px 16px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #94a3b8;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 600;
+}
+.jh-section-head .count {
+    background: rgba(244,114,182,0.18); color: #f472b6;
+    padding: 2px 8px; border-radius: 9999px; font-size: 11px;
+}
+.jh-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 16px; color: #f1f5f9; text-decoration: none;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.jh-item:last-child { border-bottom: 0; }
+.jh-item:hover { background: rgba(244,114,182,0.06); }
+.jh-item .jh-i-label { font-size: 14px; }
+.jh-item .jh-i-meta { font-size: 12px; color: #94a3b8; }
+
+.jh-empty {
+    padding: 48px 24px; text-align: center; color: #94a3b8;
+    background: rgba(15,23,42,0.5);
+    border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1);
+}
+.jh-empty .material-symbols-outlined {
+    font-size: 40px; display: block; margin-bottom: 10px; color: #64748b;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="jh-search-wrap">
+    <div class="jh-search-header">
+        <h1>
+            <span class="material-symbols-outlined">search</span>
+            Búsqueda global
+        </h1>
+        <form method="get" action="" class="jh-search-form">
+            <input type="hidden" name="full" value="1" />
+            <input type="text" name="q" value="{{ q }}" placeholder="Buscar pedido, cliente, producto, plan o ticket…" autofocus autocomplete="off" />
+            <button type="submit">Buscar</button>
+        </form>
+        {% if q %}
+        <div class="jh-search-summary">
+            {{ total }} resultado{{ total|pluralize:"s" }} para <strong>“{{ q }}”</strong>
+            · máximo {{ limit }} por categoría
+        </div>
+        {% endif %}
+    </div>
+
+    {% if not q %}
+    <div class="jh-empty">
+        <span class="material-symbols-outlined">search</span>
+        <div style="font-size:14px;color:#e2e8f0">Escribí al menos 2 caracteres</div>
+        <div style="margin-top:4px;font-size:12px">Busca por UUID, email, teléfono, nombre, usuario de Telegram, referencia de pago, notas, etc.</div>
+    </div>
+    {% elif total == 0 %}
+    <div class="jh-empty">
+        <span class="material-symbols-outlined">sentiment_dissatisfied</span>
+        <div style="font-size:14px;color:#e2e8f0">Sin resultados</div>
+        <div style="margin-top:4px;font-size:12px">Probá con un término distinto o más corto.</div>
+    </div>
+    {% else %}
+        {% with labels=groups.keys %}
+        {% if groups.orders %}
+        <section class="jh-section">
+            <div class="jh-section-head">Pedidos <span class="count">{{ groups.orders|length }}</span></div>
+            {% for it in groups.orders %}
+            <a class="jh-item" href="{{ it.url }}">
+                <span class="jh-i-label">{{ it.label }}</span>
+                {% if it.meta %}<span class="jh-i-meta">{{ it.meta }}</span>{% endif %}
+            </a>
+            {% endfor %}
+        </section>
+        {% endif %}
+        {% if groups.customers %}
+        <section class="jh-section">
+            <div class="jh-section-head">Clientes <span class="count">{{ groups.customers|length }}</span></div>
+            {% for it in groups.customers %}
+            <a class="jh-item" href="{{ it.url }}">
+                <span class="jh-i-label">{{ it.label }}</span>
+                {% if it.meta %}<span class="jh-i-meta">{{ it.meta }}</span>{% endif %}
+            </a>
+            {% endfor %}
+        </section>
+        {% endif %}
+        {% if groups.products %}
+        <section class="jh-section">
+            <div class="jh-section-head">Productos <span class="count">{{ groups.products|length }}</span></div>
+            {% for it in groups.products %}
+            <a class="jh-item" href="{{ it.url }}">
+                <span class="jh-i-label">{{ it.label }}</span>
+                {% if it.meta %}<span class="jh-i-meta">{{ it.meta }}</span>{% endif %}
+            </a>
+            {% endfor %}
+        </section>
+        {% endif %}
+        {% if groups.plans %}
+        <section class="jh-section">
+            <div class="jh-section-head">Planes <span class="count">{{ groups.plans|length }}</span></div>
+            {% for it in groups.plans %}
+            <a class="jh-item" href="{{ it.url }}">
+                <span class="jh-i-label">{{ it.label }}</span>
+                {% if it.meta %}<span class="jh-i-meta">{{ it.meta }}</span>{% endif %}
+            </a>
+            {% endfor %}
+        </section>
+        {% endif %}
+        {% if groups.tickets %}
+        <section class="jh-section">
+            <div class="jh-section-head">Tickets <span class="count">{{ groups.tickets|length }}</span></div>
+            {% for it in groups.tickets %}
+            <a class="jh-item" href="{{ it.url }}">
+                <span class="jh-i-label">{{ it.label }}</span>
+                {% if it.meta %}<span class="jh-i-meta">{{ it.meta }}</span>{% endif %}
+            </a>
+            {% endfor %}
+        </section>
+        {% endif %}
+        {% endwith %}
+    {% endif %}
+</div>
+{% endblock %}
