@@ -4,6 +4,65 @@
 {% block extrahead %}{{ block.super }}
 {% if original %}
 <style>
+.jh-timeline {
+    margin: 24px 0;
+    padding: 20px;
+    border: 1px solid rgba(244,114,182,0.18);
+    border-radius: 14px;
+    background: rgba(15,23,42,0.55);
+    box-shadow: 0 4px 16px -8px rgba(0,0,0,0.5);
+}
+.jh-timeline > h2 {
+    margin: 0 0 14px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #e2e8f0;
+    display: flex; align-items: center; gap: 8px;
+}
+.jh-timeline > h2 .material-symbols-outlined { color: #f472b6; font-size: 20px; }
+.jh-timeline-list { list-style: none; margin: 0; padding: 0; position: relative; }
+.jh-timeline-list::before {
+    content: ""; position: absolute; left: 15px; top: 6px; bottom: 6px;
+    width: 2px; background: rgba(244,114,182,0.18);
+}
+.jh-timeline-item {
+    position: relative; padding: 6px 0 14px 48px;
+}
+.jh-timeline-item::before {
+    content: ""; position: absolute; left: 10px; top: 8px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #0f172a; border: 2px solid #f472b6;
+}
+.jh-timeline-item .jh-event-icon {
+    position: absolute; left: 2px; top: 2px;
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(244,114,182,0.12);
+    color: #f472b6;
+}
+.jh-timeline-item .jh-event-icon .material-symbols-outlined { font-size: 16px; }
+.jh-timeline-item .jh-event-title {
+    font-size: 13px; font-weight: 600; color: #f1f5f9;
+}
+.jh-timeline-item .jh-event-desc {
+    font-size: 12px; color: #94a3b8; margin-top: 2px; line-height: 1.4;
+    word-break: break-word;
+}
+.jh-timeline-item .jh-event-meta {
+    font-size: 11px; color: #64748b; margin-top: 3px;
+    display: flex; gap: 10px; flex-wrap: wrap;
+}
+.jh-timeline-empty {
+    color: #94a3b8; font-size: 13px; padding: 8px 0;
+}
+.jh-timeline .jh-collapse-btn {
+    margin-top: 10px; display: inline-block;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    color: #cbd5e1; padding: 4px 12px; border-radius: 9999px;
+    font-size: 12px; cursor: pointer;
+}
+.jh-timeline .jh-collapse-btn:hover { background: rgba(255,255,255,0.10); }
+
 .jh-sticky-bar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 80;
     background: rgba(15,23,42,0.97);
@@ -61,6 +120,45 @@ body.change-form { padding-bottom: 80px; }
 {{ block.super }}
 
 {% if original %}
+<section class="jh-timeline" aria-label="Bitácora del pedido">
+    <h2>
+        <span class="material-symbols-outlined">timeline</span>
+        Bitácora del pedido
+    </h2>
+    {% with events=original.get_timeline %}
+    {% if events %}
+    <ul class="jh-timeline-list" id="jh-timeline-list">
+        {% for ev in events %}
+        <li class="jh-timeline-item"{% if forloop.counter0 > 7 %} data-jh-hidden="1" style="display:none"{% endif %}>
+            <span class="jh-event-icon" aria-hidden="true">
+                <span class="material-symbols-outlined">{{ ev.icon }}</span>
+            </span>
+            <div class="jh-event-title">{{ ev.title }}</div>
+            {% if ev.description %}
+            <div class="jh-event-desc">{{ ev.description }}</div>
+            {% endif %}
+            <div class="jh-event-meta">
+                <span title="{{ ev.timestamp|date:'c' }}">
+                    {{ ev.timestamp|date:"d M Y, H:i" }}
+                </span>
+                {% if ev.actor %}<span>· {{ ev.actor }}</span>{% endif %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% if events|length > 8 %}
+    <button type="button" class="jh-collapse-btn" id="jh-timeline-toggle"
+            data-label-more="Ver {{ events|length|add:'-8' }} evento(s) más"
+            data-label-less="Ver menos">
+        Ver {{ events|length|add:"-8" }} evento(s) más
+    </button>
+    {% endif %}
+    {% else %}
+    <div class="jh-timeline-empty">Aún no hay eventos registrados para este pedido.</div>
+    {% endif %}
+    {% endwith %}
+</section>
+
 <div class="jh-sticky-bar">
     <div class="jh-info">
         <span class="jh-status-dot {{ original.status }}"></span>
@@ -139,6 +237,21 @@ body.change-form { padding-bottom: 80px; }
             if (!confirm(a.dataset.confirm)) e.preventDefault();
         });
     });
+    var toggle = document.getElementById("jh-timeline-toggle");
+    if (toggle) {
+        toggle.addEventListener("click", function() {
+            var list = document.getElementById("jh-timeline-list");
+            if (!list) return;
+            var hidden = list.querySelectorAll("[data-jh-hidden]");
+            var anyVisible = Array.prototype.some.call(hidden, function(el){
+                return el.style.display !== "none";
+            });
+            Array.prototype.forEach.call(hidden, function(el){
+                el.style.display = anyVisible ? "none" : "";
+            });
+            toggle.textContent = anyVisible ? toggle.dataset.labelMore : toggle.dataset.labelLess;
+        });
+    }
 })();
 </script>
 {% endif %}

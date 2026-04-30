@@ -565,3 +565,84 @@ class CouponTests(TestCase):
         # Following the redirect should show an error message
         resp = client.get(reverse("orders:cart"))
         self.assertContains(resp, "no existe")
+
+
+class OrderTimelineTests(TestCase):
+    """Validación de Order.get_timeline() — bitácora combinando fuentes."""
+
+    def setUp(self):
+        cat = Category.objects.create(name="Streaming", slug="streaming-t")
+        product = Product.objects.create(
+            name="Netflix", slug="netflix-timeline", category=cat,
+        )
+        plan = Plan.objects.create(
+            product=product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), price_distributor=Decimal("12.00"),
+        )
+        self.order = Order.objects.create(
+            email="t@ejemplo.com", total=Decimal("15.00"), currency="PEN",
+        )
+        OrderItem.objects.create(
+            order=self.order, product=product, plan=plan,
+            product_name=product.name, plan_name=plan.name,
+            unit_price=Decimal("15.00"), quantity=1,
+        )
+
+    def test_created_event_always_present(self):
+        events = self.order.get_timeline()
+        kinds = [e["kind"] for e in events]
+        self.assertIn("order_created", kinds)
+
+    def test_emails_appear_in_timeline(self):
+        from orders.models import EmailLog
+        EmailLog.objects.create(
+            kind=EmailLog.Kind.ORDER_RECEIVED,
+            status=EmailLog.Status.SENT,
+            to_email=self.order.email,
+            subject="Recibimos tu pedido",
+            order=self.order,
+        )
+        events = self.order.get_timeline()
+        email_events = [e for e in events if e["kind"].startswith("email_")]
+        self.assertEqual(len(email_events), 1)
+        self.assertIn("Recibimos tu pedido", email_events[0]["title"])
+
+    def test_status_change_via_auditlog_appears(self):
+        # Cambiar status => auditlog capta el cambio.
+        self.order.status = Order.Status.PAID
+        self.order.save(update_fields=["status"])
+        events = self.order.get_timeline()
+        kinds = [e["kind"] for e in events]
+        self.assertTrue(any(k.startswith("status_") for k in kinds),
+                        f"No se encontró evento status_* en: {kinds}")
+
+    def test_timeline_sorted_desc(self):
+        from orders.models import EmailLog
+        now = timezone.now()
+        # Forzamos timestamps controlados: paid_at = ahora + 1h
+        self.order.paid_at = now + timedelta(hours=1)
+        self.order.delivered_at = now + timedelta(hours=2)
+        self.order.save(update_fields=["paid_at", "delivered_at"])
+        EmailLog.objects.create(
+            kind=EmailLog.Kind.ORDER_DELIVERED,
+            status=EmailLog.Status.SENT,
+            to_email=self.order.email, subject="Entregado",
+            order=self.order,
+        )
+        events = self.order.get_timeline()
+        # más reciente primero
+        for prev, nxt in zip(events, events[1:]):
+            self.assertGreaterEqual(prev["timestamp"], nxt["timestamp"])
+
+    def test_failed_email_shown_as_error(self):
+        from orders.models import EmailLog
+        EmailLog.objects.create(
+            kind=EmailLog.Kind.ORDER_DELIVERED,
+            status=EmailLog.Status.FAILED,
+            to_email=self.order.email, subject="Entregado",
+            order=self.order, error="SMTP timeout",
+        )
+        events = self.order.get_timeline()
+        failed = [e for e in events if "Falló envío" in e["title"]]
+        self.assertEqual(len(failed), 1)
+        self.assertIn("SMTP", failed[0]["description"])

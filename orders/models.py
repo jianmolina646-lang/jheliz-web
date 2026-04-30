@@ -269,6 +269,154 @@ class Order(models.Model):
         self.save(update_fields=["total", "discount_amount"])
         return total
 
+    # ------------------------------------------------------------------
+    # Bitácora / timeline
+    # ------------------------------------------------------------------
+
+    _STATUS_EVENT_META = {
+        "pending": ("schedule", "Pendiente de pago"),
+        "verifying": ("hourglass_top", "Verificando comprobante"),
+        "paid": ("payments", "Pago registrado"),
+        "preparing": ("inventory_2", "Pedido en preparación"),
+        "delivered": ("check_circle", "Entregado"),
+        "canceled": ("cancel", "Cancelado"),
+        "failed": ("error", "Pago fallido"),
+        "refunded": ("undo", "Reembolsado"),
+    }
+
+    _EMAIL_ICONS = {
+        "order_received": "mail",
+        "order_preparing": "outgoing_mail",
+        "order_delivered": "forward_to_inbox",
+        "yape_received": "mail",
+        "yape_rejected": "mail",
+        "expiry_reminder": "schedule_send",
+        "review_request": "reviews",
+        "other": "mail",
+    }
+
+    def get_timeline(self) -> list[dict]:
+        """Secuencia de eventos ocurridos sobre este pedido, ordenada más reciente primero.
+
+        Combina tres fuentes ya existentes (no agrega tablas nuevas):
+        - Campos datetime del propio pedido (``created_at``, ``paid_at``, etc.).
+        - ``EmailLog`` de correos transaccionales enviados al cliente.
+        - Entradas de ``django-auditlog`` que registran cambios en ``status``,
+          ``payment_proof``, ``payment_rejection_reason``, etc.
+        """
+        events: list[dict] = []
+
+        # 1) Eventos derivados de campos del pedido.
+        if self.created_at:
+            events.append({
+                "timestamp": self.created_at,
+                "icon": "add_shopping_cart",
+                "title": "Pedido creado",
+                "description": f"Total inicial: {self.currency} {self.total}.",
+                "kind": "order_created",
+                "actor": "",
+            })
+        if self.payment_proof_uploaded_at:
+            events.append({
+                "timestamp": self.payment_proof_uploaded_at,
+                "icon": "upload_file",
+                "title": "Comprobante de pago subido",
+                "description": "El cliente adjuntó una captura del pago Yape.",
+                "kind": "proof_uploaded",
+                "actor": "",
+            })
+        if self.paid_at:
+            events.append({
+                "timestamp": self.paid_at,
+                "icon": "payments",
+                "title": "Pago confirmado",
+                "description": f"Monto: {self.currency} {self.total}.",
+                "kind": "paid",
+                "actor": "",
+            })
+        if self.delivered_at:
+            events.append({
+                "timestamp": self.delivered_at,
+                "icon": "check_circle",
+                "title": "Credenciales entregadas",
+                "description": "",
+                "kind": "delivered",
+                "actor": "",
+            })
+
+        # 2) Emails transaccionales.
+        for email in self.email_logs.all().order_by("sent_at"):
+            if email.status == EmailLog.Status.FAILED:
+                icon = "report"
+                title = f"Falló envío de email ({email.get_kind_display()})"
+                description = email.error or "Ver log para más detalle."
+            else:
+                icon = self._EMAIL_ICONS.get(email.kind, "mail")
+                title = f"Email enviado: {email.subject}"
+                description = f"Para {email.to_email}."
+            events.append({
+                "timestamp": email.sent_at,
+                "icon": icon,
+                "title": title,
+                "description": description,
+                "kind": f"email_{email.kind}",
+                "actor": "Sistema",
+            })
+
+        # 3) Cambios registrados por django-auditlog.
+        try:
+            from auditlog.models import LogEntry
+        except Exception:  # pragma: no cover - auditlog siempre está instalado
+            LogEntry = None  # type: ignore[assignment]
+
+        if LogEntry is not None:
+            for entry in LogEntry.objects.get_for_object(self).order_by("timestamp"):
+                changes = entry.changes_dict or {}
+                if "status" in changes:
+                    new = changes["status"][1]
+                    icon, title = self._STATUS_EVENT_META.get(
+                        new, ("sync", f"Estado cambiado a {new}"),
+                    )
+                    description = f"Anterior: {changes['status'][0] or '—'}."
+                    kind = f"status_{new}"
+                elif "payment_rejection_reason" in changes:
+                    new = (changes["payment_rejection_reason"][1] or "").strip()
+                    if not new:
+                        continue  # limpieza de motivo, no vale la pena loguearlo
+                    icon = "block"
+                    title = "Comprobante rechazado"
+                    description = new[:300]
+                    kind = "proof_rejected"
+                elif "payment_proof" in changes:
+                    icon = "upload_file"
+                    title = "Comprobante actualizado"
+                    description = ""
+                    kind = "proof_updated"
+                elif "delivered_credentials" in changes:
+                    icon = "vpn_key"
+                    title = "Credenciales guardadas"
+                    description = ""
+                    kind = "credentials_saved"
+                elif "notes" in changes or "email" in changes or "phone" in changes:
+                    icon = "edit_note"
+                    fields = ", ".join(changes.keys())
+                    title = "Datos del pedido actualizados"
+                    description = f"Campos: {fields}."
+                    kind = "order_edited"
+                else:
+                    continue
+                events.append({
+                    "timestamp": entry.timestamp,
+                    "icon": icon,
+                    "title": title,
+                    "description": description,
+                    "kind": kind,
+                    "actor": entry.actor.get_username() if entry.actor else "Sistema",
+                })
+
+        events.sort(key=lambda e: e["timestamp"], reverse=True)
+        return events
+
 
 class DistributorOrder(Order):
     """Pedido cuyo cliente es distribuidor aprobado."""
