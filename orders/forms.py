@@ -4,8 +4,8 @@ from django import forms
 class AddToCartForm(forms.Form):
     plan_id = forms.IntegerField(widget=forms.HiddenInput)
     quantity = forms.IntegerField(
-        min_value=1, max_value=10, initial=1,
-        widget=forms.NumberInput(attrs={"class": "form-input", "min": 1, "max": 10}),
+        min_value=1, max_value=50, initial=1,
+        widget=forms.NumberInput(attrs={"class": "form-input", "min": 1, "max": 50}),
     )
     profile_name = forms.CharField(
         label="Nombre del perfil",

@@ -1107,3 +1107,128 @@ class ReplaceAccountCredentialsTests(TestCase):
 
 
 
+
+
+class CartBulkTests(TestCase):
+    """Cubre flujo de carrito con cantidad > 1 para distribuidores."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.client = Client()
+        self.distri = User.objects.create_user(
+            username="cart_distri", password="x",
+            email="cart_distri@example.com",
+            role="distribuidor", distributor_approved=True,
+        )
+        self.cliente = User.objects.create_user(
+            username="cart_cli", password="x", email="cli@example.com", role="cliente",
+        )
+        self.cat = Category.objects.create(name="Streaming", slug="streaming-bulk")
+        self.prod = Product.objects.create(
+            category=self.cat, name="Netflix", slug="netflix-bulk",
+            is_active=True, requires_customer_profile_data=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.prod, name="1 mes", duration_days=30,
+            price_customer=Decimal("20.00"), price_distributor=Decimal("12.00"),
+            available_for_distributor=True, is_active=True, order=1,
+        )
+
+    def test_distributor_qty_gt_1_creates_n_lines(self):
+        self.client.force_login(self.distri)
+        resp = self.client.post(reverse("orders:add_to_cart"), {
+            "plan_id": self.plan.pk,
+            "quantity": 5,
+            "profile_name": "",
+            "pin": "",
+            "notes": "",
+        })
+        self.assertEqual(resp.status_code, 302)
+        cart = self.client.session.get("cart")
+        self.assertEqual(len(cart), 5)
+        for it in cart:
+            self.assertEqual(it["quantity"], 1)
+            self.assertEqual(it["profile_name"], "")
+            self.assertEqual(it["pin"], "")
+
+    def test_customer_qty_gt_1_keeps_single_line_with_qty(self):
+        # Cliente normal con quantity > 1 → carrito mantiene 1 línea con quantity = N.
+        # Necesita perfil/PIN obligatorio.
+        self.client.force_login(self.cliente)
+        resp = self.client.post(reverse("orders:add_to_cart"), {
+            "plan_id": self.plan.pk,
+            "quantity": 3,
+            "profile_name": "Cli1",
+            "pin": "1234",
+            "notes": "",
+        })
+        self.assertEqual(resp.status_code, 302)
+        cart = self.client.session.get("cart")
+        self.assertEqual(len(cart), 1)
+        self.assertEqual(cart[0]["quantity"], 3)
+
+    def test_customer_qty_1_requires_profile(self):
+        self.client.force_login(self.cliente)
+        resp = self.client.post(reverse("orders:add_to_cart"), {
+            "plan_id": self.plan.pk,
+            "quantity": 1,
+            "profile_name": "",
+            "pin": "",
+            "notes": "",
+        })
+        self.assertEqual(resp.status_code, 302)
+        # No agrega nada al carrito
+        self.assertEqual(self.client.session.get("cart"), None)
+
+    def test_distributor_qty_1_still_requires_profile(self):
+        self.client.force_login(self.distri)
+        resp = self.client.post(reverse("orders:add_to_cart"), {
+            "plan_id": self.plan.pk,
+            "quantity": 1,
+            "profile_name": "",
+            "pin": "",
+            "notes": "",
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(self.client.session.get("cart"), None)
+
+    def test_update_line(self):
+        self.client.force_login(self.distri)
+        # Agrega una línea
+        self.client.post(reverse("orders:add_to_cart"), {
+            "plan_id": self.plan.pk, "quantity": 2,
+            "profile_name": "", "pin": "", "notes": "",
+        })
+        # Edita la primera
+        resp = self.client.post(reverse("orders:cart_update_line", args=[0]), {
+            "profile_name": "Juan",
+            "pin": "1111",
+            "notes": "VIP",
+        })
+        self.assertEqual(resp.status_code, 302)
+        cart = self.client.session.get("cart")
+        self.assertEqual(cart[0]["profile_name"], "Juan")
+        self.assertEqual(cart[0]["pin"], "1111")
+        self.assertEqual(cart[0]["notes"], "VIP")
+        # La segunda línea no debe haber cambiado
+        self.assertEqual(cart[1]["profile_name"], "")
+
+    def test_duplicate_line(self):
+        self.client.force_login(self.distri)
+        self.client.post(reverse("orders:add_to_cart"), {
+            "plan_id": self.plan.pk, "quantity": 2,
+            "profile_name": "", "pin": "", "notes": "",
+        })
+        # Llena la primera
+        self.client.post(reverse("orders:cart_update_line", args=[0]), {
+            "profile_name": "Juan", "pin": "1111", "notes": "",
+        })
+        # Duplicarla
+        resp = self.client.post(reverse("orders:cart_duplicate_line", args=[0]))
+        self.assertEqual(resp.status_code, 302)
+        cart = self.client.session.get("cart")
+        self.assertEqual(len(cart), 3)
+        # La copia debe estar inmediatamente después y con perfil/pin vacíos
+        self.assertEqual(cart[1]["profile_name"], "")
+        self.assertEqual(cart[1]["pin"], "")
+        self.assertEqual(cart[1]["plan_id"], self.plan.pk)
