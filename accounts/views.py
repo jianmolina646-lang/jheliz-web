@@ -1,13 +1,26 @@
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LoginView, LogoutView
+from django.contrib.auth.views import (
+    LoginView,
+    LogoutView,
+    PasswordResetCompleteView,
+    PasswordResetConfirmView,
+    PasswordResetDoneView,
+    PasswordResetView,
+)
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 
 from orders.models import Order
 
-from .forms import LoginForm, ProfileForm, SignupForm
+from .forms import (
+    JhelizPasswordResetForm,
+    JhelizSetPasswordForm,
+    LoginForm,
+    ProfileForm,
+    SignupForm,
+)
 from .models import Role
 
 
@@ -39,6 +52,44 @@ class JhelizLoginView(LoginView):
 
 class JhelizLogoutView(LogoutView):
     next_page = reverse_lazy("catalog:home")
+
+
+# -- Password reset --------------------------------------------------------
+#
+# Flujo built-in de Django adaptado al estilo de Jheliz:
+#   1. /cuenta/recuperar/             → form con email
+#   2. /cuenta/recuperar/enviado/     → "Te enviamos un correo si la cuenta existe"
+#   3. /cuenta/recuperar/<uid>/<token>/ → form para nueva contraseña
+#   4. /cuenta/recuperar/listo/       → "Contraseña actualizada"
+#
+# Diseño deliberado: ``PasswordResetView`` siempre responde con éxito aunque
+# el email no exista (no enumera cuentas). El correo se envía sólo cuando hay
+# match. Token tiene expiración por ``PASSWORD_RESET_TIMEOUT`` en settings
+# (default Django: 3 días; usamos 24 h por seguridad).
+
+
+class JhelizPasswordResetView(PasswordResetView):
+    template_name = "accounts/password_reset_form.html"
+    email_template_name = "accounts/password_reset_email.txt"
+    html_email_template_name = "accounts/password_reset_email.html"
+    subject_template_name = "accounts/password_reset_subject.txt"
+    form_class = JhelizPasswordResetForm
+    success_url = reverse_lazy("accounts:password_reset_done")
+    extra_email_context = {"site_name": "Jheliz"}
+
+
+class JhelizPasswordResetDoneView(PasswordResetDoneView):
+    template_name = "accounts/password_reset_done.html"
+
+
+class JhelizPasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = "accounts/password_reset_confirm.html"
+    form_class = JhelizSetPasswordForm
+    success_url = reverse_lazy("accounts:password_reset_complete")
+
+
+class JhelizPasswordResetCompleteView(PasswordResetCompleteView):
+    template_name = "accounts/password_reset_complete.html"
 
 
 @login_required

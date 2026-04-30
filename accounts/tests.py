@@ -103,3 +103,115 @@ class DeliverViewAtomicityTests(TestCase):
         src = inspect.getsource(OrderAdmin.deliver_view)
         self.assertIn("transaction.atomic", src)
         self.assertIn("on_commit", src)
+
+
+# -- Password reset --------------------------------------------------------
+
+from django.core import mail
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+
+
+class PasswordResetFlowTests(TestCase):
+    """End-to-end del flujo: pedir reset, recibir email, abrir link, cambiar
+    contraseña, ingresar con la nueva."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username="distri",
+            email="distri@example.com",
+            password="vieja-pass-123",
+            role=Role.DISTRIBUIDOR,
+        )
+
+    def test_request_form_renders(self):
+        resp = self.client.get(reverse("accounts:password_reset"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Recuperar contraseña")
+
+    def test_request_for_existing_email_sends_mail(self):
+        resp = self.client.post(
+            reverse("accounts:password_reset"),
+            {"email": "distri@example.com"},
+        )
+        self.assertRedirects(resp, reverse("accounts:password_reset_done"))
+        self.assertEqual(len(mail.outbox), 1)
+        msg = mail.outbox[0]
+        self.assertIn("distri@example.com", msg.to)
+        self.assertIn("/cuenta/recuperar/", msg.body)
+
+    def test_request_for_unknown_email_does_not_enumerate(self):
+        """Aunque el email no existe, la respuesta es la misma (302 → done).
+        No se manda correo. Esto evita que un atacante pueda enumerar usuarios."""
+        resp = self.client.post(
+            reverse("accounts:password_reset"),
+            {"email": "nadie@example.com"},
+        )
+        self.assertRedirects(resp, reverse("accounts:password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)
+
+    def _build_confirm_url(self, user):
+        uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        return reverse(
+            "accounts:password_reset_confirm",
+            kwargs={"uidb64": uidb64, "token": token},
+        )
+
+    def test_valid_token_lets_user_set_new_password(self):
+        confirm_url = self._build_confirm_url(self.user)
+        # GET con token válido → redirige a la URL "set-password" que ya no
+        # contiene el token (mejor práctica de Django).
+        resp = self.client.get(confirm_url)
+        self.assertEqual(resp.status_code, 302)
+        set_url = resp["Location"]
+        # POST con la pass nueva.
+        resp = self.client.post(
+            set_url,
+            {"new_password1": "nueva-pass-xyz-789", "new_password2": "nueva-pass-xyz-789"},
+        )
+        self.assertRedirects(resp, reverse("accounts:password_reset_complete"))
+        # Login con la nueva pass funciona.
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("nueva-pass-xyz-789"))
+        self.assertFalse(self.user.check_password("vieja-pass-123"))
+
+    def test_tampered_token_rejected(self):
+        uidb64 = urlsafe_base64_encode(force_bytes(self.user.pk))
+        # Token claramente inválido.
+        bad_url = reverse(
+            "accounts:password_reset_confirm",
+            kwargs={"uidb64": uidb64, "token": "deadbeef-not-a-real-token"},
+        )
+        resp = self.client.get(bad_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Enlace no válido")
+
+    def test_token_one_use_after_password_change(self):
+        """Una vez que se cambia la pass, el token vencido por make_token no
+        debe permitir un segundo cambio (Django invalida tokens cuando cambia
+        el hash de la pass)."""
+        confirm_url = self._build_confirm_url(self.user)
+        resp = self.client.get(confirm_url, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        # Cambiar la pass primera vez.
+        set_url = self.client.session["_password_reset_token"]
+        # No queremos depender de la URL interna; usamos el redirect previo.
+        resp = self.client.get(confirm_url)
+        set_url = resp["Location"]
+        self.client.post(
+            set_url,
+            {"new_password1": "primera-nueva-789", "new_password2": "primera-nueva-789"},
+        )
+        # Re-usar el token original tras cambio de pass → enlace inválido.
+        resp = self.client.get(confirm_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Enlace no válido")
+
+    def test_login_link_visible_on_login_page(self):
+        resp = self.client.get(reverse("accounts:login"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "¿Olvidaste tu contraseña?")
+        self.assertContains(resp, reverse("accounts:password_reset"))
