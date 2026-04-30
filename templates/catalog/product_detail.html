@@ -162,13 +162,24 @@
       {% if plans %}
         {% if product.requires_customer_profile_data %}
         <div class="pt-4 mt-2 space-y-3 border-t hairline">
+          {% if user.is_distributor %}
+            <p class="text-[11px] text-jheliz-300 -mb-1">
+              💡 Si vas a comprar más de 1, podés dejar perfil y PIN vacíos acá y completar los datos de cada cliente final desde el carrito.
+            </p>
+          {% endif %}
           <div>
-            <label class="block text-xs font-medium text-zinc-400 mb-1.5">Nombre del perfil <span class="text-jheliz-400">*</span></label>
-            <input type="text" name="profile_name" maxlength="60" required placeholder="Ej. Jhonatan" class="field">
+            <label class="block text-xs font-medium text-zinc-400 mb-1.5">
+              Nombre del perfil
+              {% if user.is_distributor %}<span class="text-zinc-500">(requerido si cantidad = 1)</span>{% else %}<span class="text-jheliz-400">*</span>{% endif %}
+            </label>
+            <input type="text" name="profile_name" maxlength="60" {% if not user.is_distributor %}required{% endif %} placeholder="Ej. Jhonatan" class="field">
           </div>
           <div>
-            <label class="block text-xs font-medium text-zinc-400 mb-1.5">PIN (4 dígitos) <span class="text-jheliz-400">*</span></label>
-            <input type="text" name="pin" maxlength="8" required inputmode="numeric" pattern="[0-9]*" placeholder="1234" class="field">
+            <label class="block text-xs font-medium text-zinc-400 mb-1.5">
+              PIN (4 dígitos)
+              {% if user.is_distributor %}<span class="text-zinc-500">(requerido si cantidad = 1)</span>{% else %}<span class="text-jheliz-400">*</span>{% endif %}
+            </label>
+            <input type="text" name="pin" maxlength="8" {% if not user.is_distributor %}required{% endif %} inputmode="numeric" pattern="[0-9]*" placeholder="1234" class="field">
           </div>
           <div>
             <label class="block text-xs font-medium text-zinc-400 mb-1.5">Notas (opcional)</label>
@@ -178,8 +189,11 @@
         {% endif %}
 
         <div class="pt-2">
-          <label class="block text-xs font-medium text-zinc-400 mb-1.5">Cantidad</label>
-          <input type="number" name="quantity" value="1" min="1" max="10" class="field" style="width:6rem">
+          <label class="block text-xs font-medium text-zinc-400 mb-1.5">
+            Cantidad
+            {% if user.is_distributor %}<span class="text-zinc-500">(hasta 50)</span>{% endif %}
+          </label>
+          <input type="number" name="quantity" value="1" min="1" max="{% if user.is_distributor %}50{% else %}10{% endif %}" class="field" style="width:6rem">
         </div>
 
         <button type="submit" class="btn btn-primary btn-lg btn-block mt-4">

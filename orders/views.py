@@ -64,28 +64,57 @@ def add_to_cart(request):
             return _cart_toast(request, "Revisa los datos del carrito.", ok=False)
         return redirect(plan.product.get_absolute_url())
 
+    qty = int(form.cleaned_data["quantity"])
+    is_distributor = bool(getattr(request.user, "is_distributor", False))
+
     if plan.product.requires_customer_profile_data:
-        missing = []
-        if not form.cleaned_data["profile_name"]:
-            missing.append("nombre de perfil")
-        if not form.cleaned_data["pin"]:
-            missing.append("PIN")
-        if missing:
-            msg = "Falta completar: " + ", ".join(missing) + "."
-            messages.error(request, msg + " Son necesarios para crear tu perfil.")
-            if is_htmx:
-                return _cart_toast(request, msg, ok=False)
-            return redirect(plan.product.get_absolute_url())
+        # Para distribuidores con cantidad > 1, permitimos saltar el perfil/PIN
+        # acá y que los completen después por línea en el carrito (uno distinto
+        # para cada cliente final). Para clientes finales seguimos exigiendo
+        # los datos en este paso.
+        skip_profile_validation = is_distributor and qty > 1
+        if not skip_profile_validation:
+            missing = []
+            if not form.cleaned_data["profile_name"]:
+                missing.append("nombre de perfil")
+            if not form.cleaned_data["pin"]:
+                missing.append("PIN")
+            if missing:
+                msg = "Falta completar: " + ", ".join(missing) + "."
+                messages.error(request, msg + " Son necesarios para crear tu perfil.")
+                if is_htmx:
+                    return _cart_toast(request, msg, ok=False)
+                return redirect(plan.product.get_absolute_url())
 
     cart = Cart(request)
-    cart.add(
-        plan=plan,
-        quantity=form.cleaned_data["quantity"],
-        profile_name=form.cleaned_data["profile_name"],
-        pin=form.cleaned_data["pin"],
-        notes=form.cleaned_data["notes"],
+    needs_split = (
+        plan.product.requires_customer_profile_data
+        and qty > 1
+        and is_distributor
     )
-    success_msg = f"{plan.product.name} \u2014 {plan.name} agregado al carrito."
+    if needs_split:
+        # Cada copia es una línea independiente para que el distribuidor pueda
+        # poner perfil/PIN distinto por cliente final.
+        for _ in range(qty):
+            cart.add(
+                plan=plan, quantity=1,
+                profile_name=form.cleaned_data["profile_name"],
+                pin=form.cleaned_data["pin"],
+                notes=form.cleaned_data["notes"],
+            )
+        success_msg = (
+            f"{qty}× {plan.product.name} \u2014 {plan.name} agregadas. "
+            "Completá perfil y PIN de cada una en el carrito."
+        )
+    else:
+        cart.add(
+            plan=plan,
+            quantity=qty,
+            profile_name=form.cleaned_data["profile_name"],
+            pin=form.cleaned_data["pin"],
+            notes=form.cleaned_data["notes"],
+        )
+        success_msg = f"{plan.product.name} \u2014 {plan.name} agregado al carrito."
     messages.success(request, success_msg)
 
     if is_htmx:
@@ -181,6 +210,46 @@ def cart_remove(request, index: int):
 @require_POST
 def cart_clear(request):
     Cart(request).clear()
+    return redirect("orders:cart")
+
+
+@require_POST
+def cart_update_line(request, index: int):
+    """Actualiza perfil/PIN/notas/cantidad de una línea ya existente del carrito.
+
+    Pensado sobre todo para que el distribuidor que compró N copias del mismo
+    plan pueda completar el perfil de cada cliente final desde el carrito.
+    """
+    cart = Cart(request)
+    profile_name = (request.POST.get("profile_name") or "").strip()[:60]
+    pin = (request.POST.get("pin") or "").strip()[:8]
+    notes = (request.POST.get("notes") or "").strip()[:500]
+    fields = {"profile_name": profile_name, "pin": pin, "notes": notes}
+    raw_qty = request.POST.get("quantity")
+    if raw_qty is not None:
+        try:
+            qty = max(1, min(50, int(raw_qty)))
+            fields["quantity"] = qty
+        except (TypeError, ValueError):
+            pass
+    cart.update_line(int(index), **fields)
+    messages.success(request, "Línea del carrito actualizada.")
+    return redirect("orders:cart")
+
+
+@require_POST
+def cart_duplicate_line(request, index: int):
+    """Duplica una línea del carrito (útil para distribuidores que quieren +1 igual)."""
+    cart = Cart(request)
+    idx = int(index)
+    if 0 <= idx < len(cart._items):
+        original = dict(cart._items[idx])
+        # vacía perfil/pin para que el distribuidor llene los datos del cliente nuevo
+        original["profile_name"] = ""
+        original["pin"] = ""
+        cart._items.insert(idx + 1, original)
+        cart.save()
+        messages.success(request, "Línea duplicada — completá perfil y PIN del nuevo cliente.")
     return redirect("orders:cart")
 
 
