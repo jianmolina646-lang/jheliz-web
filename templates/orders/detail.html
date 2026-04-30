@@ -52,6 +52,18 @@
         {% endif %}
 
         {% if it.delivered_credentials %}
+          {% if it.credentials_replaced_at %}
+            <div class="mt-4 rounded-xl border border-fuchsia-400/40 bg-fuchsia-500/10 p-3 text-sm flex items-start gap-2.5">
+              <svg class="icon shrink-0 mt-0.5" viewBox="0 0 24 24" style="color:#f0abfc"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              <div>
+                <div class="font-semibold text-fuchsia-100">Actualizamos esta cuenta el {{ it.credentials_replaced_at|date:"d/m/Y" }}</div>
+                <div class="text-xs text-white/70 mt-0.5">
+                  Tu perfil y PIN siguen siendo los mismos — solo cambia el correo y la contraseña.
+                  <span class="text-fuchsia-200">({{ it.credentials_replaced_at|naturaltime }})</span>
+                </div>
+              </div>
+            </div>
+          {% endif %}
           <div class="mt-4 rounded-xl bg-black/40 border border-white/10 p-4 font-mono text-sm whitespace-pre-wrap select-all">{{ it.delivered_credentials }}</div>
           <p class="text-xs text-white/50 mt-2">No cambies el correo ni la contraseña. Si pierdes los datos, abre un ticket.</p>
         {% elif order.status == 'pending' %}
