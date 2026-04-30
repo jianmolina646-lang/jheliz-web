@@ -119,6 +119,48 @@ def send_expiry_reminder(order, items, days_left: int) -> None:
     _log(order=order, subject=subject, kind="expiry_reminder", error=error_msg)
 
 
+def send_account_credentials_updated(item, *, is_distributor: bool) -> None:
+    """Avisa al cliente/distribuidor que el email+contraseña de su cuenta cambió.
+
+    Se dispara cuando el admin reemplaza la cuenta subyacente (ej: Amazon se
+    bloqueó y se migra a otra cuenta). Perfil y PIN se mantienen iguales, solo
+    cambia el acceso.
+    """
+    order = item.order
+    if not order.email:
+        return
+    context = {
+        "order": order,
+        "item": item,
+        "order_url": _order_absolute_url(order),
+        "SITE_NAME": settings.SITE_NAME,
+        "SITE_URL": settings.SITE_URL,
+        "CURRENCY_SYMBOL": settings.DEFAULT_CURRENCY_SYMBOL,
+        "WHATSAPP_NUMBER": settings.WHATSAPP_NUMBER,
+        "is_distributor": is_distributor,
+    }
+    template = (
+        "emails/account_credentials_updated_distribuidor.html"
+        if is_distributor
+        else "emails/account_credentials_updated_cliente.html"
+    )
+    body = render_to_string(template, context)
+    subject = f"Actualizamos tu cuenta de {item.product_name} \u2014 #{order.short_uuid}"
+    message = EmailMessage(
+        subject=subject,
+        body=body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[order.email],
+    )
+    message.content_subtype = "html"
+    error_msg = ""
+    try:
+        message.send(fail_silently=False)
+    except Exception as exc:
+        error_msg = str(exc)[:500]
+    _log(order=order, subject=subject, kind="order_delivered", error=error_msg)
+
+
 def send_review_requests(order) -> None:
     """Crea tokens de rese\u00f1a y env\u00eda un correo con magic links.
 

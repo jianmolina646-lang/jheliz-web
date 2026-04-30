@@ -894,4 +894,216 @@ class GlobalSearchTests(TestCase):
         self.assertGreaterEqual(len(data["products"]), 1)
 
 
+class ReplaceAccountCredentialsTests(TestCase):
+    """Reemplazo seguro de correo/contraseña en items ya entregados."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="staff-rep", password="x",
+            is_staff=True, is_superuser=True,
+        )
+        self.cliente = User.objects.create_user(
+            username="cliente-rep", password="x", email="c@ejemplo.com",
+        )
+        # distribuidor aprobado (según User.is_distributor)
+        self.distri = User.objects.create_user(
+            username="distri-rep", password="x", email="d@ejemplo.com",
+        )
+        self.distri.role = "distribuidor"
+        self.distri.distributor_approved = True
+        self.distri.save()
+
+        cat = Category.objects.create(name="Streaming", slug="streaming-rep")
+        self.product = Product.objects.create(
+            name="Amazon", slug="amazon-rep", category=cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("20.00"), price_distributor=Decimal("15.00"),
+        )
+
+    def _make_item(self, *, user=None, creds="", profile="Juan", pin="1234"):
+        order = Order.objects.create(
+            user=user, email=(user.email if user else "guest@ejemplo.com"),
+            total=Decimal("20.00"), currency="PEN",
+            status=Order.Status.DELIVERED,
+        )
+        return OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=Decimal("20.00"), quantity=1,
+            requested_profile_name=profile, requested_pin=pin,
+            delivered_credentials=creds,
+        )
+
+    def test_parse_credentials(self):
+        from orders import credentials as c
+        parsed = c.parse(
+            "Correo: old@amazon.com\nContraseña: oldpass\nPerfil: Juan\nPIN: 1234"
+        )
+        self.assertEqual(parsed.email, "old@amazon.com")
+        self.assertEqual(parsed.password, "oldpass")
+        self.assertTrue(parsed.has_email_line)
+        self.assertTrue(parsed.has_password_line)
+
+    def test_replace_keeps_profile_and_pin(self):
+        from orders import credentials as c
+        original = (
+            "Correo: old@amazon.com\n"
+            "Contraseña: oldpass\n"
+            "Perfil: Juan\n"
+            "PIN: 1234\n"
+        )
+        new = c.replace_account(original, "new@amazon.com", "newpass")
+        self.assertIn("Correo: new@amazon.com", new)
+        self.assertIn("Contraseña: newpass", new)
+        self.assertIn("Perfil: Juan", new)
+        self.assertIn("PIN: 1234", new)
+        self.assertNotIn("old@amazon.com", new)
+        self.assertNotIn("oldpass", new)
+
+    def test_replace_preserves_label_style(self):
+        from orders import credentials as c
+        # admin usó "Email:" en lugar de "Correo:"
+        new = c.replace_account(
+            "Email: a@a.com\nPassword: p\nPerfil: X",
+            "b@b.com", "q",
+        )
+        self.assertIn("Email: b@b.com", new)
+        self.assertIn("Password: q", new)
+
+    def test_preview_shows_old_email_and_role(self):
+        item_c = self._make_item(
+            user=self.cliente,
+            creds="Correo: old@amazon.com\nContraseña: oldpass\nPerfil: Juan\nPIN: 1234",
+        )
+        item_d = self._make_item(
+            user=self.distri,
+            creds="Correo: old@amazon.com\nContraseña: oldpass\nPerfil: Full",
+        )
+        self.client.force_login(self.admin)
+        url = reverse("admin:orders_orderitem_replace_account")
+        resp = self.client.get(f"{url}?ids={item_c.pk}&ids={item_d.pk}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "old@amazon.com")
+        self.assertContains(resp, "oldpass")
+        self.assertContains(resp, "Cliente")
+        self.assertContains(resp, "Distribuidor")
+
+    def test_submit_updates_credentials_and_snapshot(self):
+        item = self._make_item(
+            user=self.cliente,
+            creds="Correo: old@amazon.com\nContraseña: oldpass\nPerfil: Juan\nPIN: 1234",
+        )
+        self.client.force_login(self.admin)
+        url = reverse("admin:orders_orderitem_replace_account")
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.client.post(url, data={
+                "confirm": "1",
+                "ids": str(item.pk),
+                "apply": str(item.pk),
+                "new_email": "new@amazon.com",
+                "new_password": "newpass",
+                "confirm_email": "new@amazon.com",
+                "notify": "on",
+            })
+        self.assertEqual(resp.status_code, 302)
+        item.refresh_from_db()
+        self.assertIn("Correo: new@amazon.com", item.delivered_credentials)
+        self.assertIn("Contraseña: newpass", item.delivered_credentials)
+        self.assertIn("Perfil: Juan", item.delivered_credentials)
+        self.assertIn("old@amazon.com", item.previous_delivered_credentials)
+        self.assertIsNotNone(item.credentials_replaced_at)
+        # Email enviado
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Actualizamos tu cuenta", mail.outbox[0].subject)
+
+    def test_submit_rejects_when_emails_dont_match(self):
+        item = self._make_item(
+            user=self.cliente,
+            creds="Correo: old@amazon.com\nContraseña: x\nPerfil: Y",
+        )
+        self.client.force_login(self.admin)
+        url = reverse("admin:orders_orderitem_replace_account")
+        resp = self.client.post(url, data={
+            "confirm": "1",
+            "ids": str(item.pk),
+            "apply": str(item.pk),
+            "new_email": "new@amazon.com",
+            "new_password": "np",
+            "confirm_email": "otro@amazon.com",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "confirmación no coincide")
+        item.refresh_from_db()
+        # Sin cambios
+        self.assertIn("old@amazon.com", item.delivered_credentials)
+        self.assertEqual(item.previous_delivered_credentials, "")
+
+    def test_distributor_gets_distributor_email(self):
+        item = self._make_item(
+            user=self.distri,
+            creds="Correo: old@amazon.com\nContraseña: x\nPerfil: Full",
+        )
+        self.client.force_login(self.admin)
+        url = reverse("admin:orders_orderitem_replace_account")
+        with self.captureOnCommitCallbacks(execute=True):
+            resp = self.client.post(url, data={
+                "confirm": "1",
+                "ids": str(item.pk),
+                "apply": str(item.pk),
+                "new_email": "new@amazon.com",
+                "new_password": "np",
+                "confirm_email": "new@amazon.com",
+                "notify": "on",
+            })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        # Distribuidor tiene la mención de reenviar a sus clientes finales.
+        self.assertIn("clientes finales", body)
+
+    def test_rollback_restores_previous_credentials(self):
+        from orders import credentials as c
+        item = self._make_item(
+            user=self.cliente,
+            creds="Correo: old@amazon.com\nContraseña: oldpass\nPerfil: Juan\nPIN: 1234",
+        )
+        # Aplicar reemplazo simulado
+        item.previous_delivered_credentials = item.delivered_credentials
+        item.delivered_credentials = c.replace_account(
+            item.delivered_credentials, "new@amazon.com", "newpass",
+        )
+        item.credentials_replaced_at = timezone.now()
+        item.save()
+
+        # Usar la action de rollback
+        self.client.force_login(self.admin)
+        from django.contrib.admin.sites import site
+        from orders.admin import OrderItemAdmin
+        admin_instance = site._registry[OrderItem]
+        from django.test import RequestFactory
+        rf = RequestFactory()
+        req = rf.post("/")
+        req.user = self.admin
+        # Emular messages framework
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        setattr(req, "session", self.client.session)
+        setattr(req, "_messages", FallbackStorage(req))
+        qs = OrderItem.objects.filter(pk=item.pk)
+        admin_instance.action_rollback_replacement(req, qs)
+        item.refresh_from_db()
+        self.assertIn("old@amazon.com", item.delivered_credentials)
+        self.assertIn("oldpass", item.delivered_credentials)
+        self.assertEqual(item.previous_delivered_credentials, "")
+        self.assertIsNone(item.credentials_replaced_at)
+
+    def test_view_requires_staff(self):
+        self.client.force_login(self.cliente)
+        url = reverse("admin:orders_orderitem_replace_account")
+        resp = self.client.get(url)
+        self.assertIn(resp.status_code, (302, 403))
+
+
 

@@ -207,6 +207,16 @@ body.change-form { padding-bottom: 80px; }
         <span class="material-symbols-outlined">forward_to_inbox</span>
         Reenviar correo
     </a>
+    {% with item_ids=original.items.all %}
+      {% if item_ids %}
+      <a class="jh-action"
+         href="{% url 'admin:orders_orderitem_replace_account' %}?{% for it in item_ids %}ids={{ it.pk }}{% if not forloop.last %}&{% endif %}{% endfor %}"
+         title="Reemplazar correo y contraseña de la cuenta (ej: la cuenta se bloqueó)">
+          <span class="material-symbols-outlined">sync_alt</span>
+          Reemplazar cuenta
+      </a>
+      {% endif %}
+    {% endwith %}
     {% endif %}
 
     {% if original.phone %}
