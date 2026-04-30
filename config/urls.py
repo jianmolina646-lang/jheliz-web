@@ -47,6 +47,11 @@ urlpatterns = [
         name="admin_reply_templates_json",
     ),
     path(
+        "jheliz-admin/replace-blocked-account/",
+        admin_views.replace_blocked_account_view,
+        name="admin_replace_blocked_account",
+    ),
+    path(
         "jheliz-admin/renewals/",
         admin_views.renewals_view,
         name="admin_renewals",
