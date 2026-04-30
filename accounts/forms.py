@@ -1,5 +1,10 @@
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import (
+    AuthenticationForm,
+    PasswordResetForm,
+    SetPasswordForm,
+    UserCreationForm,
+)
 
 from .models import Role, User
 
@@ -59,6 +64,26 @@ class SignupForm(StyledMixin, UserCreationForm):
 
 
 class LoginForm(StyledMixin, AuthenticationForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._style_fields()
+
+
+class JhelizPasswordResetForm(StyledMixin, PasswordResetForm):
+    """Pide el email para mandar el link de reset.
+
+    Hereda el comportamiento built-in: si el email no existe, el form
+    devuelve éxito igual (no enumera cuentas), pero no manda correo.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._style_fields()
+
+
+class JhelizSetPasswordForm(StyledMixin, SetPasswordForm):
+    """Form para definir la nueva contraseña tras validar el token."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._style_fields()
