@@ -285,6 +285,11 @@ class OrderAdmin(ExportMixin, ModelAdmin):
                 name="orders_order_yape_inbox",
             ),
             path(
+                "kanban/",
+                self.admin_site.admin_view(self.kanban_view),
+                name="orders_order_kanban",
+            ),
+            path(
                 "<int:pk>/confirm-yape/",
                 self.admin_site.admin_view(self.confirm_yape_view),
                 name="orders_order_confirm_yape",
@@ -333,6 +338,62 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             "has_view_permission": self.has_view_permission(request),
         }
         return TemplateResponse(request, "admin/orders/order/yape_inbox.html", context)
+
+    # ---- Kanban ------------------------------------------------------------
+
+    def kanban_view(self, request):
+        """Tablero con columnas por estado — vista rápida del pipeline.
+
+        Agrupa pedidos recientes en columnas por estado para ver de un
+        vistazo cuántos hay en cada etapa y saltar al detalle.
+        """
+        from datetime import timedelta
+
+        try:
+            window_days = max(1, min(365, int(request.GET.get("days", 30))))
+        except (ValueError, TypeError):
+            window_days = 30
+        since = timezone.now() - timedelta(days=window_days)
+
+        qs = (
+            Order.objects.filter(created_at__gte=since)
+            .select_related("user")
+            .prefetch_related("items")
+            .order_by("-created_at")
+        )
+        columns_spec = [
+            ("pending", "Pendiente de pago", [Order.Status.PENDING], "warning"),
+            ("verifying", "Verificando", [Order.Status.VERIFYING], "orange"),
+            ("preparing", "En preparación", [Order.Status.PAID, Order.Status.PREPARING], "info"),
+            ("delivered", "Entregado", [Order.Status.DELIVERED], "success"),
+            ("closed", "Cerrados", [Order.Status.CANCELED, Order.Status.FAILED, Order.Status.REFUNDED], "muted"),
+        ]
+        by_status: dict[str, list[Order]] = {}
+        for order in qs:
+            by_status.setdefault(order.status, []).append(order)
+        columns = []
+        for key, label, states, tone in columns_spec:
+            orders = []
+            for s in states:
+                orders.extend(by_status.get(s, []))
+            orders.sort(key=lambda o: o.created_at, reverse=True)
+            columns.append({
+                "key": key,
+                "label": label,
+                "tone": tone,
+                "orders": orders[:50],  # cap por columna para no saturar
+                "count": len(orders),
+                "capped": len(orders) > 50,
+            })
+        context = {
+            **self.admin_site.each_context(request),
+            "columns": columns,
+            "window_days": window_days,
+            "title": "Kanban de pedidos",
+            "opts": self.model._meta,
+            "window_options": (7, 30, 60, 90, 180, 365),
+        }
+        return TemplateResponse(request, "admin/orders/order/kanban.html", context)
 
     # ---- Vistas 1-clic ------------------------------------------------------
 
