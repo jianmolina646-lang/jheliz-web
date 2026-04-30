@@ -1232,3 +1232,108 @@ class CartBulkTests(TestCase):
         self.assertEqual(cart[1]["profile_name"], "")
         self.assertEqual(cart[1]["pin"], "")
         self.assertEqual(cart[1]["plan_id"], self.plan.pk)
+
+
+class DistributorExpiryReminderTests(TestCase):
+    """Cubre el flujo de recordatorios específico para distribuidores."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.product, self.plan = _make_setup()
+        self.distri = User.objects.create_user(
+            username="rem_distri", password="x",
+            email="rem_distri@example.com",
+            role="distribuidor", distributor_approved=True,
+        )
+        self.cliente = User.objects.create_user(
+            username="rem_cli", password="x", email="rem_cli@example.com", role="cliente",
+        )
+
+    def _make_item(self, *, owner, days_until_expiry):
+        order = Order.objects.create(
+            user=owner, email=owner.email, total=Decimal("15.00"),
+            status=Order.Status.DELIVERED,
+        )
+        return OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+            expires_at=timezone.now() + timedelta(days=days_until_expiry),
+        )
+
+    def test_distributor_gets_7d_reminder(self):
+        item = self._make_item(owner=self.distri, days_until_expiry=7)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        item.refresh_from_db()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("7 días", mail.outbox[0].subject)
+        self.assertIsNotNone(item.distri_reminder_7d_sent_at)
+
+    def test_distributor_uses_distributor_template(self):
+        self._make_item(owner=self.distri, days_until_expiry=7)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        body = mail.outbox[0].body
+        self.assertIn("clientes finales", body)
+        self.assertIn("/distribuidor/panel/", body)
+
+    def test_customer_does_not_get_distributor_template(self):
+        self._make_item(owner=self.cliente, days_until_expiry=3)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        body = mail.outbox[0].body
+        self.assertNotIn("clientes finales", body)
+
+    def test_customer_does_not_get_7d_window(self):
+        # A los clientes finales no les llega la ventana de 7 días, sólo a distri.
+        self._make_item(owner=self.cliente, days_until_expiry=7)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_distributor_independent_idempotency(self):
+        # 7d + 3d + 1d marcas son independientes; cada una se manda 1 sola vez.
+        item = self._make_item(owner=self.distri, days_until_expiry=3)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        call_command("send_expiry_reminders", stdout=StringIO())
+        self.assertEqual(len(mail.outbox), 1)
+        item.refresh_from_db()
+        self.assertIsNotNone(item.distri_reminder_3d_sent_at)
+        self.assertIsNone(item.distri_reminder_1d_sent_at)
+
+    def test_skip_distributors_flag(self):
+        self._make_item(owner=self.distri, days_until_expiry=7)
+        call_command("send_expiry_reminders", "--skip-distributors", stdout=StringIO())
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_skip_customers_flag(self):
+        self._make_item(owner=self.cliente, days_until_expiry=3)
+        call_command("send_expiry_reminders", "--skip-customers", stdout=StringIO())
+        self.assertEqual(len(mail.outbox), 0)
+
+
+class ProductWhatsappPitchTests(TestCase):
+    def setUp(self):
+        cat = Category.objects.create(name="Streaming", slug="streaming-pitch")
+        self.product = Product.objects.create(
+            category=cat, name="Netflix", slug="netflix-pitch",
+            short_description="Plan Premium 4K compartido", icon="🎬",
+            is_active=True,
+        )
+        Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), price_distributor=Decimal("10.00"),
+            available_for_customer=True, is_active=True, order=1,
+        )
+
+    def test_default_pitch_uses_product_data(self):
+        pitch = self.product.whatsapp_pitch_for(None)
+        self.assertIn("Netflix", pitch)
+        self.assertIn("1 mes", pitch)
+        self.assertIn("15.00", pitch)
+        self.assertIn("Garantía", pitch)
+        # Distribuidor NO debería ver su propio precio mayorista en el copy
+        # (es lo que ofrece a su cliente final, no lo que él compra).
+        self.assertNotIn("10.00", pitch)
+
+    def test_custom_pitch_overrides_default(self):
+        self.product.whatsapp_sales_copy = "Mi copy especial 🎉"
+        self.product.save()
+        self.assertEqual(self.product.whatsapp_pitch_for(None), "Mi copy especial 🎉")

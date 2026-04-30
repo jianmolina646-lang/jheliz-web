@@ -465,6 +465,11 @@ class OrderItem(models.Model):
     # Recordatorios de vencimiento ya enviados (evita duplicados):
     expiry_reminder_3d_sent_at = models.DateTimeField(null=True, blank=True)
     expiry_reminder_1d_sent_at = models.DateTimeField(null=True, blank=True)
+    # Recordatorios específicos para distribuidores (usan copy diferente y tienen
+    # una ventana extra de 7 días para que alcancen a avisar a sus clientes finales).
+    distri_reminder_7d_sent_at = models.DateTimeField(null=True, blank=True)
+    distri_reminder_3d_sent_at = models.DateTimeField(null=True, blank=True)
+    distri_reminder_1d_sent_at = models.DateTimeField(null=True, blank=True)
     # CRM ligero: cuando un distribuidor compra un perfil, suele revenderlo a un
     # cliente final (su propio cliente). Estos campos los rellena el distribuidor
     # desde su panel para llevar registro de a quién le tocó cada cuenta y poder
