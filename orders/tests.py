@@ -1337,3 +1337,89 @@ class ProductWhatsappPitchTests(TestCase):
         self.product.whatsapp_sales_copy = "Mi copy especial 🎉"
         self.product.save()
         self.assertEqual(self.product.whatsapp_pitch_for(None), "Mi copy especial 🎉")
+
+
+class ReminderRunLogTests(TestCase):
+    """Cubre el log de runs del comando send_expiry_reminders."""
+
+    def setUp(self):
+        from orders.models import ReminderRunLog
+        self.RRL = ReminderRunLog
+
+    def test_run_creates_log_entry(self):
+        _make_delivered_item(days_until_expiry=3)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        log = self.RRL.objects.get()
+        self.assertFalse(log.dry_run)
+        self.assertEqual(log.customer_count, 1)
+        self.assertEqual(log.distri_count, 0)
+        self.assertEqual(log.by_window.get("cliente_3d"), 1)
+        self.assertIsNotNone(log.finished_at)
+        self.assertEqual(log.error, "")
+
+    def test_dry_run_creates_log_entry_with_zero_counts(self):
+        _make_delivered_item(days_until_expiry=3)
+        call_command("send_expiry_reminders", "--dry-run", stdout=StringIO())
+        log = self.RRL.objects.get()
+        self.assertTrue(log.dry_run)
+        self.assertEqual(log.customer_count, 0)
+        self.assertEqual(log.distri_count, 0)
+        self.assertEqual(log.by_window.get("cliente_3d"), 0)
+
+    def test_distri_run_logged_in_correct_bucket(self):
+        User = get_user_model()
+        product, plan = _make_setup()
+        distri = User.objects.create_user(
+            username="rrl_distri", password="x", email="rrl_distri@example.com",
+            role="distribuidor", distributor_approved=True,
+        )
+        order = Order.objects.create(
+            user=distri, email=distri.email,
+            total=Decimal("15.00"), status=Order.Status.DELIVERED,
+        )
+        OrderItem.objects.create(
+            order=order, product=product, plan=plan,
+            product_name=product.name, plan_name=plan.name,
+            unit_price=plan.price_customer, quantity=1,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        call_command("send_expiry_reminders", stdout=StringIO())
+        log = self.RRL.objects.get()
+        self.assertEqual(log.distri_count, 1)
+        self.assertEqual(log.customer_count, 0)
+        self.assertEqual(log.by_window.get("distri_7d"), 1)
+
+    def test_reminder_status_helper_handles_no_runs(self):
+        from config.admin_dashboard import _reminder_status
+        rs = _reminder_status(self.RRL, timezone.now())
+        self.assertFalse(rs["has_runs"])
+        self.assertEqual(rs["tone"], "amber")
+
+    def test_reminder_status_helper_with_recent_run(self):
+        from config.admin_dashboard import _reminder_status
+        _make_delivered_item(days_until_expiry=3)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        rs = _reminder_status(self.RRL, timezone.now())
+        self.assertTrue(rs["has_runs"])
+        self.assertEqual(rs["tone"], "emerald")
+        self.assertIn("1 aviso", rs["label"])
+
+    def test_reminder_status_helper_with_stale_run_is_red(self):
+        from config.admin_dashboard import _reminder_status
+        log = self.RRL.objects.create()
+        # Forzamos un started_at de 30 horas atrás (más que el umbral de 25h).
+        self.RRL.objects.filter(pk=log.pk).update(
+            started_at=timezone.now() - timedelta(hours=30),
+            finished_at=timezone.now() - timedelta(hours=30),
+        )
+        rs = _reminder_status(self.RRL, timezone.now())
+        self.assertEqual(rs["tone"], "red")
+        self.assertIn("podría estar caído", rs["label"])
+
+    def test_reminder_status_helper_skips_dry_runs(self):
+        from config.admin_dashboard import _reminder_status
+        _make_delivered_item(days_until_expiry=3)
+        call_command("send_expiry_reminders", "--dry-run", stdout=StringIO())
+        # Sólo hay un run dry-run → tratamos el panel como "sin runs reales".
+        rs = _reminder_status(self.RRL, timezone.now())
+        self.assertFalse(rs["has_runs"])

@@ -25,8 +25,8 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from orders import emails, telegram
-from orders.models import Order, OrderItem
+from orders import emails
+from orders.models import Order, OrderItem, ReminderRunLog
 
 
 # Mapa: ventana en días -> nombre del campo donde marcamos el envío
@@ -147,43 +147,51 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(str(exc)))
             return
 
-        total_orders = 0
-        total_distri_items = 0
+        run = ReminderRunLog.objects.create(dry_run=dry_run)
+        by_window: dict[str, int] = {}
+        customer_total = 0
+        distri_total = 0
+        run_error = ""
 
-        if not opts["skip_customers"]:
-            for w in customer_windows:
-                orders, _items = self._process(
-                    days_left=w,
-                    field=_CUSTOMER_FIELD_MAP[w],
-                    for_distributor=False,
-                    dry_run=dry_run,
-                )
-                total_orders += orders
+        try:
+            if not opts["skip_customers"]:
+                for w in customer_windows:
+                    orders, items = self._process(
+                        days_left=w,
+                        field=_CUSTOMER_FIELD_MAP[w],
+                        for_distributor=False,
+                        dry_run=dry_run,
+                    )
+                    by_window[f"cliente_{w}d"] = items
+                    customer_total += items
 
-        if not opts["skip_distributors"]:
-            for w in distri_windows:
-                orders, items = self._process(
-                    days_left=w,
-                    field=_DISTRI_FIELD_MAP[w],
-                    for_distributor=True,
-                    dry_run=dry_run,
-                )
-                total_orders += orders
-                total_distri_items += items
+            if not opts["skip_distributors"]:
+                for w in distri_windows:
+                    orders, items = self._process(
+                        days_left=w,
+                        field=_DISTRI_FIELD_MAP[w],
+                        for_distributor=True,
+                        dry_run=dry_run,
+                    )
+                    by_window[f"distri_{w}d"] = items
+                    distri_total += items
+        except Exception as exc:  # nunca tirar el cron sin dejar rastro
+            run_error = f"{type(exc).__name__}: {exc}"[:1000]
+            self.stderr.write(self.style.ERROR(run_error))
+        finally:
+            run.finished_at = timezone.now()
+            run.customer_count = customer_total
+            run.distri_count = distri_total
+            run.by_window = by_window
+            run.error = run_error
+            run.save()
 
+        total = customer_total + distri_total
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry-run: no se enviaron correos."))
             return
 
         self.stdout.write(self.style.SUCCESS(
-            f"Recordatorios enviados: {total_orders} pedido(s)."
+            f"Recordatorios enviados: {total} aviso(s) "
+            f"({customer_total} cliente(s) + {distri_total} distri)."
         ))
-        # Aviso al admin por Telegram con resumen del run del día (best-effort).
-        if total_distri_items > 0:
-            try:
-                telegram.notify_admin(
-                    f"📅 Recordatorios distribuidor enviados hoy: "
-                    f"{total_distri_items} cuenta(s) por vencer."
-                )
-            except Exception:  # nunca rompe el cron por culpa de Telegram
-                pass

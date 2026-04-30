@@ -16,7 +16,10 @@ from unfold.decorators import display
 
 from . import credentials as creds_utils
 from . import emails
-from .models import Coupon, DistributorOrder, EmailLog, Order, OrderItem, PaymentSettings
+from .models import (
+    Coupon, DistributorOrder, EmailLog, Order, OrderItem, PaymentSettings,
+    ReminderRunLog,
+)
 
 
 class OrderResource(resources.ModelResource):
@@ -937,3 +940,45 @@ class EmailLogAdmin(ModelAdmin):
     )
     def display_status(self, obj: EmailLog):
         return obj.status, obj.get_status_display()
+
+
+@admin.register(ReminderRunLog)
+class ReminderRunLogAdmin(ModelAdmin):
+    """Historial de runs del comando ``send_expiry_reminders``.
+
+    Solo lectura: el cron es quien crea estos logs.
+    """
+
+    list_display = (
+        "started_at", "display_total", "customer_count", "distri_count",
+        "display_dry_run", "display_status",
+    )
+    list_filter = ("dry_run", "started_at")
+    readonly_fields = (
+        "started_at", "finished_at", "dry_run",
+        "customer_count", "distri_count", "by_window", "error",
+    )
+    date_hierarchy = "started_at"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    @display(description="Total", ordering="customer_count")
+    def display_total(self, obj: ReminderRunLog) -> str:
+        return str(obj.total)
+
+    @display(description="Dry-run", boolean=True, ordering="dry_run")
+    def display_dry_run(self, obj: ReminderRunLog) -> bool:
+        return obj.dry_run
+
+    @display(
+        description="Estado",
+        label={"ok": "success", "fail": "danger"},
+    )
+    def display_status(self, obj: ReminderRunLog):
+        if obj.error:
+            return "fail", "Falló"
+        return "ok", "Ok"

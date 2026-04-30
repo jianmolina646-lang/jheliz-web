@@ -556,3 +556,43 @@ class EmailLog(models.Model):
 
     def __str__(self) -> str:
         return f"[{self.get_kind_display()}] {self.to_email} ({self.status})"
+
+
+class ReminderRunLog(models.Model):
+    """Registro de cada ejecución del comando ``send_expiry_reminders``.
+
+    Sirve al admin para ver desde el panel cuándo corrió por última vez el cron
+    (y darse cuenta si por algún motivo dejó de correr) y cuántos recordatorios
+    salieron en total y por ventana.
+    """
+
+    started_at = models.DateTimeField("Inicio", auto_now_add=True, db_index=True)
+    finished_at = models.DateTimeField("Fin", null=True, blank=True)
+    dry_run = models.BooleanField("Dry-run", default=False)
+    customer_count = models.PositiveIntegerField("Avisos a clientes", default=0)
+    distri_count = models.PositiveIntegerField("Avisos a distribuidores", default=0)
+    by_window = models.JSONField(
+        "Detalle por ventana", default=dict, blank=True,
+        help_text="Ej: {'cliente_3d': 2, 'cliente_1d': 1, 'distri_7d': 0, ...}",
+    )
+    error = models.TextField("Error", blank=True)
+
+    class Meta:
+        ordering = ("-started_at",)
+        verbose_name = "Run de recordatorios"
+        verbose_name_plural = "Historial de recordatorios"
+        indexes = [
+            models.Index(fields=["-started_at"], name="reminderrun_started_idx"),
+        ]
+
+    def __str__(self) -> str:
+        ts = self.started_at.strftime("%Y-%m-%d %H:%M") if self.started_at else "?"
+        if self.error:
+            return f"{ts} — error"
+        total = (self.customer_count or 0) + (self.distri_count or 0)
+        suffix = " (dry-run)" if self.dry_run else ""
+        return f"{ts} — {total} aviso(s){suffix}"
+
+    @property
+    def total(self) -> int:
+        return (self.customer_count or 0) + (self.distri_count or 0)
