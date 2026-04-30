@@ -46,6 +46,46 @@
   </div>
 </section>
 
+<!-- Cuentas actualizadas recientemente ----------------------------------- -->
+{% if recently_replaced %}
+<section class="mt-6">
+  <div class="flex items-end justify-between mb-3">
+    <h2 class="font-display text-lg font-bold tracking-tight">🔄 Cuentas actualizadas</h2>
+    <span class="text-xs text-fuchsia-300">
+      {% if user.is_distributor %}
+        Reenvía estas credenciales nuevas a tus clientes finales
+      {% else %}
+        Tu perfil y PIN siguen igual — solo cambia el correo y contraseña
+      {% endif %}
+    </span>
+  </div>
+  <div class="space-y-2">
+    {% for item in recently_replaced %}
+      <div class="surface rounded-xl p-4 flex items-center justify-between gap-3 flex-wrap" style="border-color: rgba(232, 121, 249, .35); background: rgba(232, 121, 249, .05);">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-lg surface-soft flex items-center justify-center text-lg shrink-0">
+            {{ item.plan.product.icon|default:item.plan.product.category.emoji }}
+          </div>
+          <div class="min-w-0">
+            <div class="font-display font-semibold truncate">{{ item.product_name }}</div>
+            <div class="text-xs text-fuchsia-300">
+              Actualizada {{ item.credentials_replaced_at|naturaltime }}
+              {% if item.requested_profile_name %}
+                · Perfil <span class="text-zinc-200 font-medium">{{ item.requested_profile_name }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <a href="{% url 'orders:detail' uuid=item.order.uuid %}" class="btn btn-secondary text-sm" style="padding:0.45rem 0.9rem">
+          Ver credenciales nuevas
+          <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 <!-- Distributor banner --------------------------------------------------- -->
 {% if user.is_distributor %}
   <section class="mt-6 surface rounded-xl p-5 flex items-center justify-between gap-4 flex-wrap" style="background: rgba(236,72,153,.06); border-color: rgba(236,72,153,.3);">

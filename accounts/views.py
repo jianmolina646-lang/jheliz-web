@@ -119,6 +119,17 @@ def dashboard(request):
     ).order_by("expires_at")
     expiring_soon = active_items.filter(expires_at__lte=soon)
     delivered_count = user_items.filter(order__status=Order.Status.DELIVERED).count()
+    # Items con credenciales reemplazadas en los últimos 30 días — para que
+    # el cliente/distribuidor vea que migramos su cuenta y use los datos nuevos.
+    recently_replaced_window = now - timedelta(days=30)
+    recently_replaced = (
+        user_items.filter(
+            credentials_replaced_at__gte=recently_replaced_window,
+            order__status=Order.Status.DELIVERED,
+        )
+        .select_related("order", "plan__product")
+        .order_by("-credentials_replaced_at")[:10]
+    )
 
     stats = {
         "active": active_items.count(),
@@ -134,6 +145,7 @@ def dashboard(request):
             "orders": orders,
             "active_items": active_items[:8],
             "expiring_soon": expiring_soon[:5],
+            "recently_replaced": recently_replaced,
             "stats": stats,
         },
     )
