@@ -163,6 +163,167 @@ class YapeQrPublicAccessTests(TestCase):
         self.assertEqual(resp.status_code, 404)
 
 
+# ---------------------------------------------------------------------------
+# Verificación de firma del webhook de Mercado Pago.
+# ---------------------------------------------------------------------------
+
+import hashlib  # noqa: E402
+import hmac as _hmac  # noqa: E402
+
+from unittest.mock import patch as _patch  # noqa: E402
+
+from orders import mercadopago_client  # noqa: E402
+
+
+def _mp_sign(secret: str, data_id: str, request_id: str, ts: str = "1700000000") -> str:
+    manifest = f"id:{data_id};request-id:{request_id};ts:{ts};"
+    digest = _hmac.new(secret.encode(), manifest.encode(), hashlib.sha256).hexdigest()
+    return f"ts={ts},v1={digest}"
+
+
+class MercadoPagoSignatureUnitTests(TestCase):
+    """Tests unitarios de :func:`mercadopago_client.verify_webhook_signature`."""
+
+    SECRET = "testsecret123"
+    DATA_ID = "PAY-42"
+    REQ_ID = "abc-req-1"
+
+    def test_valid_signature(self):
+        sig = _mp_sign(self.SECRET, self.DATA_ID, self.REQ_ID)
+        self.assertTrue(mercadopago_client.verify_webhook_signature(
+            signature_header=sig,
+            request_id=self.REQ_ID,
+            data_id=self.DATA_ID,
+            secret=self.SECRET,
+        ))
+
+    def test_wrong_secret_rejected(self):
+        sig = _mp_sign(self.SECRET, self.DATA_ID, self.REQ_ID)
+        self.assertFalse(mercadopago_client.verify_webhook_signature(
+            signature_header=sig,
+            request_id=self.REQ_ID,
+            data_id=self.DATA_ID,
+            secret="otro-secreto",
+        ))
+
+    def test_tampered_data_id_rejected(self):
+        sig = _mp_sign(self.SECRET, self.DATA_ID, self.REQ_ID)
+        self.assertFalse(mercadopago_client.verify_webhook_signature(
+            signature_header=sig,
+            request_id=self.REQ_ID,
+            data_id="OTRO-PAYMENT",  # el atacante cambió el id en la URL
+            secret=self.SECRET,
+        ))
+
+    def test_tampered_request_id_rejected(self):
+        sig = _mp_sign(self.SECRET, self.DATA_ID, self.REQ_ID)
+        self.assertFalse(mercadopago_client.verify_webhook_signature(
+            signature_header=sig,
+            request_id="otro-req",
+            data_id=self.DATA_ID,
+            secret=self.SECRET,
+        ))
+
+    def test_missing_secret_returns_false(self):
+        sig = _mp_sign(self.SECRET, self.DATA_ID, self.REQ_ID)
+        self.assertFalse(mercadopago_client.verify_webhook_signature(
+            signature_header=sig,
+            request_id=self.REQ_ID,
+            data_id=self.DATA_ID,
+            secret="",
+        ))
+
+    def test_malformed_header_returns_false(self):
+        for bad in ("", "garbage", "ts=", "v1=foo", "ts=1,v1="):
+            self.assertFalse(mercadopago_client.verify_webhook_signature(
+                signature_header=bad,
+                request_id=self.REQ_ID,
+                data_id=self.DATA_ID,
+                secret=self.SECRET,
+            ))
+
+
+@override_settings(MERCADOPAGO_WEBHOOK_SECRET="testsecret123")
+class MercadoPagoWebhookViewTests(TestCase):
+    """Tests del view :func:`orders.views.mercadopago_webhook`."""
+
+    SECRET = "testsecret123"
+    DATA_ID = "PAY-99"
+    REQ_ID = "req-xyz"
+    URL = f"/pedidos/webhooks/mercadopago/?data.id={DATA_ID}"
+
+    def _post(self, **headers):
+        # ``Client`` traduce kwargs HTTP_FOO a header Foo (formato Django).
+        return self.client.post(
+            self.URL,
+            data='{"data": {"id": "%s"}}' % self.DATA_ID,
+            content_type="application/json",
+            **headers,
+        )
+
+    def test_unsigned_request_rejected(self):
+        resp = self._post()
+        self.assertEqual(resp.status_code, 401)
+
+    def test_invalid_signature_rejected(self):
+        resp = self._post(
+            HTTP_X_SIGNATURE="ts=1700000000,v1=deadbeef",
+            HTTP_X_REQUEST_ID=self.REQ_ID,
+        )
+        self.assertEqual(resp.status_code, 401)
+
+    def test_valid_signature_accepted(self):
+        sig = _mp_sign(self.SECRET, self.DATA_ID, self.REQ_ID)
+        # Mockeamos fetch_payment para no llamar a la API real.
+        with _patch.object(
+            mercadopago_client, "fetch_payment",
+            return_value={"status": "pending", "external_reference": ""},
+        ) as mocked:
+            resp = self._post(
+                HTTP_X_SIGNATURE=sig,
+                HTTP_X_REQUEST_ID=self.REQ_ID,
+            )
+        self.assertEqual(resp.status_code, 200)
+        mocked.assert_called_once_with(self.DATA_ID)
+
+    def test_attacker_cannot_replay_with_different_data_id(self):
+        """Replay clásico: atacante toma una firma legítima de otro pago y
+        la usa contra ``data.id=OTRO`` — debe rechazarse.
+        """
+        sig = _mp_sign(self.SECRET, self.DATA_ID, self.REQ_ID)
+        url = "/pedidos/webhooks/mercadopago/?data.id=OTRO_PAGO"
+        resp = self.client.post(
+            url,
+            data='{"data": {"id": "OTRO_PAGO"}}',
+            content_type="application/json",
+            HTTP_X_SIGNATURE=sig,
+            HTTP_X_REQUEST_ID=self.REQ_ID,
+        )
+        self.assertEqual(resp.status_code, 401)
+
+
+@override_settings(MERCADOPAGO_WEBHOOK_SECRET="")
+class MercadoPagoWebhookFallbackTests(TestCase):
+    """Si el secreto no está configurado, el webhook acepta sin verificar
+    pero loguea un warning. Ese fallback existe para no romper el flujo de
+    pagos durante el rollout — el operador completa el setup del secreto y
+    en el próximo deploy se activa la verificación automáticamente.
+    """
+
+    def test_unsigned_request_passes_through_when_secret_missing(self):
+        with _patch.object(
+            mercadopago_client, "fetch_payment",
+            return_value={"status": "pending", "external_reference": ""},
+        ) as mocked:
+            resp = self.client.post(
+                "/pedidos/webhooks/mercadopago/?data.id=PAY-1",
+                data='{"data": {"id": "PAY-1"}}',
+                content_type="application/json",
+            )
+        self.assertEqual(resp.status_code, 200)
+        mocked.assert_called_once_with("PAY-1")
+
+
 # ----- PR D -----
 
 def _make_setup():

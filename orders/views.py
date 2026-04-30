@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -376,7 +377,36 @@ def checkout_return(request, uuid):
 @csrf_exempt
 @require_POST
 def mercadopago_webhook(request):
-    """Recibe notificaciones de Mercado Pago y actualiza el pedido."""
+    """Recibe notificaciones de Mercado Pago y actualiza el pedido.
+
+    Si ``MERCADOPAGO_WEBHOOK_SECRET`` está configurado, exige firma HMAC
+    válida (header ``x-signature``). Si no está configurado, deja pasar
+    pero loguea un warning para que el operador termine el setup.
+    """
+    secret = getattr(settings, "MERCADOPAGO_WEBHOOK_SECRET", "") or ""
+    # data.id viaja en la query string del webhook de MP. Lo necesitamos
+    # *antes* del JSON para validar la firma — el manifest se construye
+    # con este valor.
+    data_id_qs = request.GET.get("data.id") or request.GET.get("id") or ""
+    if secret:
+        ok = mercadopago_client.verify_webhook_signature(
+            signature_header=request.headers.get("x-signature", ""),
+            request_id=request.headers.get("x-request-id", ""),
+            data_id=data_id_qs,
+            secret=secret,
+        )
+        if not ok:
+            logger.warning(
+                "MP webhook con firma inválida (request-id=%s)",
+                request.headers.get("x-request-id", ""),
+            )
+            return HttpResponse(status=401)
+    else:
+        logger.warning(
+            "MERCADOPAGO_WEBHOOK_SECRET no configurado — "
+            "el webhook de Mercado Pago acepta cualquier POST."
+        )
+
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")
     except json.JSONDecodeError:
@@ -384,8 +414,7 @@ def mercadopago_webhook(request):
 
     payment_id = (
         payload.get("data", {}).get("id")
-        or request.GET.get("data.id")
-        or request.GET.get("id")
+        or data_id_qs
     )
     if not payment_id:
         return HttpResponse(status=200)
@@ -398,9 +427,12 @@ def mercadopago_webhook(request):
 
     external_reference = payment.get("external_reference") or ""
     status = payment.get("status")  # approved / pending / rejected / in_process
+    if not external_reference:
+        logger.warning("Webhook sin external_reference (payment_id=%s)", payment_id)
+        return HttpResponse(status=200)
     try:
         order = Order.objects.get(uuid=external_reference)
-    except (Order.DoesNotExist, ValueError):
+    except (Order.DoesNotExist, ValueError, ValidationError):
         logger.warning("Webhook sin order matching: %s", external_reference)
         return HttpResponse(status=200)
 
