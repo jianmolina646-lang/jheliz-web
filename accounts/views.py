@@ -31,7 +31,10 @@ def signup(request):
         form = SignupForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
+            # Con AUTHENTICATION_BACKENDS múltiples (axes + ModelBackend),
+            # Django requiere indicar qué backend usar al hacer login() de
+            # un usuario recién creado.
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
             if user.role == Role.DISTRIBUIDOR:
                 messages.info(
                     request,
