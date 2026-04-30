@@ -194,6 +194,17 @@ document.addEventListener("DOMContentLoaded", function () {
                   {{ entry.user.email|default:"—" }}
                   · <span class="jh-badge {% if entry.is_distributor %}jh-badge-distribuidor{% else %}jh-badge-cliente{% endif %}">{{ entry.role_label }}</span>
                 </div>
+                {% if entry.is_distributor and entry.item.final_customer_name %}
+                  <div class="meta" style="margin-top:4px;color:#86efac;">
+                    → Cliente final: <strong>{{ entry.item.final_customer_name }}</strong>
+                    {% if entry.item.final_customer_whatsapp %}
+                      · <a href="https://wa.me/{{ entry.item.final_customer_whatsapp|cut:'+' }}" target="_blank" rel="noopener" style="color:#86efac;text-decoration:underline;">{{ entry.item.final_customer_whatsapp }}</a>
+                    {% endif %}
+                  </div>
+                {% endif %}
+                {% if entry.item.reported_broken_at %}
+                  <div class="meta" style="margin-top:4px;color:#fca5a5;">🚨 Reportada caída {{ entry.item.reported_broken_at|date:"d/m/Y H:i" }}</div>
+                {% endif %}
               </div>
             </td>
             <td>

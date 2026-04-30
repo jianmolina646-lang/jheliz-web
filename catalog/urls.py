@@ -11,6 +11,17 @@ urlpatterns = [
     path("producto/<slug:slug>/", views.product_detail, name="product"),
     path("distribuidor/", views.distributor_landing, name="distributor"),
     path("distribuidor/panel/", views.distributor_panel, name="distributor_panel"),
+    path("distribuidor/catalogo/", views.distributor_catalog, name="distributor_catalog"),
+    path(
+        "distribuidor/items/<int:item_id>/cliente/",
+        views.distributor_edit_customer,
+        name="distributor_edit_customer",
+    ),
+    path(
+        "distribuidor/items/<int:item_id>/reportar/",
+        views.distributor_report_broken,
+        name="distributor_report_broken",
+    ),
     path("tutoriales/", views.tutorials, name="tutorials"),
     path("terminos/", views.terms, name="terms"),
     path("garantia/", views.warranty, name="warranty"),

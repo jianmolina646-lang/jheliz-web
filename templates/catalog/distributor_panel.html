@@ -1,28 +1,237 @@
 {% extends "base.html" %}
 {% load humanize %}
 {% block title %}Panel distribuidor — {{ SITE_NAME }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .metric-card { background: var(--surface); border: 1px solid var(--line); border-radius: 1rem; padding: 1.1rem 1.25rem; }
+  .metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgb(161 161 170); font-weight: 600; }
+  .metric-value { font-family: 'Inter Tight', system-ui, sans-serif; font-size: 1.85rem; font-weight: 700; color: white; margin-top: 0.25rem; line-height: 1; }
+  .metric-sub { font-size: 12px; color: rgb(161 161 170); margin-top: 0.4rem; }
+  .row-item { background: var(--surface); border: 1px solid var(--line); border-radius: 0.85rem; padding: 0.9rem 1rem; }
+  .row-item + .row-item { margin-top: 0.55rem; }
+  .badge-soft { font-size: 11px; padding: 0.2rem 0.55rem; border-radius: 9999px; border: 1px solid; }
+  .badge-overdue { color: #fca5a5; border-color: rgba(248,113,113,.4); background: rgba(248,113,113,.1); }
+  .badge-soon { color: #fcd34d; border-color: rgba(252,211,77,.4); background: rgba(252,211,77,.1); }
+  .badge-ok { color: #86efac; border-color: rgba(134,239,172,.4); background: rgba(134,239,172,.1); }
+  details.cust-edit summary::-webkit-details-marker { display: none; }
+  details.cust-edit summary { cursor: pointer; list-style: none; }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 50; display: none; align-items: center; justify-content: center; }
+  .modal-backdrop.is-open { display: flex; }
+  .modal-card { background: #18181b; border: 1px solid var(--line); border-radius: 1rem; padding: 1.5rem; max-width: 28rem; width: 92%; }
+  .input-dark { background: rgba(255,255,255,.03); border: 1px solid var(--line); color: white; padding: 0.55rem 0.75rem; border-radius: 0.55rem; width: 100%; font-size: 14px; }
+  .input-dark:focus { outline: none; border-color: rgba(236,72,153,.4); }
+</style>
+{% endblock %}
+
 {% block content %}
-<section class="mb-8 card-glass rounded-3xl p-6 md:p-8">
-  <div class="flex items-start gap-4">
-    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-jheliz-500/30 border border-white/10 flex items-center justify-center text-3xl">💼</div>
-    <div>
-      <h1 class="font-display text-3xl md:text-5xl font-extrabold tracking-tight" style="letter-spacing:-0.04em;line-height:.96">Panel <span class="hero-italic text-zinc-300">distribuidor</span></h1>
-      <p class="text-white/70 mt-1">
-        Hola {{ user.get_full_name|default:user.username }}, estos son los precios
-        <strong class="text-jheliz-300">mayoristas</strong> de Jheliz.
-        Al agregar al carrito ya se aplica tu descuento automáticamente.
-      </p>
+<!-- Header -->
+<section class="mesh-accent flex flex-col md:flex-row md:items-end md:justify-between gap-4 pb-2">
+  <div>
+    <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Panel distribuidor</p>
+    <h1 class="font-display text-4xl md:text-6xl font-extrabold tracking-tight mt-2" style="letter-spacing:-0.04em;line-height:.96">
+      Hola, <span class="hero-italic text-zinc-300">{{ user.first_name|default:user.username }}</span>
+    </h1>
+    <p class="text-sm text-zinc-400 mt-1.5">Aquí ves tus métricas, próximos vencimientos y el libro de cuentas que vendiste.</p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="{% url 'catalog:distributor_catalog' %}" class="btn btn-primary">
+      🛒 Ir al catálogo mayorista
+      <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+    </a>
+    <div class="surface rounded-xl px-4 py-2.5">
+      <div class="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">Saldo</div>
+      <div class="font-display text-lg font-bold text-white">{{ CURRENCY_SYMBOL }} {{ user.wallet_balance|floatformat:2|intcomma }}</div>
     </div>
   </div>
 </section>
 
-<div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-  {% for product in products %}
-    {% include "catalog/_product_card.html" with product=product %}
-  {% empty %}
-    <div class="card-glass rounded-2xl p-8 text-center text-white/70 md:col-span-3">
-      Todavía no hay productos con plan mayorista activo.
+<!-- Métricas -->
+<section class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+  <div class="metric-card">
+    <div class="metric-label">Gasto este mes</div>
+    <div class="metric-value">{{ CURRENCY_SYMBOL }} {{ spend_month|floatformat:2|intcomma }}</div>
+    <div class="metric-sub">{{ now|date:"F Y" }}</div>
+  </div>
+  <div class="metric-card" style="border-color: rgba(134,239,172,.35);">
+    <div class="metric-label" style="color:#86efac">Ahorraste este mes</div>
+    <div class="metric-value">{{ CURRENCY_SYMBOL }} {{ savings_month|floatformat:2|intcomma }}</div>
+    <div class="metric-sub">vs. precio público</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Gasto del año</div>
+    <div class="metric-value">{{ CURRENCY_SYMBOL }} {{ spend_year|floatformat:2|intcomma }}</div>
+    <div class="metric-sub">{{ now|date:"Y" }}</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-label">Cuentas activas</div>
+    <div class="metric-value">{{ items_total }}</div>
+    <div class="metric-sub">{% if pending_broken %}<span style="color:#fca5a5">{{ pending_broken }} reportadas como caídas</span>{% else %}sin reportes pendientes{% endif %}</div>
+  </div>
+</section>
+
+<!-- Próximos a vencer -->
+<section class="mt-7">
+  <div class="flex items-end justify-between mb-3">
+    <h2 class="font-display text-xl font-bold tracking-tight">⏰ Próximos a vencer</h2>
+    <span class="text-xs text-zinc-500">7 días hacia adelante</span>
+  </div>
+  {% if expiring_items %}
+    {% for item in expiring_items %}
+      <div class="row-item flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-lg surface-soft flex items-center justify-center text-base shrink-0">{{ item.product.icon|default:"🎬" }}</div>
+          <div class="min-w-0">
+            <div class="font-semibold truncate">{{ item.product_name }} · <span class="text-zinc-400 font-normal">{{ item.plan_name }}</span></div>
+            <div class="text-xs text-zinc-500 truncate">
+              {% if item.requested_profile_name %}Perfil <span class="text-zinc-300">{{ item.requested_profile_name }}</span>{% endif %}
+              {% if item.requested_pin %} · PIN <span class="text-zinc-300">{{ item.requested_pin }}</span>{% endif %}
+              {% if item.final_customer_name %} · Cliente: <span class="text-zinc-300">{{ item.final_customer_name }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          {% if item.expires_at < now %}
+            <span class="badge-soft badge-overdue">VENCIÓ {{ item.expires_at|naturaltime }}</span>
+          {% else %}
+            <span class="badge-soft badge-soon">{{ item.expires_at|naturaltime }}</span>
+          {% endif %}
+          {% if item.final_customer_whatsapp %}
+            <a href="https://wa.me/{{ item.final_customer_whatsapp|cut:'+' }}?text=Hola{% if item.final_customer_name %}%20{{ item.final_customer_name|urlencode }}{% endif %}!%20Tu%20cuenta%20de%20{{ item.product_name|urlencode }}%20vence%20pronto%2C%20%C2%BFla%20renuevas%3F"
+               target="_blank" rel="noopener"
+               class="btn btn-secondary text-sm" style="padding:0.4rem 0.7rem; background:rgba(37,211,102,.12); border-color:rgba(37,211,102,.4); color:#86efac">
+              💬 WhatsApp
+            </a>
+          {% endif %}
+          <a href="{% url 'catalog:distributor_catalog' %}" class="btn btn-primary text-sm" style="padding:0.4rem 0.7rem">Renovar</a>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="row-item text-zinc-500 text-sm">No tenés cuentas que estén por vencer en los próximos 7 días. ✓</div>
+  {% endif %}
+</section>
+
+<!-- Top productos + libro de ventas -->
+<section class="mt-7 grid lg:grid-cols-[1fr_2fr] gap-5">
+  <!-- Top productos -->
+  <div>
+    <h2 class="font-display text-xl font-bold tracking-tight mb-3">🏆 Top productos</h2>
+    {% if top_products %}
+      <div class="surface rounded-xl divide-y" style="--tw-divide-opacity:1; border-color:var(--line)">
+        {% for p in top_products %}
+          <div class="flex items-center justify-between gap-3 p-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-8 h-8 rounded-lg surface-soft flex items-center justify-center text-sm shrink-0">{{ p.product__icon|default:"🎬" }}</div>
+              <span class="font-semibold truncate">{{ p.product__name }}</span>
+            </div>
+            <span class="badge-soft badge-ok">{{ p.total_qty }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="surface rounded-xl p-4 text-zinc-500 text-sm">Todavía no compraste productos.</div>
+    {% endif %}
+  </div>
+
+  <!-- Libro de ventas -->
+  <div>
+    <div class="flex items-end justify-between mb-3">
+      <h2 class="font-display text-xl font-bold tracking-tight">📘 Mis cuentas vendidas</h2>
+      <span class="text-xs text-zinc-500">Últimas 50</span>
     </div>
-  {% endfor %}
+    {% if items_ledger %}
+      {% for item in items_ledger %}
+        <div class="row-item">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="flex items-start gap-3 min-w-0">
+              <div class="w-9 h-9 rounded-lg surface-soft flex items-center justify-center text-base shrink-0 mt-0.5">{{ item.product.icon|default:"🎬" }}</div>
+              <div class="min-w-0">
+                <div class="font-semibold truncate">{{ item.product_name }} · <span class="text-zinc-400 font-normal">{{ item.plan_name }}</span></div>
+                <div class="text-xs text-zinc-500 truncate mt-0.5">
+                  Pedido <a class="hover:text-jheliz-300" href="{% url 'orders:detail' uuid=item.order.uuid %}">#{{ item.order.uuid|stringformat:'s'|slice:':8' }}</a>
+                  {% if item.requested_profile_name %} · Perfil <span class="text-zinc-300">{{ item.requested_profile_name }}</span>{% endif %}
+                  {% if item.requested_pin %} · PIN <span class="text-zinc-300">{{ item.requested_pin }}</span>{% endif %}
+                  {% if item.expires_at %} · vence {{ item.expires_at|date:"d/m/Y" }}{% endif %}
+                </div>
+                <div class="mt-2 text-xs">
+                  {% if item.final_customer_name %}
+                    <span class="text-zinc-400">Cliente final:</span>
+                    <span class="text-zinc-100 font-medium">{{ item.final_customer_name }}</span>
+                    {% if item.final_customer_whatsapp %}
+                      · <a href="https://wa.me/{{ item.final_customer_whatsapp|cut:'+' }}" target="_blank" rel="noopener" class="text-emerald-300 hover:underline">{{ item.final_customer_whatsapp }}</a>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-zinc-500 italic">Sin cliente final asignado</span>
+                  {% endif %}
+                  {% if item.reported_broken_at %}
+                    <span class="ml-2 badge-soft badge-overdue">🚨 Reportada caída {{ item.reported_broken_at|naturaltime }}</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap shrink-0">
+              <button type="button" class="btn btn-secondary text-xs" style="padding:0.35rem 0.65rem"
+                      onclick="openCustomerModal({{ item.id }}, '{{ item.final_customer_name|escapejs }}', '{{ item.final_customer_whatsapp|escapejs }}', '{{ item.final_customer_notes|escapejs }}', '{{ item.product_name|escapejs }}')">
+                ✏️ Cliente final
+              </button>
+              {% if not item.reported_broken_at %}
+                <form method="post" action="{% url 'catalog:distributor_report_broken' item_id=item.id %}" class="inline" onsubmit="return confirm('¿Reportar esta cuenta como caída? Te avisamos cuando la reemplacemos.');">
+                  {% csrf_token %}
+                  <button type="submit" class="btn text-xs" style="padding:0.35rem 0.65rem; background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.4); color:#fca5a5">🚨 Reportar caída</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="row-item text-zinc-500 text-sm">Aún no tenés cuentas entregadas. Compra desde el catálogo mayorista para empezar.</div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- Modal: editar cliente final -->
+<div id="customer-modal" class="modal-backdrop" onclick="if(event.target===this) closeCustomerModal()">
+  <form method="post" id="customer-modal-form" class="modal-card" action="">
+    {% csrf_token %}
+    <div class="flex items-start justify-between gap-3 mb-3">
+      <div>
+        <h3 class="font-display text-xl font-bold">Cliente final</h3>
+        <p class="text-xs text-zinc-500" id="customer-modal-product">—</p>
+      </div>
+      <button type="button" onclick="closeCustomerModal()" class="text-zinc-500 hover:text-white text-xl leading-none">×</button>
+    </div>
+    <label class="block text-xs text-zinc-400 mb-1">Nombre</label>
+    <input type="text" name="final_customer_name" id="cm-name" class="input-dark mb-3" placeholder="Ej: Juan Pérez" maxlength="120">
+    <label class="block text-xs text-zinc-400 mb-1">WhatsApp (con +código país)</label>
+    <input type="text" name="final_customer_whatsapp" id="cm-wa" class="input-dark mb-3" placeholder="+51999999999" maxlength="30">
+    <label class="block text-xs text-zinc-400 mb-1">Notas internas <span class="text-zinc-600">(opcional)</span></label>
+    <input type="text" name="final_customer_notes" id="cm-notes" class="input-dark mb-4" placeholder="Ej: pide recordatorio el día 5" maxlength="200">
+    <div class="flex items-center justify-end gap-2">
+      <button type="button" onclick="closeCustomerModal()" class="btn btn-secondary text-sm">Cancelar</button>
+      <button type="submit" class="btn btn-primary text-sm">Guardar</button>
+    </div>
+  </form>
 </div>
+
+<script>
+  function openCustomerModal(itemId, name, wa, notes, productName) {
+    var m = document.getElementById('customer-modal');
+    var f = document.getElementById('customer-modal-form');
+    f.action = '/distribuidor/items/' + itemId + '/cliente/';
+    document.getElementById('cm-name').value = name || '';
+    document.getElementById('cm-wa').value = wa || '';
+    document.getElementById('cm-notes').value = notes || '';
+    document.getElementById('customer-modal-product').textContent = productName || '';
+    m.classList.add('is-open');
+    setTimeout(function() { document.getElementById('cm-name').focus(); }, 50);
+  }
+  function closeCustomerModal() {
+    document.getElementById('customer-modal').classList.remove('is-open');
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeCustomerModal();
+  });
+</script>
 {% endblock %}

@@ -465,6 +465,30 @@ class OrderItem(models.Model):
     # Recordatorios de vencimiento ya enviados (evita duplicados):
     expiry_reminder_3d_sent_at = models.DateTimeField(null=True, blank=True)
     expiry_reminder_1d_sent_at = models.DateTimeField(null=True, blank=True)
+    # CRM ligero: cuando un distribuidor compra un perfil, suele revenderlo a un
+    # cliente final (su propio cliente). Estos campos los rellena el distribuidor
+    # desde su panel para llevar registro de a quién le tocó cada cuenta y poder
+    # avisarle por WhatsApp cuando hay reemplazos o vencimientos.
+    final_customer_name = models.CharField(
+        "Cliente final (revendido)", max_length=120, blank=True,
+        help_text="Nombre del cliente final del distribuidor (su propio cliente).",
+    )
+    final_customer_whatsapp = models.CharField(
+        "WhatsApp del cliente final", max_length=30, blank=True,
+        help_text="N\u00famero con c\u00f3digo de pa\u00eds, ej: +51999999999.",
+    )
+    final_customer_notes = models.CharField(
+        "Notas del cliente final", max_length=200, blank=True,
+        help_text="Recordatorios internos del distribuidor sobre este cliente.",
+    )
+    # El distribuidor reporta desde su panel que la cuenta dej\u00f3 de funcionar.
+    # El admin lo ve como ticket pendiente y entra al flujo de reemplazo.
+    reported_broken_at = models.DateTimeField(
+        "Reportado como ca\u00eddo", null=True, blank=True,
+    )
+    reported_broken_note = models.CharField(
+        "Nota del reporte", max_length=200, blank=True,
+    )
 
     class Meta:
         verbose_name = "Item de pedido"

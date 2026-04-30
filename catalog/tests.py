@@ -430,3 +430,127 @@ class CheapestVisiblePlanTests(TestCase):
         self.assertContains(resp, "Prime Video Demo")
         self.assertContains(resp, "S/ 8,00")
         self.assertNotContains(resp, "S/ 0,00")
+
+
+class DistributorPanelTests(TestCase):
+    """Cubre el dashboard nuevo, edición de cliente final y reporte de cuenta caída."""
+
+    def setUp(self):
+        from orders.models import Order, OrderItem
+        User = get_user_model()
+        self.client = Client()
+        self.distri = User.objects.create_user(
+            username="distri1",
+            password="ClaveDistri.123!",
+            email="d1@example.com",
+            role="distribuidor",
+            distributor_approved=True,
+        )
+        self.cliente = User.objects.create_user(
+            username="cli1",
+            password="ClaveCliente.123!",
+            email="c1@example.com",
+            role="cliente",
+        )
+        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.prod = Product.objects.create(
+            category=self.cat, name="Netflix", slug="netflix", is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.prod, name="1 mes", duration_days=30,
+            price_customer=Decimal("20.00"), price_distributor=Decimal("12.00"),
+            available_for_distributor=True, order=1,
+        )
+        self.order = Order.objects.create(
+            user=self.distri,
+            email="d1@example.com",
+            total=Decimal("12.00"),
+        )
+        self.item = OrderItem.objects.create(
+            order=self.order,
+            product=self.prod, plan=self.plan,
+            product_name=self.prod.name, plan_name=self.plan.name,
+            unit_price=Decimal("12.00"), quantity=1,
+            delivered_credentials="correo: x@y.com\nclave: 1234",
+            expires_at=timezone.now() + timedelta(days=3),
+        )
+
+    def test_panel_requires_login(self):
+        resp = self.client.get(reverse("catalog:distributor_panel"))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_panel_redirects_for_non_distributor(self):
+        self.client.force_login(self.cliente)
+        resp = self.client.get(reverse("catalog:distributor_panel"))
+        self.assertRedirects(resp, reverse("catalog:distributor"))
+
+    def test_panel_renders_for_approved_distributor(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_panel"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Panel distribuidor")
+        # Métricas presentes
+        self.assertContains(resp, "Gasto este mes")
+        self.assertContains(resp, "Ahorraste este mes")
+        # Item del distribuidor aparece en el libro
+        self.assertContains(resp, "Netflix")
+        # Ahorro mensual = (20 - 12) * 1 = 8.00 → debe aparecer formateado
+        self.assertContains(resp, "8,00")
+
+    def test_edit_customer_saves_data(self):
+        self.client.force_login(self.distri)
+        resp = self.client.post(
+            reverse("catalog:distributor_edit_customer", args=[self.item.pk]),
+            {
+                "final_customer_name": "Juan Cliente",
+                "final_customer_whatsapp": "51999111222",
+                "final_customer_notes": "VIP",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.final_customer_name, "Juan Cliente")
+        # Normaliza prefijo +
+        self.assertEqual(self.item.final_customer_whatsapp, "+51999111222")
+        self.assertEqual(self.item.final_customer_notes, "VIP")
+
+    def test_edit_customer_only_for_owner(self):
+        from orders.models import Order, OrderItem
+        User = get_user_model()
+        otro = User.objects.create_user(
+            username="distri2", password="ClaveDistri.456!",
+            role="distribuidor", distributor_approved=True,
+        )
+        otro_order = Order.objects.create(user=otro, email="x@x.com", total=Decimal("12.00"))
+        otro_item = OrderItem.objects.create(
+            order=otro_order, product=self.prod, plan=self.plan,
+            product_name=self.prod.name, plan_name=self.plan.name,
+            unit_price=Decimal("12.00"), quantity=1,
+        )
+        self.client.force_login(self.distri)
+        resp = self.client.post(
+            reverse("catalog:distributor_edit_customer", args=[otro_item.pk]),
+            {"final_customer_name": "intento"},
+        )
+        # 404 por el filtro order__user=request.user
+        self.assertEqual(resp.status_code, 404)
+
+    def test_report_broken_marks_item_and_notifies(self):
+        from unittest.mock import patch
+        self.client.force_login(self.distri)
+        with patch("orders.telegram.notify_admin") as mock_notify:
+            resp = self.client.post(
+                reverse("catalog:distributor_report_broken", args=[self.item.pk]),
+                {"note": "no carga la app"},
+            )
+        self.assertEqual(resp.status_code, 302)
+        self.item.refresh_from_db()
+        self.assertIsNotNone(self.item.reported_broken_at)
+        self.assertEqual(self.item.reported_broken_note, "no carga la app")
+        mock_notify.assert_called_once()
+
+    def test_catalog_view_renders_for_distributor(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_catalog"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Catálogo")

@@ -661,13 +661,21 @@ class OrderItemAdmin(ModelAdmin):
     list_display = (
         "order", "product_name", "plan_name",
         "requested_profile_name", "requested_pin",
+        "final_customer_name", "broken_badge",
         "unit_price", "quantity", "expires_at",
     )
-    list_filter = ("product__category", "product")
+    list_filter = ("product__category", "product", "reported_broken_at")
     search_fields = (
         "order__uuid", "product_name", "plan_name",
         "requested_profile_name", "requested_pin",
+        "final_customer_name", "final_customer_whatsapp",
     )
+
+    @admin.display(description="¿Caída?")
+    def broken_badge(self, obj):
+        if obj.reported_broken_at:
+            return "🚨 Sí"
+        return ""
     autocomplete_fields = ("order", "product", "plan", "stock_item")
     actions = ("action_replace_account", "action_rollback_replacement")
 
