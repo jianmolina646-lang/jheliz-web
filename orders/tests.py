@@ -135,6 +135,34 @@ class PaymentProofAuthTests(TestCase):
         self.assertEqual(b"".join(resp.streaming_content), b"comprobante secreto")
 
 
+@override_settings(MEDIA_ROOT="/tmp/jheliz-test-media")
+class YapeQrPublicAccessTests(TestCase):
+    """El QR del comerciante debe ser visible a compradores invitados.
+
+    El checkout permite pagar sin cuenta, así que servir el QR detrás de
+    @login_required hace que el <img> se rompa en celulares sin sesión.
+    """
+
+    def setUp(self):
+        import os
+        path = os.path.join(settings.MEDIA_ROOT, "payments", "yape")
+        os.makedirs(path, exist_ok=True)
+        with open(os.path.join(path, "qr.png"), "wb") as f:
+            f.write(b"\x89PNG-fake-qr")
+        self.url = "/media/payments/yape/qr.png"
+
+    def test_anonymous_user_can_read_qr(self):
+        c = Client()
+        resp = c.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(b"".join(resp.streaming_content), b"\x89PNG-fake-qr")
+
+    def test_path_traversal_rejected(self):
+        c = Client()
+        resp = c.get("/media/payments/yape/../proofs/secret.txt")
+        self.assertEqual(resp.status_code, 404)
+
+
 # ----- PR D -----
 
 def _make_setup():
