@@ -1189,3 +1189,79 @@ def support_chat_messages(request, ticket_id: int):
             ),
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# Reemplazar cuenta bloqueada (búsqueda por correo) (#extra)
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def replace_blocked_account_view(request):
+    """Pantalla dedicada: pego el correo viejo, veo todos los items que lo
+    están usando, marco los afectados y los mando a la pantalla de reemplazo
+    masivo existente.
+    """
+    from catalog.models import Product
+    from orders.models import OrderItem
+    from orders import credentials as creds_utils
+
+    email_query = (request.GET.get("email") or request.POST.get("email") or "").strip()
+    product_id = request.GET.get("product") or request.POST.get("product") or ""
+
+    matches = []
+    searched = False
+    if email_query:
+        searched = True
+        target = email_query.casefold()
+        # Solo items entregados con credenciales no vacías y, si está,
+        # vencimiento futuro (no listamos cuentas que ya expiraron hace tiempo).
+        qs = (
+            OrderItem.objects
+            .filter(delivered_credentials__isnull=False)
+            .exclude(delivered_credentials="")
+            .select_related("order", "order__user", "product", "plan")
+            .order_by("-order__created_at")
+        )
+        if product_id:
+            try:
+                qs = qs.filter(product_id=int(product_id))
+            except (TypeError, ValueError):
+                pass
+        for item in qs.iterator():
+            parsed = creds_utils.parse(item.delivered_credentials)
+            if parsed.email and parsed.email.casefold() == target:
+                user = item.order.user
+                is_distributor = bool(user and getattr(user, "is_distributor", False))
+                matches.append({
+                    "item": item,
+                    "user": user,
+                    "is_distributor": is_distributor,
+                    "role_label": "Distribuidor" if is_distributor else "Cliente",
+                    "current_password": parsed.password,
+                })
+
+    if request.method == "POST" and request.POST.get("action") == "go_replace":
+        ids = request.POST.getlist("ids")
+        if ids:
+            url = reverse("admin:orders_orderitem_replace_account")
+            qs_str = "&".join(f"ids={pk}" for pk in ids)
+            return redirect(f"{url}?{qs_str}")
+        messages.warning(request, "Marcá al menos un item para continuar.")
+
+    products = Product.objects.filter(is_active=True).order_by("name")
+    selected_product_id = ""
+    try:
+        selected_product_id = str(int(product_id)) if product_id else ""
+    except (TypeError, ValueError):
+        selected_product_id = ""
+
+    ctx = _admin_context(
+        request,
+        title="Reemplazar cuenta bloqueada",
+        email_query=email_query,
+        searched=searched,
+        matches=matches,
+        products=products,
+        selected_product_id=selected_product_id,
+    )
+    return render(request, "admin/replace_blocked_account.html", ctx)

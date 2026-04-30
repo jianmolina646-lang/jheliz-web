@@ -1,0 +1,240 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} — {{ site_title }}{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<style>
+.jh-rb-wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.jh-rb-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 18px; padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-wrap: wrap;
+}
+.jh-rb-header h1 {
+    margin: 0; font-size: 20px; font-weight: 700; color: #f8fafc;
+    display: flex; align-items: center; gap: 8px;
+}
+.jh-rb-header h1 .material-symbols-outlined { color: #f472b6; }
+.jh-rb-help { color: #94a3b8; font-size: 13px; max-width: 720px; line-height: 1.55; margin-bottom: 16px; }
+
+.jh-rb-search {
+    display: flex; gap: 10px; align-items: end; flex-wrap: wrap;
+    background: rgba(15,23,42,0.5);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 18px;
+}
+.jh-rb-field { display: flex; flex-direction: column; gap: 6px; min-width: 220px; flex: 1; }
+.jh-rb-field label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.jh-rb-field input, .jh-rb-field select {
+    padding: 10px 12px; border-radius: 10px;
+    background: rgba(15,23,42,0.7); color: #f8fafc;
+    border: 1px solid rgba(255,255,255,0.12);
+    font-size: 14px;
+}
+.jh-rb-field input:focus, .jh-rb-field select:focus {
+    outline: none; border-color: rgba(244,114,182,0.6);
+    box-shadow: 0 0 0 3px rgba(244,114,182,0.15);
+}
+.jh-rb-search button {
+    padding: 11px 20px; border-radius: 10px;
+    background: #f472b6; color: #fff; border: none; cursor: pointer;
+    font-size: 14px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.jh-rb-search button:hover { background: #ec4899; }
+
+.jh-rb-empty {
+    background: rgba(251,191,36,0.08);
+    border: 1px solid rgba(251,191,36,0.35);
+    color: #fcd34d;
+    padding: 14px 16px; border-radius: 10px; margin-bottom: 18px;
+    font-size: 13.5px; line-height: 1.6;
+}
+.jh-rb-empty strong { color: #fde68a; }
+
+.jh-rb-table {
+    width: 100%; border-collapse: collapse;
+    background: rgba(15,23,42,0.5); border-radius: 12px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.jh-rb-table th, .jh-rb-table td {
+    padding: 10px 12px; text-align: left; font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    vertical-align: middle;
+}
+.jh-rb-table thead { background: rgba(255,255,255,0.03); }
+.jh-rb-table th {
+    color: #94a3b8; font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.jh-rb-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+.jh-rb-table input[type=checkbox] { transform: scale(1.15); accent-color: #f472b6; }
+.jh-rb-customer { color: #f8fafc; font-weight: 500; }
+.jh-rb-customer .meta { color: #94a3b8; font-size: 12px; font-weight: 400; margin-top: 2px; }
+.jh-rb-mono { font-family: Menlo, Consolas, monospace; font-size: 12.5px; color: #f9a8d4; }
+.jh-rb-muted { color: #94a3b8; }
+
+.jh-badge {
+    display: inline-block; padding: 2px 9px; border-radius: 9999px;
+    font-size: 11px; font-weight: 600;
+}
+.jh-badge-cliente { background: rgba(99,102,241,0.18); color: #a5b4fc; }
+.jh-badge-distribuidor { background: rgba(16,185,129,0.18); color: #6ee7b7; }
+
+.jh-rb-actions {
+    margin-top: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.jh-rb-actions button {
+    padding: 11px 22px; border-radius: 10px;
+    background: #f472b6; color: #fff; border: none; cursor: pointer;
+    font-size: 14px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 6px;
+}
+.jh-rb-actions button:hover { background: #ec4899; }
+.jh-rb-actions .count { color: #94a3b8; font-size: 13px; }
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const master = document.getElementById("jh-rb-master");
+    if (!master) return;
+    function rowChecks() {
+        return Array.from(document.querySelectorAll('.jh-rb-row-check'));
+    }
+    master.addEventListener("change", function () {
+        rowChecks().forEach(function (cb) { cb.checked = master.checked; });
+        updateCount();
+    });
+    rowChecks().forEach(function (cb) { cb.addEventListener("change", updateCount); });
+    function updateCount() {
+        const n = rowChecks().filter(function (cb) { return cb.checked; }).length;
+        const counter = document.getElementById("jh-rb-count");
+        if (counter) counter.textContent = n + " seleccionado" + (n === 1 ? "" : "s");
+    }
+    updateCount();
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="jh-rb-wrap">
+  <div class="jh-rb-header">
+    <h1>
+      <span class="material-symbols-outlined">sync_alt</span>
+      Reemplazar cuenta bloqueada
+    </h1>
+    <a href="{% url 'admin:index' %}" style="margin-left:auto;color:#94a3b8;font-size:13px;text-decoration:none;">← Volver al admin</a>
+  </div>
+
+  <div class="jh-rb-help">
+    Ingresá el correo viejo de la cuenta que se bloqueó (ej. la cuenta de Amazon que dejó de funcionar). Te listamos a todos los clientes y distribuidores que están usando ese correo. Marcá los afectados y al continuar te llevamos a la pantalla de reemplazo masivo donde ponés el correo y contraseña nuevos una sola vez para todos.
+  </div>
+
+  <form method="get" class="jh-rb-search">
+    <div class="jh-rb-field" style="min-width:280px;">
+      <label for="jh-rb-email">Correo viejo (que se bloqueó)</label>
+      <input type="email" id="jh-rb-email" name="email" value="{{ email_query }}" placeholder="cuentaamazon123@hotmail.com" required>
+    </div>
+    <div class="jh-rb-field" style="max-width:280px;">
+      <label for="jh-rb-product">Producto (opcional)</label>
+      <select id="jh-rb-product" name="product">
+        <option value="">— Todos los productos —</option>
+        {% for p in products %}
+          <option value="{{ p.pk }}" {% if selected_product_id == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="jh-rb-field" style="flex:0 0 auto;min-width:auto;">
+      <label>&nbsp;</label>
+      <button type="submit">
+        <span class="material-symbols-outlined" style="font-size:18px;">search</span>
+        Buscar items
+      </button>
+    </div>
+  </form>
+
+  {% if searched and not matches %}
+    <div class="jh-rb-empty">
+      No encontramos items con el correo <strong>{{ email_query }}</strong>{% if selected_product_id %} para el producto seleccionado{% endif %}. Verificá que el correo esté escrito igual a como lo cargaste en las credenciales del item.
+    </div>
+  {% endif %}
+
+  {% if matches %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="go_replace">
+      <table class="jh-rb-table">
+        <thead>
+          <tr>
+            <th style="width:36px;"><input type="checkbox" id="jh-rb-master" checked></th>
+            <th>Pedido</th>
+            <th>Cliente</th>
+            <th>Producto · plan</th>
+            <th>Perfil / PIN</th>
+            <th>Vence</th>
+            <th>Contraseña actual</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for entry in matches %}
+          <tr>
+            <td>
+              <input type="checkbox" class="jh-rb-row-check" name="ids" value="{{ entry.item.pk }}" checked>
+            </td>
+            <td>
+              <a href="{% url 'admin:orders_order_change' entry.item.order.pk %}" style="color:#f9a8d4;text-decoration:none;font-family:Menlo,Consolas,monospace;font-size:12px;">
+                #{{ entry.item.order.uuid|slice:":8" }}
+              </a>
+            </td>
+            <td>
+              <div class="jh-rb-customer">
+                {{ entry.user.get_full_name|default:entry.user.username|default:"(sin usuario)" }}
+                <div class="meta">
+                  {{ entry.user.email|default:"—" }}
+                  · <span class="jh-badge {% if entry.is_distributor %}jh-badge-distribuidor{% else %}jh-badge-cliente{% endif %}">{{ entry.role_label }}</span>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div>{{ entry.item.product_name }}</div>
+              <div class="jh-rb-muted" style="font-size:12px;">{{ entry.item.plan_name }}</div>
+            </td>
+            <td>
+              {% if entry.item.requested_profile_name or entry.item.requested_pin %}
+                <div>{{ entry.item.requested_profile_name|default:"—" }}</div>
+                {% if entry.item.requested_pin %}<div class="jh-rb-muted" style="font-size:12px;">PIN: {{ entry.item.requested_pin }}</div>{% endif %}
+              {% else %}
+                <span class="jh-rb-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if entry.item.expires_at %}
+                {{ entry.item.expires_at|date:"d/m/Y" }}
+              {% else %}
+                <span class="jh-rb-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if entry.current_password %}
+                <code class="jh-rb-mono">{{ entry.current_password }}</code>
+              {% else %}
+                <span class="jh-rb-muted" style="font-size:12px;font-style:italic;">sin línea de contraseña</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="jh-rb-actions">
+        <button type="submit">
+          <span class="material-symbols-outlined" style="font-size:18px;">arrow_forward</span>
+          Continuar al reemplazo
+        </button>
+        <span class="count" id="jh-rb-count"></span>
+      </div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
