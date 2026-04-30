@@ -801,3 +801,97 @@ class OrdersKanbanTests(TestCase):
         self.assertContains(resp, f"#{b.short_uuid}")
 
 
+class GlobalSearchTests(TestCase):
+    """Endpoint /jheliz-admin/search/ con y sin ?full=1."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="staff-search", password="x", is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="Streaming", slug="streaming-search")
+        self.product = Product.objects.create(
+            name="Netflix Premium Buscable", slug="netflix-buscable", category=cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), price_distributor=Decimal("12.00"),
+        )
+
+    def test_json_search_by_email(self):
+        Order.objects.create(
+            email="buscable@ejemplo.com", total=Decimal("15.00"), currency="PEN",
+        )
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_global_search") + "?q=buscable")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data["orders"]), 1)
+        self.assertIn("buscable", data["orders"][0]["label"].lower())
+
+    def test_json_search_by_telegram_username(self):
+        Order.objects.create(
+            telegram_username="@pepito", total=Decimal("15.00"),
+            phone="999", currency="PEN",
+        )
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_global_search") + "?q=pepito")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data["orders"]), 1)
+
+    def test_json_search_by_uuid_partial(self):
+        order = Order.objects.create(
+            email="x@e.com", total=Decimal("10"), currency="PEN",
+        )
+        partial = str(order.uuid)[:6]
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_global_search") + f"?q={partial}")
+        data = resp.json()
+        self.assertEqual(len(data["orders"]), 1)
+
+    def test_json_short_query_returns_empty(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_global_search") + "?q=a")
+        data = resp.json()
+        self.assertEqual(data, {"orders": [], "customers": [], "products": [], "plans": [], "tickets": []})
+
+    def test_full_results_page(self):
+        Order.objects.create(email="buscable@ejemplo.com", total=Decimal("15.00"))
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_global_search") + "?q=buscable&full=1")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Búsqueda global")
+        self.assertContains(resp, "buscable@ejemplo.com")
+
+    def test_full_results_page_empty_query(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_global_search") + "?full=1")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "al menos 2 caracteres")
+
+    def test_search_requires_staff(self):
+        User = get_user_model()
+        u = User.objects.create_user(username="cliente-s", password="x", is_staff=False)
+        self.client.force_login(u)
+        resp = self.client.get(reverse("admin_global_search") + "?q=test")
+        self.assertIn(resp.status_code, (302, 403))
+
+    def test_search_customers_by_phone(self):
+        User = get_user_model()
+        User.objects.create_user(
+            username="tel-client", password="x", phone="987654321",
+        )
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_global_search") + "?q=987654321")
+        data = resp.json()
+        self.assertGreaterEqual(len(data["customers"]), 1)
+
+    def test_search_products(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_global_search") + "?q=Buscable")
+        data = resp.json()
+        self.assertGreaterEqual(len(data["products"]), 1)
+
+
+
