@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import logging
 from decimal import Decimal
 from typing import TYPE_CHECKING
@@ -26,6 +28,71 @@ class MercadoPagoError(RuntimeError):
 
 def is_configured() -> bool:
     return bool(settings.MERCADOPAGO_ACCESS_TOKEN)
+
+
+# ---------------------------------------------------------------------------
+# Verificación de firma de webhook
+#
+# Mercado Pago firma cada notificación con HMAC-SHA256 usando un secreto que
+# se configura en el panel de Webhooks. Manda dos headers:
+#
+#   x-signature: ts=<unix-ts>,v1=<hex-digest>
+#   x-request-id: <uuid>
+#
+# El manifest a firmar es:
+#   id:<data.id de la query string>;request-id:<x-request-id>;ts:<ts>;
+#
+# Doc:
+#   https://www.mercadopago.com.pe/developers/es/docs/your-integrations/notifications/webhooks
+# ---------------------------------------------------------------------------
+
+
+def _parse_signature_header(header: str) -> tuple[str, str]:
+    """Devuelve (ts, v1) parseando el header ``x-signature``.
+
+    Formato: ``ts=1704908010,v1=618c8534...``. Las partes pueden venir en
+    cualquier orden y rodeadas de espacios.
+    """
+    ts = ""
+    v1 = ""
+    for part in header.split(","):
+        if "=" not in part:
+            continue
+        k, v = part.split("=", 1)
+        k = k.strip()
+        v = v.strip()
+        if k == "ts":
+            ts = v
+        elif k == "v1":
+            v1 = v
+    return ts, v1
+
+
+def verify_webhook_signature(
+    *,
+    signature_header: str,
+    request_id: str,
+    data_id: str,
+    secret: str,
+) -> bool:
+    """Verifica la firma HMAC del webhook de Mercado Pago.
+
+    Devuelve True solo si el header está bien formado y el HMAC computado
+    sobre el manifest oficial coincide con el valor ``v1`` recibido.
+    Comparación constant-time vía :func:`hmac.compare_digest`.
+    """
+    if not (secret and signature_header and request_id and data_id):
+        return False
+    ts, received_hex = _parse_signature_header(signature_header)
+    if not (ts and received_hex):
+        return False
+    manifest = f"id:{data_id};request-id:{request_id};ts:{ts};"
+    expected_hex = hmac.new(
+        secret.encode("utf-8"),
+        manifest.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(expected_hex, received_hex)
 
 
 def _sdk():
