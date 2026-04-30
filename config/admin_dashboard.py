@@ -270,7 +270,7 @@ def dashboard_callback(request, context):
         needs_action.append({
             "label": "Comprobantes Yape por verificar",
             "count": verifying_orders, "icon": "qr_code_scanner", "tone": "orange",
-            "link": reverse("admin:orders_order_changelist") + "?status__exact=verifying",
+            "link": reverse("admin:orders_order_yape_inbox"),
         })
     if pending_orders:
         needs_action.append({
@@ -353,7 +353,7 @@ def dashboard_callback(request, context):
                     "metric": verifying_orders,
                     "footer": "Comprobantes pendientes",
                     "icon": "qr_code_scanner",
-                    "link": reverse("admin:orders_order_changelist") + "?status__exact=verifying",
+                    "link": reverse("admin:orders_order_yape_inbox"),
                 },
                 {
                     "title": "Pedidos pendientes",

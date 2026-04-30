@@ -646,3 +646,86 @@ class OrderTimelineTests(TestCase):
         failed = [e for e in events if "Falló envío" in e["title"]]
         self.assertEqual(len(failed), 1)
         self.assertIn("SMTP", failed[0]["description"])
+
+
+class YapeInboxTests(TestCase):
+    """Bandeja de verificación Yape en el admin."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="staff-inbox", password="x", is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="Streaming", slug="streaming-inbox")
+        self.product = Product.objects.create(
+            name="Netflix", slug="netflix-inbox", category=cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), price_distributor=Decimal("12.00"),
+        )
+
+    def _make_yape_order(self, **overrides):
+        defaults = dict(
+            email="x@ejemplo.com",
+            total=Decimal("15.00"),
+            currency="PEN",
+            payment_provider="yape",
+            status=Order.Status.VERIFYING,
+            payment_proof="payments/proofs/test.jpg",
+            payment_proof_uploaded_at=timezone.now(),
+        )
+        defaults.update(overrides)
+        order = Order.objects.create(**defaults)
+        OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=Decimal("15.00"), quantity=1,
+        )
+        return order
+
+    def test_inbox_renders_only_verifying_yape_with_proof(self):
+        ok = self._make_yape_order()
+        # Estos NO deberían aparecer:
+        self._make_yape_order(status=Order.Status.PAID)  # ya pagado
+        self._make_yape_order(payment_proof="")  # sin comprobante
+        self._make_yape_order(payment_provider="mercadopago")  # no es Yape
+
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin:orders_order_yape_inbox"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, ok.short_uuid)
+        # Etiqueta de "1 pendiente" (len(orders)==1)
+        self.assertContains(resp, "1 pendiente")
+
+    def test_inbox_empty_state(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin:orders_order_yape_inbox"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Bandeja vacía")
+
+    def test_inbox_requires_staff(self):
+        User = get_user_model()
+        cliente = User.objects.create_user(
+            username="cliente-inbox", password="x", is_staff=False,
+        )
+        self.client.force_login(cliente)
+        resp = self.client.get(reverse("admin:orders_order_yape_inbox"))
+        # admin_view redirige a login si no sos staff
+        self.assertIn(resp.status_code, (302, 403))
+
+    def test_reject_from_inbox_redirects_back(self):
+        order = self._make_yape_order()
+        self.client.force_login(self.admin)
+        url = reverse("admin:orders_order_reject_yape", args=[order.pk])
+        # Simular referer desde la bandeja
+        resp = self.client.post(
+            url, data={"reason": "prueba"},
+            HTTP_REFERER="http://testserver" + reverse("admin:orders_order_yape_inbox"),
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn("yape-inbox", resp["Location"])
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PENDING)
+        self.assertEqual(order.payment_rejection_reason, "prueba")
+

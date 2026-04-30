@@ -280,6 +280,11 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         urls = super().get_urls()
         custom = [
             path(
+                "yape-inbox/",
+                self.admin_site.admin_view(self.yape_inbox_view),
+                name="orders_order_yape_inbox",
+            ),
+            path(
                 "<int:pk>/confirm-yape/",
                 self.admin_site.admin_view(self.confirm_yape_view),
                 name="orders_order_confirm_yape",
@@ -301,6 +306,33 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             ),
         ]
         return custom + urls
+
+    # ---- Bandeja de verificación Yape --------------------------------------
+
+    def yape_inbox_view(self, request):
+        """Pantalla dedicada para aprobar/rechazar comprobantes Yape de un vistazo.
+
+        Lista solo los pedidos con comprobante subido y pendientes de
+        verificación, con vista previa grande y acciones inline.
+        """
+        qs = (
+            Order.objects.filter(
+                status=Order.Status.VERIFYING,
+                payment_provider="yape",
+            )
+            .exclude(payment_proof="")
+            .select_related("user", "coupon")
+            .prefetch_related("items")
+            .order_by("-payment_proof_uploaded_at", "-created_at")
+        )
+        context = {
+            **self.admin_site.each_context(request),
+            "orders": qs,
+            "title": "Bandeja de verificación Yape",
+            "opts": self.model._meta,
+            "has_view_permission": self.has_view_permission(request),
+        }
+        return TemplateResponse(request, "admin/orders/order/yape_inbox.html", context)
 
     # ---- Vistas 1-clic ------------------------------------------------------
 
@@ -352,6 +384,10 @@ class OrderAdmin(ExportMixin, ModelAdmin):
                 f"Comprobante Yape rechazado para #{order.short_uuid}. Se notificó al cliente.",
                 level=messages.WARNING,
             )
+            # Si el rechazo vino de la bandeja, volver a la bandeja.
+            referer = request.META.get("HTTP_REFERER") or ""
+            if "yape-inbox" in referer:
+                return redirect("admin:orders_order_yape_inbox")
             return redirect("admin:orders_order_changelist")
         context = {
             **self.admin_site.each_context(request),
