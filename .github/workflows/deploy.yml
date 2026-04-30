@@ -24,9 +24,29 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
           script_stop: true
+          # Forwardea estos env vars al shell remoto; se usan en el script.
+          envs: VPS_PROJECT_PATH,MERCADOPAGO_WEBHOOK_SECRET
           script: |
             set -euo pipefail
             cd "${VPS_PROJECT_PATH:-/srv/jheliz}"
+
+            # Sincroniza MERCADOPAGO_WEBHOOK_SECRET al .env de manera idempotente.
+            # El valor viene del GitHub Actions secret. Si está vacío,
+            # no toca el archivo (no rompe deploys cuando todavía no se
+            # configuró el secret en GitHub).
+            if [ -n "${MERCADOPAGO_WEBHOOK_SECRET:-}" ]; then
+              echo "→ Sincronizando MERCADOPAGO_WEBHOOK_SECRET al .env..."
+              ENV_FILE=".env"
+              touch "$ENV_FILE"
+              # Reemplazo seguro: filtramos la línea anterior (si hay) y
+              # appendeamos el valor nuevo. Evitamos sed -i para no tener
+              # que escapar caracteres especiales en el secreto.
+              umask 077
+              grep -v '^MERCADOPAGO_WEBHOOK_SECRET=' "$ENV_FILE" > "$ENV_FILE.tmp" || true
+              echo "MERCADOPAGO_WEBHOOK_SECRET=${MERCADOPAGO_WEBHOOK_SECRET}" >> "$ENV_FILE.tmp"
+              mv "$ENV_FILE.tmp" "$ENV_FILE"
+            fi
+
             echo "→ Pulling latest from main..."
             git fetch --all --prune
             git checkout main
@@ -43,3 +63,4 @@ jobs:
             echo "✓ Deploy completado: $(git rev-parse --short HEAD)"
         env:
           VPS_PROJECT_PATH: ${{ vars.VPS_PROJECT_PATH }}
+          MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET }}
