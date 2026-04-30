@@ -135,6 +135,59 @@ class PaymentProofAuthTests(TestCase):
         self.assertEqual(b"".join(resp.streaming_content), b"comprobante secreto")
 
 
+@override_settings(MEDIA_ROOT="/tmp/jheliz-test-media-qr")
+class YapeQrServeTests(TestCase):
+    """Regresión para que el QR cargue en celular.
+
+    En móvil el navegador respeta ``X-Content-Type-Options: nosniff`` de
+    forma estricta y se niega a renderizar bytes servidos como
+    ``application/octet-stream``. La vista debe forzar el content-type
+    correcto y ``Content-Disposition: inline``.
+    """
+
+    def setUp(self):
+        import os
+        path = os.path.join(settings.MEDIA_ROOT, "payments", "yape")
+        os.makedirs(path, exist_ok=True)
+        with open(os.path.join(path, "qr.png"), "wb") as f:
+            f.write(b"\x89PNG\r\n\x1a\nfake-png-bytes")
+        with open(os.path.join(path, "qr.heic"), "wb") as f:
+            f.write(b"fake-heic-bytes")
+        with open(os.path.join(path, "qr.weird"), "wb") as f:
+            f.write(b"fake-bytes")
+        User = get_user_model()
+        self.user = User.objects.create_user(username="cliente_qr", password="x" * 12)
+
+    def _get(self, filename):
+        c = Client()
+        c.force_login(self.user)
+        return c.get(f"/media/payments/yape/{filename}")
+
+    def test_png_returns_image_content_type(self):
+        resp = self._get("qr.png")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "image/png")
+        self.assertIn("inline", resp["Content-Disposition"])
+
+    def test_heic_returns_image_content_type_for_iphone_uploads(self):
+        """iPhone uploads pueden ser HEIC y deben servirse como image/heic, no octet-stream."""
+        resp = self._get("qr.heic")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "image/heic")
+
+    def test_unknown_extension_falls_back_to_png(self):
+        resp = self._get("qr.weird")
+        self.assertEqual(resp.status_code, 200)
+        # Nunca debe ser application/octet-stream — el navegador móvil con
+        # nosniff se negaría a renderizarlo.
+        self.assertNotEqual(resp["Content-Type"], "application/octet-stream")
+
+    def test_anonymous_user_redirected(self):
+        c = Client()
+        resp = c.get("/media/payments/yape/qr.png")
+        self.assertEqual(resp.status_code, 302)
+
+
 # ----- PR D -----
 
 def _make_setup():
