@@ -311,24 +311,115 @@ def distributor_landing(request):
     )
 
 
+def _ensure_distributor(request):
+    """Devuelve None si el usuario es distribuidor aprobado; redirige en otro caso."""
+    user = request.user
+    if getattr(user, "is_distributor", False):
+        return None
+    if getattr(user, "role", None) == "distribuidor":
+        messages.info(
+            request,
+            "Tu cuenta de distribuidor está pendiente de aprobación. "
+            "En cuanto te aprobemos, verás los precios mayoristas aquí.",
+        )
+    else:
+        messages.info(
+            request,
+            "Esta zona es solo para distribuidores. "
+            "Si quieres serlo, regístrate como distribuidor y te activamos la cuenta.",
+        )
+    return redirect("catalog:distributor")
+
+
 @login_required
 def distributor_panel(request):
-    """Catálogo con precios mayoristas — solo para distribuidores aprobados."""
+    """Dashboard del distribuidor: métricas, próximos vencimientos y libro de ventas."""
+    redirect_response = _ensure_distributor(request)
+    if redirect_response is not None:
+        return redirect_response
+
+    from datetime import timedelta
+    from decimal import Decimal
+    from django.db.models import Sum, F, DecimalField
+
     user = request.user
-    if not getattr(user, "is_distributor", False):
-        if getattr(user, "role", None) == "distribuidor":
-            messages.info(
-                request,
-                "Tu cuenta de distribuidor está pendiente de aprobación. "
-                "En cuanto te aprobemos, verás los precios mayoristas aquí.",
-            )
-        else:
-            messages.info(
-                request,
-                "Esta zona es solo para distribuidores. "
-                "Si quieres serlo, regístrate como distribuidor y te activamos la cuenta.",
-            )
-        return redirect("catalog:distributor")
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    from orders.models import OrderItem  # evita circular import en arranque
+
+    base_items_qs = (
+        OrderItem.objects
+        .filter(order__user=user)
+        .select_related("order", "product", "plan")
+    )
+
+    def _spend_in_period(start_dt):
+        agg = base_items_qs.filter(order__created_at__gte=start_dt).aggregate(
+            total=Sum(
+                F("unit_price") * F("quantity"),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        )
+        return agg["total"] or Decimal("0.00")
+
+    spend_month = _spend_in_period(month_start)
+    spend_year = _spend_in_period(year_start)
+
+    # Ahorro = (precio público - precio que pagó) por cada item del periodo
+    savings_month = Decimal("0.00")
+    for item in base_items_qs.filter(order__created_at__gte=month_start):
+        public_price = item.plan.price_customer or item.unit_price
+        diff = (public_price - item.unit_price) * item.quantity
+        if diff > 0:
+            savings_month += diff
+
+    # Próximos vencimientos (7 días) + recientes ya vencidos (24 h)
+    soon_threshold = now + timedelta(days=7)
+    overdue_threshold = now - timedelta(days=2)
+    expiring_items = list(
+        base_items_qs
+        .filter(expires_at__isnull=False, expires_at__lte=soon_threshold, expires_at__gte=overdue_threshold)
+        .order_by("expires_at")[:30]
+    )
+
+    # Top productos comprados (cantidad acumulada)
+    top_products = (
+        base_items_qs.values("product__name", "product__icon")
+        .annotate(total_qty=Sum("quantity"))
+        .order_by("-total_qty")[:5]
+    )
+
+    # Libro de ventas (últimos 50 items entregados)
+    items_ledger = list(
+        base_items_qs
+        .exclude(delivered_credentials="")
+        .order_by("-order__created_at")[:50]
+    )
+
+    pending_broken = base_items_qs.filter(reported_broken_at__isnull=False).count()
+
+    ctx = {
+        "spend_month": spend_month,
+        "spend_year": spend_year,
+        "savings_month": savings_month,
+        "expiring_items": expiring_items,
+        "top_products": top_products,
+        "items_ledger": items_ledger,
+        "items_total": base_items_qs.count(),
+        "pending_broken": pending_broken,
+        "now": now,
+    }
+    return render(request, "catalog/distributor_panel.html", ctx)
+
+
+@login_required
+def distributor_catalog(request):
+    """Catálogo con precios mayoristas — solo para distribuidores aprobados."""
+    redirect_response = _ensure_distributor(request)
+    if redirect_response is not None:
+        return redirect_response
 
     products = (
         Product.objects.filter(
@@ -342,9 +433,98 @@ def distributor_panel(request):
     )
     return render(
         request,
-        "catalog/distributor_panel.html",
+        "catalog/distributor_catalog.html",
         {"products": products},
     )
+
+
+@login_required
+def distributor_edit_customer(request, item_id: int):
+    """Guarda los datos del cliente final asociado a un OrderItem del distribuidor."""
+    redirect_response = _ensure_distributor(request)
+    if redirect_response is not None:
+        return redirect_response
+    if request.method != "POST":
+        return redirect("catalog:distributor_panel")
+
+    from orders.models import OrderItem
+    item = get_object_or_404(
+        OrderItem.objects.select_related("order"),
+        pk=item_id,
+        order__user=request.user,
+    )
+    item.final_customer_name = (request.POST.get("final_customer_name") or "").strip()[:120]
+    raw_wa = (request.POST.get("final_customer_whatsapp") or "").strip()
+    # Normaliza: deja solo dígitos y un + opcional al inicio
+    normalized = "".join(ch for ch in raw_wa if ch.isdigit() or ch == "+")
+    if normalized and not normalized.startswith("+"):
+        normalized = "+" + normalized
+    item.final_customer_whatsapp = normalized[:30]
+    item.final_customer_notes = (request.POST.get("final_customer_notes") or "").strip()[:200]
+    item.save(update_fields=[
+        "final_customer_name",
+        "final_customer_whatsapp",
+        "final_customer_notes",
+    ])
+    messages.success(request, f"Cliente final actualizado para {item.product_name}.")
+    return redirect("catalog:distributor_panel")
+
+
+@login_required
+def distributor_report_broken(request, item_id: int):
+    """El distribuidor reporta que la cuenta dejó de funcionar.
+
+    Marca el item como reportado, notifica al admin por Telegram + email y
+    le devuelve un mensaje al distribuidor.
+    """
+    redirect_response = _ensure_distributor(request)
+    if redirect_response is not None:
+        return redirect_response
+    if request.method != "POST":
+        return redirect("catalog:distributor_panel")
+
+    from orders.models import OrderItem
+    from orders import telegram
+
+    item = get_object_or_404(
+        OrderItem.objects.select_related("order", "product"),
+        pk=item_id,
+        order__user=request.user,
+    )
+    note = (request.POST.get("note") or "").strip()[:200]
+    item.reported_broken_at = timezone.now()
+    item.reported_broken_note = note
+    item.save(update_fields=["reported_broken_at", "reported_broken_note"])
+
+    # Notificar al admin por Telegram (best-effort)
+    try:
+        text_lines = [
+            "🚨 <b>Cuenta reportada como caída</b>",
+            f"Distribuidor: {request.user.get_full_name() or request.user.username} ({request.user.email})",
+            f"Producto: {item.product_name} — {item.plan_name}",
+            f"Pedido: {str(item.order.uuid)[:8]}",
+        ]
+        if item.final_customer_name:
+            text_lines.append(
+                f"Cliente final: {item.final_customer_name}"
+                + (f" ({item.final_customer_whatsapp})" if item.final_customer_whatsapp else "")
+            )
+        if note:
+            text_lines.append(f"Nota: {note}")
+        text_lines.append("")
+        text_lines.append(
+            "🔗 https://jhelizservicestv.xyz/jheliz-admin/orders/orderitem/"
+            f"{item.pk}/change/"
+        )
+        telegram.notify_admin("\n".join(text_lines))
+    except Exception:
+        pass
+
+    messages.success(
+        request,
+        "Reporte enviado. Te avisaremos por correo cuando reemplacemos la cuenta.",
+    )
+    return redirect("catalog:distributor_panel")
 
 
 def tutorials(request):
