@@ -729,3 +729,75 @@ class YapeInboxTests(TestCase):
         self.assertEqual(order.status, Order.Status.PENDING)
         self.assertEqual(order.payment_rejection_reason, "prueba")
 
+
+class OrdersKanbanTests(TestCase):
+    """Vista Kanban del admin."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="staff-kanban", password="x", is_staff=True, is_superuser=True,
+        )
+
+    def _order(self, status, created_at=None):
+        o = Order.objects.create(
+            email="k@ejemplo.com", total=Decimal("10.00"),
+            currency="PEN", status=status, payment_provider="yape",
+        )
+        if created_at:
+            Order.objects.filter(pk=o.pk).update(created_at=created_at)
+        return o
+
+    def test_kanban_renders_all_columns(self):
+        self._order(Order.Status.PENDING)
+        self._order(Order.Status.VERIFYING)
+        self._order(Order.Status.PAID)
+        self._order(Order.Status.DELIVERED)
+        self._order(Order.Status.CANCELED)
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin:orders_order_kanban"))
+        self.assertEqual(resp.status_code, 200)
+        for label in ["Pendiente de pago", "Verificando", "En preparación",
+                      "Entregado", "Cerrados"]:
+            self.assertContains(resp, label)
+
+    def test_kanban_filters_by_days(self):
+        old = self._order(Order.Status.DELIVERED, created_at=timezone.now() - timedelta(days=45))
+        recent = self._order(Order.Status.DELIVERED)
+        self.client.force_login(self.admin)
+        # default 30 días: el viejo no aparece
+        resp = self.client.get(reverse("admin:orders_order_kanban"))
+        self.assertNotContains(resp, f"#{old.short_uuid}")
+        self.assertContains(resp, f"#{recent.short_uuid}")
+        # 90 días: aparecen ambos
+        resp = self.client.get(reverse("admin:orders_order_kanban") + "?days=90")
+        self.assertContains(resp, f"#{old.short_uuid}")
+
+    def test_kanban_invalid_days_falls_back_to_default(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin:orders_order_kanban") + "?days=abc")
+        self.assertEqual(resp.status_code, 200)
+        resp = self.client.get(reverse("admin:orders_order_kanban") + "?days=-1")
+        self.assertEqual(resp.status_code, 200)
+        # 99999 clamp a 365
+        resp = self.client.get(reverse("admin:orders_order_kanban") + "?days=99999")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_kanban_requires_staff(self):
+        User = get_user_model()
+        cliente = User.objects.create_user(
+            username="cliente-kanban", password="x", is_staff=False,
+        )
+        self.client.force_login(cliente)
+        resp = self.client.get(reverse("admin:orders_order_kanban"))
+        self.assertIn(resp.status_code, (302, 403))
+
+    def test_kanban_merges_paid_and_preparing_into_one_column(self):
+        a = self._order(Order.Status.PAID)
+        b = self._order(Order.Status.PREPARING)
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin:orders_order_kanban"))
+        self.assertContains(resp, f"#{a.short_uuid}")
+        self.assertContains(resp, f"#{b.short_uuid}")
+
+

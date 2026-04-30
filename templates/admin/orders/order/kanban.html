@@ -1,0 +1,200 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} — {{ site_title }}{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<style>
+.jh-kanban-wrap {
+    max-width: 100%; margin: 0 auto; padding: 16px;
+}
+.jh-kanban-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px; padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-wrap: wrap;
+}
+.jh-kanban-header h1 {
+    margin: 0; font-size: 20px; font-weight: 700; color: #f8fafc;
+    display: flex; align-items: center; gap: 8px;
+}
+.jh-kanban-header h1 .material-symbols-outlined { color: #f472b6; }
+.jh-kanban-filters {
+    display: flex; gap: 6px; align-items: center; margin-left: auto; flex-wrap: wrap;
+}
+.jh-kanban-filters .jh-label { color: #94a3b8; font-size: 12px; margin-right: 4px; }
+.jh-filter-btn {
+    padding: 5px 11px; border-radius: 9999px; font-size: 12px;
+    color: #cbd5e1; background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    text-decoration: none;
+}
+.jh-filter-btn:hover { background: rgba(255,255,255,0.10); color: #f1f5f9; }
+.jh-filter-btn.active {
+    background: rgba(244,114,182,0.18); border-color: rgba(244,114,182,0.45);
+    color: #f472b6;
+}
+
+.jh-board {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(280px, 1fr));
+    gap: 14px;
+}
+@media (max-width: 1400px) {
+    .jh-board { grid-template-columns: repeat(5, 280px); overflow-x: auto; padding-bottom: 8px; }
+}
+
+.jh-col {
+    background: rgba(15,23,42,0.55);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex; flex-direction: column;
+    min-height: 240px;
+    max-height: calc(100vh - 220px);
+}
+.jh-col-head {
+    padding: 12px 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.jh-col-head .jh-col-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; color: #f1f5f9;
+}
+.jh-col-head .jh-col-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;
+}
+.jh-col.warning  .jh-col-dot { background: #f59e0b; }
+.jh-col.orange   .jh-col-dot { background: #f97316; }
+.jh-col.info     .jh-col-dot { background: #a78bfa; }
+.jh-col.success  .jh-col-dot { background: #10b981; }
+.jh-col.muted    .jh-col-dot { background: #64748b; }
+.jh-col-head .jh-col-count {
+    background: rgba(255,255,255,0.08);
+    color: #cbd5e1; font-size: 11px;
+    padding: 2px 8px; border-radius: 9999px;
+}
+
+.jh-col-body {
+    padding: 10px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 8px;
+    flex: 1;
+}
+.jh-col-empty {
+    color: #64748b; font-size: 12px;
+    padding: 20px 8px; text-align: center;
+}
+.jh-col-capped {
+    padding: 8px; font-size: 11px; color: #94a3b8; text-align: center;
+    background: rgba(255,255,255,0.04); border-radius: 8px;
+}
+
+.jh-tile {
+    display: block; text-decoration: none;
+    background: rgba(15,23,42,0.9);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 10px 12px;
+    transition: border-color .15s ease, transform .1s ease;
+}
+.jh-tile:hover {
+    border-color: rgba(244,114,182,0.35);
+    transform: translateY(-1px);
+}
+.jh-tile .jh-t-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-size: 12px;
+}
+.jh-tile .jh-t-id { font-weight: 700; color: #f472b6; }
+.jh-tile .jh-t-total { color: #f1f5f9; font-weight: 600; }
+.jh-tile .jh-t-customer {
+    color: #e2e8f0; font-size: 12px; margin-top: 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jh-tile .jh-t-items {
+    color: #94a3b8; font-size: 11px; margin-top: 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jh-tile .jh-t-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 6px; font-size: 11px; color: #64748b;
+}
+.jh-tile .jh-t-pay {
+    background: rgba(255,255,255,0.04); padding: 1px 6px; border-radius: 4px;
+    color: #cbd5e1;
+}
+.jh-tile .jh-t-pay.yape { color: #a855f7; background: rgba(168,85,247,0.12); }
+.jh-tile .jh-t-pay.mercadopago { color: #0ea5e9; background: rgba(14,165,233,0.12); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="jh-kanban-wrap">
+    <div class="jh-kanban-header">
+        <h1>
+            <span class="material-symbols-outlined">view_kanban</span>
+            Kanban de pedidos
+        </h1>
+        <div class="jh-kanban-filters">
+            <span class="jh-label">Últimos</span>
+            {% for d in window_options %}
+            <a href="?days={{ d }}"
+               class="jh-filter-btn {% if d == window_days %}active{% endif %}">{{ d }} días</a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="jh-board">
+        {% for col in columns %}
+        <div class="jh-col {{ col.tone }}">
+            <div class="jh-col-head">
+                <div class="jh-col-title">
+                    <span class="jh-col-dot"></span>
+                    {{ col.label }}
+                </div>
+                <span class="jh-col-count">{{ col.count }}</span>
+            </div>
+            <div class="jh-col-body">
+                {% for order in col.orders %}
+                <a class="jh-tile" href="{% url 'admin:orders_order_change' order.pk %}"
+                   title="Abrir pedido #{{ order.short_uuid }}">
+                    <div class="jh-t-row">
+                        <span class="jh-t-id">#{{ order.short_uuid }}</span>
+                        <span class="jh-t-total">{{ order.currency }} {{ order.total }}</span>
+                    </div>
+                    <div class="jh-t-customer">
+                        {% if order.user %}{{ order.user.get_full_name|default:order.user.username }}
+                        {% elif order.email %}{{ order.email }}
+                        {% elif order.phone %}{{ order.phone }}
+                        {% else %}—
+                        {% endif %}
+                    </div>
+                    <div class="jh-t-items">
+                        {% for item in order.items.all %}{{ item.product_name }}{% if not forloop.last %} · {% endif %}{% endfor %}
+                    </div>
+                    <div class="jh-t-foot">
+                        <span>{{ order.created_at|timesince }} atrás</span>
+                        {% if order.payment_provider %}
+                        <span class="jh-t-pay {{ order.payment_provider }}">
+                            {{ order.payment_provider|title }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </a>
+                {% empty %}
+                <div class="jh-col-empty">— vacío —</div>
+                {% endfor %}
+                {% if col.capped %}
+                <div class="jh-col-capped">
+                    Mostrando 50 de {{ col.count }}.
+                    <a href="{% url 'admin:orders_order_changelist' %}?status__exact={{ col.key }}"
+                       style="color:#f472b6">Ver todos →</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
