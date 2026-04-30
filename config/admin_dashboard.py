@@ -17,7 +17,7 @@ from django.utils import timezone
 
 
 def dashboard_callback(request, context):
-    from orders.models import Order, OrderItem
+    from orders.models import Order, OrderItem, ReminderRunLog
     from support.models import Ticket
     from accounts.models import User
     from catalog.models import Plan, Product, ProductReview, StockItem
@@ -405,6 +405,55 @@ def dashboard_callback(request, context):
                 .order_by("-updated_at")[:6]
             ),
             "top_products": top_products_rows,
+            "reminder_status": _reminder_status(ReminderRunLog, now),
         }
     )
     return context
+
+
+def _reminder_status(ReminderRunLog, now) -> dict:
+    """Estado del último run de ``send_expiry_reminders`` para el dashboard."""
+    last = (
+        ReminderRunLog.objects.exclude(dry_run=True)
+        .order_by("-started_at")
+        .first()
+    )
+    if last is None:
+        return {
+            "has_runs": False,
+            "tone": "amber",
+            "label": "Aún no corrió ningún recordatorio",
+            "details": "El comando send_expiry_reminders no se ejecutó todavía.",
+            "history_url": reverse("admin:orders_reminderrunlog_changelist"),
+        }
+    hours_ago = (now - last.started_at).total_seconds() / 3600
+    customer = last.customer_count or 0
+    distri = last.distri_count or 0
+    total = customer + distri
+    if last.error:
+        tone = "red"
+        label = "Último run falló"
+    elif hours_ago > 25:
+        tone = "red"
+        label = f"Último run hace {int(hours_ago)} h — el cron podría estar caído"
+    elif hours_ago > 12:
+        tone = "amber"
+        label = f"Último run hace {int(hours_ago)} h"
+    else:
+        tone = "emerald"
+        label = (
+            "Sin avisos pendientes hoy"
+            if total == 0
+            else f"{total} aviso{'s' if total != 1 else ''} enviado{'s' if total != 1 else ''} hoy"
+        )
+    return {
+        "has_runs": True,
+        "tone": tone,
+        "label": label,
+        "details": f"{customer} cliente(s) · {distri} distribuidor(es)",
+        "by_window": last.by_window or {},
+        "started_at": last.started_at,
+        "finished_at": last.finished_at,
+        "error": last.error,
+        "history_url": reverse("admin:orders_reminderrunlog_changelist"),
+    }
