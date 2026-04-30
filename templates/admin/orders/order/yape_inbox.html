@@ -1,0 +1,263 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} — {{ site_title }}{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<style>
+.jh-inbox-wrap {
+    max-width: 1400px; margin: 0 auto; padding: 16px;
+}
+.jh-inbox-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px; padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-wrap: wrap;
+}
+.jh-inbox-header h1 {
+    margin: 0; font-size: 20px; font-weight: 700; color: #f8fafc;
+    display: flex; align-items: center; gap: 8px;
+}
+.jh-inbox-header h1 .material-symbols-outlined { color: #f472b6; }
+.jh-inbox-header .jh-count {
+    background: rgba(244,114,182,0.2);
+    color: #f472b6;
+    padding: 3px 10px; border-radius: 9999px;
+    font-size: 13px; font-weight: 600;
+}
+.jh-inbox-back {
+    margin-left: auto;
+    color: #94a3b8; text-decoration: none; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 4px;
+}
+.jh-inbox-back:hover { color: #e2e8f0; }
+
+.jh-inbox-empty {
+    padding: 60px 24px; text-align: center;
+    color: #94a3b8;
+    background: rgba(15,23,42,0.5);
+    border-radius: 14px;
+    border: 1px dashed rgba(255,255,255,0.1);
+}
+.jh-inbox-empty .material-symbols-outlined {
+    font-size: 48px; color: #10b981; display: block; margin-bottom: 12px;
+}
+
+.jh-grid {
+    display: grid; gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+}
+.jh-card {
+    background: rgba(15,23,42,0.65);
+    border: 1px solid rgba(244,114,182,0.18);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: border-color .2s ease, transform .2s ease;
+}
+.jh-card:hover { border-color: rgba(244,114,182,0.4); }
+
+.jh-card-proof {
+    background: #0b0217;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    cursor: zoom-in;
+    display: flex; align-items: center; justify-content: center;
+}
+.jh-card-proof img {
+    width: 100%; height: 100%; object-fit: contain;
+}
+.jh-card-body {
+    padding: 14px 16px 0 16px;
+    display: flex; flex-direction: column; gap: 6px;
+}
+.jh-card-row {
+    display: flex; justify-content: space-between; gap: 8px; font-size: 13px;
+}
+.jh-card-row .k { color: #94a3b8; }
+.jh-card-row .v { color: #f1f5f9; font-weight: 500; text-align: right; word-break: break-all; }
+.jh-card-row .v.total { color: #f472b6; font-weight: 700; font-size: 15px; }
+.jh-card-row a.v { color: #f472b6; text-decoration: none; }
+.jh-card-row a.v:hover { text-decoration: underline; }
+.jh-card-items {
+    font-size: 12px; color: #cbd5e1; margin-top: 4px;
+    padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);
+    display: flex; flex-direction: column; gap: 2px;
+}
+.jh-card-time {
+    font-size: 11px; color: #64748b; margin-top: 6px;
+}
+.jh-card-actions {
+    margin-top: auto;
+    display: flex; gap: 8px; padding: 12px 16px 16px 16px;
+}
+.jh-btn {
+    flex: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 14px; border-radius: 10px;
+    font-size: 13px; font-weight: 600; text-decoration: none;
+    border: none; cursor: pointer; font-family: inherit;
+}
+.jh-btn.approve { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+.jh-btn.reject  { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); }
+.jh-btn.approve:hover { filter: brightness(1.08); }
+.jh-btn.reject:hover  { background: rgba(239,68,68,0.25); }
+
+.jh-card-reject-form {
+    display: none; padding: 0 16px 16px 16px;
+    flex-direction: column; gap: 8px;
+}
+.jh-card-reject-form.open { display: flex; }
+.jh-card-reject-form textarea {
+    width: 100%; min-height: 70px;
+    background: #0b0217; border: 1px solid rgba(239,68,68,0.3);
+    color: #fca5a5; border-radius: 8px; padding: 8px 10px;
+    font-family: inherit; font-size: 12px; resize: vertical;
+}
+.jh-card-reject-form .jh-reject-actions {
+    display: flex; gap: 6px;
+}
+.jh-card-reject-form .jh-reject-actions button {
+    flex: 1;
+}
+
+.jh-detail-link {
+    display: inline-block; font-size: 11px; color: #94a3b8;
+    text-decoration: none; margin-top: 4px;
+}
+.jh-detail-link:hover { color: #f472b6; text-decoration: underline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="jh-inbox-wrap">
+    <div class="jh-inbox-header">
+        <h1>
+            <span class="material-symbols-outlined">qr_code_scanner</span>
+            Bandeja de verificación Yape
+        </h1>
+        <span class="jh-count">{{ orders|length }} pendiente{{ orders|length|pluralize:"s" }}</span>
+        <a class="jh-inbox-back" href="{% url 'admin:orders_order_changelist' %}">
+            <span class="material-symbols-outlined" style="font-size:16px">arrow_back</span>
+            Volver a pedidos
+        </a>
+    </div>
+
+    {% if orders %}
+    <div class="jh-grid">
+        {% for order in orders %}
+        <article class="jh-card" id="order-{{ order.pk }}">
+            <a class="jh-card-proof" href="{{ order.payment_proof.url }}" target="_blank" rel="noopener"
+               title="Abrir imagen original">
+                <img src="{{ order.payment_proof.url }}" alt="Comprobante Yape #{{ order.short_uuid }}" />
+            </a>
+            <div class="jh-card-body">
+                <div class="jh-card-row">
+                    <span class="k">Pedido</span>
+                    <a class="v" href="{% url 'admin:orders_order_change' order.pk %}"
+                       title="Ver detalle del pedido">#{{ order.short_uuid }}</a>
+                </div>
+                <div class="jh-card-row">
+                    <span class="k">Cliente</span>
+                    <span class="v">
+                        {% if order.user %}{{ order.user.get_full_name|default:order.user.username }}
+                        {% elif order.email %}{{ order.email }}
+                        {% else %}{{ order.phone|default:"—" }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% if order.email %}
+                <div class="jh-card-row">
+                    <span class="k">Email</span>
+                    <span class="v">{{ order.email }}</span>
+                </div>
+                {% endif %}
+                {% if order.phone %}
+                <div class="jh-card-row">
+                    <span class="k">Teléfono</span>
+                    <span class="v">{{ order.phone }}</span>
+                </div>
+                {% endif %}
+                <div class="jh-card-row">
+                    <span class="k">Total</span>
+                    <span class="v total">{{ order.currency }} {{ order.total }}</span>
+                </div>
+                <div class="jh-card-items">
+                    {% for item in order.items.all %}
+                    <span>· {{ item.product_name }} — {{ item.plan_name }} × {{ item.quantity }}</span>
+                    {% endfor %}
+                </div>
+                <div class="jh-card-time">
+                    Comprobante subido:
+                    {% if order.payment_proof_uploaded_at %}
+                        {{ order.payment_proof_uploaded_at|date:"d M Y H:i" }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="jh-card-actions">
+                <a class="jh-btn approve"
+                   href="{% url 'admin:orders_order_confirm_yape' order.pk %}"
+                   data-confirm="¿Confirmar el pago Yape del pedido #{{ order.short_uuid }}?">
+                    <span class="material-symbols-outlined" style="font-size:18px">verified</span>
+                    Aprobar
+                </a>
+                <button type="button" class="jh-btn reject" data-toggle-reject="{{ order.pk }}">
+                    <span class="material-symbols-outlined" style="font-size:18px">block</span>
+                    Rechazar
+                </button>
+            </div>
+
+            <form class="jh-card-reject-form" id="reject-form-{{ order.pk }}"
+                  method="post" action="{% url 'admin:orders_order_reject_yape' order.pk %}">
+                {% csrf_token %}
+                <textarea name="reason" placeholder="Motivo (opcional). Si lo dejás vacío, se usa un mensaje genérico."></textarea>
+                <div class="jh-reject-actions">
+                    <button type="button" class="jh-btn reject" data-cancel-reject="{{ order.pk }}">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="jh-btn reject">
+                        Confirmar rechazo
+                    </button>
+                </div>
+            </form>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="jh-inbox-empty">
+        <span class="material-symbols-outlined">task_alt</span>
+        <div style="font-size:15px;color:#e2e8f0">Bandeja vacía</div>
+        <div style="margin-top:6px">No hay comprobantes Yape pendientes de verificación.</div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+(function() {
+    // Confirm on approval
+    document.querySelectorAll("[data-confirm]").forEach(function(el){
+        el.addEventListener("click", function(e){
+            if (!confirm(el.dataset.confirm)) e.preventDefault();
+        });
+    });
+    // Toggle reject form
+    document.querySelectorAll("[data-toggle-reject]").forEach(function(btn){
+        btn.addEventListener("click", function(){
+            var pk = btn.dataset.toggleReject;
+            var form = document.getElementById("reject-form-" + pk);
+            if (form) form.classList.toggle("open");
+        });
+    });
+    document.querySelectorAll("[data-cancel-reject]").forEach(function(btn){
+        btn.addEventListener("click", function(){
+            var pk = btn.dataset.cancelReject;
+            var form = document.getElementById("reject-form-" + pk);
+            if (form) form.classList.remove("open");
+        });
+    });
+})();
+</script>
+{% endblock %}
