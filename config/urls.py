@@ -127,7 +127,7 @@ urlpatterns = [
 # Media protegida
 #
 # /media/payments/proofs/  -> staff-only (comprobantes Yape de los clientes)
-# /media/payments/yape/    -> usuarios autenticados (QR del comerciante)
+# /media/payments/yape/    -> público (QR del comerciante, visible a invitados)
 # /media/...               -> público (imágenes de productos, etc.)
 #
 # Importante: las rutas protegidas se declaran ANTES del catch-all público para

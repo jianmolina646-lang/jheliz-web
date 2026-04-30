@@ -1,10 +1,13 @@
-"""Auth-protected media serving for sensitive payment artifacts.
+"""Media serving for payment artifacts.
 
-Yape payment proofs and the merchant QR upload contain personally
-identifiable info (account holder, transaction id, amount) and must NOT
-be served as static files to the public internet. These views check
-authentication / staff status before delegating to the regular file
-response.
+Yape payment proofs uploaded by clients contain personally identifiable
+info (transaction id, amount, account holder) and must NOT be served to
+the public internet — staff-only.
+
+The merchant Yape QR, on the other hand, is shown to every buyer paying
+the order (including guest checkouts), so it is served publicly: the
+checkout flow does not require login, and a login-gated QR would render
+as a broken image for anonymous buyers.
 """
 
 from __future__ import annotations
@@ -42,7 +45,6 @@ def serve_payment_proof(request, path: str):
     return _serve_under(os.path.join("payments", "proofs"), path)
 
 
-@login_required
 def serve_yape_qr(request, path: str):
-    """The Yape QR is shown to authenticated buyers during checkout."""
+    """Merchant Yape QR shown to every buyer (incl. guest checkouts)."""
     return _serve_under(os.path.join("payments", "yape"), path)
