@@ -201,3 +201,40 @@ html { scroll-behavior: smooth; }
     background: rgba(244,114,182,0.55);
 }
 .unfold ::-webkit-scrollbar-track { background: transparent; }
+
+/* ----------------------------------------------------------------------
+ * Fix: sidebar de navegación vacío en móviles / Chrome viejo.
+ *
+ * Unfold usa la clase Tailwind `hidden has-[ol]:has-[li]:block` en cada
+ * grupo del nav (Resumen, Ventas, Catálogo, etc). Eso depende del selector
+ * CSS `:has()`, soportado en Chrome 105+, Safari 15.4+, Firefox 121+.
+ * Si el browser no soporta `:has()`, los grupos quedan `display: none`
+ * permanente y la barra lateral muestra solo el buscador (vacía).
+ *
+ * Nuestra config en settings.py garantiza que cada grupo tenga `items`,
+ * así que forzar `display: block` no muestra grupos vacíos por error.
+ * ---------------------------------------------------------------------- */
+#nav-sidebar-apps > div {
+    display: block !important;
+}
+
+/* Asegurar que el contenedor de apps tenga altura usable en móviles —
+ * `h-0 grow` de Tailwind puede colapsar a 0 si el padre flex no propaga
+ * altura correctamente cuando simplebar wrappea el contenido. */
+@media (max-width: 1279px) {
+    #nav-sidebar {
+        max-height: 100vh !important;
+        overflow-y: auto !important;
+    }
+    #nav-sidebar-apps {
+        min-height: 50vh;
+        overflow: visible !important;
+    }
+    /* simplebar a veces cubre el contenido con overlays vacíos en móvil */
+    #nav-sidebar-apps .simplebar-mask,
+    #nav-sidebar-apps .simplebar-content-wrapper,
+    #nav-sidebar-apps .simplebar-content {
+        height: auto !important;
+        min-height: 100%;
+    }
+}
