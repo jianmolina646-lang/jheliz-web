@@ -149,6 +149,10 @@ class YapeQrPublicAccessTests(TestCase):
         os.makedirs(path, exist_ok=True)
         with open(os.path.join(path, "qr.png"), "wb") as f:
             f.write(b"\x89PNG-fake-qr")
+        with open(os.path.join(path, "qr.heic"), "wb") as f:
+            f.write(b"fake-heic-bytes")
+        with open(os.path.join(path, "qr.weird"), "wb") as f:
+            f.write(b"fake-bytes")
         self.url = "/media/payments/yape/qr.png"
 
     def test_anonymous_user_can_read_qr(self):
@@ -161,6 +165,33 @@ class YapeQrPublicAccessTests(TestCase):
         c = Client()
         resp = c.get("/media/payments/yape/../proofs/secret.txt")
         self.assertEqual(resp.status_code, 404)
+
+    def test_png_returns_image_content_type_inline(self):
+        """Mobile browsers refuse to render application/octet-stream as image.
+
+        Regression: the QR was served without an explicit Content-Type and
+        with no Content-Disposition, which broke rendering on mobile when
+        ``X-Content-Type-Options: nosniff`` was set.
+        """
+        c = Client()
+        resp = c.get("/media/payments/yape/qr.png")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "image/png")
+        self.assertIn("inline", resp["Content-Disposition"])
+
+    def test_heic_returns_image_content_type_for_iphone_uploads(self):
+        """iPhone uploads can be HEIC; must serve as image/heic, not octet-stream."""
+        c = Client()
+        resp = c.get("/media/payments/yape/qr.heic")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "image/heic")
+
+    def test_unknown_extension_falls_back_to_png(self):
+        c = Client()
+        resp = c.get("/media/payments/yape/qr.weird")
+        self.assertEqual(resp.status_code, 200)
+        # Never application/octet-stream — mobile browser with nosniff would refuse.
+        self.assertNotEqual(resp["Content-Type"], "application/octet-stream")
 
 
 # ---------------------------------------------------------------------------
