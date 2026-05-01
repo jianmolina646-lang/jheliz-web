@@ -51,15 +51,30 @@ jobs:
             git fetch --all --prune
             git checkout main
             git pull --ff-only origin main
-            echo "→ Rebuilding containers..."
+
+            echo "→ Rebuilding y arrancando con --wait (falla si web no llega a healthy en 4 min)..."
+            # `migrate` y `collectstatic` se ejecutan en el CMD del container `web`
+            # antes de arrancar gunicorn (ver docker-compose.yml). El healthcheck
+            # del servicio web hace curl a /, así que si las migraciones fallan
+            # gunicorn no arranca, el container no llega a `healthy` y `up --wait`
+            # devuelve no-cero — lo que hace que este step (con `set -e`) aborte
+            # el workflow y la run quede roja en GitHub Actions.
             docker compose pull || true
-            docker compose up -d --build
-            echo "→ Running migrations..."
-            docker compose exec -T web python manage.py migrate --noinput
-            echo "→ Collecting static files..."
-            docker compose exec -T web python manage.py collectstatic --noinput
-            echo "→ Restarting web service to pick up new code..."
-            docker compose restart web
+            if ! docker compose up -d --build --wait --wait-timeout 240; then
+              echo "✗ Deploy abortado: web no llegó a estado healthy."
+              docker compose ps
+              echo "--- logs de web (últimas 80 líneas) ---"
+              docker compose logs --tail=80 web || true
+              exit 1
+            fi
+
+            echo "→ Smoke test público..."
+            if ! curl -fsS -o /dev/null --max-time 10 http://localhost:8000/; then
+              echo "✗ Smoke test falló."
+              docker compose logs --tail=50 web || true
+              exit 1
+            fi
+
             echo "✓ Deploy completado: $(git rev-parse --short HEAD)"
         env:
           VPS_PROJECT_PATH: ${{ vars.VPS_PROJECT_PATH }}
