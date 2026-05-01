@@ -1533,9 +1533,12 @@ class AutoDeliverDistributorTests(TestCase):
         self.assertEqual(missing, [])
         order.refresh_from_db()
         self.assertEqual(order.status, Order.Status.PREPARING)
-        # El stock sigue Disponible — no se debe haber tocado.
+        # El stock fue reservado al crear el OrderItem (por el signal
+        # post_save) — auto_deliver no toca nada porque no es distri.
+        # El stock queda RESERVED hasta que se entregue manual o se
+        # cancele el pedido.
         stock = StockItem.objects.filter(product=self.product_max).get()
-        self.assertEqual(stock.status, StockItem.Status.AVAILABLE)
+        self.assertEqual(stock.status, StockItem.Status.RESERVED)
 
     def test_leaves_order_pending_when_one_item_lacks_stock(self):
         from orders.auto_delivery import auto_deliver_distributor_order
@@ -1557,10 +1560,17 @@ class AutoDeliverDistributorTests(TestCase):
         self.assertIn("Prime", missing[0])
         order.refresh_from_db()
         # No se entregó: el pedido sigue en PREPARING y el stock de Max
-        # NO debe haberse marcado como vendido (atomicidad).
+        # NO debe haberse marcado como SOLD (atomicidad). Queda RESERVED
+        # porque el signal post_save lo reservó al crear el OrderItem;
+        # eso es consistente con el invariante "cada pedido reserva su
+        # stock hasta entregar o cancelar".
         self.assertEqual(order.status, Order.Status.PREPARING)
         max_stock = StockItem.objects.get(product=self.product_max)
-        self.assertEqual(max_stock.status, StockItem.Status.AVAILABLE)
+        self.assertIn(
+            max_stock.status,
+            {StockItem.Status.AVAILABLE, StockItem.Status.RESERVED},
+        )
+        self.assertNotEqual(max_stock.status, StockItem.Status.SOLD)
         notify.assert_called_once()
 
     def test_picks_distinct_stock_for_two_items_of_same_product(self):
@@ -1885,3 +1895,173 @@ class StockItemAdminSoldAtTests(TestCase):
         stock.refresh_from_db()
         self.assertEqual(stock.status, StockItem.Status.SOLD)
         self.assertIsNotNone(stock.sold_at)
+
+
+class StockReservationOnOrderItemCreateTests(TestCase):
+    """Reserva automática de stock al crear un OrderItem."""
+
+    def setUp(self):
+        self.cat = Category.objects.create(name="C-R", slug="c-r")
+        self.product = Product.objects.create(
+            name="Disney-R", slug="disney-r", category=self.cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("10.00"), price_distributor=Decimal("8.00"),
+        )
+
+    def _make_order(self):
+        return Order.objects.create(
+            email="x@y.com", total=Decimal("10.00"),
+            status=Order.Status.PENDING,
+        )
+
+    def test_reserves_first_available_stock_on_create(self):
+        stock = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: a@x.com\nContraseña: a",
+        )
+        order = self._make_order()
+        item = OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+        )
+        item.refresh_from_db()
+        stock.refresh_from_db()
+        self.assertEqual(item.stock_item_id, stock.pk)
+        self.assertEqual(stock.status, StockItem.Status.RESERVED)
+
+    def test_two_items_pick_distinct_stocks(self):
+        s1 = StockItem.objects.create(
+            product=self.product, plan=self.plan, credentials="x1",
+        )
+        s2 = StockItem.objects.create(
+            product=self.product, plan=self.plan, credentials="x2",
+        )
+        order = self._make_order()
+        i1 = OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+        )
+        i2 = OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+        )
+        i1.refresh_from_db()
+        i2.refresh_from_db()
+        self.assertNotEqual(i1.stock_item_id, i2.stock_item_id)
+        self.assertEqual({i1.stock_item_id, i2.stock_item_id}, {s1.pk, s2.pk})
+
+    def test_no_stock_means_item_left_unreserved(self):
+        order = self._make_order()
+        item = OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+        )
+        item.refresh_from_db()
+        self.assertIsNone(item.stock_item_id)
+
+    def test_canceling_order_releases_reservation(self):
+        stock = StockItem.objects.create(
+            product=self.product, plan=self.plan, credentials="x",
+        )
+        order = self._make_order()
+        OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+        )
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.RESERVED)
+        # Cancelar el pedido debe liberar la reserva.
+        order.status = Order.Status.CANCELED
+        order.save(update_fields=["status"])
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.AVAILABLE)
+        item = order.items.get()
+        self.assertIsNone(item.stock_item_id)
+
+    def test_does_not_release_sold_stock_on_refund(self):
+        # Si el pedido pasó por DELIVERED (stock SOLD) y luego se
+        # refunda, el stock NO se restaura — la cuenta ya se entregó.
+        stock = StockItem.objects.create(
+            product=self.product, plan=self.plan, credentials="x",
+        )
+        order = self._make_order()
+        item = OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+        )
+        # Simular entrega: stock SOLD vinculado al item.
+        item.refresh_from_db()
+        stock.refresh_from_db()
+        stock.status = StockItem.Status.SOLD
+        stock.save(update_fields=["status"])
+        # Refundar.
+        order.status = Order.Status.REFUNDED
+        order.save(update_fields=["status"])
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.SOLD)
+
+
+class ReleaseStaleReservationsCommandTests(TestCase):
+    def setUp(self):
+        self.cat = Category.objects.create(name="C-S", slug="c-stale")
+        self.product = Product.objects.create(
+            name="Stale", slug="stale", category=self.cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("10.00"), price_distributor=Decimal("8.00"),
+        )
+
+    def _stale_pending_order(self, hours=48):
+        from datetime import timedelta
+
+        stock = StockItem.objects.create(
+            product=self.product, plan=self.plan, credentials="x",
+        )
+        order = Order.objects.create(
+            email="z@y.com", total=Decimal("10.00"),
+            status=Order.Status.PENDING,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+        )
+        # Backdate por SQL para simular pedido viejo (auto_now_add).
+        Order.objects.filter(pk=order.pk).update(
+            created_at=timezone.now() - timedelta(hours=hours),
+        )
+        return order, stock
+
+    def test_releases_reservations_of_stale_pending_order(self):
+        _, stock = self._stale_pending_order(hours=48)
+        out = StringIO()
+        call_command("release_stale_reservations", "--hours", "24", stdout=out)
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.AVAILABLE)
+
+    def test_does_not_release_recent_pending_order(self):
+        _, stock = self._stale_pending_order(hours=2)
+        call_command(
+            "release_stale_reservations", "--hours", "24",
+            stdout=StringIO(),
+        )
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.RESERVED)
+
+    def test_dry_run_does_not_write(self):
+        _, stock = self._stale_pending_order(hours=48)
+        call_command(
+            "release_stale_reservations", "--hours", "24", "--dry-run",
+            stdout=StringIO(),
+        )
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.RESERVED)

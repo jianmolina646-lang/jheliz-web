@@ -80,12 +80,24 @@ def auto_deliver_distributor_order(
                 plan.append((item, None))
                 continue
 
-            if existing is not None and existing.status == StockItem.Status.AVAILABLE:
-                # El admin lo vinculó a mano desde el inline pero nunca
-                # se marcó vendido — lo aprovechamos.
+            if existing is not None and existing.status in {
+                StockItem.Status.AVAILABLE,
+                StockItem.Status.RESERVED,
+            }:
+                # Caso 1 (AVAILABLE): el admin lo vinculó a mano desde
+                # el inline pero nunca se marcó vendido.
+                # Caso 2 (RESERVED): el signal post_save de OrderItem
+                # ya lo había reservado al crearse el pedido. En ambos
+                # casos lo aprovechamos directamente.
                 stock = (
                     StockItem.objects.select_for_update()
-                    .filter(pk=existing.pk, status=StockItem.Status.AVAILABLE)
+                    .filter(
+                        pk=existing.pk,
+                        status__in=[
+                            StockItem.Status.AVAILABLE,
+                            StockItem.Status.RESERVED,
+                        ],
+                    )
                     .first()
                 )
             else:
