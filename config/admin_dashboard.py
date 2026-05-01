@@ -45,6 +45,19 @@ def dashboard_callback(request, context):
     verifying_orders = Order.objects.filter(status=Order.Status.VERIFYING).count()
     open_tickets = Ticket.objects.exclude(status=Ticket.Status.CLOSED).count()
 
+    # Pedidos "esperando stock": en PREPARING con al menos un item que
+    # todavía no tiene credenciales ni stock vinculado. Son los que el
+    # admin necesita resolver (cargar stock o entregar manualmente).
+    waiting_stock_orders = (
+        Order.objects.filter(status=Order.Status.PREPARING)
+        .filter(
+            models.Q(items__delivered_credentials="")
+            & models.Q(items__stock_item__isnull=True)
+        )
+        .distinct()
+        .count()
+    )
+
     # Ticket promedio + nuevos vs recurrentes del mes
     paid_month_qs = Order.objects.filter(
         created_at__date__gte=first_of_month, status__in=paid_statuses
@@ -276,6 +289,12 @@ def dashboard_callback(request, context):
         needs_action.append({
             "label": "Pedidos en preparación",
             "count": pending_orders, "icon": "pending_actions", "tone": "yellow",
+            "link": reverse("admin:orders_order_changelist") + "?status__exact=preparing",
+        })
+    if waiting_stock_orders:
+        needs_action.append({
+            "label": "Pedidos esperando stock",
+            "count": waiting_stock_orders, "icon": "inventory_2", "tone": "red",
             "link": reverse("admin:orders_order_changelist") + "?status__exact=preparing",
         })
     if pending_support_tickets:

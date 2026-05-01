@@ -4,10 +4,12 @@ Cuando un distribuidor confirma el pago (Yape, Mercado Pago, manual), el
 pedido se entrega solo: para cada `OrderItem` se toma el primer
 `StockItem` AVAILABLE del producto (igualando plan o stock genérico),
 se marca como `SOLD`, se vincula al item y se copia el texto de
-credenciales. Si todos los items consiguen stock, el pedido pasa a
-`DELIVERED` y el signal de transición dispara el email con las
-credenciales. Si falta stock para alguno, el pedido se queda en su
-estado actual y se manda alerta a Telegram al admin.
+credenciales. Si todos los items consiguen stock, el pedido pasa
+**directamente** a `DELIVERED` (sin tocar `PREPARING`) para evitar
+que se dispare el email "Estamos preparando" además del de entrega.
+Si falta stock para alguno, el pedido se queda intacto y se manda
+alerta a Telegram al admin para que el caller decida si lo deja en
+`PREPARING` o lo trabaja manual.
 
 Para cliente final (no distribuidor) no se hace nada — la entrega sigue
 siendo manual.
@@ -31,17 +33,27 @@ def _is_distributor_order(order: Order) -> bool:
     return bool(user and getattr(user, "is_distributor", False))
 
 
-def auto_deliver_distributor_order(order: Order) -> tuple[bool, list[str]]:
+def auto_deliver_distributor_order(
+    order: Order, *, paid_at=None
+) -> tuple[bool, list[str]]:
     """Intenta entregar automáticamente un pedido de distribuidor.
 
     Devuelve ``(delivered, missing)``:
 
     - ``delivered`` es ``True`` si el pedido quedó en estado
-      ``DELIVERED`` con stock asignado y marcado como vendido.
+      ``DELIVERED`` con stock asignado y marcado como vendido. En ese
+      caso el signal de transición de status dispara el email con las
+      credenciales — el caller no debe enviar ningún otro correo.
     - ``missing`` es la lista de items para los que no había stock.
+      En este caso el pedido NO se modifica; el caller decide si lo
+      pasa a ``PREPARING`` o lo deja como estaba.
 
     Si el pedido no es de un distribuidor aprobado, devuelve
     ``(False, [])`` sin tocar nada — la entrega sigue siendo manual.
+
+    Si se pasa ``paid_at`` y el pedido no tiene aún ``paid_at``, se
+    setea junto con la transición a ``DELIVERED`` para no perder esa
+    marca cuando el pago recién se está confirmando.
     """
     if not _is_distributor_order(order):
         return False, []
@@ -119,8 +131,18 @@ def auto_deliver_distributor_order(order: Order) -> tuple[bool, list[str]]:
             order.status = Order.Status.DELIVERED
             order.delivered_at = now
             if order.paid_at is None:
-                order.paid_at = now
-            order.save(update_fields=["status", "delivered_at", "paid_at"])
+                order.paid_at = paid_at or now
+            # Limpiamos cualquier rechazo previo (caso: distri reintenta
+            # tras un Yape rechazado y ahora hay stock).
+            order.payment_rejection_reason = ""
+            order.save(
+                update_fields=[
+                    "status",
+                    "delivered_at",
+                    "paid_at",
+                    "payment_rejection_reason",
+                ]
+            )
 
     if missing:
         try:

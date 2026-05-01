@@ -265,6 +265,19 @@
             <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
                 <h2 class="font-semibold text-base-900 dark:text-white mb-3">Top productos del mes</h2>
                 <canvas id="topChart" height="90"></canvas>
+                {% if top_products %}
+                <div class="mt-4 space-y-1.5">
+                    {% for row in top_products %}
+                    <div class="flex items-center justify-between text-sm">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="shrink-0 w-5 h-5 rounded-full bg-primary-500/15 text-primary-300 text-[11px] font-bold flex items-center justify-center">{{ forloop.counter }}</span>
+                            <span class="truncate text-base-900 dark:text-white">{{ row.items__product_name|default:"—" }}</span>
+                        </div>
+                        <span class="shrink-0 text-base-500 dark:text-base-400 font-medium ml-3">{{ row.qty }} venta{{ row.qty|pluralize }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
             {% endif %}
             {% if stock_chart_json %}

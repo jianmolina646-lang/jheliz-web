@@ -146,7 +146,8 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     resource_classes = (OrderResource,)
     export_form_class = SelectableFieldsExportForm
     list_display = (
-        "short_uuid", "display_customer", "display_status", "channel",
+        "short_uuid", "display_customer", "display_products",
+        "display_status", "channel",
         "payment_provider", "total", "display_actions", "created_at",
     )
     list_display_links = ("short_uuid", "display_customer")
@@ -154,6 +155,10 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     search_fields = (
         "uuid", "email", "phone", "telegram_username", "payment_reference",
         "user__username", "user__email",
+        # Buscar pedidos por nombre del producto, perfil solicitado o
+        # nombre del cliente final cargado en el item.
+        "items__product_name", "items__plan_name",
+        "items__requested_profile_name", "items__final_customer_name",
     )
     autocomplete_fields = ("user",)
     readonly_fields = (
@@ -174,7 +179,13 @@ class OrderAdmin(ExportMixin, ModelAdmin):
 
     def get_queryset(self, request):
         # Trae el FK user de un solo JOIN (display_customer lo usa).
-        return super().get_queryset(request).select_related("user")
+        # Prefetcheamos también los items para que `display_products` no
+        # haga N+1 queries en el changelist.
+        return (
+            super().get_queryset(request)
+            .select_related("user")
+            .prefetch_related("items")
+        )
 
     fieldsets = (
         ("Datos", {
@@ -215,6 +226,34 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             name,
             obj.email or "",
         )
+
+    @display(description="Productos")
+    def display_products(self, obj: Order):
+        # Resumen compacto de los items: "Netflix · Max" con tooltip que
+        # incluye plan + perfil solicitado para que el operador identifique
+        # de un vistazo qué se compró sin entrar al detalle del pedido.
+        items = list(obj.items.all()[:5])
+        if not items:
+            return format_html('<span style="color:#94a3b8">—</span>')
+        chips = []
+        for it in items:
+            label = it.product_name or "—"
+            tooltip_parts = [it.plan_name or ""]
+            if it.requested_profile_name:
+                tooltip_parts.append(f"Perfil: {it.requested_profile_name}")
+            tooltip = " · ".join(p for p in tooltip_parts if p)
+            chips.append(format_html(
+                '<span title="{}" style="display:inline-block;padding:1px 6px;margin:1px;'
+                'border-radius:4px;background:#1e293b;color:#cbd5e1;font-size:11px;">{}</span>',
+                tooltip, label,
+            ))
+        total = obj.items.count()
+        if total > 5:
+            chips.append(format_html(
+                '<span style="font-size:11px;color:#94a3b8">+{} más</span>',
+                total - 5,
+            ))
+        return format_html('<div style="line-height:1.4">{}</div>', format_html(''.join(['{}'] * len(chips)), *chips))
 
     @display(
         description="Estado",
@@ -271,11 +310,56 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     def payment_proof_preview(self, obj: Order):
         if not obj.payment_proof:
             return "—"
+        # Modal expandible: el thumbnail se muestra en el form y al
+        # clickear se abre un overlay full-screen para revisarlo cómodo.
+        # Se cierra con click en el fondo, en la X o con Escape.
+        url = obj.payment_proof.url
+        modal_id = f"yape-proof-modal-{obj.pk}"
         return format_html(
-            '<a href="{0}" target="_blank" rel="noopener">'
-            '<img src="{0}" style="max-width:320px;max-height:420px;border-radius:8px;'
-            'border:1px solid #334155" /></a>',
-            obj.payment_proof.url,
+            """
+<div>
+  <a href="javascript:void(0)" data-yape-open="{modal_id}" style="display:inline-block">
+    <img src="{url}" alt="Comprobante Yape"
+         style="max-width:320px;max-height:420px;border-radius:8px;
+                border:1px solid #334155;cursor:zoom-in;display:block" />
+    <div style="font-size:11px;color:#94a3b8;margin-top:4px">Click para ampliar</div>
+  </a>
+  <div id="{modal_id}" data-yape-modal
+       style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);
+              align-items:center;justify-content:center;cursor:zoom-out">
+    <button type="button" data-yape-close="{modal_id}" aria-label="Cerrar"
+            style="position:absolute;top:16px;right:24px;background:transparent;color:#fff;
+                   border:none;font-size:36px;line-height:1;cursor:pointer">&times;</button>
+    <a href="{url}" target="_blank" rel="noopener"
+       style="position:absolute;top:20px;left:24px;color:#fff;font-size:13px;
+              text-decoration:none;padding:6px 12px;border:1px solid rgba(255,255,255,0.3);
+              border-radius:6px">Abrir en pestaña nueva ↗</a>
+    <img src="{url}" alt="Comprobante Yape ampliado"
+         style="max-width:92vw;max-height:92vh;border-radius:6px;
+                box-shadow:0 25px 60px rgba(0,0,0,0.6)" />
+  </div>
+</div>
+<script>
+(function() {{
+  var modal = document.getElementById('{modal_id}');
+  if (!modal || modal.dataset.bound) return;
+  modal.dataset.bound = '1';
+  function open() {{ modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }}
+  function close() {{ modal.style.display = 'none'; document.body.style.overflow = ''; }}
+  document.querySelectorAll('[data-yape-open="{modal_id}"]').forEach(function(el) {{
+    el.addEventListener('click', function(e) {{ e.preventDefault(); open(); }});
+  }});
+  modal.addEventListener('click', function(e) {{
+    if (e.target === modal || e.target.dataset.yapeClose === '{modal_id}') close();
+  }});
+  document.addEventListener('keydown', function(e) {{
+    if (e.key === 'Escape' && modal.style.display === 'flex') close();
+  }});
+}})();
+</script>
+            """,
+            url=url,
+            modal_id=modal_id,
         )
 
     # ---- URLs extra ---------------------------------------------------------
@@ -416,13 +500,14 @@ class OrderAdmin(ExportMixin, ModelAdmin):
                 level=messages.WARNING,
             )
             return self._back(request, order)
-        order.status = Order.Status.PREPARING
-        order.paid_at = order.paid_at or timezone.now()
-        order.payment_rejection_reason = ""
-        order.save(update_fields=["status", "paid_at", "payment_rejection_reason"])
         from .auto_delivery import auto_deliver_distributor_order
 
-        delivered, missing = auto_deliver_distributor_order(order)
+        now = timezone.now()
+        # Para distribuidores con stock: pasa directo a DELIVERED y
+        # dispara el email con credenciales. No usamos PREPARING como
+        # paso intermedio para evitar el doble correo (preparing +
+        # delivered) cuando hay auto-entrega.
+        delivered, missing = auto_deliver_distributor_order(order, paid_at=now)
         if delivered:
             self.message_user(
                 request,
@@ -431,7 +516,12 @@ class OrderAdmin(ExportMixin, ModelAdmin):
                 level=messages.SUCCESS,
             )
             return redirect("admin:orders_order_changelist")
-        emails.send_order_preparing(order)
+        # Cliente final, o distribuidor sin stock: pasa a PREPARING y
+        # el signal env\u00eda el email "Estamos preparando" una sola vez.
+        order.status = Order.Status.PREPARING
+        order.paid_at = order.paid_at or now
+        order.payment_rejection_reason = ""
+        order.save(update_fields=["status", "paid_at", "payment_rejection_reason"])
         if missing:
             self.message_user(
                 request,
@@ -598,15 +688,18 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             if not order.payment_proof:
                 skipped += 1
                 continue
+            # Auto-entrega primero: distribuidor con stock pasa directo
+            # a DELIVERED (un solo email). Cliente final o sin stock
+            # cae al fallback de PREPARING.
+            delivered, _missing = auto_deliver_distributor_order(order, paid_at=now)
+            if delivered:
+                auto_delivered += 1
+                updated += 1
+                continue
             order.status = Order.Status.PREPARING
             order.paid_at = order.paid_at or now
             order.payment_rejection_reason = ""
             order.save(update_fields=["status", "paid_at", "payment_rejection_reason"])
-            delivered, _missing = auto_deliver_distributor_order(order)
-            if delivered:
-                auto_delivered += 1
-            else:
-                emails.send_order_preparing(order)
             updated += 1
         if updated:
             msg = f"{updated} pago(s) Yape confirmado(s). Se envi\u00f3 email al cliente."

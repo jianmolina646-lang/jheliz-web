@@ -203,7 +203,11 @@ class StockItemAdmin(ModelAdmin):
     list_filter = ("status", "product", "plan")
     search_fields = ("product__name", "label", "credentials")
     autocomplete_fields = ("product", "plan")
-    readonly_fields = ("created_at", "sold_at")
+    # `sold_at` queda editable para arreglar manualmente fechas históricas
+    # de stocks marcados como vendidos sin pasar por el flujo normal.
+    # El sistema lo setea automáticamente cuando el flujo de entrega
+    # marca un stock como SOLD; este override es para casos puntuales.
+    readonly_fields = ("created_at",)
     change_list_template = "admin/catalog/stock_changelist.html"
     actions = ("action_mark_defective", "action_mark_available", "action_duplicate")
 
@@ -217,6 +221,16 @@ class StockItemAdmin(ModelAdmin):
             ),
         ]
         return custom + urls
+
+    def save_model(self, request, obj, form, change):
+        # Si el admin marca un stock como Vendida (manual o reconciliando
+        # ventas históricas) y no había `sold_at`, lo seteamos automáticamente
+        # con el timestamp actual para que aparezca en filtros por fecha.
+        if obj.status == StockItem.Status.SOLD and obj.sold_at is None:
+            from django.utils import timezone
+
+            obj.sold_at = timezone.now()
+        super().save_model(request, obj, form, change)
 
     def status_badge(self, obj):
         from django.utils.safestring import mark_safe

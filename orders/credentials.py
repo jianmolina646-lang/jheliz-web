@@ -22,6 +22,8 @@ from typing import NamedTuple
 # Aliases que el admin suele usar para cada campo (case-insensitive).
 _EMAIL_LABELS = ("correo", "email", "e-mail", "e mail", "usuario", "user")
 _PASS_LABELS = ("contraseña", "contrasena", "password", "pass", "clave", "pw")
+_PROFILE_LABELS = ("perfil", "profile")
+_PIN_LABELS = ("pin", "código pin", "codigo pin")
 
 
 def _line_re(labels: tuple[str, ...]) -> re.Pattern[str]:
@@ -35,6 +37,39 @@ def _line_re(labels: tuple[str, ...]) -> re.Pattern[str]:
 
 _EMAIL_RE = _line_re(_EMAIL_LABELS)
 _PASS_RE = _line_re(_PASS_LABELS)
+_PROFILE_RE = _line_re(_PROFILE_LABELS)
+_PIN_RE = _line_re(_PIN_LABELS)
+
+
+def parse_profile_pin(text: str) -> tuple[str, str]:
+    """Extrae perfil y PIN del texto de credenciales.
+
+    Devuelve ``(perfil, pin)`` con strings vacíos si la línea no existe.
+    Útil para mostrar columnas separadas en la lista de stock.
+    """
+    text = text or ""
+    profile_match = _PROFILE_RE.search(text)
+    pin_match = _PIN_RE.search(text)
+    return (
+        profile_match.group("value").strip() if profile_match else "",
+        pin_match.group("value").strip() if pin_match else "",
+    )
+
+
+def split_account_extras(text: str) -> tuple[str, str, str]:
+    """Separa el texto de credenciales en (cuenta, perfil, pin).
+
+    ``cuenta`` mantiene todas las líneas que NO sean perfil/PIN para que
+    pueda mostrarse aparte en una columna principal.
+    """
+    text = text or ""
+    profile, pin = parse_profile_pin(text)
+    rest_lines = []
+    for line in text.splitlines():
+        if _PROFILE_RE.match(line) or _PIN_RE.match(line):
+            continue
+        rest_lines.append(line)
+    return "\n".join(rest_lines).rstrip(), profile, pin
 
 
 class ParsedCredentials(NamedTuple):

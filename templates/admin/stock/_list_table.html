@@ -8,7 +8,9 @@
       <tr>
         <th class="text-left px-4 py-3 font-medium">Producto / Plan</th>
         <th class="text-left px-4 py-3 font-medium">Estado</th>
-        <th class="text-left px-4 py-3 font-medium">Credencial</th>
+        <th class="text-left px-4 py-3 font-medium">Cuenta</th>
+        <th class="text-left px-4 py-3 font-medium">Perfil</th>
+        <th class="text-left px-4 py-3 font-medium">PIN</th>
         <th class="text-left px-4 py-3 font-medium">Etiqueta</th>
         <th class="text-left px-4 py-3 font-medium">Fechas</th>
         <th class="text-right px-4 py-3 font-medium">Acciones</th>
@@ -35,7 +37,21 @@
           {% endif %}
         </td>
         <td class="px-4 py-3 align-top">
-          <div class="text-base-200 text-xs font-mono whitespace-pre-wrap break-all max-w-[28ch]">{{ item.credentials|truncatechars:120 }}</div>
+          <div class="text-base-200 text-xs font-mono whitespace-pre-wrap break-all max-w-[28ch]">{{ item.account_text|default:item.credentials|truncatechars:120 }}</div>
+        </td>
+        <td class="px-4 py-3 align-top">
+          {% if item.profile_text %}
+            <div class="text-base-100 text-xs font-mono">{{ item.profile_text }}</div>
+          {% else %}
+            <div class="text-base-500 text-xs">—</div>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 align-top">
+          {% if item.pin_text %}
+            <div class="text-base-100 text-xs font-mono tracking-wider">{{ item.pin_text }}</div>
+          {% else %}
+            <div class="text-base-500 text-xs">—</div>
+          {% endif %}
         </td>
         <td class="px-4 py-3 align-top">
           <div class="text-base-200">{{ item.label|default:"—" }}</div>
