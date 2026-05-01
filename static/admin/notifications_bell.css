@@ -1,0 +1,248 @@
+/* Bell de notificaciones del admin — visible en TODAS las páginas. */
+
+#jheliz-bell.jheliz-bell-button {
+    position: fixed;
+    top: 14px;
+    right: 18px;
+    z-index: 1100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(20, 20, 24, 0.78);
+    color: rgba(255, 255, 255, 0.92);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+    transition: transform 120ms ease, background 120ms ease;
+}
+
+#jheliz-bell.jheliz-bell-button:hover {
+    transform: translateY(-1px);
+    background: rgba(40, 40, 48, 0.92);
+}
+
+#jheliz-bell.has-unread {
+    animation: jheliz-bell-shake 1s ease-in-out 1;
+}
+
+@keyframes jheliz-bell-shake {
+    0%, 100% { transform: rotate(0deg); }
+    20% { transform: rotate(-12deg); }
+    40% { transform: rotate(10deg); }
+    60% { transform: rotate(-6deg); }
+    80% { transform: rotate(4deg); }
+}
+
+#jheliz-bell .material-symbols-outlined {
+    font-size: 22px;
+}
+
+#jheliz-bell-badge.jheliz-bell-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    background: #ef4444;
+    color: #fff;
+    border-radius: 999px;
+    font-size: 11px;
+    line-height: 20px;
+    font-weight: 700;
+    text-align: center;
+    box-shadow: 0 0 0 2px rgba(20, 20, 24, 0.78);
+}
+
+#jheliz-bell-panel.jheliz-bell-panel {
+    position: fixed;
+    top: 64px;
+    right: 18px;
+    z-index: 1099;
+    width: 360px;
+    max-width: calc(100vw - 36px);
+    max-height: 70vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: rgba(20, 20, 24, 0.96);
+    color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    font-family: inherit;
+}
+
+#jheliz-bell-panel .jheliz-bell-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+#jheliz-bell-panel .jheliz-bell-header strong {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#jheliz-bell-panel .jheliz-bell-close {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+#jheliz-bell-panel .jheliz-bell-close:hover {
+    color: #fff;
+}
+
+#jheliz-bell-list.jheliz-bell-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+}
+
+#jheliz-bell-list .jheliz-bell-item {
+    margin: 0;
+    padding: 0;
+}
+
+#jheliz-bell-list .jheliz-bell-item-link {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 16px;
+    color: inherit;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+}
+
+#jheliz-bell-list .jheliz-bell-item-link:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+#jheliz-bell-list .jheliz-bell-item-link.is-new {
+    border-left-color: #ec4899;
+    background: rgba(236, 72, 153, 0.06);
+}
+
+#jheliz-bell-list .jheliz-bell-item-icon {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    font-size: 22px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+#jheliz-bell-list .jheliz-bell-item-icon.kind-yape_proof {
+    color: #fbbf24;
+}
+
+#jheliz-bell-list .jheliz-bell-item-icon.kind-preparing {
+    color: #60a5fa;
+}
+
+#jheliz-bell-list .jheliz-bell-item-icon.kind-ticket {
+    color: #f87171;
+}
+
+#jheliz-bell-list .jheliz-bell-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
+#jheliz-bell-list .jheliz-bell-item-title {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#jheliz-bell-list .jheliz-bell-item-subtitle {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#jheliz-bell-list .jheliz-bell-item-when {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    margin-top: 4px;
+}
+
+#jheliz-bell-empty.jheliz-bell-empty {
+    padding: 24px 16px 28px;
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.55);
+}
+
+#jheliz-bell-panel .jheliz-bell-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 10px 16px;
+    text-align: center;
+}
+
+#jheliz-bell-panel .jheliz-bell-footer-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f0abfc;
+    text-decoration: none;
+}
+
+#jheliz-bell-panel .jheliz-bell-footer-link:hover {
+    text-decoration: underline;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Tema claro: invertimos los colores cuando el admin está en modo light. */
+@media (prefers-color-scheme: light) {
+    html:not(.dark) #jheliz-bell.jheliz-bell-button {
+        background: rgba(255, 255, 255, 0.95);
+        color: #1f2937;
+        border-color: rgba(0, 0, 0, 0.08);
+    }
+    html:not(.dark) #jheliz-bell-panel.jheliz-bell-panel {
+        background: rgba(255, 255, 255, 0.98);
+        color: #1f2937;
+        border-color: rgba(0, 0, 0, 0.08);
+    }
+    html:not(.dark) #jheliz-bell-list .jheliz-bell-item-subtitle {
+        color: rgba(0, 0, 0, 0.55);
+    }
+    html:not(.dark) #jheliz-bell-list .jheliz-bell-item-when {
+        color: rgba(0, 0, 0, 0.4);
+    }
+}
+
+@media (max-width: 480px) {
+    #jheliz-bell.jheliz-bell-button {
+        top: 10px;
+        right: 12px;
+    }
+    #jheliz-bell-panel.jheliz-bell-panel {
+        top: 58px;
+        right: 12px;
+        left: 12px;
+        width: auto;
+    }
+}

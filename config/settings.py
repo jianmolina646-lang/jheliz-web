@@ -190,6 +190,7 @@ UNFOLD = {
     "BORDER_RADIUS": "12px",
     "STYLES": [
         lambda request: f"{STATIC_URL}admin/jheliz_polish.css",
+        lambda request: f"{STATIC_URL}admin/notifications_bell.css",
     ],
     "SCRIPTS": [
         lambda request: f"{STATIC_URL}admin/global_search.js",
@@ -197,6 +198,7 @@ UNFOLD = {
         lambda request: f"{STATIC_URL}admin/fab.js",
         lambda request: f"{STATIC_URL}admin/toasts.js",
         lambda request: f"{STATIC_URL}admin/keyboard_shortcuts.js",
+        lambda request: f"{STATIC_URL}admin/notifications_bell.js",
     ],
     "COLORS": {
         "primary": {

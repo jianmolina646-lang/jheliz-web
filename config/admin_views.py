@@ -450,25 +450,135 @@ def reply_templates_json(request):
     return JsonResponse({"templates": out})
 
 
+def _humanize_delta(delta: timedelta) -> str:
+    """Devuelve un string corto en español tipo 'hace 5 min', 'hace 2 h'."""
+    seconds = max(0, int(delta.total_seconds()))
+    if seconds < 60:
+        return "hace unos segundos"
+    minutes = seconds // 60
+    if minutes < 60:
+        return f"hace {minutes} min"
+    hours = minutes // 60
+    if hours < 24:
+        return f"hace {hours} h"
+    days = hours // 24
+    return f"hace {days} d"
+
+
+def _format_money(amount: Decimal | None, currency: str | None = None) -> str:
+    """Formatea un Decimal como 'S/49.90' (o el símbolo configurado)."""
+    if amount is None:
+        return ""
+    symbol = (currency or settings.DEFAULT_CURRENCY_SYMBOL or "S/").strip()
+    try:
+        return f"{symbol}{Decimal(amount).quantize(Decimal('0.01'))}"
+    except Exception:
+        return f"{symbol}{amount}"
+
+
 @staff_member_required
 def notifications_count(request):
-    """Devuelve los conteos de items urgentes para el badge del header.
+    """Endpoint JSON consumido por el bell de notificaciones del admin.
 
-    El JS del admin hace polling cada N segundos a este endpoint y compara
-    contra el último valor; si subió, muestra una notificación de escritorio.
+    Devuelve dos cosas:
+
+    * Contadores agregados por categoría (compat con el JS viejo del dashboard).
+    * Una lista ``items`` con los pendientes más recientes (Yape por aprobar,
+      pedidos en preparación, tickets abiertos), enriquecida con la info que el
+      bell muestra inline: título, subtítulo, URL al admin y timestamp.
+
+    El JS hace polling cada 30s y compara contra ``localStorage`` para saber
+    cuáles items son nuevos vs ya vistos.
     """
     from orders.models import Order
     from support.models import Ticket
 
-    data = {
+    now = timezone.now()
+    item_limit = 8  # por categoría, antes de hacer merge final
+
+    verifying_qs = (
+        Order.objects.filter(status=Order.Status.VERIFYING)
+        .order_by("-payment_proof_uploaded_at", "-created_at")[:item_limit]
+    )
+    preparing_qs = (
+        Order.objects.filter(status=Order.Status.PREPARING)
+        .order_by("-paid_at", "-created_at")[:item_limit]
+    )
+    tickets_qs = (
+        Ticket.objects.exclude(
+            status__in=(Ticket.Status.RESOLVED, Ticket.Status.CLOSED),
+        ).select_related("user").order_by("-created_at")[:item_limit]
+    )
+
+    items: list[dict] = []
+
+    def _order_subtitle(order: Order) -> str:
+        provider = (order.payment_provider or "").strip().capitalize() or "Pago"
+        contact = order.email or order.phone or order.telegram_username or "cliente"
+        return f"{provider} · {contact}"
+
+    for order in verifying_qs:
+        ts = order.payment_proof_uploaded_at or order.created_at
+        items.append({
+            "id": f"order-verifying-{order.pk}",
+            "kind": "yape_proof",
+            "icon": "hourglass_top",
+            "title": f"Comprobante por aprobar · #{order.short_uuid} · {_format_money(order.total, order.currency)}",
+            "subtitle": _order_subtitle(order),
+            "url": reverse("admin:orders_order_change", args=[order.pk]),
+            "created_at": ts.isoformat() if ts else None,
+            "relative": _humanize_delta(now - ts) if ts else "",
+        })
+
+    for order in preparing_qs:
+        ts = order.paid_at or order.created_at
+        items.append({
+            "id": f"order-preparing-{order.pk}",
+            "kind": "preparing",
+            "icon": "inventory",
+            "title": f"Pedido en preparación · #{order.short_uuid} · {_format_money(order.total, order.currency)}",
+            "subtitle": _order_subtitle(order),
+            "url": reverse("admin:orders_order_change", args=[order.pk]),
+            "created_at": ts.isoformat() if ts else None,
+            "relative": _humanize_delta(now - ts) if ts else "",
+        })
+
+    for ticket in tickets_qs:
+        ts = ticket.created_at
+        author_label = ticket.user.email or ticket.user.get_username()
+        subject = (ticket.subject or "Sin asunto").strip()
+        items.append({
+            "id": f"ticket-{ticket.pk}",
+            "kind": "ticket",
+            "icon": "support_agent",
+            "title": f"Ticket abierto · {subject[:60]}",
+            "subtitle": author_label,
+            "url": reverse("admin:support_ticket_change", args=[ticket.pk]),
+            "created_at": ts.isoformat() if ts else None,
+            "relative": _humanize_delta(now - ts) if ts else "",
+        })
+
+    # Más recientes primero, máximo 15 visibles en el bell.
+    items.sort(key=lambda x: x["created_at"] or "", reverse=True)
+    items = items[:15]
+
+    counts = {
         "verifying": Order.objects.filter(status=Order.Status.VERIFYING).count(),
         "preparing": Order.objects.filter(status=Order.Status.PREPARING).count(),
         "open_tickets": Ticket.objects.exclude(
             status__in=(Ticket.Status.RESOLVED, Ticket.Status.CLOSED),
         ).count(),
     }
-    data["total"] = data["verifying"] + data["preparing"] + data["open_tickets"]
-    return JsonResponse(data)
+    counts["total"] = counts["verifying"] + counts["preparing"] + counts["open_tickets"]
+
+    # Compat: el JS viejo del dashboard espera las claves verifying/preparing/total
+    # en el nivel raíz; las dejamos ahí + un bloque "counts" duplicado para JS nuevo.
+    return JsonResponse({
+        **counts,
+        "counts": counts,
+        "items": items,
+        "generated_at": now.isoformat(),
+    })
 
 
 # ---------------------------------------------------------------------------
