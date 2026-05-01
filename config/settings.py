@@ -136,7 +136,7 @@ DEFAULT_CURRENCY = "PEN"
 DEFAULT_CURRENCY_SYMBOL = "S/"
 
 # Static & media
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
