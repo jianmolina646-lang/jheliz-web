@@ -1,6 +1,6 @@
 {% extends 'admin/base.html' %}
 
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 
@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block extrahead %}{{ block.super }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendor/chart.umd.min.js' %}"></script>
 {% endblock %}
 
 {% block content %}
