@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  migrations:
+    name: Validar migraciones de Django
+    runs-on: ubuntu-latest
+    env:
+      # Valores dummy solo para que settings.py se cargue. Nunca se usan
+      # contra servicios reales (la DB es SQLite efimera del runner).
+      SECRET_KEY: ci-not-secret
+      DEBUG: "True"
+      DATABASE_URL: sqlite:///db.sqlite3
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      # Fernet key valida solo para que cargue catalog/orders sin error.
+      FIELD_ENCRYPTION_KEY: dQyMEwMZ8Z6oFYw1Qi0boOcevXs0rod9CYHhCyK423U=
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Detectar leaves multiples y migraciones faltantes
+        # `makemigrations --check --dry-run` falla si:
+        #   - el grafo tiene multiples leaves (ej. dos PRs ambos con 0011_*)
+        #   - hay cambios en modelos sin migracion correspondiente
+        # Esto habria detectado antes de mergear el incidente del 2026-05-01
+        # (PRs #31 y #32 con 0010_reclamacion vs 0011_sitesettings_tracking_ids
+        # vs 0011_stockitem_provider_expires_at_and_more).
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Aplicar migraciones contra SQLite
+        # Sanity check: el grafo de migraciones aplica de cero sin errores.
+        run: python manage.py migrate --noinput
+
+  tests:
+    name: Tests de Django
+    runs-on: ubuntu-latest
+    env:
+      SECRET_KEY: ci-not-secret
+      DEBUG: "True"
+      DATABASE_URL: sqlite:///db.sqlite3
+      ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+      FIELD_ENCRYPTION_KEY: dQyMEwMZ8Z6oFYw1Qi0boOcevXs0rod9CYHhCyK423U=
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: python manage.py test --noinput -v 2
