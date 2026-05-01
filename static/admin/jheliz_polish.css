@@ -211,10 +211,21 @@ html { scroll-behavior: smooth; }
  * Si el browser no soporta `:has()`, los grupos quedan `display: none`
  * permanente y la barra lateral muestra solo el buscador (vacía).
  *
+ * NOTA importante: el contenedor `#nav-sidebar-apps` tiene `data-simplebar`,
+ * así que SimpleBar (a runtime) inserta wrappers en cascada
+ * `.simplebar-wrapper > .simplebar-mask > .simplebar-offset >
+ *  .simplebar-content-wrapper > .simplebar-content > [grupos originales]`.
+ * Por eso `#nav-sidebar-apps > div` ya NO selecciona los grupos del nav
+ * (selecciona el wrapper de simplebar). Hay que apuntar directamente a
+ * `.simplebar-content > div` y, como fallback, a cualquier `.hidden` dentro
+ * del nav.
+ *
  * Nuestra config en settings.py garantiza que cada grupo tenga `items`,
  * así que forzar `display: block` no muestra grupos vacíos por error.
  * ---------------------------------------------------------------------- */
-#nav-sidebar-apps > div {
+#nav-sidebar-apps > div,
+#nav-sidebar-apps .simplebar-content > div,
+#nav-sidebar-apps div.hidden {
     display: block !important;
 }
 
