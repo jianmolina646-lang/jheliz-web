@@ -1897,6 +1897,7 @@ class StockItemAdminSoldAtTests(TestCase):
         self.assertIsNotNone(stock.sold_at)
 
 
+
 class StockReservationOnOrderItemCreateTests(TestCase):
     """Reserva automática de stock al crear un OrderItem."""
 
@@ -2065,3 +2066,146 @@ class ReleaseStaleReservationsCommandTests(TestCase):
         )
         stock.refresh_from_db()
         self.assertEqual(stock.status, StockItem.Status.RESERVED)
+
+
+class StockBulkActionsTests(TestCase):
+    """Las acciones masivas Marcar Caída / Reactivar del admin de
+    StockItem deben preservar invariantes (limpiar sold_at al
+    reactivar, desvincular OrderItems al caer)."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        self.admin_user = User.objects.create_superuser(
+            username="admin-bulk", password="x", email="bulk@x.com",
+        )
+        self.cat = Category.objects.create(name="C-B", slug="c-b")
+        self.product = Product.objects.create(
+            name="Bulk", slug="bulk", category=self.cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("10.00"), price_distributor=Decimal("8.00"),
+        )
+
+    def _post_action(self, action: str, ids: list[int]):
+        self.client.force_login(self.admin_user)
+        return self.client.post(
+            reverse("admin:catalog_stockitem_changelist"),
+            data={
+                "action": action,
+                "_selected_action": [str(pk) for pk in ids],
+            },
+        )
+
+    def test_mark_available_clears_sold_at(self):
+        stock = StockItem.objects.create(
+            product=self.product, plan=self.plan, credentials="x",
+            status=StockItem.Status.SOLD, sold_at=timezone.now(),
+        )
+        resp = self._post_action("action_mark_available", [stock.pk])
+        self.assertEqual(resp.status_code, 302)
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.AVAILABLE)
+        self.assertIsNone(stock.sold_at)
+
+    def test_mark_defective_unlinks_orderitems(self):
+        # OrderItem con stock vinculado → al marcar el stock como
+        # caído, el OrderItem queda con stock_item=None para que
+        # pueda recibir un reemplazo.
+        stock = StockItem.objects.create(
+            product=self.product, plan=self.plan, credentials="x",
+        )
+        order = Order.objects.create(
+            email="z@y.com", total=Decimal("10.00"),
+            status=Order.Status.PENDING,
+        )
+        item = OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+            stock_item=stock,
+        )
+        # Marcar como caída.
+        resp = self._post_action("action_mark_defective", [stock.pk])
+        self.assertEqual(resp.status_code, 302)
+        stock.refresh_from_db()
+        item.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.DEFECTIVE)
+        self.assertIsNone(item.stock_item_id)
+
+
+class NotifyProviderExpiryCommandTests(TestCase):
+    def setUp(self):
+        self.cat = Category.objects.create(name="C-NP", slug="c-np")
+        self.product = Product.objects.create(
+            name="Provider-Exp", slug="provider-exp", category=self.cat,
+        )
+
+    def test_notifies_3d_window_once(self):
+        from datetime import timedelta
+
+        stock = StockItem.objects.create(
+            product=self.product, credentials="x",
+            provider_expires_at=timezone.now() + timedelta(days=2),
+        )
+        with patch(
+            "catalog.management.commands.notify_provider_expiry.telegram.notify_admin"
+        ) as notify:
+            call_command("notify_provider_expiry", stdout=StringIO())
+            self.assertEqual(notify.call_count, 1)
+            stock.refresh_from_db()
+            self.assertIsNotNone(stock.provider_expiry_3d_notified_at)
+            # Segunda corrida: NO vuelve a alertar (idempotente).
+            call_command("notify_provider_expiry", stdout=StringIO())
+            self.assertEqual(notify.call_count, 1)
+
+    def test_notifies_1d_window_after_3d(self):
+        from datetime import timedelta
+
+        stock = StockItem.objects.create(
+            product=self.product, credentials="x",
+            provider_expires_at=timezone.now() + timedelta(hours=12),
+            provider_expiry_3d_notified_at=timezone.now() - timedelta(days=2),
+        )
+        with patch(
+            "catalog.management.commands.notify_provider_expiry.telegram.notify_admin"
+        ) as notify:
+            call_command("notify_provider_expiry", stdout=StringIO())
+            self.assertEqual(notify.call_count, 1)
+            stock.refresh_from_db()
+            self.assertIsNotNone(stock.provider_expiry_1d_notified_at)
+
+    def test_dry_run_does_not_send(self):
+        from datetime import timedelta
+
+        StockItem.objects.create(
+            product=self.product, credentials="x",
+            provider_expires_at=timezone.now() + timedelta(days=2),
+        )
+        with patch(
+            "catalog.management.commands.notify_provider_expiry.telegram.notify_admin"
+        ) as notify:
+            call_command(
+                "notify_provider_expiry", "--dry-run",
+                stdout=StringIO(),
+            )
+            notify.assert_not_called()
+
+    def test_skips_sold_and_defective(self):
+        from datetime import timedelta
+
+        StockItem.objects.create(
+            product=self.product, credentials="x", status=StockItem.Status.SOLD,
+            provider_expires_at=timezone.now() + timedelta(days=2),
+        )
+        StockItem.objects.create(
+            product=self.product, credentials="y", status=StockItem.Status.DEFECTIVE,
+            provider_expires_at=timezone.now() + timedelta(days=2),
+        )
+        with patch(
+            "catalog.management.commands.notify_provider_expiry.telegram.notify_admin"
+        ) as notify:
+            call_command("notify_provider_expiry", stdout=StringIO())
+            notify.assert_not_called()

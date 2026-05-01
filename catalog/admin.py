@@ -197,10 +197,10 @@ class StockImportForm(forms.Form):
 class StockItemAdmin(ModelAdmin):
     list_display = (
         "product", "plan", "status_badge", "status", "label",
-        "created_at", "sold_at",
+        "created_at", "sold_at", "provider_expires_at",
     )
     list_editable = ("status", "label")
-    list_filter = ("status", "product", "plan")
+    list_filter = ("status", "product", "plan", "provider_expires_at")
     search_fields = ("product__name", "label", "credentials")
     autocomplete_fields = ("product", "plan")
     # `sold_at` queda editable para arreglar manualmente fechas históricas
@@ -253,13 +253,57 @@ class StockItemAdmin(ModelAdmin):
     status_badge.admin_order_field = "status"
 
     def action_mark_defective(self, request, queryset):
-        n = queryset.update(status=StockItem.Status.DEFECTIVE)
-        self.message_user(request, f"{n} stock marcado como caída/reportada.")
+        # Cuando se cae una cuenta, marcarla como DEFECTIVE y desvincular
+        # los OrderItems que la tenían linkeada (RESERVED) para que el
+        # admin pueda recargar stock fresco. Los SOLD se mantienen
+        # vinculados a fines históricos pero igual el ítem queda con la
+        # cuenta caída.
+        affected_orders: list[str] = []
+        n = 0
+        for item in queryset:
+            previous_status = item.status
+            item.status = StockItem.Status.DEFECTIVE
+            item.save(update_fields=["status"])
+            # Avisar de pedidos que dependían de este stock para que el
+            # admin sepa qué tiene que rotar. SOLD queda intacto: es
+            # parte del historial y el cliente ya recibió la cuenta.
+            if previous_status in {
+                StockItem.Status.AVAILABLE,
+                StockItem.Status.RESERVED,
+            }:
+                from orders.models import OrderItem
+
+                linked = list(
+                    OrderItem.objects.filter(stock_item=item)
+                    .select_related("order")
+                )
+                for oi in linked:
+                    affected_orders.append(
+                        f"#{oi.order.short_uuid} ({oi.product_name})"
+                    )
+                # Desvincular para que el flujo de reserva pueda asignar
+                # otro stock disponible si lo hay.
+                OrderItem.objects.filter(stock_item=item).update(stock_item=None)
+            n += 1
+        msg = f"{n} stock marcado como caída/reportada."
+        if affected_orders:
+            msg += (
+                f" Pedidos que tenían esta cuenta y quedaron sin stock: "
+                f"{', '.join(affected_orders)}."
+            )
+        self.message_user(request, msg)
 
     action_mark_defective.short_description = "⚠ Marcar como caída/reportada"
 
     def action_mark_available(self, request, queryset):
-        n = queryset.update(status=StockItem.Status.AVAILABLE)
+        # Reactivar: vuelve a Disponible. Si venía de SOLD (reactivamos
+        # una cuenta que se había marcado vendida por error o que ya
+        # podemos reusar), limpiamos `sold_at` para no contaminar
+        # filtros y reportes históricos.
+        n = queryset.update(
+            status=StockItem.Status.AVAILABLE,
+            sold_at=None,
+        )
         self.message_user(request, f"{n} stock marcado como disponible.")
 
     action_mark_available.short_description = "✓ Marcar como disponible"

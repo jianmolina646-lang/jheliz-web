@@ -21,6 +21,14 @@ Uso::
     python manage.py reconcile_sold_stock              # solo los ya linkeados
     python manage.py reconcile_sold_stock --match-by-credentials
     python manage.py reconcile_sold_stock --dry-run    # no escribe nada
+
+Cron sugerido (semanal, todos los lunes a las 3am)::
+
+    0 3 * * 1  cd /app && /app/.venv/bin/python manage.py reconcile_sold_stock
+
+Es idempotente: si no encuentra inconsistencias, no hace nada. Pensado
+como red de seguridad por si algún flujo manual deja un StockItem en un
+estado raro.
 """
 
 from __future__ import annotations

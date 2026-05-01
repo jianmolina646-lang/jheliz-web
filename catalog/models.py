@@ -301,6 +301,18 @@ class StockItem(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.AVAILABLE)
     created_at = models.DateTimeField(auto_now_add=True)
     sold_at = models.DateTimeField(null=True, blank=True)
+    # Cuándo vence la cuenta en el proveedor (no en el cliente). Sirve
+    # para alertar antes de que se muera la cuenta original y rotarla
+    # con tiempo. El campo es opcional y sólo aplica para cuentas con
+    # vencimiento conocido.
+    provider_expires_at = models.DateTimeField(
+        "Vencimiento en proveedor", null=True, blank=True,
+        help_text="Cuándo vence la cuenta original (no la del cliente).",
+    )
+    # Marcas para evitar mandar el mismo aviso varias veces. Las setea
+    # el management command notify_provider_expiry.
+    provider_expiry_3d_notified_at = models.DateTimeField(null=True, blank=True)
+    provider_expiry_1d_notified_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-created_at",)
@@ -309,6 +321,7 @@ class StockItem(models.Model):
         indexes = [
             models.Index(fields=["product", "status"]),
             models.Index(fields=["plan", "status"]),
+            models.Index(fields=["provider_expires_at"], name="stock_provexp_idx"),
         ]
 
     def __str__(self) -> str:
