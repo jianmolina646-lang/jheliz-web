@@ -139,7 +139,20 @@ DEFAULT_CURRENCY_SYMBOL = "S/"
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Django ≥4.2 reemplaza STATICFILES_STORAGE por la dict STORAGES. En Django 5
+# el legacy STATICFILES_STORAGE es ignorado silenciosamente cuando STORAGES no
+# está definido (Django usa el default StaticFilesStorage sin manifiesto). Por
+# eso definimos STORAGES explícitamente para activar Whitenoise + manifiesto +
+# hashing de filenames (cache busting).
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -178,6 +191,19 @@ TELEGRAM_ADMIN_CHAT_ID = config("TELEGRAM_ADMIN_CHAT_ID", default="")
 SITE_NAME = "Jheliz"
 SITE_TAGLINE = "Netflix, Disney+ y Office en Perú desde S/ 7"
 
+def _hashed_static(path: str) -> str:
+    """Devuelve la URL de un static asset con hash de manifiesto si existe.
+
+    Equivalente a `{% static path %}` en templates. Lo usamos en los lambdas
+    de Unfold STYLES/SCRIPTS para que cada deploy con cambios en el CSS/JS
+    custom genere una URL nueva (ej. `admin/jheliz_polish.abc123.css`),
+    obligando a los browsers a refetchear y bypassear su cache de 1 año.
+    """
+    from django.contrib.staticfiles.storage import staticfiles_storage
+
+    return staticfiles_storage.url(path)
+
+
 # Unfold admin theme
 UNFOLD = {
     "SITE_TITLE": "Jheliz Admin",
@@ -188,17 +214,23 @@ UNFOLD = {
     "SHOW_VIEW_ON_SITE": True,
     "THEME": "dark",
     "BORDER_RADIUS": "12px",
+    # Cargamos los assets custom vía staticfiles_storage.url() para que
+    # CompressedManifestStaticFilesStorage le añada el hash de contenido al
+    # filename (ej. /static/admin/jheliz_polish.abc123.css). Sin el hash, los
+    # browsers cachean cada archivo 1 año (max-age=31536000 que setea whitenoise)
+    # y los usuarios nunca reciben fixes de CSS/JS. Con el hash, cada deploy
+    # con cambios genera una URL nueva que el browser refetchea sí o sí.
     "STYLES": [
-        lambda request: f"{STATIC_URL}admin/jheliz_polish.css",
-        lambda request: f"{STATIC_URL}admin/notifications_bell.css",
+        lambda request: _hashed_static("admin/jheliz_polish.css"),
+        lambda request: _hashed_static("admin/notifications_bell.css"),
     ],
     "SCRIPTS": [
-        lambda request: f"{STATIC_URL}admin/global_search.js",
-        lambda request: f"{STATIC_URL}admin/ticket_templates.js",
-        lambda request: f"{STATIC_URL}admin/fab.js",
-        lambda request: f"{STATIC_URL}admin/toasts.js",
-        lambda request: f"{STATIC_URL}admin/keyboard_shortcuts.js",
-        lambda request: f"{STATIC_URL}admin/notifications_bell.js",
+        lambda request: _hashed_static("admin/global_search.js"),
+        lambda request: _hashed_static("admin/ticket_templates.js"),
+        lambda request: _hashed_static("admin/fab.js"),
+        lambda request: _hashed_static("admin/toasts.js"),
+        lambda request: _hashed_static("admin/keyboard_shortcuts.js"),
+        lambda request: _hashed_static("admin/notifications_bell.js"),
     ],
     "COLORS": {
         "primary": {
