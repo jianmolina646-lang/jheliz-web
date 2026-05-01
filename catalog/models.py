@@ -600,6 +600,24 @@ class SiteSettings(models.Model):
         default="Cuentas premium oficiales: Netflix, Disney+, Spotify, Office y más. Pago Yape o Mercado Pago. Garantía 30 días.",
     )
 
+    # Tracking & analytics
+    ga4_measurement_id = models.CharField(
+        "GA4 Measurement ID", max_length=20, blank=True,
+        help_text="Ej: G-XXXXXXXXXX (de Google Analytics 4 → Admin → Streams).",
+    )
+    meta_pixel_id = models.CharField(
+        "Meta Pixel ID", max_length=20, blank=True,
+        help_text="Ej: 1234567890123456 (de Meta Business → Eventos → Pixels).",
+    )
+    google_ads_id = models.CharField(
+        "Google Ads Conversion ID", max_length=30, blank=True,
+        help_text="Ej: AW-123456789 (opcional, para Google Ads).",
+    )
+    tiktok_pixel_id = models.CharField(
+        "TikTok Pixel ID", max_length=30, blank=True,
+        help_text="Opcional, para retargeting en TikTok.",
+    )
+
     # Operacional
     maintenance_mode = models.BooleanField(
         "Modo mantenimiento", default=False,
@@ -622,6 +640,11 @@ class SiteSettings(models.Model):
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
+        try:
+            from django.core.cache import cache
+            cache.delete("jh_tracking_ids")
+        except Exception:
+            pass
 
     @classmethod
     def load(cls) -> "SiteSettings":

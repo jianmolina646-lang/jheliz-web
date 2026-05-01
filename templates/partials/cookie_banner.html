@@ -1,0 +1,48 @@
+{# Banner de consentimiento de cookies. Persiste la elección 6 meses.
+   Cookie: jh_consent=granted | denied #}
+<div id="jh-cookie-banner" class="hidden fixed bottom-4 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-md z-[80]">
+  <div class="surface rounded-2xl p-5 shadow-2xl border border-white/5">
+    <div class="flex items-start gap-3">
+      <div class="text-2xl">🍪</div>
+      <div class="flex-1">
+        <h3 class="font-display text-sm font-bold text-white">Usamos cookies</h3>
+        <p class="text-xs text-zinc-400 mt-1 leading-relaxed">
+          Usamos cookies esenciales para que la web funcione y, si lo aceptas,
+          de analítica y marketing para mejorarla. Más en
+          <a href="/cookies/" class="underline hover:text-white">Política de Cookies</a>.
+        </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button type="button" data-jh-consent="denied"
+                  class="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition">
+            Solo esenciales
+          </button>
+          <button type="button" data-jh-consent="granted"
+                  class="text-xs px-3 py-1.5 rounded-lg bg-jheliz-500 hover:bg-jheliz-400 text-white font-semibold transition">
+            Aceptar todas
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  function getCookie(n){ var m = document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)')); return m ? decodeURIComponent(m[1]) : null; }
+  function setCookie(n,v,days){
+    var d = new Date(); d.setTime(d.getTime() + days*24*60*60*1000);
+    document.cookie = n+'='+encodeURIComponent(v)+'; expires='+d.toUTCString()+'; path=/; SameSite=Lax';
+  }
+  var banner = document.getElementById('jh-cookie-banner');
+  if (!banner) return;
+  if (!getCookie('jh_consent')) { banner.classList.remove('hidden'); }
+  banner.querySelectorAll('[data-jh-consent]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var v = btn.getAttribute('data-jh-consent');
+      setCookie('jh_consent', v, 180);
+      banner.classList.add('hidden');
+      // Recargar para activar/desactivar pixels según consentimiento.
+      location.reload();
+    });
+  });
+})();
+</script>

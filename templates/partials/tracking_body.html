@@ -1,0 +1,53 @@
+{# Eventos de e-commerce. Las plantillas pueden definir bloques o variables
+   `tracking_event_*` y este partial las dispara al final del body. #}
+
+{% if GA4_ID or META_PIXEL_ID or TIKTOK_PIXEL_ID %}
+<script>
+(function(){
+  if (!window.__jhConsent) return; // Sin consentimiento no disparamos eventos.
+  function gaEvent(name, params){ if (window.gtag) { gtag('event', name, params || {}); } }
+  function fbEvent(name, params){ if (window.fbq) { fbq('track', name, params || {}); } }
+  function ttEvent(name, params){ if (window.ttq) { ttq.track(name, params || {}); } }
+
+  // API global para que las páginas dispararen eventos sin importar el provider
+  window.jhTrack = function(name, params){
+    params = params || {};
+    switch(name) {
+      case 'view_item':
+        gaEvent('view_item', { currency: 'PEN', value: params.value, items: [{
+          item_id: params.id, item_name: params.name, price: params.value,
+          item_category: params.category,
+        }]});
+        fbEvent('ViewContent', { content_ids: [params.id], content_name: params.name, content_type: 'product', value: params.value, currency: 'PEN' });
+        ttEvent('ViewContent', { content_id: params.id, content_name: params.name, value: params.value, currency: 'PEN' });
+        break;
+      case 'add_to_cart':
+        gaEvent('add_to_cart', { currency: 'PEN', value: params.value, items: [{
+          item_id: params.id, item_name: params.name, price: params.value, quantity: params.quantity || 1,
+        }]});
+        fbEvent('AddToCart', { content_ids: [params.id], content_name: params.name, value: params.value, currency: 'PEN' });
+        ttEvent('AddToCart', { content_id: params.id, content_name: params.name, value: params.value, currency: 'PEN' });
+        break;
+      case 'begin_checkout':
+        gaEvent('begin_checkout', { currency: 'PEN', value: params.value });
+        fbEvent('InitiateCheckout', { value: params.value, currency: 'PEN', num_items: params.items || 1 });
+        ttEvent('InitiateCheckout', { value: params.value, currency: 'PEN' });
+        break;
+      case 'purchase':
+        gaEvent('purchase', { transaction_id: params.id, currency: 'PEN', value: params.value });
+        fbEvent('Purchase', { value: params.value, currency: 'PEN' });
+        ttEvent('CompletePayment', { value: params.value, currency: 'PEN' });
+        break;
+      case 'lead':
+        gaEvent('generate_lead', { value: params.value || 0 });
+        fbEvent('Lead');
+        ttEvent('SubmitForm');
+        break;
+    }
+  };
+})();
+</script>
+
+{# Eventos específicos de la página actual #}
+{% block tracking_events %}{% endblock %}
+{% endif %}

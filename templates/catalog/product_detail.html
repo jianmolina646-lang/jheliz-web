@@ -271,3 +271,16 @@
   {% endif %}
 </section>
 {% endblock %}
+
+{% block tracking_events %}
+<script>
+  if (window.jhTrack) {
+    jhTrack('view_item', {
+      id: '{{ product.id }}',
+      name: '{{ product.name|escapejs }}',
+      value: {{ product.plans.first.price_customer|default:0 }},
+      category: '{{ product.category.name|default:""|escapejs }}'
+    });
+  }
+</script>
+{% endblock %}
