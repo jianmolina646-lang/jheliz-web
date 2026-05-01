@@ -12,12 +12,41 @@ as a broken image for anonymous buyers.
 
 from __future__ import annotations
 
+import mimetypes
 import os
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.http import FileResponse, Http404
+from django.views.decorators.cache import cache_control
+
+
+_IMAGE_EXTENSIONS = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
+    ".svg": "image/svg+xml",
+}
+
+
+def _guess_content_type(target: Path) -> str:
+    """Best content type for ``target``.
+
+    Mobile browsers (and our ``X-Content-Type-Options: nosniff`` header)
+    refuse to render bytes served as ``application/octet-stream``. Always
+    return a real ``image/*`` type for known extensions and fall back to
+    ``image/png`` for anything else under ``payments/``.
+    """
+    ext = target.suffix.lower()
+    if ext in _IMAGE_EXTENSIONS:
+        return _IMAGE_EXTENSIONS[ext]
+    guessed, _ = mimetypes.guess_type(str(target))
+    return guessed or "image/png"
 
 
 def _safe_join(base: Path, rel: str) -> Path | None:
@@ -35,7 +64,14 @@ def _serve_under(subdir: str, rel_path: str) -> FileResponse:
     target = _safe_join(base, rel_path)
     if target is None or not target.is_file():
         raise Http404
-    return FileResponse(open(target, "rb"))
+    response = FileResponse(
+        open(target, "rb"),
+        content_type=_guess_content_type(target),
+    )
+    # Inline display so mobile browsers render the image instead of
+    # offering a download.
+    response["Content-Disposition"] = f'inline; filename="{target.name}"'
+    return response
 
 
 @login_required
@@ -45,6 +81,7 @@ def serve_payment_proof(request, path: str):
     return _serve_under(os.path.join("payments", "proofs"), path)
 
 
+@cache_control(public=True, max_age=600)
 def serve_yape_qr(request, path: str):
     """Merchant Yape QR shown to every buyer (incl. guest checkouts)."""
     return _serve_under(os.path.join("payments", "yape"), path)

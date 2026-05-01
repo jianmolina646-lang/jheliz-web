@@ -23,8 +23,33 @@
       <h2 class="text-lg font-bold">1. Escanea el QR</h2>
       <p class="text-white/60 text-sm mt-1">Abre tu app Yape → Escanea QR</p>
       {% if settings.yape_qr %}
-      <div class="mt-4 bg-white rounded-2xl p-4 inline-block">
-        <img src="{{ settings.yape_qr.url }}" alt="QR Yape Jheliz" class="w-64 h-64 object-contain">
+      <div class="mt-4 bg-white rounded-2xl p-4 inline-block" id="yape-qr-wrapper">
+        <img
+          src="{{ settings.yape_qr.url }}"
+          alt="QR Yape Jheliz"
+          class="w-64 h-64 object-contain"
+          loading="eager"
+          decoding="async"
+          referrerpolicy="same-origin"
+          onerror="document.getElementById('yape-qr-wrapper').classList.add('hidden'); document.getElementById('yape-qr-fallback').classList.remove('hidden');"
+        >
+      </div>
+      <div id="yape-qr-fallback" class="hidden mt-4 rounded-2xl border border-white/15 bg-black/30 p-5 text-left text-sm space-y-3">
+        <p class="text-white/80">
+          No pudimos cargar la imagen del QR en este dispositivo. Puedes pagar
+          de cualquier forma con los datos de abajo:
+        </p>
+        {% if settings.yape_holder_name %}
+        <p><span class="text-white/60">Titular:</span> <strong>{{ settings.yape_holder_name }}</strong></p>
+        {% endif %}
+        {% if settings.yape_phone %}
+        <p><span class="text-white/60">Número Yape:</span> <strong>{{ settings.yape_phone }}</strong></p>
+        {% endif %}
+        <p>
+          <a href="{{ settings.yape_qr.url }}" target="_blank" rel="noopener" class="underline text-fuchsia-300">
+            Abrir QR en una pestaña nueva
+          </a>
+        </p>
       </div>
       {% endif %}
       <div class="mt-4 text-sm space-y-1">
