@@ -120,15 +120,25 @@ class DeliverCredentialsForm(forms.Form):
                 widget=forms.HiddenInput(attrs={"id": f"id_{stock_name}"}),
             )
             # Stocks disponibles para este item: mismo producto, plan
-            # exacto o stock genérico (plan=None).
-            stocks = list(
+            # exacto o stock genérico (plan=None). Incluye también la
+            # reserva ya vinculada al item (si existe), para que el
+            # admin pueda confirmar la entrega con un click sin tener
+            # que volver a buscarla en el pool.
+            stocks_qs = (
                 StockItem.objects.filter(
                     product_id=item.product_id,
                     status=StockItem.Status.AVAILABLE,
                 )
                 .filter(models.Q(plan_id=item.plan_id) | models.Q(plan__isnull=True))
+            )
+            reserved_qs = StockItem.objects.filter(
+                pk=item.stock_item_id,
+                status=StockItem.Status.RESERVED,
+            ) if item.stock_item_id else StockItem.objects.none()
+            stocks = list(
+                (stocks_qs | reserved_qs)
                 .select_related("plan")
-                .order_by("created_at")[:10]
+                .order_by("-status", "created_at")[:10]
             )
             self.items_data.append({
                 "item": item,
@@ -593,9 +603,18 @@ class OrderAdmin(ExportMixin, ModelAdmin):
                         # como vendido y vincularlo al item.
                         stock_id = form.cleaned_data.get(f"stock_used_{item.pk}")
                         if stock_id:
+                            # Aceptamos AVAILABLE (caso clásico) o
+                            # RESERVED (cuando ya estaba pre-reservado
+                            # al crear el pedido).
                             stock = (
                                 StockItem.objects.select_for_update()
-                                .filter(pk=stock_id, status=StockItem.Status.AVAILABLE)
+                                .filter(
+                                    pk=stock_id,
+                                    status__in=[
+                                        StockItem.Status.AVAILABLE,
+                                        StockItem.Status.RESERVED,
+                                    ],
+                                )
                                 .first()
                             )
                             if stock is not None:
