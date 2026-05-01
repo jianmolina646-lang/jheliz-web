@@ -1423,3 +1423,250 @@ class ReminderRunLogTests(TestCase):
         # Sólo hay un run dry-run → tratamos el panel como "sin runs reales".
         rs = _reminder_status(self.RRL, timezone.now())
         self.assertFalse(rs["has_runs"])
+
+
+# --- Auto-entrega para distribuidores ----------------------------------------
+
+
+class AutoDeliverDistributorTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        self.distri = User.objects.create_user(
+            username="auto-distri",
+            password="x",
+            email="auto-distri@example.com",
+            role="distribuidor",
+            distributor_approved=True,
+        )
+        self.cliente = User.objects.create_user(
+            username="auto-cli",
+            password="x",
+            email="auto-cli@example.com",
+            role="cliente",
+        )
+        self.cat = Category.objects.create(name="Streaming-Auto", slug="streaming-auto")
+        self.product_max = Product.objects.create(
+            name="Max", slug="max-auto", category=self.cat,
+        )
+        self.plan_max = Plan.objects.create(
+            product=self.product_max, name="1 mes (mayorista)",
+            duration_days=30,
+            price_customer=Decimal("15.00"),
+            price_distributor=Decimal("10.00"),
+        )
+        self.product_prime = Product.objects.create(
+            name="Prime", slug="prime-auto", category=self.cat,
+        )
+        self.plan_prime = Plan.objects.create(
+            product=self.product_prime, name="1 mes (mayorista)",
+            duration_days=30,
+            price_customer=Decimal("12.00"),
+            price_distributor=Decimal("8.00"),
+        )
+
+    def _make_distributor_order(self):
+        order = Order.objects.create(
+            user=self.distri, email=self.distri.email,
+            total=Decimal("18.00"), status=Order.Status.VERIFYING,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product_max, plan=self.plan_max,
+            product_name=self.product_max.name, plan_name=self.plan_max.name,
+            unit_price=self.plan_max.price_distributor, quantity=1,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product_prime, plan=self.plan_prime,
+            product_name=self.product_prime.name, plan_name=self.plan_prime.name,
+            unit_price=self.plan_prime.price_distributor, quantity=1,
+        )
+        return order
+
+    def test_auto_delivers_when_stock_available(self):
+        from orders.auto_delivery import auto_deliver_distributor_order
+
+        StockItem.objects.create(
+            product=self.product_max, plan=self.plan_max,
+            credentials="Correo: max@x.com\nContraseña: maxpass",
+        )
+        StockItem.objects.create(
+            product=self.product_prime, plan=self.plan_prime,
+            credentials="Correo: prime@x.com\nContraseña: primepass",
+        )
+        order = self._make_distributor_order()
+
+        delivered, missing = auto_deliver_distributor_order(order)
+
+        self.assertTrue(delivered)
+        self.assertEqual(missing, [])
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.DELIVERED)
+        self.assertIsNotNone(order.delivered_at)
+        for item in order.items.all():
+            self.assertIsNotNone(item.stock_item_id)
+            item.stock_item.refresh_from_db()
+            self.assertEqual(item.stock_item.status, StockItem.Status.SOLD)
+            self.assertIsNotNone(item.stock_item.sold_at)
+            self.assertIn("Correo:", item.delivered_credentials)
+
+    def test_no_op_when_user_is_customer(self):
+        from orders.auto_delivery import auto_deliver_distributor_order
+
+        StockItem.objects.create(
+            product=self.product_max, plan=self.plan_max,
+            credentials="Correo: max@x.com\nContraseña: maxpass",
+        )
+        order = Order.objects.create(
+            user=self.cliente, email=self.cliente.email,
+            total=Decimal("15.00"), status=Order.Status.PREPARING,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product_max, plan=self.plan_max,
+            product_name=self.product_max.name, plan_name=self.plan_max.name,
+            unit_price=self.plan_max.price_customer, quantity=1,
+        )
+
+        delivered, missing = auto_deliver_distributor_order(order)
+
+        self.assertFalse(delivered)
+        self.assertEqual(missing, [])
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PREPARING)
+        # El stock sigue Disponible — no se debe haber tocado.
+        stock = StockItem.objects.filter(product=self.product_max).get()
+        self.assertEqual(stock.status, StockItem.Status.AVAILABLE)
+
+    def test_leaves_order_pending_when_one_item_lacks_stock(self):
+        from orders.auto_delivery import auto_deliver_distributor_order
+
+        # Solo carga stock para Max — Prime queda sin stock.
+        StockItem.objects.create(
+            product=self.product_max, plan=self.plan_max,
+            credentials="Correo: max@x.com\nContraseña: maxpass",
+        )
+        order = self._make_distributor_order()
+        order.status = Order.Status.PREPARING
+        order.save(update_fields=["status"])
+
+        with patch("orders.auto_delivery.telegram.notify_admin") as notify:
+            delivered, missing = auto_deliver_distributor_order(order)
+
+        self.assertFalse(delivered)
+        self.assertEqual(len(missing), 1)
+        self.assertIn("Prime", missing[0])
+        order.refresh_from_db()
+        # No se entregó: el pedido sigue en PREPARING y el stock de Max
+        # NO debe haberse marcado como vendido (atomicidad).
+        self.assertEqual(order.status, Order.Status.PREPARING)
+        max_stock = StockItem.objects.get(product=self.product_max)
+        self.assertEqual(max_stock.status, StockItem.Status.AVAILABLE)
+        notify.assert_called_once()
+
+    def test_picks_distinct_stock_for_two_items_of_same_product(self):
+        from orders.auto_delivery import auto_deliver_distributor_order
+
+        StockItem.objects.create(
+            product=self.product_max, plan=self.plan_max,
+            credentials="Correo: a@x.com\nContraseña: a",
+        )
+        StockItem.objects.create(
+            product=self.product_max, plan=self.plan_max,
+            credentials="Correo: b@x.com\nContraseña: b",
+        )
+        order = Order.objects.create(
+            user=self.distri, email=self.distri.email,
+            total=Decimal("20.00"), status=Order.Status.PREPARING,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product_max, plan=self.plan_max,
+            product_name=self.product_max.name, plan_name=self.plan_max.name,
+            unit_price=self.plan_max.price_distributor, quantity=1,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product_max, plan=self.plan_max,
+            product_name=self.product_max.name, plan_name=self.plan_max.name,
+            unit_price=self.plan_max.price_distributor, quantity=1,
+        )
+
+        delivered, missing = auto_deliver_distributor_order(order)
+
+        self.assertTrue(delivered)
+        ids = list(order.items.values_list("stock_item_id", flat=True))
+        self.assertEqual(len(set(ids)), 2, "Cada item debe tener un stock distinto")
+
+
+class ReconcileSoldStockTests(TestCase):
+    def setUp(self):
+        cat = Category.objects.create(name="Streaming-R", slug="streaming-r")
+        self.product = Product.objects.create(
+            name="Disney", slug="disney-r", category=cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("10.00"), price_distributor=Decimal("8.00"),
+        )
+
+    def _delivered_order_with_stock(self, stock_status, link=True, creds="X: 1"):
+        stock = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials=creds, status=stock_status,
+        )
+        order = Order.objects.create(
+            email="x@y.com", total=Decimal("10.00"),
+            status=Order.Status.DELIVERED,
+            delivered_at=timezone.now(),
+        )
+        item = OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+            delivered_credentials=creds,
+            stock_item=stock if link else None,
+        )
+        return order, item, stock
+
+    def test_marks_linked_stock_as_sold(self):
+        _, _, stock = self._delivered_order_with_stock(
+            StockItem.Status.AVAILABLE, link=True,
+        )
+        out = StringIO()
+        call_command("reconcile_sold_stock", stdout=out)
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.SOLD)
+        self.assertIsNotNone(stock.sold_at)
+
+    def test_dry_run_does_not_write(self):
+        _, _, stock = self._delivered_order_with_stock(
+            StockItem.Status.AVAILABLE, link=True,
+        )
+        call_command("reconcile_sold_stock", "--dry-run", stdout=StringIO())
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.AVAILABLE)
+
+    def test_match_by_credentials_links_orphan_item(self):
+        # OrderItem sin stock_item, pero las credenciales coinciden con
+        # un StockItem AVAILABLE del mismo producto.
+        order = Order.objects.create(
+            email="x@y.com", total=Decimal("10.00"),
+            status=Order.Status.DELIVERED,
+            delivered_at=timezone.now(),
+        )
+        creds = "Correo: foo@bar.com\nContraseña: bar"
+        OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+            delivered_credentials=creds,
+        )
+        stock = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials=creds, status=StockItem.Status.AVAILABLE,
+        )
+
+        call_command("reconcile_sold_stock", "--match-by-credentials", stdout=StringIO())
+
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.SOLD)
+        item = order.items.get()
+        self.assertEqual(item.stock_item_id, stock.pk)

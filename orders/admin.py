@@ -420,12 +420,31 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         order.paid_at = order.paid_at or timezone.now()
         order.payment_rejection_reason = ""
         order.save(update_fields=["status", "paid_at", "payment_rejection_reason"])
+        from .auto_delivery import auto_deliver_distributor_order
+
+        delivered, missing = auto_deliver_distributor_order(order)
+        if delivered:
+            self.message_user(
+                request,
+                f"Pago Yape confirmado y cuenta entregada autom\u00e1ticamente "
+                f"al distribuidor de #{order.short_uuid}. Stock descontado.",
+                level=messages.SUCCESS,
+            )
+            return redirect("admin:orders_order_changelist")
         emails.send_order_preparing(order)
-        self.message_user(
-            request,
-            f"Pago Yape confirmado para #{order.short_uuid}. Se notificó al cliente.",
-            level=messages.SUCCESS,
-        )
+        if missing:
+            self.message_user(
+                request,
+                f"Pago Yape confirmado para #{order.short_uuid}, pero falta stock "
+                f"para: {', '.join(missing)}. Carg\u00e1 stock o entreg\u00e1 manual.",
+                level=messages.WARNING,
+            )
+        else:
+            self.message_user(
+                request,
+                f"Pago Yape confirmado para #{order.short_uuid}. Se notific\u00f3 al cliente.",
+                level=messages.SUCCESS,
+            )
         return redirect("admin:orders_order_deliver", pk=order.pk)
 
     def reject_yape_view(self, request, pk: int):
@@ -535,12 +554,24 @@ class OrderAdmin(ExportMixin, ModelAdmin):
 
     @admin.action(description="Marcar como En preparación")
     def mark_preparing(self, request, queryset):
+        from .auto_delivery import auto_deliver_distributor_order
+
         count = 0
+        auto_delivered = 0
         for order in queryset:
             order.status = Order.Status.PREPARING
             order.save(update_fields=["status"])
+            delivered, _missing = auto_deliver_distributor_order(order)
+            if delivered:
+                auto_delivered += 1
             count += 1
-        self.message_user(request, f"{count} pedidos marcados como en preparación.")
+        msg = f"{count} pedidos marcados como en preparaci\u00f3n."
+        if auto_delivered:
+            msg += (
+                f" {auto_delivered} de distribuidor entregado(s) "
+                "autom\u00e1ticamente con stock descontado."
+            )
+        self.message_user(request, msg)
 
     @admin.action(description="Marcar como Entregado")
     def mark_delivered(self, request, queryset):
@@ -554,8 +585,11 @@ class OrderAdmin(ExportMixin, ModelAdmin):
 
     @admin.action(description="✅ Confirmar pago Yape → En preparación")
     def confirm_yape_payment(self, request, queryset):
+        from .auto_delivery import auto_deliver_distributor_order
+
         now = timezone.now()
         updated = 0
+        auto_delivered = 0
         skipped = 0
         for order in queryset:
             if order.payment_provider != "yape":
@@ -568,14 +602,20 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             order.paid_at = order.paid_at or now
             order.payment_rejection_reason = ""
             order.save(update_fields=["status", "paid_at", "payment_rejection_reason"])
-            emails.send_order_preparing(order)
+            delivered, _missing = auto_deliver_distributor_order(order)
+            if delivered:
+                auto_delivered += 1
+            else:
+                emails.send_order_preparing(order)
             updated += 1
         if updated:
-            self.message_user(
-                request,
-                f"{updated} pago(s) Yape confirmado(s). Se envió email al cliente.",
-                level=messages.SUCCESS,
-            )
+            msg = f"{updated} pago(s) Yape confirmado(s). Se envi\u00f3 email al cliente."
+            if auto_delivered:
+                msg += (
+                    f" {auto_delivered} pedido(s) de distribuidor entregado(s) "
+                    "autom\u00e1ticamente con stock descontado."
+                )
+            self.message_user(request, msg, level=messages.SUCCESS)
         if skipped:
             self.message_user(
                 request,
