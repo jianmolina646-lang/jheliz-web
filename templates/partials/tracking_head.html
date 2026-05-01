@@ -1,6 +1,8 @@
-{# Scripts de tracking en <head>. Se cargan SOLO si el usuario ha aceptado
+{% comment %}
+   Scripts de tracking en <head>. Se cargan SOLO si el usuario ha aceptado
    las cookies de analytics/marketing (jh_consent=granted). El consent
-   manager está en cookie_banner.html. #}
+   manager está en cookie_banner.html.
+{% endcomment %}
 
 {% if GA4_ID or META_PIXEL_ID or GOOGLE_ADS_ID or TIKTOK_PIXEL_ID %}
 <script>
