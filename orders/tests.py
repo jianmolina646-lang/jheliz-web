@@ -1670,3 +1670,218 @@ class ReconcileSoldStockTests(TestCase):
         self.assertEqual(stock.status, StockItem.Status.SOLD)
         item = order.items.get()
         self.assertEqual(item.stock_item_id, stock.pk)
+
+
+class AutoDeliverNoDoubleEmailTests(TestCase):
+    """Verifies the doble-email fix: when a distributor's order is
+    auto-delivered, only the 'order_delivered' email is sent — no
+    'order_preparing' email leaks through the PREPARING transition.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        self.distri = User.objects.create_user(
+            username="d2",
+            password="x",
+            email="d2@example.com",
+            role="distribuidor",
+            distributor_approved=True,
+        )
+        self.cliente = User.objects.create_user(
+            username="c2",
+            password="x",
+            email="c2@example.com",
+            role="cliente",
+        )
+        self.cat = Category.objects.create(name="Streaming-D2", slug="streaming-d2")
+        self.product = Product.objects.create(
+            name="HBO Max-D2", slug="max-d2", category=self.cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes (mayorista)",
+            duration_days=30,
+            price_customer=Decimal("15.00"),
+            price_distributor=Decimal("10.00"),
+        )
+
+    def _make_order(self, *, user, status, with_proof=False):
+        order = Order.objects.create(
+            user=user, email=user.email,
+            total=Decimal("10.00"), status=status,
+            payment_provider="yape" if with_proof else "",
+            payment_proof="proofs/x.jpg" if with_proof else "",
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_distributor, quantity=1,
+        )
+        return order
+
+    def test_distributor_with_stock_only_gets_delivered_email(self):
+        from orders.auto_delivery import auto_deliver_distributor_order
+
+        StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: a@x.com\nContraseña: a",
+        )
+        order = self._make_order(user=self.distri, status=Order.Status.VERIFYING)
+        mail.outbox = []
+        delivered, missing = auto_deliver_distributor_order(order)
+        self.assertTrue(delivered)
+        self.assertEqual(missing, [])
+        # Ningún correo "Estamos preparando" debe haberse enviado.
+        subjects = [m.subject for m in mail.outbox]
+        self.assertFalse(
+            any("preparando" in s.lower() for s in subjects),
+            f"Se filtró un email de PREPARING: {subjects}",
+        )
+        # Pero sí debe haber un correo de entrega.
+        self.assertTrue(
+            any("listo" in s.lower() or "entregado" in s.lower() for s in subjects),
+            f"No se envió email de entrega: {subjects}",
+        )
+
+    def test_paid_at_argument_is_set_when_provided(self):
+        from orders.auto_delivery import auto_deliver_distributor_order
+        from django.utils import timezone as tz
+        from datetime import timedelta
+
+        StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: a@x.com\nContraseña: a",
+        )
+        order = self._make_order(user=self.distri, status=Order.Status.VERIFYING)
+        before = tz.now() - timedelta(hours=1)
+        delivered, _ = auto_deliver_distributor_order(order, paid_at=before)
+        self.assertTrue(delivered)
+        order.refresh_from_db()
+        self.assertEqual(order.paid_at, before)
+
+    def test_confirm_yape_view_distributor_only_one_email(self):
+        StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: a@x.com\nContraseña: a",
+        )
+        order = self._make_order(
+            user=self.distri, status=Order.Status.VERIFYING, with_proof=True,
+        )
+        # Login as superuser to access the admin view.
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        admin_user = User.objects.create_superuser(
+            username="admin-test", password="x", email="admin@x.com",
+        )
+        self.client.force_login(admin_user)
+        mail.outbox = []
+        url = reverse("admin:orders_order_confirm_yape", args=[order.pk])
+        resp = self.client.get(url)
+        self.assertIn(resp.status_code, (302, 303))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.DELIVERED)
+        # Verifica: 1 email (entrega), 0 emails de "preparando".
+        preparing_count = sum(
+            1 for m in mail.outbox if "preparando" in m.subject.lower()
+        )
+        self.assertEqual(
+            preparing_count, 0,
+            f"No debe enviarse email de PREPARING. Subjects: {[m.subject for m in mail.outbox]}",
+        )
+
+    def test_confirm_yape_view_customer_one_email_only(self):
+        # Cliente final: NO se descuenta stock automático, va a PREPARING,
+        # signal manda 1 solo email de "preparando" (no se duplicó).
+        order = self._make_order(
+            user=self.cliente, status=Order.Status.VERIFYING, with_proof=True,
+        )
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        admin_user = User.objects.create_superuser(
+            username="admin-test2", password="x", email="admin2@x.com",
+        )
+        self.client.force_login(admin_user)
+        mail.outbox = []
+        url = reverse("admin:orders_order_confirm_yape", args=[order.pk])
+        resp = self.client.get(url)
+        self.assertIn(resp.status_code, (302, 303))
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PREPARING)
+        preparing_count = sum(
+            1 for m in mail.outbox if "preparando" in m.subject.lower()
+        )
+        self.assertEqual(
+            preparing_count, 1,
+            f"Cliente final debe recibir exactamente 1 email PREPARING. "
+            f"Subjects: {[m.subject for m in mail.outbox]}",
+        )
+
+
+class CredentialsParseProfilePinTests(TestCase):
+    def test_parses_perfil_and_pin_lines(self):
+        from orders.credentials import parse_profile_pin, split_account_extras
+
+        text = (
+            "Correo: foo@bar.com\n"
+            "Contraseña: secret\n"
+            "Perfil: Saldoya\n"
+            "PIN: 1234\n"
+        )
+        profile, pin = parse_profile_pin(text)
+        self.assertEqual(profile, "Saldoya")
+        self.assertEqual(pin, "1234")
+
+        account, profile, pin = split_account_extras(text)
+        self.assertIn("Correo:", account)
+        self.assertIn("Contraseña:", account)
+        self.assertNotIn("Perfil:", account)
+        self.assertNotIn("PIN:", account)
+        self.assertEqual(profile, "Saldoya")
+        self.assertEqual(pin, "1234")
+
+    def test_missing_perfil_pin_returns_empty(self):
+        from orders.credentials import parse_profile_pin
+
+        profile, pin = parse_profile_pin("Correo: x@y.com\nContraseña: pass")
+        self.assertEqual(profile, "")
+        self.assertEqual(pin, "")
+
+
+class StockItemAdminSoldAtTests(TestCase):
+    """Cuando el admin marca un stock como Vendida desde el form, si
+    `sold_at` estaba vacío, debe setearse automáticamente al timestamp
+    actual. Esto cubre el caso de reconciliación manual de ventas
+    históricas."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        self.admin_user = User.objects.create_superuser(
+            username="admin-stock", password="x", email="adm@x.com",
+        )
+        self.cat = Category.objects.create(name="C-S", slug="c-s")
+        self.product = Product.objects.create(
+            name="P", slug="p", category=self.cat,
+        )
+
+    def test_sold_at_auto_set_when_marking_sold(self):
+        stock = StockItem.objects.create(
+            product=self.product, status=StockItem.Status.AVAILABLE,
+            credentials="x",
+        )
+        self.assertIsNone(stock.sold_at)
+        self.client.force_login(self.admin_user)
+        url = reverse("admin:catalog_stockitem_change", args=[stock.pk])
+        resp = self.client.post(url, {
+            "product": str(self.product.pk),
+            "status": StockItem.Status.SOLD,
+            "credentials": "x",
+            "label": "",
+            "_save": "Save",
+        })
+        self.assertIn(resp.status_code, (200, 302, 303))
+        stock.refresh_from_db()
+        self.assertEqual(stock.status, StockItem.Status.SOLD)
+        self.assertIsNotNone(stock.sold_at)

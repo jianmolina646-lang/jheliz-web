@@ -760,6 +760,19 @@ def stock_list(request):
     page_number = request.GET.get("page") or 1
     page_obj = paginator.get_page(page_number)
 
+    # Decoramos cada item con (cuenta, perfil, pin) parseados desde
+    # `credentials` para mostrarlos en columnas separadas en la vista
+    # moderna de "Stock — Cuentas".
+    from orders.credentials import split_account_extras
+
+    decorated_items = []
+    for item in page_obj.object_list:
+        account_text, profile, pin = split_account_extras(item.credentials or "")
+        item.account_text = account_text
+        item.profile_text = profile
+        item.pin_text = pin
+        decorated_items.append(item)
+
     def _qs_for(page: int) -> str:
         params = {}
         if status and status != "all":
@@ -774,7 +787,7 @@ def stock_list(request):
     ctx = _admin_context(
         request,
         title="Stock — Cuentas",
-        items=page_obj.object_list,
+        items=decorated_items,
         page_obj=page_obj,
         paginator=paginator,
         querystring_prev=_qs_for(page_obj.previous_page_number()) if page_obj.has_previous() else "",

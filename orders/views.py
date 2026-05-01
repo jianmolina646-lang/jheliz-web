@@ -515,15 +515,20 @@ def _apply_payment_status(order: Order, status: str, payment_id: str) -> None:
     order.payment_reference = str(payment_id)
 
     if status == "approved" and order.status != Order.Status.DELIVERED:
-        order.status = Order.Status.PREPARING
-        order.paid_at = now
-        update_fields += ["status", "paid_at"]
+        # Persistimos primero el payment_reference para que la auto-entrega
+        # tenga el dato fresco en el pedido.
         order.save(update_fields=update_fields)
         from .auto_delivery import auto_deliver_distributor_order
 
-        delivered, _missing = auto_deliver_distributor_order(order)
-        if not delivered:
-            emails.send_order_preparing(order)
+        # Distribuidor con stock: pasa directo a DELIVERED (un solo email
+        # de entrega). Cliente final o sin stock: cae al fallback de
+        # PREPARING que dispara el correo "Estamos preparando".
+        delivered, _missing = auto_deliver_distributor_order(order, paid_at=now)
+        if delivered:
+            return
+        order.status = Order.Status.PREPARING
+        order.paid_at = now
+        order.save(update_fields=["status", "paid_at"])
         return
 
     if status in {"pending", "in_process", "authorized"}:
