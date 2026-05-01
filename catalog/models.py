@@ -636,3 +636,129 @@ class SiteSettings(models.Model):
             return ""
         msg = quote(self.whatsapp_message or "")
         return f"https://wa.me/{self.whatsapp_number}?text={msg}"
+
+
+class Reclamacion(models.Model):
+    """Libro de Reclamaciones digital obligatorio por Indecopi (D.S. 011-2011-PCM).
+
+    Cada entrada queda inmutable, con número correlativo automático y fecha.
+    El proveedor tiene 30 días calendario para responder. El cliente recibe
+    copia por email y nosotros vemos el listado en el admin.
+    """
+
+    class TipoBien(models.TextChoices):
+        PRODUCTO = "producto", "Producto"
+        SERVICIO = "servicio", "Servicio"
+
+    class TipoReclamo(models.TextChoices):
+        RECLAMO = "reclamo", "Reclamo (disconformidad con producto/servicio)"
+        QUEJA = "queja", "Queja (disconformidad con la atención)"
+
+    class Estado(models.TextChoices):
+        RECIBIDO = "recibido", "Recibido"
+        EN_REVISION = "en_revision", "En revisión"
+        RESPONDIDO = "respondido", "Respondido"
+        CERRADO = "cerrado", "Cerrado"
+
+    # Correlativo único (formato: AAAA-NNNN)
+    numero = models.CharField(
+        "Número de reclamación", max_length=20, unique=True, blank=True,
+    )
+
+    # Datos del consumidor (Indecopi obliga a estos)
+    nombre = models.CharField("Nombre completo", max_length=160)
+    documento_tipo = models.CharField(
+        "Tipo de documento", max_length=10, default="DNI",
+        choices=(("DNI", "DNI"), ("CE", "Carné de extranjería"), ("PAS", "Pasaporte")),
+    )
+    documento_numero = models.CharField("Número de documento", max_length=20)
+    domicilio = models.CharField("Domicilio", max_length=200, blank=True)
+    telefono = models.CharField("Teléfono", max_length=30)
+    email = models.EmailField("Correo electrónico")
+
+    # Si es menor de edad
+    es_menor = models.BooleanField("Soy menor de edad", default=False)
+    padre_nombre = models.CharField(
+        "Nombre del padre / madre / representante", max_length=160, blank=True,
+    )
+    padre_documento = models.CharField(
+        "Documento del representante", max_length=20, blank=True,
+    )
+
+    # Datos del bien contratado
+    tipo_bien = models.CharField(
+        "Tipo de bien", max_length=10, choices=TipoBien.choices,
+        default=TipoBien.PRODUCTO,
+    )
+    monto = models.DecimalField(
+        "Monto reclamado (S/)", max_digits=10, decimal_places=2,
+        null=True, blank=True,
+    )
+    descripcion_bien = models.CharField(
+        "Descripción del producto / servicio", max_length=300,
+    )
+    pedido_referencia = models.CharField(
+        "N° de pedido (si aplica)", max_length=50, blank=True,
+    )
+
+    # Detalle del reclamo
+    tipo = models.CharField(
+        "Tipo", max_length=10, choices=TipoReclamo.choices,
+    )
+    detalle = models.TextField("Detalle del reclamo / queja")
+    pedido_consumidor = models.TextField(
+        "Pedido del consumidor",
+        help_text="¿Qué solicita el consumidor para resolver el caso?",
+    )
+
+    # Estado interno (admin)
+    estado = models.CharField(
+        "Estado", max_length=20, choices=Estado.choices,
+        default=Estado.RECIBIDO,
+    )
+    respuesta = models.TextField("Respuesta del proveedor", blank=True)
+    respondido_en = models.DateTimeField("Fecha de respuesta", null=True, blank=True)
+
+    # Auditoría
+    ip_address = models.GenericIPAddressField("IP del cliente", null=True, blank=True)
+    user_agent = models.CharField("User agent", max_length=300, blank=True)
+    created_at = models.DateTimeField("Fecha de presentación", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Reclamación (Libro Indecopi)"
+        verbose_name_plural = "Libro de Reclamaciones (Indecopi)"
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return f"{self.numero} — {self.nombre}"
+
+    def save(self, *args, **kwargs):
+        if not self.numero:
+            from django.utils import timezone
+            year = timezone.now().year
+            last = (
+                Reclamacion.objects
+                .filter(numero__startswith=f"{year}-")
+                .order_by("-numero")
+                .first()
+            )
+            if last and last.numero:
+                try:
+                    n = int(last.numero.split("-")[1]) + 1
+                except (ValueError, IndexError):
+                    n = 1
+            else:
+                n = 1
+            self.numero = f"{year}-{n:04d}"
+        super().save(*args, **kwargs)
+
+    @property
+    def vence_at(self):
+        """Fecha límite de respuesta (30 días calendario por Indecopi)."""
+        from datetime import timedelta
+        return self.created_at + timedelta(days=30)
+
+    @property
+    def dias_restantes(self) -> int:
+        from django.utils import timezone
+        return max(0, (self.vence_at.date() - timezone.localdate()).days)

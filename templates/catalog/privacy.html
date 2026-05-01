@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Política de Privacidad — {{ SITE_NAME }}{% endblock %}
+{% block meta_description %}Política de privacidad y protección de datos personales conforme a la Ley 29733 (Perú).{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl">
+  <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Legal</p>
+  <h1 class="font-display text-3xl md:text-5xl font-bold tracking-tight mt-1">Política de Privacidad</h1>
+  <p class="text-zinc-400 mt-3 text-lg leading-relaxed">
+    Aviso conforme a la <strong>Ley N.º 29733 — Ley de Protección de Datos Personales</strong> y su reglamento (D.S. 003-2013-JUS).
+  </p>
+  <p class="text-zinc-500 mt-2 text-sm">Última actualización: {% now "d \d\e F \d\e Y" %}.</p>
+
+  <div class="mt-10 surface rounded-2xl p-6 md:p-8 space-y-8 text-zinc-300 leading-relaxed">
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">1. Quiénes somos</h2>
+      <p class="mt-2 text-sm">{{ SITE_NAME }} es un servicio de venta de cuentas digitales y licencias de software con entrega inmediata, operado en Perú. Para cualquier consulta sobre datos personales puedes escribirnos a <a href="mailto:ventas@jhelizservicestv.xyz" class="text-jheliz-400 hover:text-jheliz-300 underline">ventas@jhelizservicestv.xyz</a> o por <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="text-jheliz-400 hover:text-jheliz-300 underline">WhatsApp</a>.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">2. Qué datos recolectamos</h2>
+      <ul class="mt-2 text-sm space-y-2 list-disc pl-5 text-zinc-300">
+        <li><strong>Datos de identificación</strong>: nombre, correo electrónico, teléfono.</li>
+        <li><strong>Datos de pago</strong>: usados solo para procesar la transacción a través de Mercado Pago, Yape o Plin. <em>No almacenamos tarjetas ni claves de pago.</em></li>
+        <li><strong>Datos de uso</strong>: dirección IP, tipo de navegador, páginas visitadas, fecha y hora, vía cookies.</li>
+        <li><strong>Datos de comunicación</strong>: mensajes enviados por WhatsApp, correo o tickets de soporte.</li>
+      </ul>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">3. Finalidad del tratamiento</h2>
+      <p class="mt-2 text-sm">Tratamos tus datos para: (a) procesar tus pedidos y entregarte las credenciales; (b) brindarte soporte técnico y resolver reclamaciones; (c) enviarte recordatorios de vencimiento de tu cuenta; (d) cumplir obligaciones tributarias y legales en Perú; (e) si lo autorizas, enviarte promociones u ofertas.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">4. Base legal</h2>
+      <p class="mt-2 text-sm">Tratamos tus datos con base en: (a) la <strong>ejecución del contrato de venta</strong>; (b) el <strong>cumplimiento de obligaciones legales</strong> (facturación, libro de reclamaciones); (c) tu <strong>consentimiento expreso</strong> para fines de marketing.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">5. Con quién compartimos tus datos</h2>
+      <p class="mt-2 text-sm">No vendemos tus datos. Solo los compartimos con proveedores estrictamente necesarios para que la web funcione:</p>
+      <ul class="mt-2 text-sm space-y-1 list-disc pl-5">
+        <li><strong>Mercado Pago</strong> (pagos con tarjeta).</li>
+        <li><strong>Yape / Plin</strong> (verificación de pagos).</li>
+        <li><strong>Hostinger</strong> (alojamiento del servidor en EE. UU. / EU).</li>
+        <li><strong>Google</strong> (analítica anónima de tráfico, si aceptas cookies).</li>
+        <li><strong>Meta</strong> (Pixel para retargeting, si aceptas cookies).</li>
+      </ul>
+      <p class="mt-2 text-sm text-zinc-400">Algunos de estos proveedores procesan datos fuera del Perú. Aplicamos las garantías exigidas por la Autoridad Nacional de Protección de Datos Personales.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">6. Tiempo de conservación</h2>
+      <p class="mt-2 text-sm">Conservamos tus datos mientras tengas una cuenta activa o pedidos en garantía, y por los plazos exigidos por la ley peruana (ej. 5 años para fines tributarios). Después serán eliminados o anonimizados.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">7. Tus derechos (ARCO + portabilidad)</h2>
+      <p class="mt-2 text-sm">En cualquier momento puedes ejercer tus derechos de <strong>Acceso</strong>, <strong>Rectificación</strong>, <strong>Cancelación</strong>, <strong>Oposición</strong> y <strong>Portabilidad</strong> escribiéndonos a <a href="mailto:ventas@jhelizservicestv.xyz" class="text-jheliz-400 hover:text-jheliz-300 underline">ventas@jhelizservicestv.xyz</a>. Responderemos en un plazo máximo de <strong>20 días hábiles</strong>.</p>
+      <p class="mt-2 text-sm">Si consideras que no atendimos tu solicitud, puedes presentar reclamo ante la <strong>Autoridad Nacional de Protección de Datos Personales</strong> (Ministerio de Justicia y Derechos Humanos): <a href="https://www.gob.pe/minjus" target="_blank" rel="noopener" class="text-jheliz-400 hover:text-jheliz-300 underline">www.gob.pe/minjus</a>.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">8. Seguridad</h2>
+      <p class="mt-2 text-sm">El sitio usa cifrado HTTPS (TLS), las contraseñas se almacenan con hash, y el acceso al panel administrativo está restringido. Aún así, ningún sistema es 100% invulnerable; te pedimos cuidar tu correo y contraseñas.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">9. Menores de edad</h2>
+      <p class="mt-2 text-sm">Si eres menor de 18 años necesitas la autorización de tu padre, madre o tutor para comprar y para que tratemos tus datos. Esta autorización debe ser declarada expresamente al momento de la compra.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">10. Cookies</h2>
+      <p class="mt-2 text-sm">Usamos cookies propias y de terceros para que la web funcione (carrito, login) y para entender el tráfico. Puedes revisar el detalle en nuestra <a href="{% url 'catalog:cookies' %}" class="text-jheliz-400 hover:text-jheliz-300 underline">Política de Cookies</a>.</p>
+    </div>
+
+    <div>
+      <h2 class="font-display text-lg font-bold text-white">11. Cambios a esta política</h2>
+      <p class="mt-2 text-sm">Podemos actualizar esta política para reflejar cambios legales o del servicio. La versión vigente siempre estará publicada en esta página, con la fecha de última actualización.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}
