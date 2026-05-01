@@ -327,6 +327,21 @@ def dashboard_callback(request, context):
             "count": expiring_today, "icon": "schedule", "tone": "orange",
             "link": reverse("admin:orders_orderitem_changelist"),
         })
+    # Stock con `provider_expires_at` que vence en ≤3 días — la cuenta
+    # original muere pronto y conviene rotarla antes de que afecte a
+    # los clientes a los que ya se la entregamos.
+    provider_expiring_soon = StockItem.objects.filter(
+        status__in=[StockItem.Status.AVAILABLE, StockItem.Status.RESERVED, StockItem.Status.SOLD],
+        provider_expires_at__isnull=False,
+        provider_expires_at__lte=now + timedelta(days=3),
+        provider_expires_at__gt=now,
+    ).count()
+    if provider_expiring_soon:
+        needs_action.append({
+            "label": "Cuentas que vencen en proveedor (≤3d)",
+            "count": provider_expiring_soon, "icon": "warning_amber", "tone": "orange",
+            "link": reverse("admin:catalog_stockitem_changelist"),
+        })
     for item in needs_action:
         item["classes"] = _TONE_CLASSES[item["tone"]]
 
