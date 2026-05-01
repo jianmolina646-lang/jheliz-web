@@ -72,5 +72,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Generar manifest de staticfiles
+        # Necesario para que ManifestStaticFilesStorage funcione durante los
+        # tests. Sin esto, cualquier llamada a `static()` o staticfiles_storage.url()
+        # tira ValueError("Missing staticfiles manifest entry for ...").
+        run: python manage.py collectstatic --noinput
+
       - name: Run tests
         run: python manage.py test --noinput -v 2
