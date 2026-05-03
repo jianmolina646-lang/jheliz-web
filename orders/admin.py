@@ -174,6 +174,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     readonly_fields = (
         "uuid", "created_at", "paid_at", "delivered_at", "total",
         "payment_proof_uploaded_at", "payment_proof_preview",
+        "delivered_credentials_summary",
     )
     inlines = [OrderItemInline]
     date_hierarchy = "created_at"
@@ -200,6 +201,10 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     fieldsets = (
         ("Datos", {
             "fields": ("uuid", "user", "email", "phone", "telegram_username", "channel", "notes"),
+        }),
+        ("Credenciales entregadas", {
+            "fields": ("delivered_credentials_summary",),
+            "description": "Resumen de las cuentas entregadas al cliente (correo y clave por producto). Para editarlas, usá la tabla de Items más abajo.",
         }),
         ("Pago", {
             "fields": (
@@ -371,6 +376,70 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             url=url,
             modal_id=modal_id,
         )
+
+    @admin.display(description="Credenciales entregadas")
+    def delivered_credentials_summary(self, obj: Order):
+        """Tabla compacta con las credenciales entregadas por cada item.
+
+        Visible siempre que el pedido tenga items, así el operador puede
+        ver de un vistazo qué cuenta(s) se le mandaron al cliente sin
+        scrollear horizontal en la tabla de items.
+        """
+        items = list(obj.items.all().select_related("product", "plan", "stock_item"))
+        if not items:
+            return format_html(
+                '<div style="color:#94a3b8;font-style:italic">'
+                'Este pedido todavía no tiene items.'
+                '</div>'
+            )
+
+        rows: list[str] = []
+        for it in items:
+            product = it.product_name or (it.product.name if it.product else "—")
+            plan = it.plan_name or (it.plan.name if it.plan else "")
+            label = f"{product}{f' — {plan}' if plan else ''}"
+
+            creds = (it.delivered_credentials or "").strip()
+            if not creds:
+                cred_block = (
+                    '<span style="color:#fbbf24;font-style:italic">'
+                    'Sin credenciales entregadas.'
+                    '</span>'
+                )
+            else:
+                cred_block = format_html(
+                    '<pre style="margin:0;padding:8px 10px;background:#0b0217;'
+                    'color:#f9a8d4;border-radius:6px;border:1px solid #4c1d95;'
+                    'font-size:12.5px;line-height:1.5;white-space:pre-wrap;'
+                    'word-break:break-word;font-family:ui-monospace,Menlo,Consolas,monospace">'
+                    '{}</pre>',
+                    creds,
+                )
+
+            extras: list[str] = []
+            if it.requested_profile_name:
+                extras.append(f"Perfil: {it.requested_profile_name}")
+            if it.requested_pin:
+                extras.append(f"PIN: {it.requested_pin}")
+            if it.expires_at:
+                extras.append(f"Vence: {it.expires_at:%d/%m/%Y %H:%M}")
+            extras_html = ""
+            if extras:
+                extras_html = format_html(
+                    '<div style="font-size:11px;color:#94a3b8;margin-top:6px">{}</div>',
+                    " · ".join(extras),
+                )
+
+            rows.append(format_html(
+                '<div style="padding:10px 12px;border:1px solid #334155;'
+                'border-radius:8px;background:#1e293b;margin-bottom:8px">'
+                '<div style="font-weight:600;color:#f1f5f9;margin-bottom:6px">{}</div>'
+                '{}{}'
+                '</div>',
+                label, cred_block, extras_html,
+            ))
+
+        return format_html('<div>{}</div>', format_html("".join(["{}"] * len(rows)), *rows))
 
     # ---- URLs extra ---------------------------------------------------------
 

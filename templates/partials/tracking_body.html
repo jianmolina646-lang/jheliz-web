@@ -1,5 +1,7 @@
-{# Eventos de e-commerce. Las plantillas pueden definir bloques o variables
-   `tracking_event_*` y este partial las dispara al final del body. #}
+{% comment %}
+   Eventos de e-commerce. Las plantillas pueden definir bloques o variables
+   `tracking_event_*` y este partial las dispara al final del body.
+{% endcomment %}
 
 {% if GA4_ID or META_PIXEL_ID or TIKTOK_PIXEL_ID %}
 <script>

@@ -210,7 +210,14 @@
     text-decoration: underline;
 }
 
-.hidden {
+/* Estos `.hidden` son los que el JS de la campana de notificaciones agrega/quita
+ * para mostrar/ocultar el badge, el panel y los estados de la lista. NO usar
+ * un selector global `.hidden` porque rompe utilidades de Tailwind como
+ * `xl:block` (sidebar de Unfold lo usa) que dependen de poder anular `.hidden`. */
+#jheliz-bell-badge.hidden,
+#jheliz-bell-panel.hidden,
+#jheliz-bell-list.hidden,
+#jheliz-bell-empty.hidden {
     display: none !important;
 }
 
