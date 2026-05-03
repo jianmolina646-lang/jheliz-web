@@ -109,9 +109,10 @@ class DistributorPlanAdmin(ModelAdmin):
 class ProductAdmin(ModelAdmin):
     list_display = (
         "product_preview", "category", "mode", "display_active",
-        "is_featured", "delivery_is_instant", "available_stock_count",
+        "is_featured", "telegram_audience", "delivery_is_instant",
+        "available_stock_count",
     )
-    list_filter = ("category", "mode", "is_active", "is_featured")
+    list_filter = ("category", "mode", "is_active", "is_featured", "telegram_audience")
     search_fields = ("name", "short_description")
     prepopulated_fields = {"slug": ("name",)}
     inlines = [PlanInline]
@@ -120,32 +121,63 @@ class ProductAdmin(ModelAdmin):
     # Drag & drop en el changelist usando el campo `order` (#11).
     ordering_field = "order"
     hide_ordering_field = True
-    actions = ("action_announce_to_channel",)
+    actions = (
+        "action_announce_default",
+        "action_announce_to_customers",
+        "action_announce_to_distributors",
+        "action_announce_to_both",
+    )
 
-    @admin.action(description="📣 Publicar al canal de Telegram")
-    def action_announce_to_channel(self, request, queryset):
+    def _run_announce(self, request, queryset, audience, label):
         from orders import telegram
 
-        if not telegram.channel_is_configured():
+        if audience and not telegram.channel_is_configured(audience):
             self.message_user(
                 request,
-                "Canal sin configurar (TELEGRAM_CHANNEL_ID vacío).",
+                f"Canal ({label}) sin configurar en .env — no se publicó nada.",
                 level=messages.WARNING,
             )
             return
         ok = 0
         fail = 0
+        skipped = 0
         for product in queryset:
-            res = telegram.announce_product(product, kind="new")
+            if audience is None:
+                # Usa la configuración del producto (campo telegram_audience).
+                if product.telegram_audience == "none":
+                    skipped += 1
+                    continue
+                res = telegram.announce_product(product, kind="new")
+            else:
+                res = telegram.announce_product(product, kind="new", audience=audience)
             if res and res.get("ok"):
                 ok += 1
             else:
                 fail += 1
-        self.message_user(
-            request,
-            f"Publicación al canal: {ok} ok · {fail} con error.",
-            level=messages.SUCCESS if fail == 0 else messages.WARNING,
-        )
+        level = messages.SUCCESS if fail == 0 else messages.WARNING
+        msg = f"Publicación al canal ({label}): {ok} ok · {fail} con error"
+        if skipped:
+            msg += f" · {skipped} omitidos (configurados 'No publicar')"
+        self.message_user(request, msg + ".", level=level)
+
+    @admin.action(description="📣 Publicar según config del producto")
+    def action_announce_default(self, request, queryset):
+        self._run_announce(request, queryset, audience=None, label="según producto")
+
+    @admin.action(description="📣 Publicar SOLO al canal de clientes")
+    def action_announce_to_customers(self, request, queryset):
+        from orders import telegram
+        self._run_announce(request, queryset, audience=telegram.AUDIENCE_CUSTOMER, label="clientes")
+
+    @admin.action(description="📣 Publicar SOLO al canal de distribuidores")
+    def action_announce_to_distributors(self, request, queryset):
+        from orders import telegram
+        self._run_announce(request, queryset, audience=telegram.AUDIENCE_DISTRIB, label="distribuidores")
+
+    @admin.action(description="📣 Publicar a AMBOS canales")
+    def action_announce_to_both(self, request, queryset):
+        from orders import telegram
+        self._run_announce(request, queryset, audience=telegram.AUDIENCE_ALL, label="ambos")
 
     @display(description="Producto", ordering="name")
     def product_preview(self, obj: Product) -> str:

@@ -66,6 +66,23 @@ class Product(models.Model):
     image = models.ImageField("Imagen", upload_to="products/", blank=True, null=True)
     is_active = models.BooleanField("Visible en tienda", default=True)
     is_featured = models.BooleanField("Destacado en home", default=False)
+
+    class TelegramAudience(models.TextChoices):
+        BOTH = "both", "Ambos canales (clientes + distribuidores)"
+        CUSTOMER = "customer", "Solo canal de clientes"
+        DISTRIBUTOR = "distributor", "Solo canal de distribuidores"
+        NONE = "none", "No publicar en ningún canal"
+
+    telegram_audience = models.CharField(
+        "Publicar en Telegram",
+        max_length=20,
+        choices=TelegramAudience.choices,
+        default=TelegramAudience.BOTH,
+        help_text=(
+            "Elige a qué canal(es) se publica este producto cuando se activa "
+            "o se usa la acción 'Publicar al canal' del admin."
+        ),
+    )
     delivery_is_instant = models.BooleanField(
         "Entrega inmediata", default=False,
         help_text="Si est\u00e1 activo, se asigna un stock autom\u00e1ticamente. Por defecto, "

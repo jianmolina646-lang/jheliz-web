@@ -48,6 +48,9 @@ def _announce_new_or_activated_product(sender, instance: Product, created, **kwa
     became_active = (created and instance.is_active) or (not was_active and instance.is_active)
     if not became_active:
         return
+    if getattr(instance, "telegram_audience", "both") == "none":
+        # Admin configuró este producto para no publicarse en Telegram.
+        return
     try:
         telegram.announce_product(instance, kind="new")
     except Exception:
