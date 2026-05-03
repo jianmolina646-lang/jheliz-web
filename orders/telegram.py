@@ -423,20 +423,47 @@ def _coupon_audience(coupon) -> str:
     return AUDIENCE_ALL
 
 
-def announce_product(product, kind: str = "new") -> dict | None:
+def _product_audience(product) -> str:
+    """Mapea Product.telegram_audience al constante de canal.
+
+    Si el producto no tiene configurado el campo (p.ej. objeto simulado en
+    tests), asume ``AUDIENCE_ALL`` para preservar el comportamiento previo.
+    """
+    aud = getattr(product, "telegram_audience", "both") or "both"
+    if aud == "distributor":
+        return AUDIENCE_DISTRIB
+    if aud == "customer":
+        return AUDIENCE_CUSTOMER
+    if aud == "none":
+        return ""
+    return AUDIENCE_ALL
+
+
+def announce_product(
+    product,
+    kind: str = "new",
+    audience: str | None = None,
+) -> dict | None:
     """Publica al/los canal(es) configurados, con precios diferenciados.
 
     - Canal distribuidores: precio mayorista.
     - Canal clientes: precio cliente final.
     Si solo hay uno configurado, publica solo en ese.
+
+    El parámetro ``audience`` tiene prioridad sobre
+    ``product.telegram_audience`` — se usa para acciones de admin que
+    piden publicar a un canal específico ignorando la config del producto.
     """
-    if not channel_is_configured():
+    target = audience if audience is not None else _product_audience(product)
+    if not target:
+        return None
+    if not channel_is_configured(target):
         return None
     photo = _product_image_url(product)
     buttons = [_product_button_row(product)]
     last: dict | None = None
-    for chat_id, audience in _channel_ids_for(AUDIENCE_ALL):
-        text = format_product_announcement(product, kind=kind, audience=audience)
+    for chat_id, channel_audience in _channel_ids_for(target):
+        text = format_product_announcement(product, kind=kind, audience=channel_audience)
         last = _post_one_channel(chat_id, text, buttons=buttons, photo_url=photo)
     return last
 
