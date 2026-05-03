@@ -176,8 +176,12 @@ def _notify_admins_new_code_request(request, code_request: CodeRequest) -> None:
             f"Cuenta: <code>{code_request.account_email}</code>\n"
             f"Origen: {label}"
         )
+        if code_request.requested_code_type:
+            text += f"\nPide: {code_request.get_requested_code_type_display()}"
         if code_request.order_number:
             text += f"\nPedido: #{code_request.order_number}"
+        if code_request.note:
+            text += f"\nNota: {code_request.note[:140]}"
         buttons = [[{"text": "Responder ahora", "url": admin_url}]]
         # post solo al canal de distribuidor — no al público
         chat_id = tg._distrib_channel_id() if hasattr(tg, "_distrib_channel_id") else None

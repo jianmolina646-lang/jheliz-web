@@ -49,29 +49,43 @@ class CodeRequestForm(forms.ModelForm):
     class Meta:
         model = CodeRequest
         fields = (
-            "platform", "account_email", "contact_email", "order_number",
+            "platform", "requested_code_type", "account_email",
+            "contact_email", "order_number", "note",
         )
         labels = {
             "platform": "Plataforma",
+            "requested_code_type": "¿Qué código necesitas?",
             "account_email": "Email de la cuenta",
             "contact_email": "Tu email de contacto (opcional)",
             "order_number": "N° de pedido (opcional)",
+            "note": "Detalle adicional (opcional)",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["platform"].widget.attrs.setdefault("class", _INPUT_CLASS)
-        self.fields["account_email"].widget.attrs.setdefault("class", _INPUT_CLASS)
+        for name in ("platform", "requested_code_type", "account_email",
+                     "contact_email", "order_number", "note"):
+            self.fields[name].widget.attrs.setdefault("class", _INPUT_CLASS)
+
+        self.fields["requested_code_type"].required = True
+        # Reemplaza el empty label heredado del modelo (``blank=True``) por algo
+        # amigable, manteniendo el valor "" como inválido al enviar.
+        self.fields["requested_code_type"].choices = [
+            ("", "— Selecciona qué código necesitas —"),
+            *list(self.fields["requested_code_type"].choices)[1:],
+        ]
         self.fields["account_email"].widget.attrs.setdefault(
             "placeholder", "ejemplo@gmail.com",
         )
-        self.fields["contact_email"].widget.attrs.setdefault("class", _INPUT_CLASS)
         self.fields["contact_email"].widget.attrs.setdefault(
             "placeholder", "opcional",
         )
         self.fields["contact_email"].required = False
-        self.fields["order_number"].widget.attrs.setdefault("class", _INPUT_CLASS)
         self.fields["order_number"].widget.attrs.setdefault(
             "placeholder", "Ej: 1234",
         )
         self.fields["order_number"].required = False
+        self.fields["note"].required = False
+        self.fields["note"].widget.attrs.setdefault(
+            "placeholder", "Ej: pide código desde un Smart TV LG",
+        )

@@ -77,19 +77,23 @@ class TicketAdmin(ModelAdmin):
 @admin.register(CodeRequest)
 class CodeRequestAdmin(ModelAdmin):
     list_display = (
-        "id", "display_status", "platform", "account_email", "audience",
-        "order_number", "created_at", "responded_at",
+        "id", "display_status", "platform", "requested_code_type",
+        "account_email", "audience", "order_number", "created_at",
+        "responded_at",
     )
-    list_filter = ("status", "audience", "platform", "code_type")
-    search_fields = ("account_email", "contact_email", "order_number", "code")
+    list_filter = ("status", "audience", "platform", "requested_code_type", "code_type")
+    search_fields = (
+        "account_email", "contact_email", "order_number", "code", "note",
+    )
     date_hierarchy = "created_at"
     autocomplete_fields = ("user", "order")
     list_filter_submit = True
     fieldsets = (
         ("Solicitud", {
             "fields": (
-                "audience", "platform", "account_email",
-                "contact_email", "order_number", "order", "user",
+                "audience", "platform", "requested_code_type",
+                "account_email", "contact_email", "order_number",
+                "order", "user", "note",
             ),
         }),
         ("Respuesta", {
@@ -135,6 +139,10 @@ class CodeRequestAdmin(ModelAdmin):
         code_prev = (prev.code if prev else "") or ""
         if code_new and code_new != code_prev and obj.status == CodeRequest.Status.PENDING:
             obj.status = CodeRequest.Status.DELIVERED
+        # Si el admin no eligió el tipo de código entregado pero el cliente sí
+        # había seleccionado uno al pedir, lo copiamos.
+        if not obj.code_type and obj.requested_code_type:
+            obj.code_type = obj.requested_code_type
         if obj.status == CodeRequest.Status.DELIVERED and obj.responded_at is None:
             from django.utils import timezone as _tz
             obj.responded_at = _tz.now()
