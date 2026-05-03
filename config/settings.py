@@ -6,6 +6,7 @@ from pathlib import Path
 
 import dj_database_url
 from decouple import Csv, config
+from django.templatetags.static import static
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -176,12 +177,23 @@ SITE_TAGLINE = "Streaming y licencias al mejor precio"
 UNFOLD = {
     "SITE_TITLE": "Jheliz Admin",
     "SITE_HEADER": "Jheliz",
-    "SITE_SUBHEADER": "Panel de administración",
+    "SITE_SUBHEADER": "Servicios TV · Panel",
     "SITE_SYMBOL": "storefront",
+    "SITE_ICON": {
+        "light": lambda r: static("admin/jheliz/icon.svg"),
+        "dark": lambda r: static("admin/jheliz/icon.svg"),
+    },
+    "SITE_LOGO": {
+        "light": lambda r: static("admin/jheliz/logo.svg"),
+        "dark": lambda r: static("admin/jheliz/logo.svg"),
+    },
+    "STYLES": [
+        lambda r: static("admin/jheliz/jheliz.css"),
+    ],
     "SHOW_HISTORY": True,
     "SHOW_VIEW_ON_SITE": True,
     "THEME": "dark",
-    "BORDER_RADIUS": "8px",
+    "BORDER_RADIUS": "10px",
     "COLORS": {
         "primary": {
             "50": "253 244 255",
@@ -275,7 +287,12 @@ UNFOLD = {
                         "link": "/jheliz-admin/accounts/customer/",
                     },
                     {
-                        "title": "Usuarios (staff / distribuidores)",
+                        "title": "Distribuidores",
+                        "icon": "store",
+                        "link": "/jheliz-admin/accounts/distributor/",
+                    },
+                    {
+                        "title": "Usuarios (staff)",
                         "icon": "group",
                         "link": "/jheliz-admin/accounts/user/",
                     },
