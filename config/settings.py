@@ -186,6 +186,9 @@ TELEGRAM_USERNAME = config("TELEGRAM_USERNAME", default="jhelizbot")
 # Telegram bot (opcional)
 TELEGRAM_BOT_TOKEN = config("TELEGRAM_BOT_TOKEN", default="")
 TELEGRAM_ADMIN_CHAT_ID = config("TELEGRAM_ADMIN_CHAT_ID", default="")
+# Token secreto que viaja en el header del webhook de Telegram
+# (X-Telegram-Bot-Api-Secret-Token). Si está vacío, el webhook se deshabilita.
+TELEGRAM_WEBHOOK_SECRET = config("TELEGRAM_WEBHOOK_SECRET", default="")
 
 # Brand
 SITE_NAME = "Jheliz"

@@ -2240,3 +2240,93 @@ class NotifyProviderExpiryCommandTests(TestCase):
         ) as notify:
             call_command("notify_provider_expiry", stdout=StringIO())
             notify.assert_not_called()
+
+
+# --------------------------------------------------------------
+# Telegram webhook + comandos admin (PR #77)
+# --------------------------------------------------------------
+
+from django.test import override_settings as _override_settings  # noqa: E402
+
+from orders import telegram as _telegram  # noqa: E402
+
+
+@_override_settings(
+    TELEGRAM_BOT_TOKEN="dummy-token",
+    TELEGRAM_ADMIN_CHAT_ID="999",
+    TELEGRAM_WEBHOOK_SECRET="abc-secret",
+)
+class TelegramWebhookTests(TestCase):
+    def setUp(self):
+        self.url = reverse("orders:telegram_webhook", args=["abc-secret"])
+        self.client = Client()
+
+    def test_rejects_without_header(self):
+        resp = self.client.post(self.url, data="{}", content_type="application/json")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_rejects_with_wrong_secret_in_path(self):
+        url = reverse("orders:telegram_webhook", args=["wrong"])
+        resp = self.client.post(
+            url, data="{}", content_type="application/json",
+            HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN="abc-secret",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_accepts_valid_secret(self):
+        with patch("orders.telegram.process_update") as proc:
+            resp = self.client.post(
+                self.url,
+                data='{"update_id":1,"message":{"chat":{"id":999},"text":"/start"}}',
+                content_type="application/json",
+                HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN="abc-secret",
+            )
+        self.assertEqual(resp.status_code, 200)
+        proc.assert_called_once()
+
+
+@_override_settings(
+    TELEGRAM_BOT_TOKEN="dummy-token",
+    TELEGRAM_ADMIN_CHAT_ID="999",
+)
+class TelegramAdminCommandsTests(TestCase):
+    def test_admin_command_only_runs_for_admin_chat(self):
+        with patch("orders.telegram.send_message") as send:
+            _telegram.process_update({
+                "update_id": 1,
+                "message": {"chat": {"id": 999}, "text": "/yape"},
+            })
+        send.assert_called()  # corre /yape
+
+    def test_admin_command_falls_back_to_help_for_others(self):
+        with patch("orders.telegram.send_message") as send:
+            _telegram.process_update({
+                "update_id": 2,
+                "message": {"chat": {"id": 12345}, "text": "/yape"},
+            })
+        # Para chat no-admin, devuelve PUBLIC_HELP
+        args, kwargs = send.call_args
+        self.assertIn("Comandos", args[1])
+
+    def test_daily_summary_text_runs(self):
+        text = _telegram.daily_summary_text()
+        self.assertIn("Resumen diario", text)
+
+
+@_override_settings(
+    TELEGRAM_BOT_TOKEN="dummy-token",
+    TELEGRAM_ADMIN_CHAT_ID="999",
+)
+class TelegramYapeCallbackTests(TestCase):
+    def test_callback_rejects_non_admin(self):
+        with patch("orders.telegram.answer_callback_query") as ack:
+            _telegram._handle_callback_query({
+                "callback_query": {
+                    "id": "cb1",
+                    "data": "yape:confirm:1",
+                    "message": {"chat": {"id": 12345}, "message_id": 1, "text": ""},
+                },
+            })
+        ack.assert_called_once()
+        args, kwargs = ack.call_args
+        self.assertEqual(args[0], "cb1")

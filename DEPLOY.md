@@ -149,13 +149,37 @@ python manage.py seed_catalog
 
 ### 2.5 Bot de Telegram
 
-En Fly.io crea una máquina aparte para el bot:
+Hay dos modos. Webhook es lo recomendado en producción (sin proceso extra).
+
+**Webhook (recomendado):**
+
+1. En `.env` define `TELEGRAM_WEBHOOK_SECRET` con un token aleatorio:
+   ```bash
+   python -c 'import secrets;print(secrets.token_urlsafe(32))'
+   ```
+2. Reinicia `web` para que lo lea.
+3. Registra el webhook contra Telegram:
+   ```bash
+   docker compose exec web python manage.py setup_telegram_webhook
+   ```
+4. Verifica con `--info`:
+   ```bash
+   docker compose exec web python manage.py setup_telegram_webhook --info
+   ```
+
+**Polling (alternativa o dev):**
 
 ```bash
-fly machine run . --command "python manage.py run_telegram_bot" --name jheliz-bot
+docker compose --profile bot up -d telegram_bot
 ```
 
-(O déjalo local en el VPS si prefieres.)
+**Resumen diario 8am Perú** (cron del host):
+
+```cron
+0 13 * * * cd /srv/jheliz && /usr/bin/docker compose exec -T web python manage.py telegram_daily_summary
+```
+
+(13:00 UTC = 08:00 hora Perú.)
 
 ---
 

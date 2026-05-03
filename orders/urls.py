@@ -16,6 +16,7 @@ urlpatterns = [
     path("renovar/<int:item_id>/", views.renew_item, name="renew_item"),
     path("checkout/", views.checkout, name="checkout"),
     path("webhooks/mercadopago/", views.mercadopago_webhook, name="mercadopago_webhook"),
+    path("webhooks/telegram/<str:secret>/", views.telegram_webhook, name="telegram_webhook"),
     path("<uuid:uuid>/gracias/", views.checkout_return, name="checkout_return"),
     path("<uuid:uuid>/yape/", views.yape_payment, name="yape_payment"),
     path("<uuid:uuid>/", views.order_detail, name="detail"),
