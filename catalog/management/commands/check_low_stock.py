@@ -96,6 +96,22 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(f"Stock recuperado en {len(recovered)} plan(es).")
             )
+            # Publica al canal una vez por producto (evita spam si recuperan
+            # varios planes del mismo producto a la vez).
+            if telegram.channel_is_configured():
+                announced: set[int] = set()
+                for plan in recovered:
+                    if plan.product_id in announced:
+                        continue
+                    announced.add(plan.product_id)
+                    try:
+                        telegram.announce_product(plan.product, kind="restock")
+                    except Exception:
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"No se pudo anunciar restock de {plan.product.name}"
+                            )
+                        )
 
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry-run: no se enviaron mensajes."))

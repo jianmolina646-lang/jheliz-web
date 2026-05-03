@@ -2330,3 +2330,75 @@ class TelegramYapeCallbackTests(TestCase):
         ack.assert_called_once()
         args, kwargs = ack.call_args
         self.assertEqual(args[0], "cb1")
+
+
+# --------------------------------------------------------------
+# Canal de avisos (PR #78)
+# --------------------------------------------------------------
+
+
+@_override_settings(
+    TELEGRAM_BOT_TOKEN="dummy-token",
+    TELEGRAM_ADMIN_CHAT_ID="999",
+    TELEGRAM_CHANNEL_ID="@jhelizservicetv",
+)
+class TelegramChannelTests(TestCase):
+    def setUp(self):
+        # Evitamos llamadas HTTP reales al crear el producto en setUp
+        # (la señal post_save publica al canal).
+        self._call_patcher = patch("orders.telegram._call", return_value={"ok": True})
+        self._call_patcher.start()
+        cat = Category.objects.create(name="Streaming")
+        self.product = Product.objects.create(
+            name="Netflix Premium",
+            category=cat,
+            short_description="4k UHD",
+        )
+        Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), is_active=True,
+            available_for_customer=True,
+        )
+        self._call_patcher.stop()
+
+    def test_format_product_announcement_includes_price(self):
+        text = _telegram.format_product_announcement(self.product, kind="new")
+        self.assertIn("Netflix Premium", text)
+        self.assertIn("15.00", text)
+        self.assertIn("1 mes", text)
+        self.assertTrue(text.startswith("🆕"))
+
+    def test_announce_product_calls_send(self):
+        with patch("orders.telegram._call") as call:
+            call.return_value = {"ok": True, "result": {"message_id": 1}}
+            res = _telegram.announce_product(self.product, kind="new")
+        self.assertTrue(res["ok"])
+        method, payload = call.call_args[0][0], call.call_args[1]
+        self.assertEqual(method, "sendMessage")
+        self.assertIn("Netflix Premium", payload["text"])
+
+    def test_announce_skipped_when_channel_unconfigured(self):
+        with self.settings(TELEGRAM_CHANNEL_ID=""):
+            with patch("orders.telegram._call") as call:
+                _telegram.announce_product(self.product, kind="new")
+        call.assert_not_called()
+
+    def test_avisar_command_publishes(self):
+        with patch("orders.telegram.announce_text") as ann, \
+             patch("orders.telegram.send_message") as send:
+            ann.return_value = {"ok": True}
+            _telegram.process_update({
+                "update_id": 99,
+                "message": {"chat": {"id": 999}, "text": "/avisar Netflix está caído"},
+            })
+        ann.assert_called_once_with("Netflix está caído")
+        send.assert_called_once()
+
+    def test_signal_announces_new_active_product(self):
+        with patch("orders.telegram._call") as call:
+            call.return_value = {"ok": True, "result": {"message_id": 1}}
+            cat = Category.objects.create(name="Otros")
+            Product.objects.create(name="Disney+ & HBO", category=cat, is_active=True)
+        # Debió llamarse a sendMessage con el nombre escapado (no estricto en este test)
+        called_methods = [c.args[0] for c in call.call_args_list]
+        self.assertIn("sendMessage", called_methods)

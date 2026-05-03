@@ -2,8 +2,8 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-from . import emails
-from .models import Order, OrderItem
+from . import emails, telegram
+from .models import Coupon, Order, OrderItem
 
 # Estados terminales que liberan las reservas de stock vinculadas al
 # pedido. Si el pedido cae a alguno de estos, los StockItem RESERVED
@@ -59,6 +59,20 @@ def _order_status_transitions(sender, instance: Order, **kwargs):
             # No bloqueamos la transición si falla la liberación;
             # un cron / management command la puede arreglar después.
             pass
+
+
+@receiver(post_save, sender=Coupon)
+def _announce_new_coupon(sender, instance: Coupon, created, **kwargs):
+    """Publica un cupón nuevo al canal cuando se crea activo."""
+    if not (created and instance.is_active):
+        return
+    try:
+        telegram.announce_coupon(instance)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "No se pudo publicar el cupón %s en el canal", instance.code,
+        )
 
 
 @receiver(post_save, sender=OrderItem)

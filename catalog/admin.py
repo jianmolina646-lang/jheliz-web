@@ -120,6 +120,32 @@ class ProductAdmin(ModelAdmin):
     # Drag & drop en el changelist usando el campo `order` (#11).
     ordering_field = "order"
     hide_ordering_field = True
+    actions = ("action_announce_to_channel",)
+
+    @admin.action(description="📣 Publicar al canal de Telegram")
+    def action_announce_to_channel(self, request, queryset):
+        from orders import telegram
+
+        if not telegram.channel_is_configured():
+            self.message_user(
+                request,
+                "Canal sin configurar (TELEGRAM_CHANNEL_ID vacío).",
+                level=messages.WARNING,
+            )
+            return
+        ok = 0
+        fail = 0
+        for product in queryset:
+            res = telegram.announce_product(product, kind="new")
+            if res and res.get("ok"):
+                ok += 1
+            else:
+                fail += 1
+        self.message_user(
+            request,
+            f"Publicación al canal: {ok} ok · {fail} con error.",
+            level=messages.SUCCESS if fail == 0 else messages.WARNING,
+        )
 
     @display(description="Producto", ordering="name")
     def product_preview(self, obj: Product) -> str:
