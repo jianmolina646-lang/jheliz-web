@@ -2402,3 +2402,18 @@ class TelegramChannelTests(TestCase):
         # Debió llamarse a sendMessage con el nombre escapado (no estricto en este test)
         called_methods = [c.args[0] for c in call.call_args_list]
         self.assertIn("sendMessage", called_methods)
+
+    def test_format_product_escapes_html_special_chars(self):
+        with patch("orders.telegram._call", return_value={"ok": True}):
+            cat = Category.objects.create(name="Mix")
+            product = Product.objects.create(
+                name="Disney+ & HBO <Premium>",
+                short_description="Combo & oferta",
+                category=cat,
+            )
+        text = _telegram.format_product_announcement(product, kind="new")
+        # No debe contener `&` sin escapar ni `<Premium>` literal
+        self.assertNotIn("Disney+ & HBO", text)
+        self.assertIn("Disney+ &amp; HBO", text)
+        self.assertIn("&lt;Premium&gt;", text)
+        self.assertIn("Combo &amp; oferta", text)

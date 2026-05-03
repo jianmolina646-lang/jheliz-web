@@ -300,19 +300,23 @@ def _format_price_lines(product) -> list[str]:
         duration = (
             f"{plan.duration_days} días" if plan.duration_days else "sin expiración"
         )
-        lines.append(f"• {plan.name} ({duration}) — {currency} {plan.price_customer:.2f}")
+        lines.append(
+            f"• {html.escape(plan.name)} ({duration}) — {currency} "
+            f"{plan.price_customer:.2f}"
+        )
     return lines
 
 
 def format_product_announcement(product, kind: str = "new") -> str:
     """Genera el mensaje para un producto. ``kind`` ∈ {'new', 'restock'}."""
+    safe_name = html.escape(product.name or "")
     title_map = {
-        "new": f"🆕 <b>Nuevo: {product.name}</b>",
-        "restock": f"📦 <b>Volvió el stock — {product.name}</b>",
+        "new": f"🆕 <b>Nuevo: {safe_name}</b>",
+        "restock": f"📦 <b>Volvió el stock — {safe_name}</b>",
     }
-    lines = [title_map.get(kind, f"<b>{product.name}</b>")]
+    lines = [title_map.get(kind, f"<b>{safe_name}</b>")]
     if product.short_description:
-        lines.append(product.short_description)
+        lines.append(html.escape(product.short_description))
     price_lines = _format_price_lines(product)
     if price_lines:
         lines.append("")
@@ -330,8 +334,8 @@ def format_coupon_announcement(coupon) -> str:
         currency = getattr(settings, "DEFAULT_CURRENCY_SYMBOL", "S/")
         descuento = f"{currency} {coupon.discount_value:g}"
     lines = [
-        f"💰 <b>Cupón nuevo: {coupon.code}</b>",
-        f"Descuento: <b>{descuento}</b>",
+        f"💰 <b>Cupón nuevo: {html.escape(coupon.code)}</b>",
+        f"Descuento: <b>{html.escape(descuento)}</b>",
     ]
     if getattr(coupon, "min_order_total", 0):
         lines.append(f"Compra mínima: S/ {coupon.min_order_total:g}")
