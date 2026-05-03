@@ -1,0 +1,52 @@
+{% extends 'unfold/layouts/unauthenticated.html' %}
+{% load i18n static unfold %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    {{ form.media }}
+{% endblock %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block content %}
+    <div class="jhz-login-shell">
+        <img src="{% static 'admin/jheliz/icon.svg' %}" alt="Jheliz" class="w-14 h-14 rounded-2xl mb-2" />
+        <h1>Bienvenido a Jheliz</h1>
+        <p>Panel de administración</p>
+    </div>
+
+    {% include "unfold/helpers/messages.html" %}
+
+    {% if form.errors or form.non_field_errors %}
+        <div class="flex flex-col gap-4 mb-6 *:mb-0">
+            {% include "unfold/helpers/messages/errornote.html" with errors=form.errors %}
+            {% include "unfold/helpers/messages/error.html" with errors=form.non_field_errors %}
+        </div>
+    {% endif %}
+
+    <form action="{{ app_path }}" method="post" id="login-form" class="flex flex-col gap-4">
+        {% csrf_token %}
+
+        {% include "unfold/helpers/field.html" with field=form.username %}
+        {% include "unfold/helpers/field.html" with field=form.password %}
+
+        <div class="flex flex-col gap-3 mt-4">
+            {% component "unfold/components/button.html" with submit=1 variant="primary" class="submit-row w-full" %}
+                {% translate 'Iniciar sesión' %}
+                <span class="material-symbols-outlined relative right-0 transition-all group-hover:-right-1 text-sm">arrow_forward</span>
+            {% endcomponent %}
+
+            {% url 'admin_password_reset' as password_reset_url %}
+            {% url 'admin:admin_password_reset' as unfold_password_reset_url %}
+            {% if password_reset_url or unfold_password_reset_url %}
+                {% component "unfold/components/button.html" with href=password_reset_url|default:unfold_password_reset_url variant="secondary" class="password-reset-link w-full" %}
+                    {% translate '¿Olvidaste tu contraseña?' %}
+                {% endcomponent %}
+            {% endif %}
+        </div>
+    </form>
+
+    <p class="mt-8 text-center text-xs text-white/40">
+        © {% now "Y" %} Jheliz Services TV · Todos los derechos reservados
+    </p>
+{% endblock %}

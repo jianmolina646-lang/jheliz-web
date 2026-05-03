@@ -1,0 +1,277 @@
+/* Jheliz — premium admin polish */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+  --jhz-bg: #050017;
+  --jhz-bg-soft: #0e0726;
+  --jhz-card: rgba(20, 8, 41, 0.72);
+  --jhz-border: rgba(244, 114, 182, 0.14);
+  --jhz-border-soft: rgba(255, 255, 255, 0.06);
+  --jhz-text-dim: rgba(241, 219, 255, 0.6);
+  --jhz-pink: #f472b6;
+  --jhz-violet: #8b5cf6;
+}
+
+html.dark,
+html.dark body,
+.dark #page {
+  background: radial-gradient(circle at 20% -10%, rgba(244, 114, 182, 0.15), transparent 45%),
+              radial-gradient(circle at 90% 10%, rgba(139, 92, 246, 0.18), transparent 50%),
+              var(--jhz-bg);
+  color: #f1f5f9;
+}
+
+.dark .login,
+.dark body.login {
+  background: radial-gradient(circle at 20% 0%, rgba(244, 114, 182, 0.25), transparent 55%),
+              radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.25), transparent 55%),
+              var(--jhz-bg) !important;
+}
+
+body, html {
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+/* Login: card flotante con glass + logo */
+.login form,
+body.login form#login-form {
+  background: var(--jhz-card);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid var(--jhz-border);
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow:
+    0 30px 80px -20px rgba(124, 58, 237, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+/* Sidebar */
+#sidebar,
+aside#sidebar,
+.sidebar {
+  background: linear-gradient(180deg, rgba(14, 7, 38, 0.92) 0%, rgba(5, 0, 23, 0.92) 100%);
+  border-right: 1px solid var(--jhz-border-soft) !important;
+  backdrop-filter: blur(8px);
+}
+
+.sidebar a,
+#sidebar a {
+  border-radius: 8px;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.sidebar a:hover,
+#sidebar a:hover {
+  background: rgba(244, 114, 182, 0.10) !important;
+  transform: translateX(2px);
+}
+
+.sidebar a[aria-current="page"],
+#sidebar a.active {
+  background: linear-gradient(90deg, rgba(244, 114, 182, 0.18), rgba(139, 92, 246, 0.10)) !important;
+  color: #fff !important;
+  border: 1px solid rgba(244, 114, 182, 0.25);
+}
+
+/* Inputs / select / textarea */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="number"],
+.dark input[type="password"],
+.dark input[type="datetime-local"],
+.dark input[type="date"],
+.dark input[type="search"],
+.dark select,
+.dark textarea {
+  background: rgba(11, 2, 23, 0.85) !important;
+  border: 1px solid var(--jhz-border) !important;
+  color: #f1f5f9 !important;
+  border-radius: 10px !important;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: var(--jhz-pink) !important;
+  box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.18) !important;
+  outline: none !important;
+}
+
+/* Cards (KPI + paneles) */
+.jhz-card {
+  background: var(--jhz-card);
+  border: 1px solid var(--jhz-border) !important;
+  border-radius: 16px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  backdrop-filter: blur(8px);
+  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.jhz-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(244, 114, 182, 0.35) !important;
+  box-shadow:
+    0 18px 40px -12px rgba(244, 114, 182, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.jhz-kpi-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(244, 114, 182, 0.20), rgba(139, 92, 246, 0.20));
+  color: var(--jhz-pink);
+}
+
+.jhz-hero {
+  position: relative;
+  border-radius: 22px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(244, 114, 182, 0.30), transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(124, 58, 237, 0.30), transparent 50%),
+    linear-gradient(135deg, #1a0530 0%, #0a0420 100%);
+  border: 1px solid rgba(244, 114, 182, 0.25);
+  overflow: hidden;
+}
+
+.jhz-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 60%, rgba(255, 255, 255, 0.04) 100%);
+  pointer-events: none;
+}
+
+.jhz-hero-metric {
+  font-size: 48px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #fff 0%, #fbcfe8 50%, #c4b5fd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+/* Botones primarios + acentos */
+.dark .button.default,
+.dark button[type="submit"]:not(.cancel-link),
+.dark .submit-row input[type="submit"] {
+  background: linear-gradient(135deg, var(--jhz-pink) 0%, var(--jhz-violet) 100%) !important;
+  border: none !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 8px 22px -8px rgba(244, 114, 182, 0.55) !important;
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+.dark .button.default:hover,
+.dark button[type="submit"]:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 14px 32px -10px rgba(244, 114, 182, 0.7) !important;
+}
+
+/* Tablas */
+.dark table thead th {
+  background: rgba(255, 255, 255, 0.03) !important;
+  font-weight: 600;
+  color: var(--jhz-text-dim);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 11px;
+  border-bottom: 1px solid var(--jhz-border) !important;
+}
+
+.dark table tbody tr {
+  transition: background 140ms ease;
+}
+
+.dark table tbody tr:hover {
+  background: rgba(244, 114, 182, 0.05) !important;
+}
+
+/* Badges (estado de pedido / ticket) */
+.label,
+.unfold-badge {
+  border-radius: 999px !important;
+  padding: 3px 10px !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* Scrollbar fina */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(244, 114, 182, 0.18);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 114, 182, 0.32);
+}
+
+/* Status pill colors */
+.jhz-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.jhz-pill.success { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
+.jhz-pill.info    { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; }
+.jhz-pill.warn    { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+.jhz-pill.danger  { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.jhz-pill.neutral { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+.jhz-pill .dot {
+  width: 6px; height: 6px; border-radius: 999px; background: currentColor;
+}
+
+/* Login extras */
+.jhz-login-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 28px;
+}
+.jhz-login-shell h1 {
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #fff, #fbcfe8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.jhz-login-shell p {
+  font-size: 13px;
+  color: var(--jhz-text-dim);
+  margin: 0;
+}
+
+/* Smooth transitions on the whole app */
+a, button {
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+}

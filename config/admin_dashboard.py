@@ -94,6 +94,53 @@ def dashboard_callback(request, context):
         "data": [float(per_day_rows[d]) for d in days],
     }
 
+    # Sparklines: últimos 7 días de cada KPI
+    last_7 = days[-7:]
+    sparkline_sales = [float(per_day_rows[d]) for d in last_7]
+
+    orders_per_day = {d: 0 for d in last_7}
+    for row in (
+        Order.objects.filter(created_at__date__gte=last_7[0])
+        .values("created_at__date")
+        .annotate(qty=Count("id"))
+    ):
+        d = row["created_at__date"]
+        if d in orders_per_day:
+            orders_per_day[d] = row["qty"]
+    sparkline_orders = [orders_per_day[d] for d in last_7]
+
+    yape_per_day = {d: 0 for d in last_7}
+    for row in (
+        Order.objects.filter(
+            created_at__date__gte=last_7[0], status=Order.Status.VERIFYING
+        )
+        .values("created_at__date")
+        .annotate(qty=Count("id"))
+    ):
+        d = row["created_at__date"]
+        if d in yape_per_day:
+            yape_per_day[d] = row["qty"]
+    sparkline_yape = [yape_per_day[d] for d in last_7]
+
+    # Crecimiento: mes actual vs mes anterior
+    prev_month_first = (first_of_month - timedelta(days=1)).replace(day=1)
+    prev_month_sales = (
+        Order.objects.filter(
+            created_at__date__gte=prev_month_first,
+            created_at__date__lt=first_of_month,
+            status__in=paid_statuses,
+        )
+        .aggregate(total=Sum("total"))
+        .get("total")
+        or Decimal("0.00")
+    )
+    if prev_month_sales > 0:
+        growth_pct = float(
+            ((sales_month - prev_month_sales) / prev_month_sales) * 100
+        )
+    else:
+        growth_pct = 100.0 if sales_month > 0 else 0.0
+
     # ---- Chart 2: top 5 productos del mes -----------------------------------
     top_products_rows = list(
         Order.objects.filter(
@@ -124,6 +171,21 @@ def dashboard_callback(request, context):
 
     context.update(
         {
+            "hero": {
+                "metric": f"S/ {sales_month:,.2f}",
+                "label": "Ventas este mes",
+                "growth_pct": growth_pct,
+                "growth_label": (
+                    f"+{growth_pct:.1f}% vs mes anterior"
+                    if growth_pct >= 0
+                    else f"{growth_pct:.1f}% vs mes anterior"
+                ),
+                "paid_orders": paid_month_count,
+                "avg_ticket": f"S/ {avg_ticket:,.2f}",
+                "sparkline": sparkline_sales,
+            },
+            "sparkline_orders": sparkline_orders,
+            "sparkline_yape": sparkline_yape,
             "kpi": [
                 {
                     "title": "Pedidos hoy",

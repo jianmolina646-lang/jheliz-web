@@ -9,7 +9,7 @@ from unfold.admin import ModelAdmin
 from unfold.decorators import display
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 
-from .models import Customer, Role, User, WalletTransaction
+from .models import Customer, Distributor, Role, User, WalletTransaction
 
 
 JHELIZ_FIELDSETS_EXTRA = (
@@ -218,6 +218,230 @@ class CustomerAdmin(ModelAdmin):
             for r in rows if r["items__product_name"]
         )
         return format_html(chips or "—")
+
+
+@admin.register(Distributor)
+class DistributorAdmin(ModelAdmin):
+    """Vista exclusiva para distribuidores: estado, pedidos, wallet, notas."""
+
+    list_display = (
+        "username", "display_full_name", "display_status",
+        "phone_display", "orders_count", "spent_total",
+        "wallet_balance", "last_order_at", "whatsapp_link",
+    )
+    list_filter = ("distributor_approved", "is_active", "date_joined")
+    search_fields = (
+        "username", "email", "first_name", "last_name", "phone", "telegram_username",
+    )
+    actions = ["approve_distributor", "revoke_distributor"]
+    readonly_fields = (
+        "date_joined", "last_login", "wallet_balance",
+        "orders_summary", "tickets_summary", "platforms_summary",
+        "wallet_summary",
+    )
+    fieldsets = (
+        ("Perfil", {
+            "fields": (
+                "username", "email", "first_name", "last_name",
+                "phone", "telegram_username", "is_active",
+            ),
+        }),
+        ("Estado distribuidor", {
+            "fields": ("distributor_approved", "wallet_balance"),
+            "description": "Aprueba para que pueda ver precios mayoristas en /distribuidor/panel/.",
+        }),
+        ("Notas internas", {
+            "fields": ("admin_notes",),
+            "description": "Sólo visible para el equipo.",
+        }),
+        ("Historial", {
+            "fields": (
+                "orders_summary", "platforms_summary",
+                "wallet_summary", "tickets_summary",
+            ),
+        }),
+        ("Fechas", {
+            "fields": ("date_joined", "last_login"),
+            "classes": ("collapse",),
+        }),
+    )
+    list_per_page = 50
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request).filter(role=Role.DISTRIBUIDOR)
+        return qs.annotate(
+            _orders_count=Count("orders", distinct=True),
+            _spent_total=Sum(
+                "orders__total",
+                filter=Q(orders__status__in=["paid", "preparing", "delivered"]),
+            ),
+        )
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.role = Role.DISTRIBUIDOR
+        super().save_model(request, obj, form, change)
+
+    @display(description="Nombre")
+    def display_full_name(self, obj):
+        return obj.get_full_name() or "—"
+
+    @display(
+        description="Estado",
+        label={
+            "Aprobado": "success",
+            "Pendiente": "warning",
+        },
+    )
+    def display_status(self, obj):
+        return "Aprobado" if obj.distributor_approved else "Pendiente"
+
+    @display(description="Teléfono / WhatsApp")
+    def phone_display(self, obj):
+        return obj.phone or "—"
+
+    @display(description="# Pedidos", ordering="_orders_count")
+    def orders_count(self, obj):
+        return getattr(obj, "_orders_count", 0)
+
+    @display(description="Total comprado", ordering="_spent_total")
+    def spent_total(self, obj):
+        return f"S/ {(getattr(obj, '_spent_total', None) or 0):,.2f}"
+
+    @display(description="Último pedido")
+    def last_order_at(self, obj):
+        o = obj.orders.order_by("-created_at").first()
+        return o.created_at.strftime("%d %b %Y") if o else "—"
+
+    @display(description="WhatsApp")
+    def whatsapp_link(self, obj):
+        if not obj.phone:
+            return "—"
+        num = "".join(c for c in obj.phone if c.isdigit())
+        if not num:
+            return "—"
+        return format_html(
+            '<a href="https://wa.me/{0}" target="_blank" rel="noopener" '
+            'class="text-green-500 hover:underline">WhatsApp</a>',
+            num,
+        )
+
+    @admin.display(description="Pedidos como distribuidor")
+    def orders_summary(self, obj):
+        orders = obj.orders.order_by("-created_at")[:10]
+        if not orders:
+            return "—"
+        rows = []
+        for o in orders:
+            url = reverse("admin:orders_order_change", args=[o.pk])
+            rows.append(
+                f'<tr>'
+                f'<td><a href="{url}" style="color:#f472b6">#{o.short_uuid}</a></td>'
+                f'<td>{o.created_at.strftime("%d %b %Y")}</td>'
+                f'<td>{o.get_status_display()}</td>'
+                f'<td>{o.currency} {o.total}</td>'
+                f'</tr>'
+            )
+        table = (
+            "<table style='width:100%;font-size:13px;border-collapse:collapse'>"
+            "<thead><tr style='text-align:left;color:#94a3b8'>"
+            "<th>#</th><th>Fecha</th><th>Estado</th><th>Total</th>"
+            "</tr></thead><tbody>"
+            + "".join(rows)
+            + "</tbody></table>"
+        )
+        return format_html(table)
+
+    @admin.display(description="Tickets")
+    def tickets_summary(self, obj):
+        tickets = obj.tickets.order_by("-updated_at")[:8] if hasattr(obj, "tickets") else []
+        if not tickets:
+            return "—"
+        rows = []
+        for t in tickets:
+            url = reverse("admin:support_ticket_change", args=[t.pk])
+            rows.append(
+                f'<li><a href="{url}" style="color:#f472b6">#{t.pk}</a> '
+                f'— {t.subject} · <em>{t.get_status_display()}</em></li>'
+            )
+        return format_html("<ul style='margin:0;padding-left:18px'>" + "".join(rows) + "</ul>")
+
+    @admin.display(description="Plataformas compradas")
+    def platforms_summary(self, obj):
+        rows = (
+            obj.orders.filter(status__in=["paid", "preparing", "delivered"])
+            .values("items__product_name")
+            .annotate(qty=Count("items"))
+            .order_by("-qty")[:8]
+        )
+        if not rows:
+            return "—"
+        chips = "".join(
+            f"<span style='display:inline-block;margin:2px 4px 0 0;padding:2px 8px;"
+            f"border-radius:12px;background:rgba(244,114,182,0.15);color:#f9a8d4;"
+            f"font-size:12px;'>{r['items__product_name']} × {r['qty']}</span>"
+            for r in rows if r["items__product_name"]
+        )
+        return format_html(chips or "—")
+
+    @admin.display(description="Movimientos de saldo recientes")
+    def wallet_summary(self, obj):
+        txs = obj.wallet_transactions.order_by("-created_at")[:8] if hasattr(obj, "wallet_transactions") else []
+        if not txs:
+            return "—"
+        rows = []
+        for t in txs:
+            sign = "+" if t.amount >= 0 else ""
+            rows.append(
+                f'<tr>'
+                f'<td>{t.created_at.strftime("%d %b %Y")}</td>'
+                f'<td>{t.get_kind_display()}</td>'
+                f'<td style="text-align:right;color:#f472b6">{sign}S/ {t.amount}</td>'
+                f'<td style="text-align:right">S/ {t.balance_after}</td>'
+                f'<td style="color:#94a3b8">{t.reference or "—"}</td>'
+                f'</tr>'
+            )
+        return format_html(
+            "<table style='width:100%;font-size:13px;border-collapse:collapse'>"
+            "<thead><tr style='text-align:left;color:#94a3b8'>"
+            "<th>Fecha</th><th>Tipo</th><th style='text-align:right'>Monto</th>"
+            "<th style='text-align:right'>Saldo después</th><th>Ref.</th>"
+            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
+        )
+
+    @admin.action(description="Aprobar distribuidor (envía email)")
+    def approve_distributor(self, request, queryset):
+        from django.template.loader import render_to_string
+        from django.core.mail import send_mail
+        count = 0
+        for user in queryset:
+            user.role = Role.DISTRIBUIDOR
+            user.distributor_approved = True
+            user.save(update_fields=["role", "distributor_approved"])
+            if user.email:
+                try:
+                    html = render_to_string("emails/distributor_approved.html", {"user": user})
+                    send_mail(
+                        subject="Tu cuenta de distribuidor Jheliz ha sido aprobada",
+                        message=(
+                            f"Hola {user.get_full_name() or user.username},\n\n"
+                            "Tu solicitud de distribuidor fue aprobada. Ya puedes ver los precios mayoristas "
+                            "entrando a https://jhelizservicestv.xyz/distribuidor/panel/"
+                        ),
+                        from_email=None,
+                        recipient_list=[user.email],
+                        html_message=html,
+                        fail_silently=True,
+                    )
+                except Exception:
+                    pass
+            count += 1
+        self.message_user(request, f"{count} distribuidor(es) aprobado(s).")
+
+    @admin.action(description="Revocar aprobación")
+    def revoke_distributor(self, request, queryset):
+        count = queryset.update(distributor_approved=False)
+        self.message_user(request, f"{count} distribuidor(es) desaprobado(s).")
 
 
 @admin.register(WalletTransaction)

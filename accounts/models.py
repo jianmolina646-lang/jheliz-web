@@ -63,6 +63,15 @@ class Customer(User):
         verbose_name_plural = "Clientes"
 
 
+class Distributor(User):
+    """Proxy para mostrar a los distribuidores en una sección propia del admin."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "Distribuidor"
+        verbose_name_plural = "Distribuidores"
+
+
 class WalletTransaction(models.Model):
     class Kind(models.TextChoices):
         RECARGA = "recarga", "Recarga"
