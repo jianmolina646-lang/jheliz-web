@@ -288,6 +288,7 @@ class DistributorAdmin(ModelAdmin):
                 "orders__total",
                 filter=Q(orders__status__in=["paid", "preparing", "delivered"]),
             ),
+            _last_order_at=Max("orders__created_at"),
         )
 
     def save_model(self, request, obj, form, change):
@@ -318,10 +319,10 @@ class DistributorAdmin(ModelAdmin):
     def spent_total(self, obj):
         return f"S/ {(getattr(obj, '_spent_total', None) or 0):,.2f}"
 
-    @display(description="Último pedido")
+    @display(description="Último pedido", ordering="_last_order_at")
     def last_order_at(self, obj):
-        o = obj.orders.order_by("-created_at").first()
-        return o.created_at.strftime("%d %b %Y") if o else "—"
+        last = getattr(obj, "_last_order_at", None)
+        return last.strftime("%d %b %Y") if last else "—"
 
     @display(description="WhatsApp")
     def whatsapp_link(self, obj):
