@@ -223,32 +223,54 @@ def notify_admin_about_yape(order) -> None:
     notify_admin(format_yape_proof(order), buttons=order_action_buttons(order))
 
 
-# ---------- Canal público de avisos ----------
+# ---------- Canales públicos de avisos ----------
 
 SITE_BASE = "https://jhelizservicestv.xyz"
 
+# Audiencias para anuncios. Cada anuncio se publica en uno o ambos canales
+# y los precios mostrados varían según la audiencia.
+AUDIENCE_DISTRIB = "distrib"
+AUDIENCE_CUSTOMER = "customer"
+AUDIENCE_ALL = "all"
 
-def _channel_id() -> str:
+
+def _distrib_channel_id() -> str:
     return str(getattr(settings, "TELEGRAM_CHANNEL_ID", "") or "")
 
 
-def channel_is_configured() -> bool:
-    return bool(is_configured() and _channel_id())
+def _customer_channel_id() -> str:
+    return str(getattr(settings, "TELEGRAM_CUSTOMER_CHANNEL_ID", "") or "")
 
 
-def post_to_channel(
+def _channel_ids_for(audience: str) -> list[tuple[str, str]]:
+    """Devuelve [(chat_id, audience), ...] de los canales activos para
+    la audiencia pedida. Si un canal no está configurado, se omite."""
+    out: list[tuple[str, str]] = []
+    if audience in (AUDIENCE_DISTRIB, AUDIENCE_ALL):
+        cid = _distrib_channel_id()
+        if cid:
+            out.append((cid, AUDIENCE_DISTRIB))
+    if audience in (AUDIENCE_CUSTOMER, AUDIENCE_ALL):
+        cid = _customer_channel_id()
+        if cid:
+            out.append((cid, AUDIENCE_CUSTOMER))
+    return out
+
+
+def channel_is_configured(audience: str = AUDIENCE_ALL) -> bool:
+    """¿Hay al menos un canal configurado para esta audiencia?"""
+    if not is_configured():
+        return False
+    return bool(_channel_ids_for(audience))
+
+
+def _post_one_channel(
+    chat_id: str,
     text: str,
     buttons: Iterable[Iterable[dict]] | None = None,
     photo_url: str = "",
 ) -> dict | None:
-    """Publica un mensaje en el canal público.
-
-    Si `photo_url` está, manda un sendPhoto con caption (HTML). Si no, un
-    sendMessage normal.
-    """
-    chat_id = _channel_id()
-    if not (is_configured() and chat_id):
-        return None
+    """Publica un mensaje en un canal concreto."""
     try:
         if photo_url:
             payload: dict[str, Any] = {
@@ -263,8 +285,28 @@ def post_to_channel(
             return _call("sendPhoto", **payload)
         return send_message(chat_id, text, buttons=buttons)
     except Exception:
-        logger.exception("No se pudo publicar en el canal de Telegram")
+        logger.exception("No se pudo publicar en %s", chat_id)
         return None
+
+
+def post_to_channel(
+    text: str,
+    buttons: Iterable[Iterable[dict]] | None = None,
+    photo_url: str = "",
+    audience: str = AUDIENCE_DISTRIB,
+) -> dict | None:
+    """Publica el mismo mensaje en uno o ambos canales según ``audience``.
+
+    Devuelve la respuesta del último canal escrito (o None si no hay canales).
+    Para enviar mensajes con precios diferenciados por canal, usar
+    ``announce_product`` que llama dos veces formateando cada texto.
+    """
+    if not is_configured():
+        return None
+    last: dict | None = None
+    for chat_id, _aud in _channel_ids_for(audience):
+        last = _post_one_channel(chat_id, text, buttons=buttons, photo_url=photo_url)
+    return last
 
 
 def _product_url(product) -> str:
@@ -288,38 +330,63 @@ def _product_button_row(product) -> list[dict]:
     return [{"text": "🛒 Ver en la web", "url": _product_url(product)}]
 
 
-def _format_price_lines(product) -> list[str]:
+def _format_price_lines(product, audience: str = AUDIENCE_CUSTOMER) -> list[str]:
     currency = getattr(settings, "DEFAULT_CURRENCY_SYMBOL", "S/")
-    plans = product.plans.filter(
-        is_active=True, available_for_customer=True,
-    ).order_by("order", "duration_days")
+    if audience == AUDIENCE_DISTRIB:
+        plans_qs = product.plans.filter(
+            is_active=True, available_for_distributor=True,
+        )
+    else:
+        plans_qs = product.plans.filter(
+            is_active=True, available_for_customer=True,
+        )
+    plans = plans_qs.order_by("order", "duration_days")
     lines: list[str] = []
     for plan in plans:
-        if plan.price_customer <= 0:
+        if audience == AUDIENCE_DISTRIB:
+            price = plan.price_distributor or plan.price_customer
+        else:
+            price = plan.price_customer
+        if not price or price <= 0:
             continue
         duration = (
             f"{plan.duration_days} días" if plan.duration_days else "sin expiración"
         )
         lines.append(
-            f"• {html.escape(plan.name)} ({duration}) — {currency} "
-            f"{plan.price_customer:.2f}"
+            f"• {html.escape(plan.name)} ({duration}) — {currency} {price:.2f}"
         )
     return lines
 
 
-def format_product_announcement(product, kind: str = "new") -> str:
-    """Genera el mensaje para un producto. ``kind`` ∈ {'new', 'restock'}."""
+def format_product_announcement(
+    product,
+    kind: str = "new",
+    audience: str = AUDIENCE_CUSTOMER,
+) -> str:
+    """Genera el mensaje para un producto.
+
+    ``kind`` ∈ {'new', 'restock'}.
+    ``audience`` decide qué precios y banners aparecen.
+    """
     safe_name = html.escape(product.name or "")
-    title_map = {
-        "new": f"🆕 <b>Nuevo: {safe_name}</b>",
-        "restock": f"📦 <b>Volvió el stock — {safe_name}</b>",
-    }
+    if audience == AUDIENCE_DISTRIB:
+        title_map = {
+            "new": f"🆕 <b>Nuevo en mayorista: {safe_name}</b>",
+            "restock": f"📦 <b>Stock disponible — {safe_name}</b>",
+        }
+    else:
+        title_map = {
+            "new": f"🆕 <b>Nuevo: {safe_name}</b>",
+            "restock": f"📦 <b>Volvió el stock — {safe_name}</b>",
+        }
     lines = [title_map.get(kind, f"<b>{safe_name}</b>")]
     if product.short_description:
         lines.append(html.escape(product.short_description))
-    price_lines = _format_price_lines(product)
+    price_lines = _format_price_lines(product, audience=audience)
     if price_lines:
         lines.append("")
+        if audience == AUDIENCE_DISTRIB:
+            lines.append("<i>Precios mayoristas:</i>")
         lines.extend(price_lines)
     lines.append("")
     lines.append("✅ Garantía durante toda la suscripción")
@@ -346,25 +413,51 @@ def format_coupon_announcement(coupon) -> str:
     return "\n".join(lines)
 
 
+def _coupon_audience(coupon) -> str:
+    """Mapea Coupon.audience al constante de canal."""
+    aud = getattr(coupon, "audience", "all")
+    if aud == "distributor":
+        return AUDIENCE_DISTRIB
+    if aud == "customer":
+        return AUDIENCE_CUSTOMER
+    return AUDIENCE_ALL
+
+
 def announce_product(product, kind: str = "new") -> dict | None:
+    """Publica al/los canal(es) configurados, con precios diferenciados.
+
+    - Canal distribuidores: precio mayorista.
+    - Canal clientes: precio cliente final.
+    Si solo hay uno configurado, publica solo en ese.
+    """
     if not channel_is_configured():
         return None
-    text = format_product_announcement(product, kind=kind)
     photo = _product_image_url(product)
-    return post_to_channel(text, buttons=[_product_button_row(product)], photo_url=photo)
+    buttons = [_product_button_row(product)]
+    last: dict | None = None
+    for chat_id, audience in _channel_ids_for(AUDIENCE_ALL):
+        text = format_product_announcement(product, kind=kind, audience=audience)
+        last = _post_one_channel(chat_id, text, buttons=buttons, photo_url=photo)
+    return last
 
 
 def announce_coupon(coupon) -> dict | None:
-    if not channel_is_configured():
+    """Publica el cupón en el canal correspondiente a su audiencia."""
+    target_audience = _coupon_audience(coupon)
+    if not channel_is_configured(target_audience):
         return None
     text = format_coupon_announcement(coupon)
-    return post_to_channel(text, buttons=[[{"text": "🛒 Ir a la tienda", "url": SITE_BASE}]])
+    return post_to_channel(
+        text,
+        buttons=[[{"text": "🛒 Ir a la tienda", "url": SITE_BASE}]],
+        audience=target_audience,
+    )
 
 
-def announce_text(text: str) -> dict | None:
-    if not channel_is_configured():
+def announce_text(text: str, audience: str = AUDIENCE_ALL) -> dict | None:
+    if not channel_is_configured(audience):
         return None
-    return post_to_channel(text)
+    return post_to_channel(text, audience=audience)
 
 
 # ---------- Comandos / handlers ----------
@@ -380,8 +473,10 @@ PUBLIC_HELP = (
 ADMIN_HELP = PUBLIC_HELP + (
     "\n\n<b>Comandos admin</b>\n"
     "/yape — pedidos Yape pendientes (con botones)\n"
-    "/avisar &lt;texto&gt; — publicar al canal Jheliz Avisos\n"
-    "/canal — info del canal y plantillas\n"
+    "/avisar &lt;texto&gt; — publicar a ambos canales (clientes + distribuidores)\n"
+    "/avisar_clientes &lt;texto&gt; — solo canal clientes finales\n"
+    "/avisar_distrib &lt;texto&gt; — solo canal distribuidores\n"
+    "/canal — info de los canales\n"
     "/hoy — pedidos de hoy\n"
     "/cliente &lt;email|tel&gt; — ficha rápida\n"
     "/buscar &lt;texto&gt; — productos\n"
@@ -438,7 +533,13 @@ def _handle_message(update: dict) -> None:
         send_message(chat_id, daily_summary_text())
         return
     if cmd == "/avisar":
-        _cmd_avisar(chat_id, rest)
+        _cmd_avisar(chat_id, rest, audience=AUDIENCE_ALL)
+        return
+    if cmd == "/avisar_clientes":
+        _cmd_avisar(chat_id, rest, audience=AUDIENCE_CUSTOMER)
+        return
+    if cmd == "/avisar_distrib":
+        _cmd_avisar(chat_id, rest, audience=AUDIENCE_DISTRIB)
         return
     if cmd == "/canal":
         _cmd_canal(chat_id)
@@ -692,43 +793,66 @@ def _cmd_reporte(chat_id: int | str) -> None:
     send_message(chat_id, _report_text())
 
 
-def _cmd_avisar(chat_id: int | str, text: str) -> None:
-    if not channel_is_configured():
-        send_message(chat_id, "TELEGRAM_CHANNEL_ID no configurado en .env.")
-        return
+def _cmd_avisar(
+    chat_id: int | str, text: str, audience: str = AUDIENCE_ALL
+) -> None:
     text = (text or "").strip()
-    if not text:
+    audience_label = {
+        AUDIENCE_ALL: "ambos canales",
+        AUDIENCE_CUSTOMER: "canal clientes",
+        AUDIENCE_DISTRIB: "canal distribuidores",
+    }.get(audience, audience)
+    if not channel_is_configured(audience):
         send_message(
             chat_id,
-            "Uso: <code>/avisar &lt;texto&gt;</code>\n"
-            "Ejemplo: <code>/avisar Netflix está caído, lo reactivamos en 1 hora.</code>",
+            f"❌ Sin canal configurado para {audience_label}. "
+            "Configura las variables <code>TELEGRAM_CHANNEL_ID</code> "
+            "y/o <code>TELEGRAM_CUSTOMER_CHANNEL_ID</code> en .env.",
         )
         return
-    result = announce_text(text)
+    if not text:
+        cmd_name = {
+            AUDIENCE_ALL: "/avisar",
+            AUDIENCE_CUSTOMER: "/avisar_clientes",
+            AUDIENCE_DISTRIB: "/avisar_distrib",
+        }.get(audience, "/avisar")
+        send_message(
+            chat_id,
+            f"Uso: <code>{cmd_name} &lt;texto&gt;</code>\n"
+            f"Ejemplo: <code>{cmd_name} Netflix está caído, lo reactivamos en 1 hora.</code>",
+        )
+        return
+    result = announce_text(text, audience=audience)
     if result and result.get("ok"):
-        send_message(chat_id, "✅ Publicado en el canal.")
+        send_message(chat_id, f"✅ Publicado en {audience_label}.")
     else:
         send_message(chat_id, f"❌ No se pudo publicar: {result}")
 
 
 def _cmd_canal(chat_id: int | str) -> None:
-    if not channel_is_configured():
+    distrib = _distrib_channel_id() or "<i>(sin configurar)</i>"
+    customer = _customer_channel_id() or "<i>(sin configurar)</i>"
+    if not channel_is_configured(AUDIENCE_ALL):
         send_message(
             chat_id,
-            "Canal sin configurar. Define <code>TELEGRAM_CHANNEL_ID</code> en .env "
-            "y reinicia.",
+            "❌ Ningún canal configurado. Define "
+            "<code>TELEGRAM_CHANNEL_ID</code> y/o "
+            "<code>TELEGRAM_CUSTOMER_CHANNEL_ID</code> en .env y reinicia.",
         )
         return
     send_message(
         chat_id,
-        f"📣 <b>Canal de avisos</b>\n"
-        f"Destino: <code>{_channel_id()}</code>\n\n"
-        "Auto-publicación:\n"
+        "📣 <b>Canales de avisos</b>\n"
+        f"• Distribuidores: <code>{html.escape(distrib)}</code>\n"
+        f"• Clientes finales: <code>{html.escape(customer)}</code>\n\n"
+        "<b>Auto-publicación</b> (en ambos, con precios separados):\n"
         "• 🆕 Producto activado en el admin\n"
-        "• 📦 Stock repuesto (de 0 a ≥1) en un plan\n"
-        "• 💰 Cupón nuevo activo\n\n"
-        "Manual:\n"
-        "• /avisar &lt;texto&gt; desde este chat\n"
+        "• 📦 Stock repuesto (vía check_low_stock)\n"
+        "• 💰 Cupón nuevo (según audiencia del cupón)\n\n"
+        "<b>Comandos manuales</b>\n"
+        "• /avisar &lt;texto&gt; — ambos canales\n"
+        "• /avisar_clientes &lt;texto&gt; — solo clientes\n"
+        "• /avisar_distrib &lt;texto&gt; — solo distribuidores\n"
         "• Botón <i>“Publicar al canal”</i> en cada producto del admin",
     )
 
