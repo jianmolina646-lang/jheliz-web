@@ -281,7 +281,7 @@ def checkout(request):
             order = _create_order_from_cart(request, cart, form.cleaned_data)
             cart.clear()
             emails.send_order_received(order)
-            telegram.notify_admin(telegram.format_new_order(order))
+            telegram.notify_admin_about_order(order)
 
             if method == "yape":
                 order.payment_provider = "yape"
@@ -361,7 +361,7 @@ def yape_payment(request, uuid):
                 "status", "payment_provider", "payment_rejection_reason",
             ])
             emails.send_yape_proof_received(order)
-            telegram.notify_admin(telegram.format_yape_proof(order))
+            telegram.notify_admin_about_yape(order)
             messages.success(
                 request,
                 "Recibimos tu comprobante. En menos de 30 minutos lo verificamos y te avisamos por correo.",
@@ -375,6 +375,29 @@ def yape_payment(request, uuid):
         "form": form,
         "settings": payment_settings,
     })
+
+
+@csrf_exempt
+@require_POST
+def telegram_webhook(request, secret: str):
+    """Endpoint que recibe updates de Telegram (mensajes y callback queries).
+
+    Telegram también envía un header ``X-Telegram-Bot-Api-Secret-Token`` que
+    debe coincidir con ``settings.TELEGRAM_WEBHOOK_SECRET``. Validamos ambos
+    (path y header) para evitar spoofing.
+    """
+    expected = getattr(settings, "TELEGRAM_WEBHOOK_SECRET", "") or ""
+    header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if not expected or secret != expected or header != expected:
+        return HttpResponse(status=403)
+    update = telegram.parse_update_payload(request.body)
+    if not update:
+        return HttpResponse(status=400)
+    try:
+        telegram.process_update(update)
+    except Exception:
+        logger.exception("Error procesando update de Telegram")
+    return HttpResponse(status=200)
 
 
 def _create_order_from_cart(request, cart: Cart, contact: dict) -> Order:

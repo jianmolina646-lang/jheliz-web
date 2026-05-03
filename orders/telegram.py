@@ -1,17 +1,22 @@
-"""Integración ligera con Telegram Bot API usando requests (sin dependencia extra).
+"""Integración con Telegram Bot API (sin dependencias extra).
 
-Dos usos principales:
+Tres usos principales:
 
-1. **Notificaciones al admin** cuando llega un pedido nuevo (llamado desde señales/webhook).
-2. **Bot para clientes** con comandos básicos (`/start`, `/catalogo`, `/pedido <uuid>`).
-   Se arranca con `python manage.py run_telegram_bot` (long polling).
+1. **Notificaciones al admin** con botones inline para confirmar/rechazar
+   Yape, marcar entregado, reenviar credenciales (signals/views).
+2. **Webhook de Telegram** (`telegram_webhook` view) que procesa mensajes y
+   callback queries en tiempo real, sin polling.
+3. **Comandos admin**: `/yape`, `/cliente`, `/buscar`, `/hoy`, `/reporte`,
+   `/resumen`. Comandos públicos: `/catalogo`, `/pedido <uuid>`, `/ayuda`.
 """
 
 from __future__ import annotations
 
+import html
+import json
 import logging
 import time
-from typing import Any
+from typing import Any, Iterable
 
 import requests
 from django.conf import settings
@@ -19,15 +24,29 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
+ADMIN_BASE = "https://jhelizservicestv.xyz/jheliz-admin"
 
+
+# ---------- Configuración ----------
 
 def _token() -> str:
     return getattr(settings, "TELEGRAM_BOT_TOKEN", "") or ""
 
 
+def _admin_chat_id() -> str:
+    return str(getattr(settings, "TELEGRAM_ADMIN_CHAT_ID", "") or "")
+
+
 def is_configured() -> bool:
     return bool(_token())
 
+
+def _is_admin_chat(chat_id: int | str) -> bool:
+    admin = _admin_chat_id()
+    return bool(admin) and str(chat_id) == admin
+
+
+# ---------- API low-level ----------
 
 def _call(method: str, **payload) -> dict:
     token = _token()
@@ -45,24 +64,122 @@ def _call(method: str, **payload) -> dict:
     return data
 
 
-def send_message(chat_id: str | int, text: str, parse_mode: str = "HTML") -> dict:
-    return _call(
-        "sendMessage",
-        chat_id=str(chat_id),
-        text=text,
-        parse_mode=parse_mode,
-        disable_web_page_preview=True,
-    )
+def _build_reply_markup(buttons: Iterable[Iterable[dict]] | None) -> dict | None:
+    if not buttons:
+        return None
+    rows = []
+    for row in buttons:
+        rows.append([dict(b) for b in row])
+    return {"inline_keyboard": rows}
 
 
-def notify_admin(text: str) -> None:
-    chat_id = getattr(settings, "TELEGRAM_ADMIN_CHAT_ID", "") or ""
+def send_message(
+    chat_id: str | int,
+    text: str,
+    parse_mode: str = "HTML",
+    buttons: Iterable[Iterable[dict]] | None = None,
+) -> dict:
+    payload: dict[str, Any] = {
+        "chat_id": str(chat_id),
+        "text": text,
+        "parse_mode": parse_mode,
+        "disable_web_page_preview": True,
+    }
+    markup = _build_reply_markup(buttons)
+    if markup:
+        payload["reply_markup"] = markup
+    return _call("sendMessage", **payload)
+
+
+def edit_message_text(
+    chat_id: str | int,
+    message_id: int,
+    text: str,
+    parse_mode: str = "HTML",
+    buttons: Iterable[Iterable[dict]] | None = None,
+) -> dict:
+    payload: dict[str, Any] = {
+        "chat_id": str(chat_id),
+        "message_id": message_id,
+        "text": text,
+        "parse_mode": parse_mode,
+        "disable_web_page_preview": True,
+    }
+    markup = _build_reply_markup(buttons)
+    if markup is not None:
+        payload["reply_markup"] = markup
+    return _call("editMessageText", **payload)
+
+
+def answer_callback_query(callback_query_id: str, text: str = "", alert: bool = False) -> dict:
+    payload = {"callback_query_id": callback_query_id}
+    if text:
+        payload["text"] = text
+    if alert:
+        payload["show_alert"] = True
+    return _call("answerCallbackQuery", **payload)
+
+
+def set_webhook(url: str, secret_token: str = "") -> dict:
+    payload: dict[str, Any] = {
+        "url": url,
+        "drop_pending_updates": True,
+        "allowed_updates": ["message", "callback_query"],
+    }
+    if secret_token:
+        payload["secret_token"] = secret_token
+    return _call("setWebhook", **payload)
+
+
+def delete_webhook() -> dict:
+    return _call("deleteWebhook", drop_pending_updates=True)
+
+
+def get_webhook_info() -> dict:
+    return _call("getWebhookInfo")
+
+
+# ---------- Notificaciones admin ----------
+
+def notify_admin(text: str, buttons: Iterable[Iterable[dict]] | None = None) -> dict | None:
+    chat_id = _admin_chat_id()
     if not (is_configured() and chat_id):
-        return
+        return None
     try:
-        send_message(chat_id, text)
+        return send_message(chat_id, text, buttons=buttons)
     except Exception:
         logger.exception("No se pudo notificar al admin por Telegram")
+        return None
+
+
+def _admin_url(path: str) -> str:
+    return f"{ADMIN_BASE}{path}"
+
+
+def order_action_buttons(order) -> list[list[dict]]:
+    """Botones según el estado del pedido."""
+    from .models import Order  # evita ciclo
+
+    rows: list[list[dict]] = []
+    if order.status == Order.Status.VERIFYING and order.payment_provider == "yape":
+        rows.append([
+            {"text": "✅ Confirmar Yape", "callback_data": f"yape:confirm:{order.pk}"},
+            {"text": "❌ Rechazar", "callback_data": f"yape:reject:{order.pk}"},
+        ])
+    if order.status in {Order.Status.PAID, Order.Status.PREPARING, Order.Status.VERIFYING}:
+        rows.append([
+            {"text": "📦 Marcar entregado (admin)",
+             "url": _admin_url(f"/orders/order/{order.pk}/deliver/")},
+        ])
+    if order.status == Order.Status.DELIVERED:
+        rows.append([
+            {"text": "↻ Reenviar credenciales", "callback_data": f"order:resend:{order.pk}"},
+        ])
+    rows.append([
+        {"text": "🔍 Ver pedido en admin",
+         "url": _admin_url(f"/orders/order/{order.pk}/change/")},
+    ])
+    return rows
 
 
 def format_new_order(order) -> str:
@@ -84,34 +201,50 @@ def format_new_order(order) -> str:
             )
         if it.customer_notes:
             lines.append(f"   Notas: {it.customer_notes}")
-    lines.append("")
-    lines.append(f"🔗 https://jhelizservicestv.xyz/jheliz-admin/orders/order/{order.pk}/change/")
     return "\n".join(lines)
 
 
 def format_yape_proof(order) -> str:
     return "\n".join([
-        f"<b>💸 Comprobante Yape recibido — pedido #{order.short_uuid}</b>",
+        f"<b>💸 Comprobante Yape — pedido #{order.short_uuid}</b>",
         f"Cliente: {order.email or '(sin correo)'}"
         + (f" · tel {order.phone}" if order.phone else ""),
         f"Total: {order.currency} {order.total}",
         "",
-        "Revisa el comprobante y confirma o rechaza desde el admin:",
-        f"🔗 https://jhelizservicestv.xyz/jheliz-admin/orders/order/{order.pk}/change/",
+        "Aprueba o rechaza desde aquí mismo:",
     ])
 
 
-# -------- Polling bot --------
+def notify_admin_about_order(order) -> None:
+    notify_admin(format_new_order(order), buttons=order_action_buttons(order))
 
-HELP_TEXT = (
-    "👋 Soy el bot de <b>Jheliz</b>. Comandos:\n"
-    "/catalogo — ver productos\n"
+
+def notify_admin_about_yape(order) -> None:
+    notify_admin(format_yape_proof(order), buttons=order_action_buttons(order))
+
+
+# ---------- Comandos / handlers ----------
+
+PUBLIC_HELP = (
+    "👋 Soy el bot de <b>Jheliz</b>.\n\n"
+    "<b>Comandos públicos</b>\n"
+    "/catalogo — productos activos\n"
     "/pedido &lt;uuid&gt; — estado de un pedido\n"
-    "/ayuda — este mensaje"
+    "/ayuda — esta ayuda"
+)
+
+ADMIN_HELP = PUBLIC_HELP + (
+    "\n\n<b>Comandos admin</b>\n"
+    "/yape — pedidos Yape pendientes (con botones)\n"
+    "/hoy — pedidos de hoy\n"
+    "/cliente &lt;email|tel&gt; — ficha rápida\n"
+    "/buscar &lt;texto&gt; — productos\n"
+    "/reporte — ventas semana / mes\n"
+    "/resumen — resumen diario al instante"
 )
 
 
-def _handle_update(update: dict) -> None:
+def _handle_message(update: dict) -> None:
     message = update.get("message") or update.get("edited_message") or {}
     chat = message.get("chat") or {}
     chat_id = chat.get("id")
@@ -119,73 +252,445 @@ def _handle_update(update: dict) -> None:
     if not chat_id or not text:
         return
 
-    if text.startswith("/start"):
-        send_message(chat_id, HELP_TEXT)
-        return
-    if text.startswith("/ayuda") or text.startswith("/help"):
-        send_message(chat_id, HELP_TEXT)
-        return
-    if text.startswith("/catalogo"):
-        from catalog.models import Product
+    is_admin = _is_admin_chat(chat_id)
+    cmd, _, rest = text.partition(" ")
+    cmd = cmd.lower().split("@", 1)[0]  # quita @botname si lo hubiera
+    rest = rest.strip()
 
-        products = Product.objects.filter(is_active=True)[:20]
-        if not products:
-            send_message(chat_id, "Todavía no hay productos cargados.")
-            return
-        lines = ["<b>Catálogo Jheliz</b>", ""]
-        for p in products:
-            plan = p.plans.filter(is_active=True).order_by("price_customer").first()
-            precio = (
-                f"{settings.DEFAULT_CURRENCY_SYMBOL} {plan.price_customer:.2f}"
-                if plan
-                else "—"
-            )
-            lines.append(f"• <b>{p.name}</b> desde {precio}")
-        lines.append("")
-        lines.append("Compra en https://jhelizservicestv.xyz/productos/")
-        send_message(chat_id, "\n".join(lines))
+    # Públicos
+    if cmd in ("/start", "/ayuda", "/help"):
+        send_message(chat_id, ADMIN_HELP if is_admin else PUBLIC_HELP)
         return
-    if text.startswith("/pedido"):
-        parts = text.split(maxsplit=1)
-        if len(parts) != 2:
-            send_message(chat_id, "Usa: <code>/pedido &lt;uuid&gt;</code>")
-            return
-        from orders.models import Order
+    if cmd == "/catalogo":
+        _cmd_catalogo(chat_id)
+        return
+    if cmd == "/pedido":
+        _cmd_pedido(chat_id, rest)
+        return
 
-        uid = parts[1].strip()
-        try:
-            order = Order.objects.get(uuid=uid)
-        except (Order.DoesNotExist, ValueError):
-            send_message(chat_id, f"No encontré el pedido <code>{uid}</code>.")
-            return
-        send_message(
-            chat_id,
-            f"Pedido <b>#{order.short_uuid}</b>\n"
-            f"Estado: <b>{order.get_status_display()}</b>\n"
-            f"Total: {order.currency} {order.total}\n"
-            f"https://jhelizservicestv.xyz/pedidos/{order.uuid}/",
+    # Admin only
+    if not is_admin:
+        send_message(chat_id, PUBLIC_HELP)
+        return
+
+    if cmd == "/yape":
+        _cmd_yape(chat_id)
+        return
+    if cmd == "/hoy":
+        _cmd_hoy(chat_id)
+        return
+    if cmd == "/cliente":
+        _cmd_cliente(chat_id, rest)
+        return
+    if cmd == "/buscar":
+        _cmd_buscar(chat_id, rest)
+        return
+    if cmd == "/reporte":
+        _cmd_reporte(chat_id)
+        return
+    if cmd == "/resumen":
+        send_message(chat_id, daily_summary_text())
+        return
+
+    send_message(chat_id, ADMIN_HELP)
+
+
+def _handle_callback_query(update: dict) -> None:
+    cq = update.get("callback_query") or {}
+    cq_id = cq.get("id") or ""
+    data = (cq.get("data") or "").strip()
+    chat = (cq.get("message") or {}).get("chat") or {}
+    chat_id = chat.get("id")
+    message_id = (cq.get("message") or {}).get("message_id")
+    # Telegram nos devuelve el texto del mensaje original sin formato HTML;
+    # lo escapamos antes de re-enviarlo como HTML para evitar fallos de parseo
+    # cuando el contenido tiene `<`, `>` o `&` (ej. nombres con `&`).
+    original_text = html.escape((cq.get("message") or {}).get("text") or "")
+
+    if not _is_admin_chat(chat_id):
+        answer_callback_query(cq_id, "Sin permiso.", alert=True)
+        return
+
+    parts = data.split(":")
+    if len(parts) < 3:
+        answer_callback_query(cq_id, "Acción inválida.")
+        return
+    domain, action, raw_pk = parts[0], parts[1], parts[2]
+    try:
+        pk = int(raw_pk)
+    except ValueError:
+        answer_callback_query(cq_id, "ID inválido.")
+        return
+
+    from .models import Order
+    try:
+        order = Order.objects.get(pk=pk)
+    except Order.DoesNotExist:
+        answer_callback_query(cq_id, "Pedido no encontrado.", alert=True)
+        return
+
+    if domain == "yape" and action == "confirm":
+        _callback_yape_confirm(order, chat_id, message_id, original_text, cq_id)
+    elif domain == "yape" and action == "reject":
+        _callback_yape_reject(order, chat_id, message_id, original_text, cq_id)
+    elif domain == "order" and action == "resend":
+        _callback_order_resend(order, chat_id, message_id, original_text, cq_id)
+    else:
+        answer_callback_query(cq_id, "Acción no soportada.")
+
+
+def _callback_yape_confirm(order, chat_id, message_id, original_text, cq_id):
+    from .yape_actions import confirm_yape_payment
+
+    result = confirm_yape_payment(order)
+    if not result.ok:
+        answer_callback_query(cq_id, result.message[:180], alert=True)
+        return
+    answer_callback_query(cq_id, "Pago Yape confirmado ✅")
+    edit_message_text(
+        chat_id,
+        message_id,
+        original_text + f"\n\n<b>✅ {result.message}</b>",
+        buttons=[[{
+            "text": "🔍 Ver pedido en admin",
+            "url": _admin_url(f"/orders/order/{order.pk}/change/"),
+        }]],
+    )
+
+
+def _callback_yape_reject(order, chat_id, message_id, original_text, cq_id):
+    """Rechaza con el motivo genérico. Para motivos personalizados, abrir admin."""
+    from .yape_actions import reject_yape_payment
+
+    result = reject_yape_payment(
+        order,
+        reason=(
+            "No pudimos verificar el comprobante. Por favor sube una captura "
+            "más clara donde se vea el monto y el destinatario."
+        ),
+    )
+    if not result.ok:
+        answer_callback_query(cq_id, result.message[:180], alert=True)
+        return
+    answer_callback_query(cq_id, "Comprobante rechazado")
+    edit_message_text(
+        chat_id,
+        message_id,
+        original_text + "\n\n<b>❌ Comprobante rechazado y cliente notificado.</b>",
+        buttons=[[{
+            "text": "🔍 Ver pedido en admin",
+            "url": _admin_url(f"/orders/order/{order.pk}/change/"),
+        }]],
+    )
+
+
+def _callback_order_resend(order, chat_id, message_id, original_text, cq_id):
+    from . import emails
+    from .models import Order
+
+    if order.status != Order.Status.DELIVERED:
+        answer_callback_query(cq_id, "Solo se reenvía cuando ya está entregado.", alert=True)
+        return
+    try:
+        emails.send_order_delivered(order)
+    except Exception:
+        logger.exception("Falló reenvío de credenciales")
+        answer_callback_query(cq_id, "No se pudo reenviar.", alert=True)
+        return
+    answer_callback_query(cq_id, "Credenciales reenviadas ✉️")
+    edit_message_text(
+        chat_id,
+        message_id,
+        original_text + "\n\n<b>↻ Credenciales reenviadas al cliente.</b>",
+        buttons=[[{
+            "text": "🔍 Ver pedido en admin",
+            "url": _admin_url(f"/orders/order/{order.pk}/change/"),
+        }]],
+    )
+
+
+# ---------- Implementación de comandos ----------
+
+def _cmd_catalogo(chat_id: int | str) -> None:
+    from catalog.models import Product
+
+    products = Product.objects.filter(is_active=True)[:20]
+    if not products:
+        send_message(chat_id, "Todavía no hay productos cargados.")
+        return
+    lines = ["<b>Catálogo Jheliz</b>", ""]
+    for p in products:
+        plan = p.plans.filter(is_active=True).order_by("price_customer").first()
+        precio = (
+            f"{settings.DEFAULT_CURRENCY_SYMBOL} {plan.price_customer:.2f}"
+            if plan
+            else "—"
         )
+        lines.append(f"• <b>{p.name}</b> desde {precio}")
+    lines.append("")
+    lines.append("Compra en https://jhelizservicestv.xyz/productos/")
+    send_message(chat_id, "\n".join(lines))
+
+
+def _cmd_pedido(chat_id: int | str, rest: str) -> None:
+    from .models import Order
+
+    uid = rest.strip()
+    if not uid:
+        send_message(chat_id, "Usa: <code>/pedido &lt;uuid&gt;</code>")
         return
+    try:
+        order = Order.objects.get(uuid=uid)
+    except (Order.DoesNotExist, ValueError):
+        send_message(chat_id, f"No encontré el pedido <code>{uid}</code>.")
+        return
+    send_message(
+        chat_id,
+        f"Pedido <b>#{order.short_uuid}</b>\n"
+        f"Estado: <b>{order.get_status_display()}</b>\n"
+        f"Total: {order.currency} {order.total}\n"
+        f"https://jhelizservicestv.xyz/pedidos/{order.uuid}/",
+    )
 
-    send_message(chat_id, HELP_TEXT)
 
+def _cmd_yape(chat_id: int | str) -> None:
+    from .models import Order
+
+    qs = (Order.objects
+          .filter(status=Order.Status.VERIFYING, payment_provider="yape")
+          .order_by("-payment_proof_uploaded_at")[:10])
+    items = list(qs)
+    if not items:
+        send_message(chat_id, "Sin Yape pendientes 🎉")
+        return
+    send_message(chat_id, f"<b>Yape pendientes ({len(items)})</b>")
+    for o in items:
+        notify_admin_about_yape(o)
+
+
+def _cmd_hoy(chat_id: int | str) -> None:
+    from django.utils import timezone
+    from .models import Order
+
+    today = timezone.localdate()
+    qs = Order.objects.filter(created_at__date=today).order_by("-created_at")[:25]
+    items = list(qs)
+    if not items:
+        send_message(chat_id, "Hoy aún no hay pedidos.")
+        return
+    lines = [f"<b>Pedidos de hoy ({len(items)})</b>", ""]
+    for o in items:
+        lines.append(
+            f"• #{o.short_uuid} · {o.get_status_display()} · "
+            f"{o.currency} {o.total} · {o.email or 'sin correo'}"
+        )
+    lines.append("")
+    lines.append(f"{ADMIN_BASE}/orders/order/")
+    send_message(chat_id, "\n".join(lines))
+
+
+def _cmd_cliente(chat_id: int | str, rest: str) -> None:
+    from .models import Order
+
+    q = rest.strip()
+    if not q:
+        send_message(chat_id, "Usa: <code>/cliente &lt;email o teléfono&gt;</code>")
+        return
+    qs = Order.objects.filter(email__iexact=q) | Order.objects.filter(phone__icontains=q)
+    qs = qs.order_by("-created_at")[:5]
+    items = list(qs)
+    if not items:
+        send_message(chat_id, f"No encontré pedidos para <code>{q}</code>.")
+        return
+    total = sum((o.total for o in items), start=type(items[0].total)(0))
+    lines = [
+        f"<b>Cliente {q}</b>",
+        f"{len(items)} pedido(s) · total mostrado: {items[0].currency} {total}",
+        "",
+    ]
+    for o in items:
+        lines.append(
+            f"• #{o.short_uuid} · {o.get_status_display()} · "
+            f"{o.currency} {o.total} · {o.created_at:%d/%m %H:%M}"
+        )
+    send_message(chat_id, "\n".join(lines))
+
+
+def _cmd_buscar(chat_id: int | str, rest: str) -> None:
+    from catalog.models import Product
+
+    q = rest.strip()
+    if not q:
+        send_message(chat_id, "Usa: <code>/buscar &lt;texto&gt;</code>")
+        return
+    qs = Product.objects.filter(name__icontains=q, is_active=True)[:15]
+    items = list(qs)
+    if not items:
+        send_message(chat_id, f"Sin resultados para <code>{q}</code>.")
+        return
+    lines = [f"<b>Resultados para «{q}»</b>", ""]
+    for p in items:
+        plan = p.plans.filter(is_active=True).order_by("price_customer").first()
+        precio = f"{settings.DEFAULT_CURRENCY_SYMBOL} {plan.price_customer:.2f}" if plan else "—"
+        lines.append(f"• <b>{p.name}</b> desde {precio}")
+    send_message(chat_id, "\n".join(lines))
+
+
+def _cmd_reporte(chat_id: int | str) -> None:
+    send_message(chat_id, _report_text())
+
+
+# ---------- Resumen / reporte ----------
+
+def _money_sum(qs) -> tuple[str, str]:
+    """Devuelve (currency, formatted_total) para un queryset de Order."""
+    items = list(qs)
+    if not items:
+        return ("PEN", "0.00")
+    total = sum((o.total for o in items), start=type(items[0].total)(0))
+    return (items[0].currency or "PEN", f"{total:.2f}")
+
+
+def _report_text() -> str:
+    from datetime import timedelta
+    from django.utils import timezone
+    from .models import Order
+
+    today = timezone.localdate()
+    week_start = today - timedelta(days=7)
+    month_start = today.replace(day=1)
+
+    paid = Order.objects.filter(status__in=[
+        Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+    ])
+    today_qs = paid.filter(created_at__date=today)
+    week_qs = paid.filter(created_at__date__gte=week_start)
+    month_qs = paid.filter(created_at__date__gte=month_start)
+
+    cur_t, t_today = _money_sum(today_qs)
+    _, t_week = _money_sum(week_qs)
+    _, t_month = _money_sum(month_qs)
+
+    return "\n".join([
+        "<b>📊 Reporte Jheliz</b>",
+        f"Hoy: {today_qs.count()} pedidos · {cur_t} {t_today}",
+        f"Últimos 7 días: {week_qs.count()} pedidos · {cur_t} {t_week}",
+        f"Mes en curso: {month_qs.count()} pedidos · {cur_t} {t_month}",
+    ])
+
+
+def daily_summary_text() -> str:
+    """Resumen para el cron de las 8am."""
+    from datetime import timedelta
+    from django.utils import timezone
+    from .models import Order
+
+    today = timezone.localdate()
+    yesterday = today - timedelta(days=1)
+
+    paid_states = [Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED]
+    yest_qs = Order.objects.filter(created_at__date=yesterday, status__in=paid_states)
+    cur, t_yest = _money_sum(yest_qs)
+
+    pending_yape = Order.objects.filter(
+        status=Order.Status.VERIFYING, payment_provider="yape",
+    ).count()
+    pending_prep = Order.objects.filter(status=Order.Status.PREPARING).count()
+
+    # Tickets abiertos
+    open_tickets = 0
+    try:
+        from accounts.models import Ticket  # type: ignore
+
+        open_tickets = Ticket.objects.exclude(status="closed").count()
+    except Exception:
+        pass
+
+    # Stock crítico
+    low_stock_lines: list[str] = []
+    try:
+        from catalog.models import Plan  # type: ignore
+
+        for plan in Plan.objects.filter(is_active=True).select_related("product")[:200]:
+            available = getattr(plan, "available_stock", None)
+            if callable(available):
+                qty = available()
+            else:
+                qty = available
+            if qty is None:
+                continue
+            if qty <= 1:
+                low_stock_lines.append(
+                    f"  · {plan.product.name} — {plan.name}: {qty}"
+                )
+            if len(low_stock_lines) >= 6:
+                break
+    except Exception:
+        pass
+
+    lines = [
+        "🌅 <b>Resumen diario Jheliz</b>",
+        "",
+        f"<b>Ayer</b>: {yest_qs.count()} pedidos · {cur} {t_yest}",
+        f"<b>Yape por verificar</b>: {pending_yape}",
+        f"<b>Pedidos en preparación</b>: {pending_prep}",
+        f"<b>Tickets abiertos</b>: {open_tickets}",
+    ]
+    if low_stock_lines:
+        lines.append("")
+        lines.append("<b>Stock crítico (≤1):</b>")
+        lines.extend(low_stock_lines)
+    lines.append("")
+    lines.append(f"🔗 {ADMIN_BASE}/")
+    return "\n".join(lines)
+
+
+# ---------- Polling (legacy, sigue disponible) ----------
 
 def run_polling(poll_interval: float = 1.0) -> None:
-    """Corre un bucle simple de long polling."""
+    """Long polling (alternativa al webhook). Sólo si no se configura webhook."""
     if not is_configured():
         raise RuntimeError("TELEGRAM_BOT_TOKEN no configurado")
     offset = 0
     logger.info("Bot Jheliz iniciado (long polling)")
     while True:
         try:
-            data = _call("getUpdates", offset=offset, timeout=25)
+            data = _call(
+                "getUpdates",
+                offset=offset,
+                timeout=25,
+                allowed_updates=["message", "callback_query"],
+            )
             for upd in data.get("result", []):
                 offset = upd["update_id"] + 1
                 try:
-                    _handle_update(upd)
+                    process_update(upd)
                 except Exception:
                     logger.exception("Error procesando update")
         except requests.RequestException:
-            logger.exception("Error en getUpdates, reintentando…")
-            time.sleep(5)
+            logger.warning("Telegram getUpdates falló, reintentando…")
+        # Sleep incondicional para evitar tight-loop si Telegram devuelve
+        # respuestas erróneas sin levantar excepción (token revocado, rate
+        # limit, etc.).
         time.sleep(poll_interval)
+
+
+def process_update(update: dict) -> None:
+    """Punto de entrada único: lo usan webhook y polling."""
+    if "callback_query" in update:
+        _handle_callback_query(update)
+    else:
+        _handle_message(update)
+
+
+# Compatibilidad con tests viejos
+_handle_update = _handle_message
+
+
+def parse_update_payload(body: bytes | str) -> dict:
+    if isinstance(body, bytes):
+        body = body.decode("utf-8")
+    try:
+        return json.loads(body)
+    except Exception:
+        return {}
