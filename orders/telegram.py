@@ -12,8 +12,10 @@ Tres usos principales:
 
 from __future__ import annotations
 
+import html
 import json
 import logging
+import time
 from typing import Any, Iterable
 
 import requests
@@ -300,7 +302,10 @@ def _handle_callback_query(update: dict) -> None:
     chat = (cq.get("message") or {}).get("chat") or {}
     chat_id = chat.get("id")
     message_id = (cq.get("message") or {}).get("message_id")
-    original_text = (cq.get("message") or {}).get("text") or ""
+    # Telegram nos devuelve el texto del mensaje original sin formato HTML;
+    # lo escapamos antes de re-enviarlo como HTML para evitar fallos de parseo
+    # cuando el contenido tiene `<`, `>` o `&` (ej. nombres con `&`).
+    original_text = html.escape((cq.get("message") or {}).get("text") or "")
 
     if not _is_admin_chat(chat_id):
         answer_callback_query(cq_id, "Sin permiso.", alert=True)
@@ -664,9 +669,10 @@ def run_polling(poll_interval: float = 1.0) -> None:
                     logger.exception("Error procesando update")
         except requests.RequestException:
             logger.warning("Telegram getUpdates falló, reintentando…")
-            import time as _time
-
-            _time.sleep(poll_interval)
+        # Sleep incondicional para evitar tight-loop si Telegram devuelve
+        # respuestas erróneas sin levantar excepción (token revocado, rate
+        # limit, etc.).
+        time.sleep(poll_interval)
 
 
 def process_update(update: dict) -> None:
