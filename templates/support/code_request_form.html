@@ -25,10 +25,17 @@
         {{ form.non_field_errors }}
       </div>
     {% endif %}
-    <div>
-      <label class="block text-sm text-white/70 mb-1">Plataforma</label>
-      {{ form.platform }}
-      {{ form.platform.errors }}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm text-white/70 mb-1">Plataforma</label>
+        {{ form.platform }}
+        {{ form.platform.errors }}
+      </div>
+      <div>
+        <label class="block text-sm text-white/70 mb-1">¿Qué código necesitas?</label>
+        {{ form.requested_code_type }}
+        {{ form.requested_code_type.errors }}
+      </div>
     </div>
     <div>
       <label class="block text-sm text-white/70 mb-1">Email de la cuenta</label>
@@ -47,6 +54,12 @@
         {{ form.order_number }}
         {{ form.order_number.errors }}
       </div>
+    </div>
+    <div>
+      <label class="block text-sm text-white/70 mb-1">Detalle adicional (opcional)</label>
+      {{ form.note }}
+      <p class="text-xs text-white/50 mt-1">Ej: "El código me lo pide desde mi Smart TV LG", "Estoy de viaje en Lima", etc.</p>
+      {{ form.note.errors }}
     </div>
     <div class="flex gap-2 pt-2">
       <button type="submit" class="btn-primary text-white font-semibold px-5 py-3 rounded-xl">🚀 Pedir código</button>

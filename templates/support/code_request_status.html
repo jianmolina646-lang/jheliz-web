@@ -12,6 +12,11 @@
   <p class="text-white/70 mt-1">
     Solicitud <strong>#{{ cr.id }}</strong> · {{ cr.get_platform_display }} · <span class="text-white/90">{{ cr.account_email }}</span>
   </p>
+  {% if cr.requested_code_type %}
+    <p class="text-sm text-white/50 mt-0.5">
+      Pediste: <span class="text-white/80">{{ cr.get_requested_code_type_display }}</span>
+    </p>
+  {% endif %}
 
   {# Pending #}
   <div id="cr-pending"

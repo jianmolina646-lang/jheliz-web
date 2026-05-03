@@ -212,9 +212,11 @@ class CodeRequestViewsTests(TestCase):
     def _post_create(self, **overrides):
         data = {
             "platform": CodeRequest.Platform.NETFLIX,
+            "requested_code_type": "login",
             "account_email": "jheliz-netflix1@gmail.com",
             "contact_email": "",
             "order_number": "",
+            "note": "",
         }
         data.update(overrides)
         return self.client.post(reverse("code_create"), data)
@@ -289,14 +291,34 @@ class CodeRequestViewsTests(TestCase):
         self.client.force_login(self.staff)
         resp = self.client.post(reverse("code_distrib_create"), {
             "platform": CodeRequest.Platform.DISNEY,
+            "requested_code_type": "device",
             "account_email": "distrib@example.com",
             "contact_email": "",
             "order_number": "",
+            "note": "",
         })
         self.assertEqual(resp.status_code, 302)
         cr = CodeRequest.objects.get()
         self.assertEqual(cr.audience, CodeRequest.Audience.DISTRIBUTOR)
         self.assertEqual(cr.user_id, self.staff.id)
+
+    def test_requested_code_type_is_required(self):
+        resp = self.client.post(reverse("code_create"), {
+            "platform": CodeRequest.Platform.NETFLIX,
+            "requested_code_type": "",  # vacío
+            "account_email": "x@y.com",
+            "contact_email": "",
+            "order_number": "",
+            "note": "",
+        })
+        self.assertEqual(resp.status_code, 200)  # error, re-render
+        self.assertEqual(CodeRequest.objects.count(), 0)
+
+    def test_requested_code_type_persists_on_create(self):
+        self._post_create(requested_code_type="device", note="Mi smart tv LG")
+        cr = CodeRequest.objects.get()
+        self.assertEqual(cr.requested_code_type, "device")
+        self.assertEqual(cr.note, "Mi smart tv LG")
 
     def test_model_mark_delivered_sets_responded_at(self):
         cr = CodeRequest.objects.create(

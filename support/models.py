@@ -190,6 +190,22 @@ class CodeRequest(models.Model):
         help_text="Opcional. Para que te avisemos si el código cambia.",
     )
     order_number = models.CharField("N° de pedido", max_length=40, blank=True)
+    requested_code_type = models.CharField(
+        "Tipo de código solicitado", max_length=20,
+        choices=[
+            ("login", "🔑 Código de inicio de sesión"),
+            ("device", "📺 Código de activación de TV / dispositivo"),
+            ("home", "🏠 Código de hogar / Estoy de viaje"),
+            ("reset_link", "🔐 Link para restablecer contraseña"),
+            ("other", "❓ Otro (explico abajo)"),
+        ],
+        blank=True,
+        help_text="Lo que el cliente seleccionó al pedir el código.",
+    )
+    note = models.CharField(
+        "Mensaje del cliente", max_length=300, blank=True,
+        help_text="Detalle opcional que el cliente escribe al pedir el código.",
+    )
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
