@@ -797,15 +797,15 @@ def _cmd_avisar(
     chat_id: int | str, text: str, audience: str = AUDIENCE_ALL
 ) -> None:
     text = (text or "").strip()
-    audience_label = {
-        AUDIENCE_ALL: "ambos canales",
-        AUDIENCE_CUSTOMER: "canal clientes",
-        AUDIENCE_DISTRIB: "canal distribuidores",
-    }.get(audience, audience)
     if not channel_is_configured(audience):
+        wanted_label = {
+            AUDIENCE_ALL: "ambos canales",
+            AUDIENCE_CUSTOMER: "canal clientes",
+            AUDIENCE_DISTRIB: "canal distribuidores",
+        }.get(audience, audience)
         send_message(
             chat_id,
-            f"❌ Sin canal configurado para {audience_label}. "
+            f"❌ Sin canal configurado para {wanted_label}. "
             "Configura las variables <code>TELEGRAM_CHANNEL_ID</code> "
             "y/o <code>TELEGRAM_CUSTOMER_CHANNEL_ID</code> en .env.",
         )
@@ -824,14 +824,26 @@ def _cmd_avisar(
         return
     result = announce_text(text, audience=audience)
     if result and result.get("ok"):
-        send_message(chat_id, f"✅ Publicado en {audience_label}.")
+        # Calcula el label real basado en los canales que efectivamente
+        # estaban configurados (no en lo que el usuario pidió). Evita
+        # decir "ambos canales" cuando solo uno está activo.
+        active = [aud for _id, aud in _channel_ids_for(audience)]
+        if AUDIENCE_DISTRIB in active and AUDIENCE_CUSTOMER in active:
+            real_label = "ambos canales"
+        elif AUDIENCE_CUSTOMER in active:
+            real_label = "canal clientes"
+        elif AUDIENCE_DISTRIB in active:
+            real_label = "canal distribuidores"
+        else:
+            real_label = "el canal"
+        send_message(chat_id, f"✅ Publicado en {real_label}.")
     else:
         send_message(chat_id, f"❌ No se pudo publicar: {result}")
 
 
 def _cmd_canal(chat_id: int | str) -> None:
-    distrib = _distrib_channel_id() or "<i>(sin configurar)</i>"
-    customer = _customer_channel_id() or "<i>(sin configurar)</i>"
+    distrib = _distrib_channel_id()
+    customer = _customer_channel_id()
     if not channel_is_configured(AUDIENCE_ALL):
         send_message(
             chat_id,
@@ -840,11 +852,17 @@ def _cmd_canal(chat_id: int | str) -> None:
             "<code>TELEGRAM_CUSTOMER_CHANNEL_ID</code> en .env y reinicia.",
         )
         return
+    distrib_display = (
+        f"<code>{html.escape(distrib)}</code>" if distrib else "<i>(sin configurar)</i>"
+    )
+    customer_display = (
+        f"<code>{html.escape(customer)}</code>" if customer else "<i>(sin configurar)</i>"
+    )
     send_message(
         chat_id,
         "📣 <b>Canales de avisos</b>\n"
-        f"• Distribuidores: <code>{html.escape(distrib)}</code>\n"
-        f"• Clientes finales: <code>{html.escape(customer)}</code>\n\n"
+        f"• Distribuidores: {distrib_display}\n"
+        f"• Clientes finales: {customer_display}\n\n"
         "<b>Auto-publicación</b> (en ambos, con precios separados):\n"
         "• 🆕 Producto activado en el admin\n"
         "• 📦 Stock repuesto (vía check_low_stock)\n"
