@@ -2391,7 +2391,7 @@ class TelegramChannelTests(TestCase):
                 "update_id": 99,
                 "message": {"chat": {"id": 999}, "text": "/avisar Netflix está caído"},
             })
-        ann.assert_called_once_with("Netflix está caído")
+        ann.assert_called_once_with("Netflix está caído", audience="all")
         send.assert_called_once()
 
     def test_signal_announces_new_active_product(self):
@@ -2417,3 +2417,107 @@ class TelegramChannelTests(TestCase):
         self.assertIn("Disney+ &amp; HBO", text)
         self.assertIn("&lt;Premium&gt;", text)
         self.assertIn("Combo &amp; oferta", text)
+
+
+@_override_settings(
+    TELEGRAM_BOT_TOKEN="dummy-token",
+    TELEGRAM_ADMIN_CHAT_ID="999",
+    TELEGRAM_CHANNEL_ID="@distrib_chan",
+    TELEGRAM_CUSTOMER_CHANNEL_ID="@cust_chan",
+)
+class TelegramMultiChannelTests(TestCase):
+    def setUp(self):
+        self._call_patcher = patch("orders.telegram._call", return_value={"ok": True})
+        self._call_patcher.start()
+        cat = Category.objects.create(name="Streaming")
+        self.product = Product.objects.create(
+            name="Netflix Premium",
+            category=cat,
+            short_description="4K UHD",
+        )
+        Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("18.00"),
+            price_distributor=Decimal("12.00"),
+            is_active=True,
+            available_for_customer=True,
+            available_for_distributor=True,
+        )
+        self._call_patcher.stop()
+
+    def test_format_uses_distrib_prices_for_distrib_audience(self):
+        text = _telegram.format_product_announcement(
+            self.product, kind="new", audience=_telegram.AUDIENCE_DISTRIB,
+        )
+        self.assertIn("12.00", text)
+        self.assertNotIn("18.00", text)
+        self.assertIn("mayorista", text.lower())
+
+    def test_format_uses_customer_prices_for_customer_audience(self):
+        text = _telegram.format_product_announcement(
+            self.product, kind="new", audience=_telegram.AUDIENCE_CUSTOMER,
+        )
+        self.assertIn("18.00", text)
+        self.assertNotIn("12.00", text)
+
+    def test_announce_product_publishes_to_both_channels(self):
+        with patch("orders.telegram._call") as call:
+            call.return_value = {"ok": True}
+            _telegram.announce_product(self.product, kind="new")
+        # Una llamada por canal, cada una con chat_id distinto
+        chat_ids = [c.kwargs["chat_id"] for c in call.call_args_list]
+        self.assertIn("@distrib_chan", chat_ids)
+        self.assertIn("@cust_chan", chat_ids)
+        self.assertEqual(len(call.call_args_list), 2)
+
+    def test_announce_product_only_distrib_when_only_distrib_configured(self):
+        with self.settings(TELEGRAM_CUSTOMER_CHANNEL_ID=""):
+            with patch("orders.telegram._call") as call:
+                call.return_value = {"ok": True}
+                _telegram.announce_product(self.product, kind="new")
+        self.assertEqual(len(call.call_args_list), 1)
+        self.assertEqual(call.call_args_list[0].kwargs["chat_id"], "@distrib_chan")
+
+    def test_avisar_clientes_only_targets_customer_channel(self):
+        with patch("orders.telegram._call") as call:
+            call.return_value = {"ok": True}
+            _telegram.process_update({
+                "update_id": 1,
+                "message": {"chat": {"id": 999}, "text": "/avisar_clientes Hola clientes"},
+            })
+        # Filtra solo las llamadas a sendMessage del canal cliente (no la de
+        # confirmación al admin).
+        channel_calls = [
+            c for c in call.call_args_list
+            if c.kwargs.get("chat_id") in {"@distrib_chan", "@cust_chan"}
+        ]
+        chat_ids = [c.kwargs["chat_id"] for c in channel_calls]
+        self.assertIn("@cust_chan", chat_ids)
+        self.assertNotIn("@distrib_chan", chat_ids)
+
+    def test_avisar_distrib_only_targets_distrib_channel(self):
+        with patch("orders.telegram._call") as call:
+            call.return_value = {"ok": True}
+            _telegram.process_update({
+                "update_id": 1,
+                "message": {"chat": {"id": 999}, "text": "/avisar_distrib Hola distribuidores"},
+            })
+        channel_calls = [
+            c for c in call.call_args_list
+            if c.kwargs.get("chat_id") in {"@distrib_chan", "@cust_chan"}
+        ]
+        chat_ids = [c.kwargs["chat_id"] for c in channel_calls]
+        self.assertIn("@distrib_chan", chat_ids)
+        self.assertNotIn("@cust_chan", chat_ids)
+
+    def test_announce_coupon_routes_by_audience_customer(self):
+        coupon = Coupon.objects.create(
+            code="VERANO", discount_type=Coupon.DiscountType.PERCENT,
+            discount_value=Decimal("20"),
+            audience=Coupon.Audience.CUSTOMER, is_active=False,  # evita auto-anuncio
+        )
+        with patch("orders.telegram._call") as call:
+            call.return_value = {"ok": True}
+            _telegram.announce_coupon(coupon)
+        chat_ids = [c.kwargs.get("chat_id") for c in call.call_args_list]
+        self.assertEqual(chat_ids, ["@cust_chan"])

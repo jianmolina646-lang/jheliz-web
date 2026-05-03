@@ -190,9 +190,13 @@ TELEGRAM_ADMIN_CHAT_ID = config("TELEGRAM_ADMIN_CHAT_ID", default="")
 # (X-Telegram-Bot-Api-Secret-Token). Si está vacío, el webhook se deshabilita.
 TELEGRAM_WEBHOOK_SECRET = config("TELEGRAM_WEBHOOK_SECRET", default="")
 # Canal público de avisos para distribuidores (ej. "@jhelizservicetv" o
-# "-1003689345000"). Si está vacío, las publicaciones automáticas se
-# desactivan.
+# "-1003689345000"). Si está vacío, las publicaciones automáticas a
+# distribuidores se desactivan.
 TELEGRAM_CHANNEL_ID = config("TELEGRAM_CHANNEL_ID", default="")
+# Canal público de avisos para clientes finales (ej. "@jheliztvavisos").
+# Si está vacío, las publicaciones automáticas a cliente final se
+# desactivan, pero las del canal distribuidor siguen funcionando.
+TELEGRAM_CUSTOMER_CHANNEL_ID = config("TELEGRAM_CUSTOMER_CHANNEL_ID", default="")
 
 # Brand
 SITE_NAME = "Jheliz"
