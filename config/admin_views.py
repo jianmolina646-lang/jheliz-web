@@ -1140,7 +1140,7 @@ def customer_detail(request, email: str):
             "color": "#f59e0b",
             "when": r.created_at,
             "title": f"Reseña ({r.rating}★) — {r.product.name}",
-            "detail": (r.body or "")[:120],
+            "detail": (r.comment or "")[:120],
             "link": reverse("admin:catalog_productreview_change", args=[r.pk]),
         })
     for e in emails_log:
