@@ -25,7 +25,8 @@ def site_context(request):
         # Antes de migrar, la tabla a\u00fan no existe \u2014 no rompemos el render.
         promo_banner = None
 
-    # Tracking IDs (cacheados 5 min para no agregar query en cada request).
+    # Tracking IDs y canales de Telegram (cacheados 5 min para no agregar
+    # query en cada request).
     tracking = cache.get("jh_tracking_ids")
     if tracking is None:
         try:
@@ -35,14 +36,21 @@ def site_context(request):
                 "meta": (s.meta_pixel_id or "").strip(),
                 "google_ads": (s.google_ads_id or "").strip(),
                 "tiktok": (s.tiktok_pixel_id or "").strip(),
+                "tg_customer": (s.telegram_customer_channel_url or "").strip(),
+                "tg_distrib": (s.telegram_distributor_channel_url or "").strip(),
             }
         except Exception:
-            tracking = {"ga4": "", "meta": "", "google_ads": "", "tiktok": ""}
+            tracking = {
+                "ga4": "", "meta": "", "google_ads": "", "tiktok": "",
+                "tg_customer": "", "tg_distrib": "",
+            }
         cache.set("jh_tracking_ids", tracking, 300)
     ga4_id = tracking["ga4"]
     meta_pixel = tracking["meta"]
     google_ads = tracking["google_ads"]
     tiktok_pixel = tracking["tiktok"]
+    tg_customer = tracking.get("tg_customer", "")
+    tg_distrib = tracking.get("tg_distrib", "")
 
     return {
         "SITE_NAME": settings.SITE_NAME,
@@ -59,4 +67,6 @@ def site_context(request):
         "META_PIXEL_ID": meta_pixel,
         "GOOGLE_ADS_ID": google_ads,
         "TIKTOK_PIXEL_ID": tiktok_pixel,
+        "TELEGRAM_CUSTOMER_CHANNEL_URL": tg_customer,
+        "TELEGRAM_DISTRIBUTOR_CHANNEL_URL": tg_distrib,
     }

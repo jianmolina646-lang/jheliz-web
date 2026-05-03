@@ -755,6 +755,14 @@ class SiteSettingsAdmin(ModelAdmin):
             "fields": ("instagram_url", "tiktok_url", "facebook_url", "youtube_url"),
             "classes": ("collapse",),
         }),
+        ("Canales de Telegram", {
+            "fields": ("telegram_customer_channel_url", "telegram_distributor_channel_url"),
+            "description": (
+                "Enlaces públicos. El primero se muestra en la web a clientes finales "
+                "(footer + página de contacto). El segundo se muestra solo dentro del "
+                "panel de distribuidores."
+            ),
+        }),
         ("Información legal (Indecopi Perú)", {
             "fields": ("legal_business_name", "legal_ruc", "legal_address"),
             "classes": ("collapse",),
