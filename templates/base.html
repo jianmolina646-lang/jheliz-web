@@ -302,6 +302,15 @@
         <ul class="space-y-2 text-zinc-400">
           <li><a href="{% url 'catalog:warranty' %}" class="hover:text-white transition">Garantía</a></li>
           <li><a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="hover:text-white transition">WhatsApp {{ WHATSAPP_NUMBER }}</a></li>
+          {% if TELEGRAM_CUSTOMER_CHANNEL_URL %}
+            <li>
+              <a href="{{ TELEGRAM_CUSTOMER_CHANNEL_URL }}" target="_blank" rel="noopener"
+                 class="inline-flex items-center gap-1.5 hover:text-white transition">
+                <span class="text-base">📣</span>
+                <span>Canal de Telegram</span>
+              </a>
+            </li>
+          {% endif %}
         </ul>
         <h4 class="text-zinc-300 font-semibold text-xs tracking-wider uppercase mt-4 mb-3">Legal</h4>
         <ul class="space-y-2 text-zinc-400">

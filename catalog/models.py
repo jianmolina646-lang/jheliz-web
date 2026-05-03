@@ -577,6 +577,18 @@ class SiteSettings(models.Model):
     facebook_url = models.URLField("Facebook", blank=True)
     youtube_url = models.URLField("YouTube", blank=True)
 
+    # Canales de Telegram (públicos)
+    telegram_customer_channel_url = models.URLField(
+        "Canal Telegram – clientes", blank=True,
+        default="https://t.me/jheliztvavisos",
+        help_text="Canal público de avisos para clientes finales (ofertas, novedades).",
+    )
+    telegram_distributor_channel_url = models.URLField(
+        "Canal Telegram – distribuidores", blank=True,
+        default="https://t.me/jhelizservicetv",
+        help_text="Canal público con info y avisos para distribuidores.",
+    )
+
     # Información legal (Indecopi Perú)
     legal_business_name = models.CharField(
         "Razón social", max_length=160, blank=True,

@@ -39,12 +39,36 @@
       🛒 Ir al catálogo mayorista
       <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
     </a>
+    {% if TELEGRAM_DISTRIBUTOR_CHANNEL_URL %}
+      <a href="{{ TELEGRAM_DISTRIBUTOR_CHANNEL_URL }}" target="_blank" rel="noopener"
+         class="btn btn-secondary"
+         style="background:rgba(56,189,248,.12); border-color:rgba(56,189,248,.45); color:#7dd3fc">
+        📣 Canal Telegram distribuidores
+      </a>
+    {% endif %}
     <div class="surface rounded-xl px-4 py-2.5">
       <div class="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">Saldo</div>
       <div class="font-display text-lg font-bold text-white">{{ CURRENCY_SYMBOL }} {{ user.wallet_balance|floatformat:2|intcomma }}</div>
     </div>
   </div>
 </section>
+
+{% if TELEGRAM_DISTRIBUTOR_CHANNEL_URL %}
+<section class="mt-5">
+  <a href="{{ TELEGRAM_DISTRIBUTOR_CHANNEL_URL }}" target="_blank" rel="noopener"
+     class="block rounded-2xl px-5 py-4 transition hover:translate-y-[-1px]"
+     style="background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(99,102,241,.18)); border:1px solid rgba(56,189,248,.35);">
+    <div class="flex items-center gap-3">
+      <div class="text-3xl">📣</div>
+      <div class="flex-1">
+        <div class="text-white font-semibold">Únete al canal de Telegram para distribuidores</div>
+        <div class="text-xs text-zinc-300 mt-0.5">Avisos de stock fresco, nuevas marcas, mantenimientos, promos exclusivas y respuestas rápidas.</div>
+      </div>
+      <div class="text-sky-300 text-sm font-semibold whitespace-nowrap">Abrir →</div>
+    </div>
+  </a>
+</section>
+{% endif %}
 
 <!-- Métricas -->
 <section class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
