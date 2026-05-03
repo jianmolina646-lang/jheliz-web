@@ -9,6 +9,7 @@ class CatalogConfig(AppConfig):
     def ready(self) -> None:
         from auditlog.registry import auditlog
 
+        from . import signals  # noqa: F401  (registra receivers post_save Product)
         from .models import Plan, Product, StockItem
 
         # No registramos las credenciales del StockItem por ser sensibles.

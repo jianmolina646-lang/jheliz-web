@@ -189,6 +189,10 @@ TELEGRAM_ADMIN_CHAT_ID = config("TELEGRAM_ADMIN_CHAT_ID", default="")
 # Token secreto que viaja en el header del webhook de Telegram
 # (X-Telegram-Bot-Api-Secret-Token). Si está vacío, el webhook se deshabilita.
 TELEGRAM_WEBHOOK_SECRET = config("TELEGRAM_WEBHOOK_SECRET", default="")
+# Canal público de avisos para distribuidores (ej. "@jhelizservicetv" o
+# "-1003689345000"). Si está vacío, las publicaciones automáticas se
+# desactivan.
+TELEGRAM_CHANNEL_ID = config("TELEGRAM_CHANNEL_ID", default="")
 
 # Brand
 SITE_NAME = "Jheliz"

@@ -223,6 +223,150 @@ def notify_admin_about_yape(order) -> None:
     notify_admin(format_yape_proof(order), buttons=order_action_buttons(order))
 
 
+# ---------- Canal público de avisos ----------
+
+SITE_BASE = "https://jhelizservicestv.xyz"
+
+
+def _channel_id() -> str:
+    return str(getattr(settings, "TELEGRAM_CHANNEL_ID", "") or "")
+
+
+def channel_is_configured() -> bool:
+    return bool(is_configured() and _channel_id())
+
+
+def post_to_channel(
+    text: str,
+    buttons: Iterable[Iterable[dict]] | None = None,
+    photo_url: str = "",
+) -> dict | None:
+    """Publica un mensaje en el canal público.
+
+    Si `photo_url` está, manda un sendPhoto con caption (HTML). Si no, un
+    sendMessage normal.
+    """
+    chat_id = _channel_id()
+    if not (is_configured() and chat_id):
+        return None
+    try:
+        if photo_url:
+            payload: dict[str, Any] = {
+                "chat_id": chat_id,
+                "photo": photo_url,
+                "caption": text,
+                "parse_mode": "HTML",
+            }
+            markup = _build_reply_markup(buttons)
+            if markup:
+                payload["reply_markup"] = markup
+            return _call("sendPhoto", **payload)
+        return send_message(chat_id, text, buttons=buttons)
+    except Exception:
+        logger.exception("No se pudo publicar en el canal de Telegram")
+        return None
+
+
+def _product_url(product) -> str:
+    try:
+        return f"{SITE_BASE}{product.get_absolute_url()}"
+    except Exception:
+        return f"{SITE_BASE}/productos/"
+
+
+def _product_image_url(product) -> str:
+    image = getattr(product, "image", None)
+    if image and getattr(image, "url", ""):
+        url = image.url
+        if url.startswith("http"):
+            return url
+        return f"{SITE_BASE}{url}"
+    return ""
+
+
+def _product_button_row(product) -> list[dict]:
+    return [{"text": "🛒 Ver en la web", "url": _product_url(product)}]
+
+
+def _format_price_lines(product) -> list[str]:
+    currency = getattr(settings, "DEFAULT_CURRENCY_SYMBOL", "S/")
+    plans = product.plans.filter(
+        is_active=True, available_for_customer=True,
+    ).order_by("order", "duration_days")
+    lines: list[str] = []
+    for plan in plans:
+        if plan.price_customer <= 0:
+            continue
+        duration = (
+            f"{plan.duration_days} días" if plan.duration_days else "sin expiración"
+        )
+        lines.append(
+            f"• {html.escape(plan.name)} ({duration}) — {currency} "
+            f"{plan.price_customer:.2f}"
+        )
+    return lines
+
+
+def format_product_announcement(product, kind: str = "new") -> str:
+    """Genera el mensaje para un producto. ``kind`` ∈ {'new', 'restock'}."""
+    safe_name = html.escape(product.name or "")
+    title_map = {
+        "new": f"🆕 <b>Nuevo: {safe_name}</b>",
+        "restock": f"📦 <b>Volvió el stock — {safe_name}</b>",
+    }
+    lines = [title_map.get(kind, f"<b>{safe_name}</b>")]
+    if product.short_description:
+        lines.append(html.escape(product.short_description))
+    price_lines = _format_price_lines(product)
+    if price_lines:
+        lines.append("")
+        lines.extend(price_lines)
+    lines.append("")
+    lines.append("✅ Garantía durante toda la suscripción")
+    lines.append("⚡ Entrega rápida")
+    return "\n".join(lines)
+
+
+def format_coupon_announcement(coupon) -> str:
+    if coupon.discount_type == coupon.DiscountType.PERCENT:
+        descuento = f"{coupon.discount_value:g}%"
+    else:
+        currency = getattr(settings, "DEFAULT_CURRENCY_SYMBOL", "S/")
+        descuento = f"{currency} {coupon.discount_value:g}"
+    lines = [
+        f"💰 <b>Cupón nuevo: {html.escape(coupon.code)}</b>",
+        f"Descuento: <b>{html.escape(descuento)}</b>",
+    ]
+    if getattr(coupon, "min_order_total", 0):
+        lines.append(f"Compra mínima: S/ {coupon.min_order_total:g}")
+    if getattr(coupon, "valid_until", None):
+        lines.append(f"Válido hasta: {coupon.valid_until.strftime('%d/%m/%Y')}")
+    lines.append("")
+    lines.append("Aplica el código al pagar 👇")
+    return "\n".join(lines)
+
+
+def announce_product(product, kind: str = "new") -> dict | None:
+    if not channel_is_configured():
+        return None
+    text = format_product_announcement(product, kind=kind)
+    photo = _product_image_url(product)
+    return post_to_channel(text, buttons=[_product_button_row(product)], photo_url=photo)
+
+
+def announce_coupon(coupon) -> dict | None:
+    if not channel_is_configured():
+        return None
+    text = format_coupon_announcement(coupon)
+    return post_to_channel(text, buttons=[[{"text": "🛒 Ir a la tienda", "url": SITE_BASE}]])
+
+
+def announce_text(text: str) -> dict | None:
+    if not channel_is_configured():
+        return None
+    return post_to_channel(text)
+
+
 # ---------- Comandos / handlers ----------
 
 PUBLIC_HELP = (
@@ -236,6 +380,8 @@ PUBLIC_HELP = (
 ADMIN_HELP = PUBLIC_HELP + (
     "\n\n<b>Comandos admin</b>\n"
     "/yape — pedidos Yape pendientes (con botones)\n"
+    "/avisar &lt;texto&gt; — publicar al canal Jheliz Avisos\n"
+    "/canal — info del canal y plantillas\n"
     "/hoy — pedidos de hoy\n"
     "/cliente &lt;email|tel&gt; — ficha rápida\n"
     "/buscar &lt;texto&gt; — productos\n"
@@ -290,6 +436,12 @@ def _handle_message(update: dict) -> None:
         return
     if cmd == "/resumen":
         send_message(chat_id, daily_summary_text())
+        return
+    if cmd == "/avisar":
+        _cmd_avisar(chat_id, rest)
+        return
+    if cmd == "/canal":
+        _cmd_canal(chat_id)
         return
 
     send_message(chat_id, ADMIN_HELP)
@@ -538,6 +690,47 @@ def _cmd_buscar(chat_id: int | str, rest: str) -> None:
 
 def _cmd_reporte(chat_id: int | str) -> None:
     send_message(chat_id, _report_text())
+
+
+def _cmd_avisar(chat_id: int | str, text: str) -> None:
+    if not channel_is_configured():
+        send_message(chat_id, "TELEGRAM_CHANNEL_ID no configurado en .env.")
+        return
+    text = (text or "").strip()
+    if not text:
+        send_message(
+            chat_id,
+            "Uso: <code>/avisar &lt;texto&gt;</code>\n"
+            "Ejemplo: <code>/avisar Netflix está caído, lo reactivamos en 1 hora.</code>",
+        )
+        return
+    result = announce_text(text)
+    if result and result.get("ok"):
+        send_message(chat_id, "✅ Publicado en el canal.")
+    else:
+        send_message(chat_id, f"❌ No se pudo publicar: {result}")
+
+
+def _cmd_canal(chat_id: int | str) -> None:
+    if not channel_is_configured():
+        send_message(
+            chat_id,
+            "Canal sin configurar. Define <code>TELEGRAM_CHANNEL_ID</code> en .env "
+            "y reinicia.",
+        )
+        return
+    send_message(
+        chat_id,
+        f"📣 <b>Canal de avisos</b>\n"
+        f"Destino: <code>{_channel_id()}</code>\n\n"
+        "Auto-publicación:\n"
+        "• 🆕 Producto activado en el admin\n"
+        "• 📦 Stock repuesto (de 0 a ≥1) en un plan\n"
+        "• 💰 Cupón nuevo activo\n\n"
+        "Manual:\n"
+        "• /avisar &lt;texto&gt; desde este chat\n"
+        "• Botón <i>“Publicar al canal”</i> en cada producto del admin",
+    )
 
 
 # ---------- Resumen / reporte ----------
