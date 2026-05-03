@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import display
 
-from .models import ReplyTemplate, Ticket, TicketMessage
+from .models import CodeRequest, ReplyTemplate, Ticket, TicketMessage
 
 
 @admin.register(ReplyTemplate)
@@ -72,3 +72,71 @@ class TicketAdmin(ModelAdmin):
             '💬 Responder</a>',
             url,
         )
+
+
+@admin.register(CodeRequest)
+class CodeRequestAdmin(ModelAdmin):
+    list_display = (
+        "id", "display_status", "platform", "account_email", "audience",
+        "order_number", "created_at", "responded_at",
+    )
+    list_filter = ("status", "audience", "platform", "code_type")
+    search_fields = ("account_email", "contact_email", "order_number", "code")
+    date_hierarchy = "created_at"
+    autocomplete_fields = ("user", "order")
+    list_filter_submit = True
+    fieldsets = (
+        ("Solicitud", {
+            "fields": (
+                "audience", "platform", "account_email",
+                "contact_email", "order_number", "order", "user",
+            ),
+        }),
+        ("Respuesta", {
+            "description": (
+                "Pega el código que recibiste en tu buzón. Solo se permiten "
+                "códigos de login / activación / hogar / link de restablecer "
+                "contraseña. Nunca publiques códigos de cambio de correo o "
+                "cambio de contraseña."
+            ),
+            "fields": ("status", "code", "code_type", "admin_note", "reject_reason"),
+        }),
+        ("Trazabilidad", {
+            "classes": ("collapse",),
+            "fields": (
+                "token", "ip_address", "user_agent",
+                "created_at", "responded_at", "responded_by",
+            ),
+        }),
+    )
+    readonly_fields = (
+        "token", "ip_address", "user_agent",
+        "created_at", "responded_at", "responded_by",
+    )
+
+    @display(
+        description="Estado",
+        ordering="status",
+        label={
+            CodeRequest.Status.PENDING: "warning",
+            CodeRequest.Status.DELIVERED: "success",
+            CodeRequest.Status.REJECTED: "danger",
+            CodeRequest.Status.EXPIRED: "",
+        },
+    )
+    def display_status(self, obj: CodeRequest):
+        return obj.status, obj.get_status_display()
+
+    def save_model(self, request, obj: CodeRequest, form, change):
+        # Si el admin introduce un código y no cambió el status manualmente,
+        # marcamos automáticamente como entregado y registramos quién respondió.
+        prev = CodeRequest.objects.filter(pk=obj.pk).first() if obj.pk else None
+        code_new = (obj.code or "").strip()
+        code_prev = (prev.code if prev else "") or ""
+        if code_new and code_new != code_prev and obj.status == CodeRequest.Status.PENDING:
+            obj.status = CodeRequest.Status.DELIVERED
+        if obj.status == CodeRequest.Status.DELIVERED and obj.responded_at is None:
+            from django.utils import timezone as _tz
+            obj.responded_at = _tz.now()
+            obj.responded_by = request.user
+        super().save_model(request, obj, form, change)

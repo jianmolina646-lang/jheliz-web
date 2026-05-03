@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Ticket, TicketMessage
+from .models import CodeRequest, Ticket, TicketMessage
 
 
 _INPUT_CLASS = (
@@ -37,3 +37,41 @@ class TicketReplyForm(forms.Form):
         label="Responder",
         widget=forms.Textarea(attrs={"rows": 4, "class": _INPUT_CLASS, "placeholder": "Escribe tu mensaje…"}),
     )
+
+
+class CodeRequestForm(forms.ModelForm):
+    """Formulario público/distribuidor para solicitar un código.
+
+    Captura solo los datos que el cliente escribe; el resto (``audience``,
+    ``user``, ``order``, ``ip_address``, ``user_agent``) se completa en la vista.
+    """
+
+    class Meta:
+        model = CodeRequest
+        fields = (
+            "platform", "account_email", "contact_email", "order_number",
+        )
+        labels = {
+            "platform": "Plataforma",
+            "account_email": "Email de la cuenta",
+            "contact_email": "Tu email de contacto (opcional)",
+            "order_number": "N° de pedido (opcional)",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["platform"].widget.attrs.setdefault("class", _INPUT_CLASS)
+        self.fields["account_email"].widget.attrs.setdefault("class", _INPUT_CLASS)
+        self.fields["account_email"].widget.attrs.setdefault(
+            "placeholder", "ejemplo@gmail.com",
+        )
+        self.fields["contact_email"].widget.attrs.setdefault("class", _INPUT_CLASS)
+        self.fields["contact_email"].widget.attrs.setdefault(
+            "placeholder", "opcional",
+        )
+        self.fields["contact_email"].required = False
+        self.fields["order_number"].widget.attrs.setdefault("class", _INPUT_CLASS)
+        self.fields["order_number"].widget.attrs.setdefault(
+            "placeholder", "Ej: 1234",
+        )
+        self.fields["order_number"].required = False

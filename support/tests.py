@@ -3,7 +3,7 @@ from django.db.models import F
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import ReplyTemplate, Ticket, TicketMessage
+from .models import CodeRequest, ReplyTemplate, Ticket, TicketMessage
 
 
 class SupportChatViewsTests(TestCase):
@@ -197,3 +197,117 @@ class AdminSupportChatTests(TestCase):
         # Con F(): 5 + 1 (otro worker) + 1 (request) = 7. Con read-modify-write
         # ingenuo: 5 + 1 (otro) + 1 (request usa el 5 cacheado) = 6. Esperamos 7.
         self.assertEqual(tpl.use_count, 7)
+
+
+class CodeRequestViewsTests(TestCase):
+    """Tests del verificador de códigos (flujo manual)."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="admin", email="admin@example.com", password="pwd1234!",
+            is_staff=True,
+        )
+
+    def _post_create(self, **overrides):
+        data = {
+            "platform": CodeRequest.Platform.NETFLIX,
+            "account_email": "jheliz-netflix1@gmail.com",
+            "contact_email": "",
+            "order_number": "",
+        }
+        data.update(overrides)
+        return self.client.post(reverse("code_create"), data)
+
+    def test_customer_create_form_renders(self):
+        resp = self.client.get(reverse("code_create"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Verificador de")
+        self.assertContains(resp, "Plataforma")
+
+    def test_customer_create_persists_and_redirects_to_status(self):
+        resp = self._post_create()
+        self.assertEqual(resp.status_code, 302)
+        cr = CodeRequest.objects.get()
+        self.assertEqual(cr.status, CodeRequest.Status.PENDING)
+        self.assertEqual(cr.audience, CodeRequest.Audience.CUSTOMER)
+        self.assertIn(reverse("code_status", args=[cr.token]), resp["Location"])
+
+    def test_status_page_shows_pending(self):
+        self._post_create()
+        cr = CodeRequest.objects.get()
+        resp = self.client.get(reverse("code_status", args=[cr.token]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Esperando tu código")
+
+    def test_status_json_pending(self):
+        self._post_create()
+        cr = CodeRequest.objects.get()
+        resp = self.client.get(reverse("code_status_json", args=[cr.token]))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "pending")
+        self.assertEqual(data["code"], "")
+
+    def test_status_json_delivered_shows_code(self):
+        self._post_create()
+        cr = CodeRequest.objects.get()
+        cr.code = "1234"
+        cr.code_type = CodeRequest.CodeType.LOGIN
+        cr.mark_delivered(by_user=self.staff)
+        resp = self.client.get(reverse("code_status_json", args=[cr.token]))
+        data = resp.json()
+        self.assertEqual(data["status"], "delivered")
+        self.assertEqual(data["code"], "1234")
+        self.assertIn("sesión", data["code_type"].lower())
+
+    def test_rate_limit_blocks_repeated_requests(self):
+        # Crea 3 en la ventana y el 4º debería fallar por rate limit.
+        for _ in range(3):
+            self._post_create()
+        resp = self._post_create()
+        self.assertEqual(resp.status_code, 200)  # vuelve a renderizar con error
+        self.assertContains(resp, "muchas solicitudes")
+        self.assertEqual(CodeRequest.objects.count(), 3)
+
+    def test_distributor_route_requires_permission(self):
+        User = get_user_model()
+        plain = User.objects.create_user(
+            username="plain", email="plain@example.com", password="pwd1234!",
+        )
+        self.client.force_login(plain)
+        resp = self.client.get(reverse("code_distrib_create"))
+        self.assertEqual(resp.status_code, 404)
+
+    def test_distributor_route_works_for_staff(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("code_distrib_create"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Plataforma")
+
+    def test_distributor_create_marks_audience(self):
+        self.client.force_login(self.staff)
+        resp = self.client.post(reverse("code_distrib_create"), {
+            "platform": CodeRequest.Platform.DISNEY,
+            "account_email": "distrib@example.com",
+            "contact_email": "",
+            "order_number": "",
+        })
+        self.assertEqual(resp.status_code, 302)
+        cr = CodeRequest.objects.get()
+        self.assertEqual(cr.audience, CodeRequest.Audience.DISTRIBUTOR)
+        self.assertEqual(cr.user_id, self.staff.id)
+
+    def test_model_mark_delivered_sets_responded_at(self):
+        cr = CodeRequest.objects.create(
+            platform=CodeRequest.Platform.PRIME,
+            account_email="a@b.com",
+            audience=CodeRequest.Audience.CUSTOMER,
+        )
+        self.assertIsNone(cr.responded_at)
+        cr.code = "7777"
+        cr.code_type = CodeRequest.CodeType.LOGIN
+        cr.mark_delivered(by_user=self.staff)
+        self.assertIsNotNone(cr.responded_at)
+        self.assertEqual(cr.responded_by_id, self.staff.id)
+        self.assertEqual(cr.status, CodeRequest.Status.DELIVERED)

@@ -417,6 +417,11 @@ UNFOLD = {
                         "icon": "support_agent",
                         "link": "/jheliz-admin/support/ticket/",
                     },
+                    {
+                        "title": "Solicitudes de código",
+                        "icon": "mark_email_unread",
+                        "link": "/jheliz-admin/support/coderequest/",
+                    },
                 ],
             },
             {

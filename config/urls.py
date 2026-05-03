@@ -10,6 +10,7 @@ from catalog.seo_views import google_site_verification, manifest_json, robots_tx
 from catalog.sitemaps import SITEMAPS
 from config import admin_views
 from orders import media_views as orders_media_views
+from support import views as support_views
 
 SITEMAPS_ALL = {**SITEMAPS, "blog": BlogPostSitemap}
 
@@ -120,6 +121,28 @@ urlpatterns = [
         sitemap_view,
         {"sitemaps": SITEMAPS_ALL},
         name="django.contrib.sitemaps.views.sitemap",
+    ),
+    # Verificador de códigos (rutas públicas cortas en la raíz).
+    path("codigos/", support_views.code_request_create, name="code_create"),
+    path(
+        "codigos/<str:token>/",
+        support_views.code_request_status,
+        name="code_status",
+    ),
+    path(
+        "codigos/<str:token>/estado.json",
+        support_views.code_request_status_json,
+        name="code_status_json",
+    ),
+    path(
+        "distribuidor/codigos/",
+        support_views.code_request_distrib_create,
+        name="code_distrib_create",
+    ),
+    path(
+        "distribuidor/codigos/<str:token>/",
+        support_views.code_request_distrib_status,
+        name="code_distrib_status",
     ),
     path("cuenta/", include("accounts.urls", namespace="accounts")),
     path("pedidos/", include("orders.urls", namespace="orders")),

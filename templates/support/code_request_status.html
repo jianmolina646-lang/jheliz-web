@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Solicitud #{{ cr.id }} — Verificador de códigos — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<section class="max-w-2xl mx-auto" data-cr-token="{{ cr.token }}" data-cr-status="{{ cr.status }}">
+  <div class="flex items-center gap-3 mb-2">
+    <span class="text-3xl">📬</span>
+    <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight" style="letter-spacing:-0.04em;line-height:.96">
+      Tu <span class="hero-italic text-zinc-300">código</span>
+    </h1>
+  </div>
+  <p class="text-white/70 mt-1">
+    Solicitud <strong>#{{ cr.id }}</strong> · {{ cr.get_platform_display }} · <span class="text-white/90">{{ cr.account_email }}</span>
+  </p>
+
+  {# Pending #}
+  <div id="cr-pending"
+       class="mt-6 card-glass rounded-2xl p-6 text-center {% if cr.status != 'pending' %}hidden{% endif %}">
+    <div class="inline-flex items-center gap-3 text-amber-200">
+      <svg class="animate-spin h-6 w-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/>
+        <path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="text-lg font-semibold">Esperando tu código…</span>
+    </div>
+    <p class="text-sm text-white/60 mt-3">
+      Llegará en <strong>máximo 2 minutos</strong>. Deja esta pestaña abierta — se actualiza automáticamente.
+    </p>
+    <p class="text-xs text-white/40 mt-2">
+      Si tarda demasiado, escríbenos por WhatsApp al soporte.
+    </p>
+  </div>
+
+  {# Delivered #}
+  <div id="cr-delivered"
+       class="mt-6 rounded-2xl p-6 bg-gradient-to-br from-emerald-500/10 to-emerald-400/5 border border-emerald-400/30 {% if cr.status != 'delivered' %}hidden{% endif %}">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="text-3xl">✅</span>
+      <div>
+        <div class="text-sm text-emerald-200/80">Código entregado</div>
+        <div id="cr-code-type" class="text-xs text-white/60">
+          {% if cr.code_type %}{{ cr.get_code_type_display }}{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <code id="cr-code"
+            class="flex-1 text-2xl font-mono font-bold tracking-wider px-4 py-3 rounded-xl bg-black/40 border border-emerald-400/20 text-emerald-100 break-all">{{ cr.code }}</code>
+      <button type="button" id="cr-copy"
+              class="shrink-0 px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-semibold">
+        📋 Copiar
+      </button>
+    </div>
+
+    <div id="cr-note" class="mt-3 text-sm text-white/70 {% if not cr.admin_note %}hidden{% endif %}">
+      {{ cr.admin_note }}
+    </div>
+
+    <p class="text-xs text-white/50 mt-4">Este código suele durar unos 15 minutos. Úsalo rápido.</p>
+  </div>
+
+  {# Rejected #}
+  <div id="cr-rejected"
+       class="mt-6 rounded-2xl p-6 bg-red-500/10 border border-red-400/30 {% if cr.status != 'rejected' %}hidden{% endif %}">
+    <div class="flex items-center gap-2 text-red-200 font-semibold">
+      <span class="text-2xl">⚠️</span>
+      <span>Tu solicitud fue rechazada</span>
+    </div>
+    <p id="cr-reject-reason" class="text-sm text-white/70 mt-2">
+      {{ cr.reject_reason|default:"Si crees que es un error, contáctanos por WhatsApp." }}
+    </p>
+  </div>
+
+  <div class="mt-6 flex gap-3">
+    <a href="{% if is_distributor %}{% url 'code_distrib_create' %}{% else %}{% url 'code_create' %}{% endif %}"
+       class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10">Pedir otro código</a>
+    <a href="{% if is_distributor %}{% url 'catalog:distributor_panel' %}{% else %}{% url 'catalog:home' %}{% endif %}"
+       class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10">Ir al inicio</a>
+  </div>
+</section>
+
+<script>
+(function(){
+  const section = document.querySelector('[data-cr-token]');
+  if (!section) return;
+  const token = section.dataset.crToken;
+  const statusUrl = "{% url 'code_status_json' cr.token %}";
+  const pending = document.getElementById('cr-pending');
+  const delivered = document.getElementById('cr-delivered');
+  const rejected = document.getElementById('cr-rejected');
+  const codeEl = document.getElementById('cr-code');
+  const codeTypeEl = document.getElementById('cr-code-type');
+  const noteEl = document.getElementById('cr-note');
+  const rejectEl = document.getElementById('cr-reject-reason');
+  const copyBtn = document.getElementById('cr-copy');
+
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function(){
+      const code = (codeEl.textContent || '').trim();
+      if (!code) return;
+      navigator.clipboard.writeText(code).then(function(){
+        const original = copyBtn.textContent;
+        copyBtn.textContent = '✅ Copiado';
+        setTimeout(function(){ copyBtn.textContent = original; }, 1500);
+      }).catch(function(){ /* ignore */ });
+    });
+  }
+
+  let stop = section.dataset.crStatus !== 'pending';
+  async function tick(){
+    if (stop) return;
+    try {
+      const r = await fetch(statusUrl, {headers:{'Accept':'application/json'}});
+      if (!r.ok) return;
+      const data = await r.json();
+      if (data.status === 'delivered') {
+        stop = true;
+        codeEl.textContent = data.code || '';
+        if (codeTypeEl) codeTypeEl.textContent = data.code_type || '';
+        if (data.admin_note) {
+          noteEl.textContent = data.admin_note;
+          noteEl.classList.remove('hidden');
+        }
+        pending.classList.add('hidden');
+        rejected.classList.add('hidden');
+        delivered.classList.remove('hidden');
+      } else if (data.status === 'rejected') {
+        stop = true;
+        rejectEl.textContent = data.reject_reason || rejectEl.textContent;
+        pending.classList.add('hidden');
+        delivered.classList.add('hidden');
+        rejected.classList.remove('hidden');
+      } else if (data.status === 'expired') {
+        stop = true;
+      }
+    } catch (e) {
+      /* ignore network errors — seguiremos haciendo polling */
+    }
+  }
+  const interval = setInterval(function(){
+    if (stop) { clearInterval(interval); return; }
+    tick();
+  }, 5000);
+})();
+</script>
+{% endblock %}
