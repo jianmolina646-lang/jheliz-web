@@ -1463,3 +1463,395 @@ aside #nav-sidebar-apps ol > li > a.bg-base-100 {
         min-width: 280px !important;
     }
 }
+
+/* =====================================================================
+ * Admin Modern v6 — páginas internas (changelist, change_form, inlines,
+ * filtros laterales, banners, messages)
+ * =================================================================== */
+
+/* ---------- Content-title h1 con hero style -------------------------- */
+#content-main > h1:first-child,
+#content > h1:first-child,
+.content-title h1,
+h1.page-title {
+    font-size: 1.8rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.025em;
+    background: linear-gradient(135deg, #fff 0%, #f1f5f9 40%, #cbd5e1 100%);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 18px !important;
+    padding-bottom: 14px !important;
+    border-bottom: 1px solid rgba(236,72,153,.2);
+    position: relative;
+}
+#content-main > h1:first-child::after,
+#content > h1:first-child::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: -1px;
+    width: 72px; height: 3px;
+    background: linear-gradient(90deg, #ec4899, #a855f7);
+    border-radius: 3px;
+}
+
+/* ---------- Mensajes (success / error / warning) --------------------- */
+ul.messagelist {
+    padding: 0 !important;
+    margin-bottom: 20px !important;
+}
+ul.messagelist > li {
+    padding: 14px 18px !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    font-weight: 500;
+    margin-bottom: 10px;
+    list-style: none;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid;
+    display: flex; align-items: center; gap: 10px;
+}
+ul.messagelist > li::before {
+    font-family: 'Material Symbols Outlined';
+    font-size: 20px;
+    flex-shrink: 0;
+}
+ul.messagelist > li.success {
+    background: linear-gradient(135deg, rgba(16,185,129,.15), rgba(5,150,105,.08));
+    border-color: rgba(16,185,129,.4);
+    color: #6ee7b7;
+}
+ul.messagelist > li.success::before { content: "check_circle"; }
+ul.messagelist > li.warning {
+    background: linear-gradient(135deg, rgba(251,191,36,.15), rgba(234,179,8,.08));
+    border-color: rgba(251,191,36,.4);
+    color: #fde68a;
+}
+ul.messagelist > li.warning::before { content: "warning"; }
+ul.messagelist > li.error,
+ul.messagelist > li.errornote {
+    background: linear-gradient(135deg, rgba(239,68,68,.15), rgba(220,38,38,.08));
+    border-color: rgba(239,68,68,.4);
+    color: #fca5a5;
+}
+ul.messagelist > li.error::before { content: "error"; }
+ul.messagelist > li.info {
+    background: linear-gradient(135deg, rgba(59,130,246,.15), rgba(14,165,233,.08));
+    border-color: rgba(59,130,246,.4);
+    color: #93c5fd;
+}
+ul.messagelist > li.info::before { content: "info"; }
+
+/* ---------- Filtros laterales del changelist (#changelist-filter) --- */
+#changelist-filter,
+#changelist aside {
+    background: rgba(255,255,255,.03) !important;
+    border: 1px solid rgba(255,255,255,.08) !important;
+    border-radius: 14px !important;
+    padding: 16px !important;
+    margin-left: 12px;
+}
+#changelist-filter h2,
+#changelist-filter h3 {
+    font-size: 10px !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    color: #f9a8d4 !important;
+    font-weight: 800 !important;
+    padding: 6px 10px !important;
+    margin-top: 12px !important;
+    margin-bottom: 4px !important;
+    position: relative;
+}
+#changelist-filter h2:first-child,
+#changelist-filter h3:first-child { margin-top: 0 !important; }
+#changelist-filter h2::before,
+#changelist-filter h3::before {
+    content: "";
+    display: inline-block;
+    width: 3px; height: 12px;
+    background: linear-gradient(180deg, #ec4899, #a855f7);
+    border-radius: 3px;
+    margin-right: 6px;
+    vertical-align: middle;
+    box-shadow: 0 0 8px rgba(236,72,153,.5);
+}
+#changelist-filter ul li a {
+    display: block;
+    padding: 5px 10px !important;
+    border-radius: 8px !important;
+    color: #cbd5e1 !important;
+    font-size: 13px;
+    transition: all .15s ease;
+    text-decoration: none !important;
+}
+#changelist-filter ul li a:hover {
+    background: rgba(236,72,153,.08) !important;
+    color: #fff !important;
+    transform: translateX(2px);
+}
+#changelist-filter ul li.selected a,
+#changelist-filter ul li.selected > a {
+    background: linear-gradient(135deg, rgba(236,72,153,.2), rgba(168,85,247,.12)) !important;
+    color: #fff !important;
+    font-weight: 600;
+    box-shadow: inset 2px 0 0 var(--jh2-pink);
+}
+
+/* ---------- Changelist results table cleanup ------------------------- */
+#result_list,
+#changelist .results table {
+    border-radius: 14px !important;
+    overflow: hidden;
+    background: rgba(255,255,255,.02) !important;
+    border: 1px solid var(--jh2-line) !important;
+}
+#result_list thead th,
+#changelist .results thead th {
+    background: linear-gradient(180deg, rgba(236,72,153,.08), rgba(168,85,247,.05)) !important;
+    padding: 12px 14px !important;
+    font-size: 10px !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase;
+    color: #cbd5e1 !important;
+    font-weight: 800 !important;
+    border-bottom: 1px solid rgba(236,72,153,.2) !important;
+}
+#result_list tbody td,
+#changelist .results tbody td {
+    padding: 12px 14px !important;
+    border-bottom: 1px solid rgba(255,255,255,.04) !important;
+    font-size: 13px;
+}
+#result_list tbody tr,
+#changelist .results tbody tr {
+    transition: background .18s ease, transform .15s ease;
+}
+#result_list tbody tr:hover,
+#changelist .results tbody tr:hover {
+    background: linear-gradient(90deg, rgba(236,72,153,.1), rgba(168,85,247,.04) 60%, transparent) !important;
+    transform: translateX(2px);
+}
+#result_list tbody td a,
+#changelist .results tbody td a {
+    color: #f472b6 !important;
+    font-weight: 600;
+    text-decoration: none !important;
+    position: relative;
+}
+#result_list tbody td a:hover,
+#changelist .results tbody td a:hover { color: #fff !important; }
+
+/* ---------- Toolbar (filtros + search) del changelist ---------------- */
+#toolbar {
+    padding: 12px 14px !important;
+    background: rgba(255,255,255,.03) !important;
+    border: 1px solid var(--jh2-line) !important;
+    border-radius: 12px !important;
+    margin-bottom: 14px !important;
+    backdrop-filter: blur(8px);
+}
+#toolbar form#changelist-search input[type="submit"] {
+    background: linear-gradient(135deg, #ec4899, #a855f7) !important;
+    border: none !important;
+    color: #fff !important;
+    padding: 8px 16px !important;
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    cursor: pointer;
+    margin-left: 6px;
+    transition: all .18s ease;
+}
+#toolbar form#changelist-search input[type="submit"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px -8px rgba(236,72,153,.6);
+}
+
+/* ---------- Change form — module/fieldset más modernos --------------- */
+fieldset.module {
+    background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)) !important;
+    border: 1px solid var(--jh2-line) !important;
+    border-radius: 14px !important;
+    padding: 22px !important;
+    margin-bottom: 18px !important;
+    transition: border-color .2s ease, box-shadow .2s ease;
+}
+fieldset.module:hover {
+    border-color: rgba(236,72,153,.3) !important;
+}
+fieldset.module h2,
+fieldset.module > h3,
+fieldset.collapse h2 {
+    font-size: 12px !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    color: #f9a8d4 !important;
+    font-weight: 800 !important;
+    background: linear-gradient(90deg, rgba(236,72,153,.08), transparent 70%) !important;
+    padding: 8px 14px !important;
+    margin: -22px -22px 18px !important;
+    border-radius: 14px 14px 0 0 !important;
+    border-bottom: 1px solid rgba(236,72,153,.2);
+    position: relative;
+}
+fieldset.module h2::before {
+    content: "";
+    display: inline-block;
+    width: 3px; height: 12px;
+    background: linear-gradient(180deg, #ec4899, #a855f7);
+    border-radius: 3px;
+    margin-right: 8px;
+    vertical-align: middle;
+    box-shadow: 0 0 8px rgba(236,72,153,.5);
+}
+
+/* ---------- Inlines (Order items, etc.) ------------------------------ */
+.inline-group,
+.inline-related {
+    background: rgba(255,255,255,.02) !important;
+    border: 1px solid var(--jh2-line) !important;
+    border-radius: 14px !important;
+    padding: 16px !important;
+    margin-top: 10px !important;
+}
+.inline-group h2,
+.inline-group > h2 {
+    font-size: 12px !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    color: #6ee7b7 !important;
+    font-weight: 800 !important;
+    padding: 4px 10px !important;
+    margin-bottom: 12px !important;
+}
+.inline-group h2::before {
+    content: "";
+    display: inline-block;
+    width: 3px; height: 12px;
+    background: linear-gradient(180deg, #10b981, #06b6d4);
+    border-radius: 3px;
+    margin-right: 8px;
+    vertical-align: middle;
+    box-shadow: 0 0 8px rgba(16,185,129,.5);
+}
+
+.tabular.inline-related table {
+    background: transparent !important;
+    border-radius: 10px !important;
+    overflow: hidden;
+}
+
+/* ---------- Páginas custom (Reports, Renewals, Stock, etc.) ---------- */
+/* Aumentar uniformemente la presencia de cards .rounded-xl */
+#content-main .rounded-xl,
+#content-main .rounded-lg {
+    transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+#content-main .rounded-xl:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 38px -18px rgba(236,72,153,.25), 0 8px 20px -10px rgba(0,0,0,.4);
+}
+
+/* Para que los "número grande" de reportes tengan el gradient */
+#content-main .text-3xl,
+#content-main .text-2xl {
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+}
+
+/* ---------- Search results / Empty states ---------------------------- */
+.paginator,
+.empty-form {
+    padding: 14px 0 !important;
+}
+
+/* ---------- Submit row ----------------------------------------------- */
+.submit-row {
+    background: rgba(255,255,255,.04) !important;
+    border: 1px solid var(--jh2-line) !important;
+    border-radius: 14px !important;
+    padding: 14px !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 18px 40px -18px rgba(0,0,0,.6) !important;
+}
+.submit-row input[type="submit"],
+.submit-row button[type="submit"] {
+    background: linear-gradient(135deg, #ec4899, #a855f7) !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 10px 20px !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: all .18s ease;
+}
+.submit-row input[type="submit"]:hover,
+.submit-row button[type="submit"]:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px -8px rgba(236,72,153,.6);
+}
+.submit-row a.deletelink {
+    background: rgba(239,68,68,.12) !important;
+    color: #fca5a5 !important;
+    border: 1px solid rgba(239,68,68,.35) !important;
+    padding: 10px 16px !important;
+    border-radius: 12px !important;
+    font-weight: 600;
+    transition: all .18s ease;
+    text-decoration: none !important;
+}
+.submit-row a.deletelink:hover {
+    background: rgba(239,68,68,.2) !important;
+    color: #fff !important;
+}
+
+/* ---------- Selector horizontal (m2m fields) -------------------------- */
+.selector {
+    gap: 10px;
+    display: flex;
+}
+.selector select {
+    background: rgba(255,255,255,.03) !important;
+    border: 1px solid var(--jh2-line) !important;
+    border-radius: 12px !important;
+    padding: 8px !important;
+}
+
+/* ---------- Related widget wrapper ------------------------------------ */
+.related-widget-wrapper-link,
+.related-lookup {
+    background: rgba(255,255,255,.06) !important;
+    border: 1px solid var(--jh2-line) !important;
+    border-radius: 10px !important;
+    padding: 6px 10px !important;
+    transition: all .15s ease;
+    text-decoration: none !important;
+    margin-left: 4px;
+}
+.related-widget-wrapper-link:hover,
+.related-lookup:hover {
+    background: rgba(236,72,153,.12) !important;
+    border-color: var(--jh2-pink) !important;
+}
+
+/* ---------- Calendarios / time / date widgets ------------------------- */
+.calendarbox,
+.clockbox {
+    background: rgba(20,20,28,.95) !important;
+    border: 1px solid var(--jh2-line) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,.6);
+}
+
+/* ---------- Ajustes móvil v6 ------------------------------------------ */
+@media (max-width: 768px) {
+    #content-main > h1:first-child { font-size: 1.4rem !important; }
+    fieldset.module { padding: 16px !important; }
+    fieldset.module h2,
+    fieldset.module > h3 { margin: -16px -16px 14px !important; padding: 8px 12px !important; }
+    #changelist-filter { margin-left: 0; padding: 12px !important; }
+    .submit-row input[type="submit"] { padding: 8px 14px !important; }
+}
