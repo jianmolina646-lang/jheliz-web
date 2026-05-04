@@ -1,6 +1,6 @@
 {% load humanize %}
 {% load catalog_extras %}
-<a href="{{ product.get_absolute_url }}" class="surface surface-lift rounded-2xl overflow-hidden hover:border-zinc-600 transition block group relative product-card">
+<a href="{{ product.get_absolute_url }}" class="surface surface-lift rounded-2xl overflow-hidden hover:border-zinc-600 transition block group relative product-card{% if tilt %} j2026-tilt{% endif %}">
   <!-- Banner ilustrado del producto ----------------------------------- -->
   <div class="product-card__banner relative aspect-[16/9] overflow-hidden"
        {% if not product.image %}style="{% product_gradient product %}"{% endif %}>
