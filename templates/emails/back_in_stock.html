@@ -1,0 +1,22 @@
+{% extends "emails/_base.html" %}
+{% block body %}
+  <h2 style="margin:0 0 8px 0;font-size:22px;">¡Volvió el stock!</h2>
+  <p style="margin:0 0 16px 0;">
+    Te avisamos como prometimos: <strong>{{ product.name }}</strong>{% if plan_name %} <span style="color:#f472b6">({{ plan_name }})</span>{% endif %}
+    ya está disponible nuevamente en {{ SITE_NAME }}.
+  </p>
+  <p style="margin:0 0 20px 0;color:rgba(255,255,255,0.7);font-size:14px;">
+    Las cuentas se entregan por orden de llegada y suelen agotarse rápido.
+    Si te interesa, hacé el pedido en cuanto puedas.
+  </p>
+  <p style="margin:0 0 8px 0;">
+    <a href="{{ product_url }}" style="background:#f472b6;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;display:inline-block;font-weight:700;">
+      Ver y comprar ahora
+    </a>
+  </p>
+  <p style="margin-top:24px;font-size:12px;color:rgba(255,255,255,0.5);">
+    Recibiste este correo porque dejaste tu email en la página del producto pidiendo
+    que te avisáramos cuando hubiera stock. No volveremos a notificarte para esta
+    suscripción.
+  </p>
+{% endblock %}

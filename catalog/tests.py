@@ -554,3 +554,109 @@ class DistributorPanelTests(TestCase):
         resp = self.client.get(reverse("catalog:distributor_catalog"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Catálogo")
+
+
+class BackInStockAlertTests(TestCase):
+    def setUp(self):
+        self.cat = Category.objects.create(name="Streaming", slug="streaming-bis")
+        self.product = Product.objects.create(
+            category=self.cat,
+            name="Test BIS Product",
+            slug="test-bis-product",
+            is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes",
+            price_customer=Decimal("25.00"),
+        )
+        self.client = Client()
+
+    def test_subscribe_creates_alert(self):
+        from catalog.models import BackInStockAlert
+
+        url = reverse(
+            "catalog:back_in_stock_subscribe",
+            kwargs={"slug": self.product.slug},
+        )
+        resp = self.client.post(url, {"email": "user@test.com"}, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        alert = BackInStockAlert.objects.get(
+            email="user@test.com", product=self.product,
+        )
+        self.assertEqual(alert.status, BackInStockAlert.Status.PENDING)
+
+    def test_subscribe_duplicate_does_not_create_second(self):
+        from catalog.models import BackInStockAlert
+
+        url = reverse(
+            "catalog:back_in_stock_subscribe",
+            kwargs={"slug": self.product.slug},
+        )
+        self.client.post(url, {"email": "user@test.com"})
+        self.client.post(url, {"email": "user@test.com"})
+        count = BackInStockAlert.objects.filter(
+            email="user@test.com", product=self.product,
+        ).count()
+        self.assertEqual(count, 1)
+
+    def test_subscribe_invalid_email_rejected(self):
+        from catalog.models import BackInStockAlert
+
+        url = reverse(
+            "catalog:back_in_stock_subscribe",
+            kwargs={"slug": self.product.slug},
+        )
+        resp = self.client.post(url, {"email": "not-an-email"}, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(
+            BackInStockAlert.objects.filter(product=self.product).exists()
+        )
+
+    def test_signal_notifies_when_new_stock_available(self):
+        from django.core import mail
+        from catalog.models import BackInStockAlert
+
+        BackInStockAlert.objects.create(
+            email="alert1@test.com",
+            product=self.product, plan=self.plan,
+            status=BackInStockAlert.Status.PENDING,
+        )
+        BackInStockAlert.objects.create(
+            email="alert2@test.com",
+            product=self.product, plan=None,
+            status=BackInStockAlert.Status.PENDING,
+        )
+        # Crear un StockItem AVAILABLE → dispara el signal.
+        StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="email: foo\nclave: bar",
+            status=StockItem.Status.AVAILABLE,
+        )
+        # Ambas alertas deberían quedar como NOTIFIED.
+        notified = BackInStockAlert.objects.filter(
+            status=BackInStockAlert.Status.NOTIFIED,
+        ).count()
+        self.assertEqual(notified, 2)
+        # Y deberían haberse mandado 2 correos.
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertTrue(
+            any("Volvi" in m.subject for m in mail.outbox),
+            f"Subjects: {[m.subject for m in mail.outbox]}",
+        )
+
+    def test_signal_does_not_re_notify_already_notified(self):
+        from catalog.models import BackInStockAlert
+
+        BackInStockAlert.objects.create(
+            email="already@test.com",
+            product=self.product, plan=self.plan,
+            status=BackInStockAlert.Status.NOTIFIED,
+            notified_at=timezone.now(),
+        )
+        StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="email: foo\nclave: bar",
+        )
+        # Ya estaba notified, no se vuelve a tocar.
+        alert = BackInStockAlert.objects.get(email="already@test.com")
+        self.assertEqual(alert.status, BackInStockAlert.Status.NOTIFIED)

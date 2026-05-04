@@ -2,14 +2,26 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from django.db.models import Avg, Count
 from django.utils import timezone
 
 from .forms import ProductReviewForm
-from .models import Category, PlatformLanding, Plan, Product, ProductReview, Testimonial
+from .models import (
+    BackInStockAlert,
+    Category,
+    PlatformLanding,
+    Plan,
+    Product,
+    ProductReview,
+    Testimonial,
+)
 
 
 def _product_schema(request, product, plans):
@@ -695,3 +707,75 @@ def platform_landing(request, slug: str):
         "other_landings": other_landings,
     }
     return render(request, "catalog/platform_landing.html", context)
+
+
+def _client_ip(request) -> str | None:
+    """Best-effort: ip del cliente para auditoria de alertas."""
+    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR") or None
+
+
+@require_POST
+def back_in_stock_subscribe(request, slug: str):
+    """Endpoint para suscribirse a una alerta back-in-stock.
+
+    Acepta application/x-www-form-urlencoded (form normal) y
+    devuelve JSON si el cliente envió ``Accept: application/json``,
+    si no redirige al detalle del producto con un mensaje flash.
+    """
+    product = get_object_or_404(
+        Product.objects.select_related("category"),
+        slug=slug, is_active=True,
+    )
+    email = (request.POST.get("email") or "").strip().lower()
+    plan_id = request.POST.get("plan") or ""
+    wants_json = "application/json" in request.headers.get("Accept", "").lower()
+
+    error = ""
+    if not email:
+        error = "Necesitamos tu correo para avisarte."
+    else:
+        try:
+            validate_email(email)
+        except ValidationError:
+            error = "Ese correo no parece válido. Revisalo y reintentá."
+
+    plan = None
+    if plan_id:
+        plan = Plan.objects.filter(pk=plan_id, product=product, is_active=True).first()
+
+    if error:
+        if wants_json:
+            return JsonResponse({"ok": False, "error": error}, status=400)
+        messages.error(request, error)
+        return redirect("catalog:product", slug=product.slug)
+
+    # Evita duplicados: si ya hay una alerta pendiente para ese email+producto+plan,
+    # no crea otra.
+    existing = BackInStockAlert.objects.filter(
+        email=email, product=product, plan=plan,
+        status=BackInStockAlert.Status.PENDING,
+    ).first()
+    created = False
+    if existing is None:
+        BackInStockAlert.objects.create(
+            email=email,
+            product=product,
+            plan=plan,
+            user_agent=(request.META.get("HTTP_USER_AGENT") or "")[:255],
+            ip=_client_ip(request),
+        )
+        created = True
+
+    msg = (
+        "¡Listo! Te vamos a avisar a {} apenas vuelva el stock.".format(email)
+        if created else
+        "Ya tenías una alerta pendiente con ese correo. Te avisaremos al volver el stock."
+    )
+    if wants_json:
+        return JsonResponse({"ok": True, "created": created, "message": msg})
+    messages.success(request, msg)
+    return redirect("catalog:product", slug=product.slug)
+

@@ -909,3 +909,60 @@ class PlatformLanding(models.Model):
         if self.category:
             return self.category.products.filter(is_active=True)
         return Product.objects.none()
+
+
+class BackInStockAlert(models.Model):
+    """Suscripción de un cliente a la notificación 'avísame cuando vuelva'.
+
+    Cuando un producto/plan se queda sin stock, el cliente puede dejar
+    su email para que le avisemos automáticamente al reponer. La señal
+    en :mod:`catalog.signals` se encarga de detectar cuándo un nuevo
+    StockItem queda en estado AVAILABLE y dispara los correos a todas
+    las alertas pendientes para ese producto/plan.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pendiente"
+        NOTIFIED = "notified", "Notificada"
+        CANCELLED = "cancelled", "Cancelada"
+
+    email = models.EmailField("Correo")
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE,
+        related_name="back_in_stock_alerts",
+        verbose_name="Producto",
+    )
+    plan = models.ForeignKey(
+        Plan, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="back_in_stock_alerts",
+        verbose_name="Plan",
+        help_text="Si se especifica, sólo se avisa cuando vuelve "
+                  "stock para ESE plan en particular.",
+    )
+    status = models.CharField(
+        max_length=12, choices=Status.choices,
+        default=Status.PENDING, db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    notified_at = models.DateTimeField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True, default="")
+    ip = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Alerta de stock"
+        verbose_name_plural = "Alertas de stock"
+        indexes = [
+            models.Index(fields=["product", "status"]),
+            models.Index(fields=["plan", "status"]),
+            models.Index(fields=["email", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        plan = self.plan.name if self.plan else "cualquier plan"
+        return f"{self.email} \u2192 {self.product.name} ({plan})"
+
+    def mark_notified(self) -> None:
+        self.status = self.Status.NOTIFIED
+        self.notified_at = timezone.now()
+        self.save(update_fields=["status", "notified_at"])

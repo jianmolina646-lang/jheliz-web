@@ -365,6 +365,11 @@ UNFOLD = {
                         "link": "/jheliz-admin/catalog/stockitem/",
                     },
                     {
+                        "title": "Avísame cuando vuelva",
+                        "icon": "notifications_active",
+                        "link": "/jheliz-admin/catalog/backinstockalert/",
+                    },
+                    {
                         "title": "Reseñas",
                         "icon": "reviews",
                         "link": "/jheliz-admin/catalog/testimonial/",
