@@ -490,11 +490,16 @@ def notifications_count(request):
     El JS hace polling cada 30s y compara contra ``localStorage`` para saber
     cuáles items son nuevos vs ya vistos.
     """
-    from orders.models import Order
+    from django.db.models import Count
+
+    from accounts.models import User
+    from catalog.models import ProductReview, StockItem
+    from orders.models import Order, OrderItem
     from support.models import Ticket
 
     now = timezone.now()
-    item_limit = 8  # por categoría, antes de hacer merge final
+    today = timezone.localdate()
+    item_limit = 5  # por categoría, antes de hacer merge final
 
     verifying_qs = (
         Order.objects.filter(status=Order.Status.VERIFYING)
@@ -508,6 +513,22 @@ def notifications_count(request):
         Ticket.objects.exclude(
             status__in=(Ticket.Status.RESOLVED, Ticket.Status.CLOSED),
         ).select_related("user").order_by("-created_at")[:item_limit]
+    )
+    pending_reviews_qs = (
+        ProductReview.objects.filter(status=ProductReview.Status.PENDING)
+        .select_related("product")
+        .order_by("-created_at")[:item_limit]
+    )
+    pending_distri_qs = (
+        User.objects.filter(role="distribuidor", distributor_approved=False)
+        .order_by("-date_joined")[:item_limit]
+    )
+    # Cuentas vendidas que vencen hoy (aviso al admin para renovar proactivamente).
+    expiring_today_qs = (
+        OrderItem.objects.filter(
+            expires_at__date=today,
+            order__status=Order.Status.DELIVERED,
+        ).select_related("order", "order__user").order_by("expires_at")[:item_limit]
     )
 
     items: list[dict] = []
@@ -558,9 +579,81 @@ def notifications_count(request):
             "relative": _humanize_delta(now - ts) if ts else "",
         })
 
-    # Más recientes primero, máximo 15 visibles en el bell.
+    for review in pending_reviews_qs:
+        ts = review.created_at
+        prod_name = review.product.name if review.product_id else "—"
+        stars = "★" * int(review.rating or 0)
+        items.append({
+            "id": f"review-{review.pk}",
+            "kind": "review",
+            "icon": "rate_review",
+            "title": f"Reseña por aprobar · {stars} · {prod_name[:50]}",
+            "subtitle": (review.author_name or review.email or "Anónimo")[:80],
+            "url": reverse("admin:catalog_productreview_change", args=[review.pk]),
+            "created_at": ts.isoformat() if ts else None,
+            "relative": _humanize_delta(now - ts) if ts else "",
+        })
+
+    for user in pending_distri_qs:
+        ts = user.date_joined
+        label = (user.email or user.get_username() or "Distribuidor").strip()
+        items.append({
+            "id": f"distri-{user.pk}",
+            "kind": "distributor",
+            "icon": "verified_user",
+            "title": f"Distribuidor por aprobar · {label[:60]}",
+            "subtitle": (user.get_full_name() or "").strip() or "Sin nombre",
+            "url": reverse("admin:accounts_user_change", args=[user.pk]),
+            "created_at": ts.isoformat() if ts else None,
+            "relative": _humanize_delta(now - ts) if ts else "",
+        })
+
+    for it in expiring_today_qs:
+        ts = it.expires_at
+        contact = (
+            (it.order.email if it.order_id else "")
+            or (it.order.user.email if it.order_id and it.order.user_id else "")
+            or "cliente"
+        )
+        items.append({
+            "id": f"expiring-{it.pk}",
+            "kind": "expiring",
+            "icon": "schedule",
+            "title": f"Vence hoy · {it.product_name} ({it.plan_name})",
+            "subtitle": contact,
+            "url": reverse("admin:orders_orderitem_change", args=[it.pk]),
+            "created_at": ts.isoformat() if ts else None,
+            "relative": _humanize_delta(now - ts) if ts else "",
+        })
+
+    # Planes con stock crítico (0 o 1 disponible) de productos activos.
+    low_stock_plans_qs = (
+        StockItem.objects.filter(
+            status=StockItem.Status.AVAILABLE,
+            plan__is_active=True,
+            plan__product__is_active=True,
+        )
+        .values("plan_id", "plan__product__name", "plan__name")
+        .annotate(avail=Count("id"))
+        .filter(avail__lte=1)
+        .order_by("avail")[:item_limit]
+    )
+    for row in low_stock_plans_qs:
+        title = f"{row['plan__product__name']} · {row['plan__name']}"
+        items.append({
+            "id": f"lowstock-{row['plan_id']}",
+            "kind": "low_stock",
+            "icon": "inventory_2",
+            "title": f"Stock crítico · {title[:60]}",
+            "subtitle": f"{row['avail']} disponible{'s' if row['avail'] != 1 else ''}",
+            "url": reverse("admin:catalog_stockitem_changelist") + f"?plan__id__exact={row['plan_id']}&status__exact=available",
+            "created_at": now.isoformat(),
+            "relative": "ahora",
+        })
+
+    # Más recientes primero, máximo 20 visibles en el bell.
     items.sort(key=lambda x: x["created_at"] or "", reverse=True)
-    items = items[:15]
+    items = items[:20]
 
     counts = {
         "verifying": Order.objects.filter(status=Order.Status.VERIFYING).count(),
@@ -568,8 +661,18 @@ def notifications_count(request):
         "open_tickets": Ticket.objects.exclude(
             status__in=(Ticket.Status.RESOLVED, Ticket.Status.CLOSED),
         ).count(),
+        "pending_reviews": ProductReview.objects.filter(status=ProductReview.Status.PENDING).count(),
+        "pending_distributors": User.objects.filter(role="distribuidor", distributor_approved=False).count(),
+        "expiring_today": OrderItem.objects.filter(
+            expires_at__date=today, order__status=Order.Status.DELIVERED,
+        ).count(),
+        "low_stock_plans": StockItem.objects.filter(
+            status=StockItem.Status.AVAILABLE,
+            plan__is_active=True,
+            plan__product__is_active=True,
+        ).values("plan_id").annotate(avail=Count("id")).filter(avail__lte=1).count(),
     }
-    counts["total"] = counts["verifying"] + counts["preparing"] + counts["open_tickets"]
+    counts["total"] = sum(counts.values())
 
     # Compat: el JS viejo del dashboard espera las claves verifying/preparing/total
     # en el nivel raíz; las dejamos ahí + un bloque "counts" duplicado para JS nuevo.

@@ -253,6 +253,42 @@ def dashboard_callback(request, context):
         "sold": [r["sold"] for r in stock_rows],
     }
 
+    # ---- Chart 5: ventas por hora del día (hoy) -----------------------------
+    # Útil para saber cuándo corren campañas de ads / tener el admin atento.
+    hourly_labels = [f"{h:02d}h" for h in range(24)]
+    hourly_data = [0.0] * 24
+    hourly_qs = (
+        Order.objects.filter(
+            created_at__date=today,
+            status__in=paid_statuses,
+        )
+        .annotate(h=models.functions.ExtractHour("created_at"))
+        .values("h")
+        .annotate(total=Sum("total"))
+    )
+    for row in hourly_qs:
+        h = row["h"] or 0
+        hourly_data[h] = float(row["total"] or 0)
+    sales_hour_chart = {"labels": hourly_labels, "data": hourly_data}
+
+    # ---- Chart 6: ingresos por categoría (mes) -----------------------------
+    category_rev_rows = (
+        OrderItem.objects.filter(
+            order__created_at__date__gte=first_of_month,
+            order__status__in=paid_statuses,
+        )
+        .values("product__category__name", "product__category__emoji")
+        .annotate(total=Sum(models.F("unit_price") * models.F("quantity"), output_field=models.DecimalField()))
+        .order_by("-total")[:8]
+    )
+    category_chart = {
+        "labels": [
+            f"{r['product__category__emoji'] or ''} {r['product__category__name'] or '—'}".strip()
+            for r in category_rev_rows
+        ],
+        "data": [float(r["total"] or 0) for r in category_rev_rows],
+    }
+
     arrow = "↑" if delta_pct >= 0 else "↓"
 
     # ---- Saludo personalizado para el header del dashboard ------------------
@@ -429,6 +465,8 @@ def dashboard_callback(request, context):
             "top_chart_json": json.dumps(top_chart),
             "method_chart_json": json.dumps(method_chart),
             "stock_chart_json": json.dumps(stock_chart),
+            "sales_hour_chart_json": json.dumps(sales_hour_chart),
+            "category_chart_json": json.dumps(category_chart),
             "recent_orders": list(
                 Order.objects.select_related("user")
                 .order_by("-created_at")[:8]

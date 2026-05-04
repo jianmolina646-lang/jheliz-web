@@ -234,26 +234,46 @@
     {% endif %}
 
     <div class="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6">
-        <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="font-semibold text-base-900 dark:text-white">Ventas por día (últimos 14)</h2>
-                <span class="text-xs text-base-500">S/</span>
+        <div class="flex flex-col gap-6">
+            <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-semibold text-base-900 dark:text-white">Ventas por día (últimos 14)</h2>
+                    <span class="text-xs text-base-500">S/</span>
+                </div>
+                <canvas id="salesChart" height="90"></canvas>
             </div>
-            <canvas id="salesChart" height="90"></canvas>
+            {% if sales_hour_chart_json %}
+            <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-semibold text-base-900 dark:text-white">Ventas por hora · hoy</h2>
+                    <span class="text-xs text-base-500">S/ por hora</span>
+                </div>
+                <canvas id="hourChart" height="70"></canvas>
+                <p class="mt-2 text-xs text-base-500">Identifica tus horas pico para enfocar ads y soporte en vivo.</p>
+            </div>
+            {% endif %}
         </div>
-        <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
-            <h2 class="font-semibold text-base-900 dark:text-white mb-3">Método de pago (mes)</h2>
-            <canvas id="methodChart" height="150"></canvas>
-            {% if new_vs_returning %}
-            <div class="mt-4 pt-3 border-t border-base-200 dark:border-base-800 grid grid-cols-2 gap-3 text-center">
-                <div>
-                    <div class="text-xs text-base-500">Nuevos</div>
-                    <div class="text-xl font-bold text-emerald-400">{{ new_vs_returning.new }}</div>
+        <div class="flex flex-col gap-6">
+            <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
+                <h2 class="font-semibold text-base-900 dark:text-white mb-3">Método de pago (mes)</h2>
+                <canvas id="methodChart" height="150"></canvas>
+                {% if new_vs_returning %}
+                <div class="mt-4 pt-3 border-t border-base-200 dark:border-base-800 grid grid-cols-2 gap-3 text-center">
+                    <div>
+                        <div class="text-xs text-base-500">Nuevos</div>
+                        <div class="text-xl font-bold text-emerald-400">{{ new_vs_returning.new }}</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-base-500">Recurrentes</div>
+                        <div class="text-xl font-bold text-primary-400">{{ new_vs_returning.returning }}</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="text-xs text-base-500">Recurrentes</div>
-                    <div class="text-xl font-bold text-primary-400">{{ new_vs_returning.returning }}</div>
-                </div>
+                {% endif %}
+            </div>
+            {% if category_chart_json %}
+            <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
+                <h2 class="font-semibold text-base-900 dark:text-white mb-3">Ingresos por categoría (mes)</h2>
+                <canvas id="categoryChart" height="150"></canvas>
             </div>
             {% endif %}
         </div>
@@ -362,6 +382,8 @@
 </div>
 
 {{ sales_chart_json|json_script:"salesChartData" }}
+{{ sales_hour_chart_json|json_script:"hourChartData" }}
+{{ category_chart_json|json_script:"categoryChartData" }}
 {{ top_chart_json|json_script:"topChartData" }}
 {{ method_chart_json|json_script:"methodChartData" }}
 {{ stock_chart_json|json_script:"stockChartData" }}
@@ -443,6 +465,50 @@
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { position: "bottom" } },
                 cutout: "60%",
+            },
+        });
+    }
+
+    var hour = parse("hourChartData");
+    var hourEl = document.getElementById("hourChart");
+    if(hour && hourEl && hour.data){
+        new Chart(hourEl, {
+            type: "bar",
+            data: {
+                labels: hour.labels,
+                datasets: [{
+                    label: "S/ por hora",
+                    data: hour.data,
+                    backgroundColor: "rgba(139,92,246,0.6)",
+                    borderColor: violet,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+                    y: { grid: { color: grid }, beginAtZero: true },
+                },
+            },
+        });
+    }
+
+    var cat = parse("categoryChartData");
+    var catEl = document.getElementById("categoryChart");
+    if(cat && catEl && cat.data && cat.data.length){
+        new Chart(catEl, {
+            type: "doughnut",
+            data: {
+                labels: cat.labels,
+                datasets: [{ data: cat.data, backgroundColor: palette.concat([cyan, "#f43f5e", "#22d3ee"]), borderWidth: 0 }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: "bottom" } },
+                cutout: "55%",
             },
         });
     }
