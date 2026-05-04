@@ -4,9 +4,15 @@
 {% block title %}Finalizar compra — {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
-<div class="mb-2">
-  <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Paso 2 de 2</p>
-  <h1 class="font-display text-3xl md:text-4xl font-bold tracking-tight mt-1">Finalizar compra</h1>
+<div class="mb-6" data-reveal>
+  <div class="ck-steps mb-5">
+    <span class="ck-step is-done"><span class="ck-step__num">✓</span> Carrito</span>
+    <span class="ck-sep"></span>
+    <span class="ck-step is-active"><span class="ck-step__num">2</span> Datos &amp; pago</span>
+    <span class="ck-sep"></span>
+    <span class="ck-step"><span class="ck-step__num">3</span> Confirmación</span>
+  </div>
+  <h1 class="font-display text-3xl md:text-4xl font-bold tracking-tight">Finalizar compra</h1>
   <p class="text-zinc-400 mt-2 max-w-2xl">Revisa tu pedido, elige cómo pagar y completa tus datos.</p>
 </div>
 
@@ -19,14 +25,21 @@
         {% if field.name == 'payment_method' %}
           <div>
             <label class="block text-xs font-medium text-zinc-400 mb-2">Método de pago <span class="text-jheliz-400">*</span></label>
-            <div class="grid sm:grid-cols-2 gap-3">
+            <div class="grid sm:grid-cols-2 gap-3" data-pay-options>
               {% for choice in field %}
-              <label class="flex items-start gap-3 rounded-xl border hairline bg-white/[0.02] px-4 py-3.5 cursor-pointer hover:border-zinc-600 transition has-[:checked]:border-jheliz-500 has-[:checked]:bg-jheliz-500/[0.06]">
+              <label class="pay-option {% if choice.data.value == 'yape' %}logo--yape{% else %}logo--mp{% endif %}{% if choice.data.selected %} is-checked{% endif %}">
                 {{ choice.tag }}
-                <span class="text-sm">
+                <div class="pay-option__logo" aria-hidden="true">
                   {% if choice.data.value == 'yape' %}
-                    <span class="font-display font-semibold text-zinc-100 block">Yape QR</span>
-                    <span class="text-xs text-zinc-500">Escanea desde tu app y sube comprobante</span>
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l8 8-8 8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="18" cy="12" r="2" fill="currentColor"/></svg>
+                  {% else %}
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20" stroke-linecap="round"/><path d="M6 15h3" stroke-linecap="round"/></svg>
+                  {% endif %}
+                </div>
+                <span class="flex-1 min-w-0">
+                  {% if choice.data.value == 'yape' %}
+                    <span class="font-display font-semibold text-zinc-100 block">Yape / Plin</span>
+                    <span class="text-xs text-zinc-500">Escanea QR y sube comprobante</span>
                   {% else %}
                     <span class="font-display font-semibold text-zinc-100 block">Mercado Pago</span>
                     <span class="text-xs text-zinc-500">Tarjeta, Yape, PagoEfectivo</span>

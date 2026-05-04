@@ -83,16 +83,32 @@
     });
   }
 
-  /* ---------------- Init on DOM ready ------------------------------ */
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      initScrollReveal();
-      initCounters();
-      initCardTilt();
+  /* ---------------- Payment method chip toggle -------------------- */
+  function initPayOptions() {
+    var groups = document.querySelectorAll('[data-pay-options]');
+    groups.forEach(function (group) {
+      var labels = group.querySelectorAll('.pay-option');
+      function refresh() {
+        labels.forEach(function (l) {
+          var input = l.querySelector('input[type=radio]');
+          l.classList.toggle('is-checked', !!input && input.checked);
+        });
+      }
+      group.addEventListener('change', refresh);
+      refresh();
     });
-  } else {
+  }
+
+  /* ---------------- Init on DOM ready ------------------------------ */
+  function initAll() {
     initScrollReveal();
     initCounters();
     initCardTilt();
+    initPayOptions();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAll);
+  } else {
+    initAll();
   }
 })();

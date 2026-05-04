@@ -4,7 +4,14 @@
 {% block title %}Gracias por tu compra — {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto card-glass rounded-3xl p-10 text-center">
+<div class="ck-steps mb-6 justify-center flex" data-reveal>
+  <span class="ck-step is-done"><span class="ck-step__num">✓</span> Carrito</span>
+  <span class="ck-sep"></span>
+  <span class="ck-step is-done"><span class="ck-step__num">✓</span> Datos &amp; pago</span>
+  <span class="ck-sep"></span>
+  <span class="ck-step is-active"><span class="ck-step__num">3</span> Confirmación</span>
+</div>
+<div class="max-w-2xl mx-auto card-glass rounded-3xl p-10 text-center" data-reveal>
   {% if order.status == 'delivered' %}
     <div class="text-5xl">🎉</div>
     <h1 class="text-3xl font-extrabold mt-4">¡Pedido entregado!</h1>

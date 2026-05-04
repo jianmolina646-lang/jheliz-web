@@ -236,6 +236,136 @@
   border-color: rgba(236,72,153,.55) !important;
 }
 
+/* ---------- Mobile bottom navigation -------------------------------- */
+.mobile-bottom-nav { display: none; }
+@media (max-width: 767px) {
+  .mobile-bottom-nav {
+    display: grid;
+    grid-auto-columns: 1fr;
+    grid-auto-flow: column;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    padding: 6px 4px max(6px, env(safe-area-inset-bottom)) 4px;
+    background: linear-gradient(180deg, rgba(8,7,13,.75), rgba(8,7,13,.98));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--line);
+  }
+  /* Make space below content so bottom nav doesn't cover footer text */
+  body { padding-bottom: 62px; }
+  /* Hide the WhatsApp FAB a bit higher so it doesn't collide */
+  body > a[aria-label="Escríbenos por WhatsApp"] { bottom: 74px !important; right: 14px !important; }
+}
+.mbn-item {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: 6px 4px;
+  color: #a1a1aa;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.02em;
+  text-align: center; border-radius: 10px;
+  transition: color 200ms ease, background 200ms ease, transform 150ms ease;
+  min-width: 0;
+}
+.mbn-item:active { transform: scale(0.94); }
+.mbn-item .icon { width: 22px; height: 22px; stroke-width: 1.7; }
+.mbn-item.is-active {
+  color: #fff;
+  background: radial-gradient(closest-side, rgba(236,72,153,.18), transparent 85%);
+}
+.mbn-item.is-active::before {
+  content: ''; position: absolute; top: 4px;
+  width: 24px; height: 3px; border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, #ec4899, #a855f7);
+  box-shadow: 0 2px 8px rgba(236,72,153,.55);
+}
+.mbn-badge {
+  position: absolute;
+  top: 2px; right: 22%;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 9999px;
+  background: var(--pink); color: #fff;
+  font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+  box-shadow: 0 2px 8px -2px rgba(236,72,153,.6);
+}
+
+/* ---------- Checkout progress steps --------------------------------- */
+.ck-steps {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.ck-step {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: 9999px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid var(--line);
+  font-size: 12px; font-weight: 600; color: #a1a1aa;
+  transition: all 200ms ease;
+}
+.ck-step.is-active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(236,72,153,.15), rgba(168,85,247,.1));
+  border-color: rgba(236,72,153,.4);
+  box-shadow: 0 6px 20px -10px rgba(236,72,153,.5);
+}
+.ck-step.is-done {
+  color: #34d399;
+  border-color: rgba(52,211,153,.3);
+  background: rgba(52,211,153,.08);
+}
+.ck-step__num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 9999px;
+  background: rgba(255,255,255,.08);
+  font-size: 11px; font-weight: 700;
+}
+.ck-step.is-active .ck-step__num {
+  background: linear-gradient(135deg, #ec4899, #a855f7); color: #fff;
+}
+.ck-step.is-done .ck-step__num {
+  background: #10b981; color: #fff;
+}
+.ck-sep {
+  flex: 1; height: 1px; min-width: 10px; max-width: 60px;
+  background: linear-gradient(90deg, var(--line), transparent);
+}
+
+/* Payment method chip with logos */
+.pay-option {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: 14px;
+  background: rgba(255,255,255,.025);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: all 200ms ease;
+  position: relative;
+}
+.pay-option:hover {
+  border-color: rgba(236,72,153,.35);
+  background: rgba(236,72,153,.04);
+  transform: translateY(-1px);
+}
+.pay-option input[type=radio] {
+  accent-color: var(--pink);
+  margin-top: 2px;
+}
+.pay-option.is-checked {
+  border-color: var(--pink);
+  background: linear-gradient(135deg, rgba(236,72,153,.08), rgba(168,85,247,.05));
+  box-shadow: 0 10px 28px -16px rgba(236,72,153,.5);
+}
+.pay-option__logo {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.06);
+  font-size: 20px; flex-shrink: 0;
+}
+.pay-option.logo--yape .pay-option__logo {
+  background: linear-gradient(135deg, #7b2cbf, #9d4edd);
+  color: #fff;
+}
+.pay-option.logo--mp .pay-option__logo {
+  background: linear-gradient(135deg, #00b1ea, #009ee3);
+  color: #fff;
+}
+
 /* ---------- Animated gradient border (ALE: used on key CTAs) ------- */
 .grad-border {
   position: relative;
