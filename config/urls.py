@@ -16,6 +16,21 @@ SITEMAPS_ALL = {**SITEMAPS, "blog": BlogPostSitemap}
 
 urlpatterns = [
     # Vistas extra del admin (deben ir antes de admin.site.urls).
+    path(
+        "jheliz-admin/inbox/",
+        admin_views.inbox_view,
+        name="admin_inbox",
+    ),
+    path(
+        "jheliz-admin/reports/charts/",
+        admin_views.reports_charts_view,
+        name="admin_reports_charts",
+    ),
+    path(
+        "jheliz-admin/security/2fa/",
+        admin_views.admin_2fa_setup,
+        name="admin_2fa_setup",
+    ),
     path("jheliz-admin/reports/", admin_views.reports_view, name="admin_reports"),
     path(
         "jheliz-admin/reports/export.csv",

@@ -1,0 +1,99 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}
+<h1 class="flex items-center gap-2">
+    <span class="material-symbols-outlined text-primary-400">inbox</span>
+    Bandeja — Necesita acción
+    <span class="ml-2 inline-flex items-center justify-center rounded-full
+                 bg-red-500/20 text-red-200 text-xs px-2 py-0.5 font-semibold">
+        {{ total }}
+    </span>
+</h1>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+    <p class="text-sm text-gray-500 dark:text-gray-400">
+        Lista única de todo lo que requiere tu atención hoy: pedidos atascados,
+        comprobantes Yape, tickets sin responder, reseñas, distribuidores,
+        cuentas que vencen, etc. Ordenado por prioridad.
+    </p>
+
+    <!-- Chips de filtro por tipo -->
+    <div class="flex flex-wrap items-center gap-2">
+        {% for kind, label, count, icon in chips %}
+        <a href="?kind={{ kind }}&sort={{ sort }}"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition
+                  {% if kind_filter == kind %}
+                      border-primary-500 bg-primary-500/30 text-primary-100 font-semibold
+                  {% else %}
+                      border-gray-700 bg-gray-800/40 text-gray-300 hover:bg-gray-800
+                  {% endif %}">
+            <span class="material-symbols-outlined text-base">{{ icon }}</span>
+            {{ label }}
+            <span class="ml-1 inline-flex items-center justify-center rounded-full
+                         bg-black/30 px-1.5 text-[10px] font-bold">
+                {{ count }}
+            </span>
+        </a>
+        {% endfor %}
+
+        <span class="ml-auto text-xs text-gray-400 mr-2">Ordenar:</span>
+        <a href="?kind={{ kind_filter }}&sort=priority"
+           class="px-3 py-1 rounded-md text-xs border
+                  {% if sort == 'priority' %}
+                      border-primary-500 bg-primary-500/20 text-primary-100
+                  {% else %}
+                      border-gray-700 bg-gray-800/40 text-gray-300 hover:bg-gray-800
+                  {% endif %}">
+            Prioridad
+        </a>
+        <a href="?kind={{ kind_filter }}&sort=age"
+           class="px-3 py-1 rounded-md text-xs border
+                  {% if sort == 'age' %}
+                      border-primary-500 bg-primary-500/20 text-primary-100
+                  {% else %}
+                      border-gray-700 bg-gray-800/40 text-gray-300 hover:bg-gray-800
+                  {% endif %}">
+            Más viejos
+        </a>
+    </div>
+
+    {% if items %}
+    <div class="space-y-2">
+        {% for it in items %}
+        <a href="{{ it.link }}"
+           class="block rounded-xl border-l-4 {{ it.classes }}
+                  bg-gray-800/40 hover:bg-gray-800/70 transition px-4 py-3
+                  border-r border-y border-gray-700">
+            <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-2xl mt-0.5">{{ it.icon }}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-baseline gap-x-3">
+                        <span class="font-semibold text-white text-sm">{{ it.label }}</span>
+                        <span class="text-xs text-gray-400">{{ it.age_label }}</span>
+                        {% if it.money %}
+                        <span class="text-xs font-mono text-emerald-300">S/ {{ it.money|floatformat:2 }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-xs text-gray-300 mt-0.5 truncate">{{ it.ref }}</div>
+                    <div class="text-xs text-gray-400 mt-1">{{ it.reason }}</div>
+                </div>
+                <span class="material-symbols-outlined text-gray-500 self-center">chevron_right</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="rounded-xl border border-green-600/40 bg-green-500/5 p-8 text-center">
+        <span class="material-symbols-outlined text-5xl text-green-400">check_circle</span>
+        <h2 class="text-lg font-semibold text-white mt-3">Todo al día</h2>
+        <p class="text-sm text-gray-400 mt-1">
+            No hay nada pendiente que necesite tu acción. ¡Buen trabajo!
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

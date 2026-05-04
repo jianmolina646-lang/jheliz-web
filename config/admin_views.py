@@ -8,6 +8,7 @@ que Django las matchee primero.
 from __future__ import annotations
 
 import csv
+import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -1401,3 +1402,571 @@ def replace_blocked_account_view(request):
         selected_product_id=selected_product_id,
     )
     return render(request, "admin/replace_blocked_account.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Bandeja "Necesita acción" — feed unificado
+#
+# A diferencia del dashboard (que muestra contadores agregados por categoría),
+# la bandeja lista TODAS las cosas que necesitan acción del admin en una sola
+# tabla cronológica con razón + prioridad + link directo.
+# ---------------------------------------------------------------------------
+
+_INBOX_PRIORITY = {"red": 0, "orange": 1, "yellow": 2, "blue": 3}
+
+
+def _inbox_collect_items():
+    """Devuelve la lista unificada de items que requieren acción.
+
+    Cada item es un dict con: kind, label, reason, link, age_seconds, priority,
+    icon, ref (texto corto para identificarlo).
+    """
+    from orders.models import Order, OrderItem
+    from support.models import Ticket
+    from catalog.models import ProductReview, StockItem
+    from accounts.models import User
+
+    now = timezone.now()
+    items = []
+
+    def _age_seconds(dt):
+        if not dt:
+            return 0
+        return max(0, int((now - dt).total_seconds()))
+
+    # 1) Pedidos con comprobante Yape sin verificar.
+    for o in (
+        Order.objects.filter(status=Order.Status.VERIFYING)
+        .order_by("-payment_proof_uploaded_at", "-created_at")[:50]
+    ):
+        items.append({
+            "kind": "yape_proof",
+            "label": "Comprobante Yape pendiente",
+            "reason": "Subió comprobante. Revisá si el monto y la referencia coinciden.",
+            "ref": f"#{o.short_uuid} — {o.email or o.phone or 'sin contacto'}",
+            "link": reverse("admin:orders_order_change", args=[o.pk]),
+            "icon": "qr_code_scanner",
+            "priority": "orange",
+            "age_seconds": _age_seconds(o.payment_proof_uploaded_at or o.created_at),
+            "money": float(o.total or 0),
+        })
+
+    # 2) Pedidos en preparación con items sin credenciales/stock vinculado
+    #    (esto NO incluye los YA entregados). Son los pedidos atascados.
+    waiting_qs = (
+        Order.objects.filter(status=Order.Status.PREPARING)
+        .filter(
+            Q(items__delivered_credentials="") & Q(items__stock_item__isnull=True)
+        )
+        .distinct()
+        .order_by("-paid_at")[:50]
+    )
+    for o in waiting_qs:
+        items.append({
+            "kind": "waiting_stock",
+            "label": "Pedido sin entregar",
+            "reason": "Pagó hace rato pero no se le entregaron credenciales aún.",
+            "ref": f"#{o.short_uuid} — {o.email or o.phone or 'sin contacto'}",
+            "link": reverse("admin:orders_order_change", args=[o.pk]),
+            "icon": "inventory_2",
+            "priority": "red",
+            "age_seconds": _age_seconds(o.paid_at or o.created_at),
+            "money": float(o.total or 0),
+        })
+
+    # 3) Tickets de soporte sin responder.
+    for t in (
+        Ticket.objects.filter(
+            status__in=[Ticket.Status.OPEN, Ticket.Status.PENDING_ADMIN]
+        )
+        .select_related("order")
+        .order_by("-updated_at")[:50]
+    ):
+        order_ref = ""
+        if t.order_id:
+            order_ref = f" (pedido #{t.order.short_uuid})"
+        items.append({
+            "kind": "ticket",
+            "label": "Ticket sin responder",
+            "reason": (t.subject or "Soporte: cliente esperando respuesta.")[:140],
+            "ref": f"{t.email or 'anónimo'}{order_ref}",
+            "link": reverse("admin:support_ticket_change", args=[t.pk]),
+            "icon": "support_agent",
+            "priority": "blue",
+            "age_seconds": _age_seconds(t.updated_at or t.created_at),
+            "money": 0.0,
+        })
+
+    # 4) Reseñas pendientes de moderación.
+    for r in (
+        ProductReview.objects.filter(status=ProductReview.Status.PENDING)
+        .select_related("product")
+        .order_by("-created_at")[:30]
+    ):
+        items.append({
+            "kind": "review",
+            "label": "Reseña pendiente",
+            "reason": (r.comment or "Sin comentario.")[:140],
+            "ref": f"{r.product.name if r.product else '—'} — {r.author or 'anónimo'}",
+            "link": reverse(
+                "admin:catalog_productreview_change", args=[r.pk]
+            ),
+            "icon": "rate_review",
+            "priority": "blue",
+            "age_seconds": _age_seconds(r.created_at),
+            "money": 0.0,
+        })
+
+    # 5) Distribuidores por aprobar.
+    for u in (
+        User.objects.filter(role="distribuidor", distributor_approved=False)
+        .order_by("-date_joined")[:30]
+    ):
+        items.append({
+            "kind": "distributor",
+            "label": "Distribuidor por aprobar",
+            "reason": "Solicitó cuenta de distribuidor. Validalo y aprobá.",
+            "ref": f"{u.email or u.username}",
+            "link": reverse("admin:accounts_user_change", args=[u.pk]),
+            "icon": "verified_user",
+            "priority": "yellow",
+            "age_seconds": _age_seconds(u.date_joined),
+            "money": 0.0,
+        })
+
+    # 6) Stock que vence en proveedor en ≤3 días (rotar antes de que afecte clientes).
+    for s in (
+        StockItem.objects
+        .filter(
+            status__in=[
+                StockItem.Status.AVAILABLE,
+                StockItem.Status.RESERVED,
+                StockItem.Status.SOLD,
+            ],
+            provider_expires_at__isnull=False,
+            provider_expires_at__lte=now + timedelta(days=3),
+            provider_expires_at__gt=now - timedelta(days=1),
+        )
+        .select_related("product")
+        .order_by("provider_expires_at")[:30]
+    ):
+        days_left = (s.provider_expires_at - now).days
+        items.append({
+            "kind": "stock_expiring",
+            "label": "Cuenta vence en proveedor",
+            "reason": (
+                f"La cuenta original muere en {days_left}d. "
+                "Reponela antes de que afecte clientes."
+            ),
+            "ref": f"{s.product.name} — stock #{s.pk}",
+            "link": reverse("admin:catalog_stockitem_change", args=[s.pk]),
+            "icon": "warning_amber",
+            "priority": "orange" if days_left > 0 else "red",
+            "age_seconds": 0,
+            "money": 0.0,
+        })
+
+    # 7) Items de pedidos vencidos hoy o que vencen hoy (renovación urgente).
+    expiring_today_items = (
+        OrderItem.objects.filter(
+            expires_at__date=now.date(),
+            order__status__in=(
+                Order.Status.PAID,
+                Order.Status.PREPARING,
+                Order.Status.DELIVERED,
+            ),
+        )
+        .select_related("order", "product", "plan")
+        .order_by("expires_at")[:30]
+    )
+    for it in expiring_today_items:
+        items.append({
+            "kind": "renewal_today",
+            "label": "Cuenta vence hoy",
+            "reason": "Cliente puede renovar ahora con magic link. Mandale recordatorio.",
+            "ref": (
+                f"#{it.order.short_uuid} — {it.product_name} — "
+                f"{it.order.email or it.order.phone or 'sin contacto'}"
+            ),
+            "link": reverse("admin_renewals") + "?w=today",
+            "icon": "schedule",
+            "priority": "yellow",
+            "age_seconds": 0,
+            "money": 0.0,
+        })
+
+    # 8) Items reportados como caídos por distribuidores.
+    for it in (
+        OrderItem.objects.filter(reported_broken_at__isnull=False)
+        .filter(order__status__in=(
+            Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+        ))
+        .select_related("order", "product")
+        .order_by("-reported_broken_at")[:30]
+    ):
+        items.append({
+            "kind": "reported_broken",
+            "label": "Cuenta reportada caída",
+            "reason": (
+                it.reported_broken_note or
+                "Distribuidor reporta que la cuenta dejó de funcionar."
+            )[:140],
+            "ref": (
+                f"#{it.order.short_uuid} — {it.product_name} — "
+                f"{it.order.email or 'sin contacto'}"
+            ),
+            "link": reverse("admin:orders_order_change", args=[it.order_id]),
+            "icon": "report",
+            "priority": "red",
+            "age_seconds": _age_seconds(it.reported_broken_at),
+            "money": 0.0,
+        })
+
+    return items
+
+
+@staff_member_required
+def inbox_view(request):
+    """Bandeja unificada de cosas que necesitan acción (single feed)."""
+    kind_filter = (request.GET.get("kind") or "").strip()
+    sort = (request.GET.get("sort") or "priority").strip()
+
+    items = _inbox_collect_items()
+
+    # Stats por tipo (para los chips/filtros arriba).
+    stats = {}
+    for it in items:
+        stats[it["kind"]] = stats.get(it["kind"], 0) + 1
+
+    if kind_filter and kind_filter != "all":
+        items = [it for it in items if it["kind"] == kind_filter]
+
+    if sort == "age":
+        items.sort(key=lambda it: -it["age_seconds"])
+    else:  # priority (red → orange → yellow → blue), luego por edad desc
+        items.sort(
+            key=lambda it: (
+                _INBOX_PRIORITY.get(it["priority"], 99),
+                -it["age_seconds"],
+            )
+        )
+
+    # Tone classes para Tailwind compilado por Unfold.
+    tone = {
+        "red": "border-red-500 bg-red-500/10 text-red-100",
+        "orange": "border-orange-500 bg-orange-500/10 text-orange-100",
+        "yellow": "border-yellow-500 bg-yellow-500/10 text-yellow-100",
+        "blue": "border-blue-500 bg-blue-500/10 text-blue-100",
+    }
+    for it in items:
+        it["classes"] = tone.get(it["priority"], tone["blue"])
+        # Friendly age string.
+        sec = it["age_seconds"]
+        if sec <= 0:
+            it["age_label"] = "ahora"
+        elif sec < 3600:
+            it["age_label"] = f"hace {sec // 60} min"
+        elif sec < 86400:
+            it["age_label"] = f"hace {sec // 3600} h"
+        else:
+            it["age_label"] = f"hace {sec // 86400} d"
+
+    # Lista de chips (tipos disponibles + total).
+    chips = [
+        ("all", "Todo", sum(stats.values()), "list"),
+        ("yape_proof", "Yape", stats.get("yape_proof", 0), "qr_code_scanner"),
+        ("waiting_stock", "Sin entregar", stats.get("waiting_stock", 0), "inventory_2"),
+        ("ticket", "Tickets", stats.get("ticket", 0), "support_agent"),
+        ("review", "Reseñas", stats.get("review", 0), "rate_review"),
+        ("distributor", "Distribuidores", stats.get("distributor", 0), "verified_user"),
+        ("stock_expiring", "Stock por vencer", stats.get("stock_expiring", 0), "warning_amber"),
+        ("renewal_today", "Vencen hoy", stats.get("renewal_today", 0), "schedule"),
+        ("reported_broken", "Caídas reportadas", stats.get("reported_broken", 0), "report"),
+    ]
+
+    ctx = _admin_context(
+        request,
+        title="Bandeja — Necesita acción",
+        items=items,
+        chips=chips,
+        kind_filter=kind_filter or "all",
+        sort=sort,
+        total=sum(stats.values()),
+    )
+    return render(request, "admin/inbox.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Reportes financieros con gráficos (mensual + categorías + tendencia)
+#
+# Vista que extiende el reporte plano con:
+#   - Gráfico de ventas mensuales (12 meses).
+#   - Donut de revenue por categoría.
+#   - Tendencia: este mes vs mes anterior (con %).
+#   - Top 5 clientes por gasto del año.
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def reports_charts_view(request):
+    from orders.models import Order, OrderItem
+
+    paid_statuses = (
+        Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+    )
+    paid_qs = Order.objects.filter(status__in=paid_statuses)
+
+    now = timezone.localtime()
+    today = now.date()
+
+    # ---- Ventas mensuales últimos 12 meses ---------------------------------
+    # Construimos lista de los últimos 12 meses (desde hace 11 meses hasta este).
+    months = []
+    cursor = today.replace(day=1)
+    for _ in range(12):
+        months.append(cursor)
+        # Retroceder 1 mes (sin importar duración).
+        if cursor.month == 1:
+            cursor = cursor.replace(year=cursor.year - 1, month=12)
+        else:
+            cursor = cursor.replace(month=cursor.month - 1)
+    months.reverse()  # del más antiguo al más reciente
+
+    month_buckets = {(m.year, m.month): Decimal("0") for m in months}
+    month_orders = {(m.year, m.month): 0 for m in months}
+    start_first_month = timezone.make_aware(
+        datetime.combine(months[0], datetime.min.time())
+    )
+    for o in paid_qs.filter(paid_at__gte=start_first_month).only("paid_at", "total"):
+        if not o.paid_at:
+            continue
+        local = timezone.localtime(o.paid_at)
+        key = (local.year, local.month)
+        if key in month_buckets:
+            month_buckets[key] += o.total or Decimal("0")
+            month_orders[key] += 1
+
+    month_labels = [m.strftime("%b %y") for m in months]
+    month_revenue = [float(month_buckets[(m.year, m.month)]) for m in months]
+    month_count = [month_orders[(m.year, m.month)] for m in months]
+
+    # ---- Tendencia este mes vs mes anterior --------------------------------
+    this_revenue = month_revenue[-1] if month_revenue else 0.0
+    prev_revenue = month_revenue[-2] if len(month_revenue) >= 2 else 0.0
+    if prev_revenue > 0:
+        trend_pct = (this_revenue - prev_revenue) / prev_revenue * 100
+    elif this_revenue > 0:
+        trend_pct = 100.0
+    else:
+        trend_pct = 0.0
+
+    this_orders = month_count[-1] if month_count else 0
+    prev_orders = month_count[-2] if len(month_count) >= 2 else 0
+
+    # ---- Revenue por categoría (12 meses) ----------------------------------
+    cat_rows = (
+        OrderItem.objects
+        .filter(
+            order__status__in=paid_statuses,
+            order__paid_at__gte=start_first_month,
+        )
+        .values("product__category__name")
+        .annotate(
+            revenue=Sum(F("unit_price") * F("quantity")),
+            units=Sum("quantity"),
+        )
+        .order_by("-revenue")
+    )
+    cat_labels = []
+    cat_data = []
+    cat_units = []
+    for r in cat_rows:
+        cat_labels.append(r["product__category__name"] or "Sin categoría")
+        cat_data.append(float(r["revenue"] or 0))
+        cat_units.append(int(r["units"] or 0))
+
+    # ---- Top 5 clientes (12 meses) ----------------------------------------
+    top_customers = list(
+        paid_qs.filter(paid_at__gte=start_first_month)
+        .values("email")
+        .annotate(
+            spent=Sum("total"),
+            orders=Count("id"),
+        )
+        .order_by("-spent")[:5]
+    )
+
+    # ---- Comparación interanual (Year-over-Year) --------------------------
+    # Mismo mes hace 1 año vs ahora.
+    one_year_ago_month = months[0]
+    yoy_revenue = month_revenue[0] if month_revenue else 0.0
+    if yoy_revenue > 0:
+        yoy_pct = (this_revenue - yoy_revenue) / yoy_revenue * 100
+    elif this_revenue > 0:
+        yoy_pct = 100.0
+    else:
+        yoy_pct = 0.0
+
+    ctx = _admin_context(
+        request,
+        title="Reportes con gráficos",
+        currency_symbol=settings.DEFAULT_CURRENCY_SYMBOL,
+        # Charts
+        sales_chart_json=json.dumps({
+            "labels": month_labels,
+            "revenue": month_revenue,
+            "orders": month_count,
+        }),
+        cat_chart_json=json.dumps({
+            "labels": cat_labels,
+            "data": cat_data,
+        }),
+        # KPIs
+        this_revenue=this_revenue,
+        prev_revenue=prev_revenue,
+        trend_pct=trend_pct,
+        this_orders=this_orders,
+        prev_orders=prev_orders,
+        yoy_revenue=yoy_revenue,
+        yoy_pct=yoy_pct,
+        yoy_label=one_year_ago_month.strftime("%b %y"),
+        # Top customers
+        top_customers=top_customers,
+        # Categorías para tabla complementaria
+        cat_rows=list(zip(cat_labels, cat_data, cat_units)),
+    )
+    return render(request, "admin/reports_charts.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# 2FA setup wizard (UX amigable)
+#
+# Hoy `django-otp` está instalado pero el setup pasa por el changelist de
+# `TOTP devices` (clunky). Esta vista da:
+#   - Estado actual (¿tiene 2FA configurado? ¿está enforced en este request?)
+#   - QR + secret key visibles para escanear con Authenticator
+#   - Verificación del código antes de confirmar
+#   - Generación de 8 backup codes (django-otp StaticTokens)
+#
+# Si el flag ADMIN_2FA_ENFORCED=True, el admin ya pide TOTP en el login.
+# Mientras está en False, esta vista permite preparar el dispositivo SIN
+# riesgo de bloqueo.
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def admin_2fa_setup(request):
+    """Pantalla de setup amigable para registrar TOTP + backup codes."""
+    try:
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
+    except ImportError:  # pragma: no cover
+        messages.error(
+            request,
+            "django-otp no está instalado. Pedile a soporte que lo agregue.",
+        )
+        return redirect("admin:index")
+
+    user = request.user
+    enforced = bool(getattr(settings, "ADMIN_2FA_ENFORCED", False))
+
+    confirmed_totp = TOTPDevice.objects.filter(user=user, confirmed=True).first()
+    pending_totp = TOTPDevice.objects.filter(user=user, confirmed=False).order_by("-id").first()
+    static_dev = StaticDevice.objects.filter(user=user, confirmed=True).first()
+
+    action = request.POST.get("action")
+
+    if request.method == "POST" and action == "create_pending":
+        # Borra cualquier dispositivo no confirmado previo y crea uno nuevo.
+        TOTPDevice.objects.filter(user=user, confirmed=False).delete()
+        TOTPDevice.objects.create(user=user, name="Dispositivo principal", confirmed=False)
+        return redirect(reverse("admin_2fa_setup"))
+
+    if request.method == "POST" and action == "verify":
+        token = (request.POST.get("token") or "").strip()
+        if not pending_totp:
+            messages.error(request, "No hay dispositivo pendiente. Generá uno primero.")
+            return redirect(reverse("admin_2fa_setup"))
+        if not token.isdigit() or len(token) not in (6, 7, 8):
+            messages.error(request, "El código debe ser numérico (6 dígitos).")
+            return redirect(reverse("admin_2fa_setup"))
+        if pending_totp.verify_token(token):
+            pending_totp.confirmed = True
+            pending_totp.save(update_fields=["confirmed"])
+            # Generamos 8 backup codes (StaticTokens) si no había.
+            if not static_dev:
+                static_dev = StaticDevice.objects.create(
+                    user=user, name="Códigos de respaldo", confirmed=True,
+                )
+            else:
+                static_dev.token_set.all().delete()
+            backup_codes = []
+            import secrets as _secrets
+            for _ in range(8):
+                code = _secrets.token_hex(4)  # 8 hex chars
+                StaticToken.objects.create(device=static_dev, token=code)
+                backup_codes.append(code)
+            request.session["jheliz_2fa_backup_codes"] = backup_codes
+            messages.success(
+                request,
+                "2FA activado correctamente. Guardá tus códigos de respaldo abajo.",
+            )
+            return redirect(reverse("admin_2fa_setup"))
+        else:
+            messages.error(request, "El código no coincide. Probá de nuevo.")
+            return redirect(reverse("admin_2fa_setup"))
+
+    if request.method == "POST" and action == "regen_backup":
+        if not confirmed_totp:
+            messages.error(request, "Primero activá tu TOTP.")
+            return redirect(reverse("admin_2fa_setup"))
+        if not static_dev:
+            static_dev = StaticDevice.objects.create(
+                user=user, name="Códigos de respaldo", confirmed=True,
+            )
+        else:
+            static_dev.token_set.all().delete()
+        backup_codes = []
+        import secrets as _secrets
+        for _ in range(8):
+            code = _secrets.token_hex(4)
+            StaticToken.objects.create(device=static_dev, token=code)
+            backup_codes.append(code)
+        request.session["jheliz_2fa_backup_codes"] = backup_codes
+        messages.success(request, "Códigos regenerados. Los anteriores ya no sirven.")
+        return redirect(reverse("admin_2fa_setup"))
+
+    if request.method == "POST" and action == "remove":
+        TOTPDevice.objects.filter(user=user).delete()
+        StaticDevice.objects.filter(user=user).delete()
+        request.session.pop("jheliz_2fa_backup_codes", None)
+        messages.success(request, "2FA desactivado para tu cuenta.")
+        return redirect(reverse("admin_2fa_setup"))
+
+    # GET: armamos el contexto.
+    qr_provisioning_uri = None
+    secret_b32 = None
+    if pending_totp:
+        # config_url devuelve otpauth://totp/?secret=...&issuer=...
+        qr_provisioning_uri = pending_totp.config_url
+        # El "secret" base32 está en la config_url; lo extraemos para
+        # mostrar también en texto por si la cámara no lee el QR.
+        try:
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(qr_provisioning_uri).query)
+            secret_b32 = (qs.get("secret") or [None])[0]
+        except Exception:  # pragma: no cover
+            secret_b32 = None
+
+    backup_codes = request.session.pop("jheliz_2fa_backup_codes", None)
+
+    ctx = _admin_context(
+        request,
+        title="Seguridad — 2FA",
+        enforced=enforced,
+        confirmed_totp=confirmed_totp,
+        pending_totp=pending_totp,
+        static_dev=static_dev,
+        qr_provisioning_uri=qr_provisioning_uri,
+        secret_b32=secret_b32,
+        backup_codes=backup_codes,
+    )
+    return render(request, "admin/security_2fa.html", ctx)

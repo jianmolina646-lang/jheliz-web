@@ -1,0 +1,227 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content_title %}
+<h1 class="flex items-center gap-2">
+    <span class="material-symbols-outlined text-primary-400">verified_user</span>
+    Seguridad — Autenticación de 2 factores
+</h1>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-3xl">
+
+    <!-- Status banner -->
+    {% if confirmed_totp %}
+    <div class="rounded-xl border-2 border-green-500 bg-green-500/10 p-5">
+        <div class="flex items-start gap-3">
+            <span class="material-symbols-outlined text-3xl text-green-400">check_circle</span>
+            <div class="flex-1">
+                <div class="text-lg font-bold text-white">2FA activo en tu cuenta</div>
+                <div class="text-sm text-gray-300 mt-1">
+                    Tu cuenta tiene un dispositivo TOTP confirmado.
+                    {% if static_dev %}También tienes códigos de respaldo activos.{% endif %}
+                </div>
+                <div class="text-xs text-gray-400 mt-2">
+                    {% if enforced %}
+                        <span class="text-emerald-300 font-semibold">ENFORCEMENT ACTIVO:</span>
+                        El admin obliga a usar TOTP en cada login.
+                    {% else %}
+                        <span class="text-yellow-300 font-semibold">⚠ ENFORCEMENT INACTIVO:</span>
+                        Tu dispositivo está listo, pero el admin todavía permite login sin código.
+                        Para forzar 2FA en TODOS los superusers, agregá <code>ADMIN_2FA_ENFORCED=True</code>
+                        a tu archivo <code>.env</code> de producción y reiniciá el contenedor.
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="rounded-xl border-2 border-orange-500 bg-orange-500/10 p-5">
+        <div class="flex items-start gap-3">
+            <span class="material-symbols-outlined text-3xl text-orange-400">warning</span>
+            <div class="flex-1">
+                <div class="text-lg font-bold text-white">No tenés 2FA activado</div>
+                <div class="text-sm text-gray-300 mt-1">
+                    Tu cuenta de admin solo está protegida con contraseña. Activá 2FA
+                    para que aunque te roben la clave nadie pueda entrar sin tu celular.
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Backup codes recién generados -->
+    {% if backup_codes %}
+    <div class="rounded-xl border-2 border-yellow-500 bg-yellow-500/10 p-5">
+        <div class="flex items-start gap-3">
+            <span class="material-symbols-outlined text-3xl text-yellow-300">key</span>
+            <div class="flex-1">
+                <div class="text-lg font-bold text-white">Tus códigos de respaldo</div>
+                <div class="text-sm text-gray-300 mt-1">
+                    Guardá estos códigos en un lugar seguro (gestor de contraseñas, papel impreso).
+                    Si perdés el celular, podés usar <strong>uno de estos códigos</strong> para entrar.
+                    Cada uno se puede usar solo 1 vez. <strong>No volverás a verlos.</strong>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 font-mono text-base">
+                    {% for code in backup_codes %}
+                    <div class="px-3 py-2 rounded-md bg-gray-900/60 border border-gray-700 text-center text-yellow-200 select-all">
+                        {{ code }}
+                    </div>
+                    {% endfor %}
+                </div>
+                <p class="text-xs text-gray-400 mt-3">
+                    Imprimilos o copialos a tu gestor de contraseñas ahora. Esta sección desaparecerá al recargar.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Setup form: si NO hay confirmado pero hay pendiente, mostrar QR -->
+    {% if not confirmed_totp %}
+
+        {% if not pending_totp %}
+        <!-- Paso 1: generar dispositivo pendiente -->
+        <section class="rounded-xl border border-gray-700 bg-gray-800/40 p-6">
+            <h2 class="text-base font-bold text-white mb-2">Paso 1 de 3 — Generar QR</h2>
+            <p class="text-sm text-gray-300 mb-4">
+                Necesitás una app autenticadora. Recomendadas:
+                <strong>Google Authenticator</strong>, <strong>Authy</strong> o
+                <strong>1Password</strong>. Instalá una en tu celular antes de continuar.
+            </p>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" name="action" value="create_pending"
+                        class="px-4 py-2 rounded-md bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold">
+                    Generar mi código QR
+                </button>
+            </form>
+        </section>
+        {% else %}
+        <!-- Paso 2: mostrar QR + verificar -->
+        <section class="rounded-xl border border-gray-700 bg-gray-800/40 p-6">
+            <h2 class="text-base font-bold text-white mb-3">Paso 2 de 3 — Escanear QR</h2>
+            <p class="text-sm text-gray-300 mb-4">
+                Abrí tu app autenticadora y escaneá este código QR. Te va a aparecer
+                <strong>Jheliz Admin</strong> con un código de 6 dígitos que cambia cada 30s.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div class="bg-white p-4 rounded-lg flex items-center justify-center">
+                    <!-- QR generado client-side desde otpauth URI usando Google Charts API
+                         no se puede (CSP), así que usamos qrcode.js inline. -->
+                    <div id="otp-qr"></div>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 mb-2">¿No funciona el QR? Ingresá manualmente:</p>
+                    <div class="rounded-md bg-gray-900/60 border border-gray-700 p-3 font-mono text-yellow-200 text-sm break-all select-all">
+                        {{ secret_b32 }}
+                    </div>
+                    <p class="text-xs text-gray-400 mt-3">
+                        En la app: "Agregar cuenta" → "Ingresar clave manualmente" →
+                        Cuenta: <code>{{ request.user.email|default:request.user.username }}</code>,
+                        Tipo: <strong>basado en tiempo (TOTP)</strong>.
+                    </p>
+                </div>
+            </div>
+
+            <hr class="border-gray-700 my-5">
+
+            <h3 class="text-base font-bold text-white mb-2">Paso 3 de 3 — Verificar</h3>
+            <p class="text-sm text-gray-300 mb-3">
+                Ingresá el código de 6 dígitos que ves en tu app:
+            </p>
+            <form method="post" class="flex flex-wrap gap-2 items-center">
+                {% csrf_token %}
+                <input type="text" name="token" required pattern="[0-9]{6,8}" inputmode="numeric"
+                       autocomplete="one-time-code"
+                       placeholder="000000"
+                       class="px-4 py-2 rounded-md bg-gray-900 border border-gray-700 text-white font-mono text-lg w-40 text-center"
+                       autofocus>
+                <button type="submit" name="action" value="verify"
+                        class="px-4 py-2 rounded-md bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold">
+                    Verificar y activar
+                </button>
+                <button type="submit" name="action" value="create_pending" formnovalidate
+                        class="px-3 py-2 rounded-md border border-gray-600 text-gray-300 hover:bg-gray-700 text-sm">
+                    Generar otro QR
+                </button>
+            </form>
+        </section>
+        {% endif %}
+
+    {% else %}
+    <!-- Ya está confirmado: opciones de gestión -->
+    <section class="rounded-xl border border-gray-700 bg-gray-800/40 p-6">
+        <h2 class="text-base font-bold text-white mb-3">Gestionar tu 2FA</h2>
+
+        <div class="space-y-3">
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" name="action" value="regen_backup"
+                        class="px-4 py-2 rounded-md bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-semibold">
+                    🔑 Regenerar códigos de respaldo
+                </button>
+                <span class="text-xs text-gray-400 ml-2">
+                    Invalida los anteriores. Útil si perdiste o expusiste alguno.
+                </span>
+            </form>
+
+            <form method="post"
+                  onsubmit="return confirm('¿Seguro que querés desactivar 2FA? Si ADMIN_2FA_ENFORCED está activo, podrías quedar bloqueado fuera del admin.');">
+                {% csrf_token %}
+                <button type="submit" name="action" value="remove"
+                        class="px-4 py-2 rounded-md bg-red-700/40 border border-red-500 text-red-100 hover:bg-red-700/60 text-sm font-semibold">
+                    🗑 Desactivar 2FA
+                </button>
+                <span class="text-xs text-gray-400 ml-2">
+                    Borra el dispositivo TOTP y los códigos de respaldo.
+                </span>
+            </form>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Información sobre enforcement -->
+    <section class="rounded-xl border border-gray-700 bg-gray-800/40 p-6">
+        <h2 class="text-base font-bold text-white mb-2">¿Cómo funciona el enforcement?</h2>
+        <ol class="list-decimal list-inside text-sm text-gray-300 space-y-2">
+            <li>Activá tu dispositivo TOTP siguiendo los pasos de arriba.</li>
+            <li>Verificá que tu app autenticadora muestra códigos de 6 dígitos.</li>
+            <li>Guardá los códigos de respaldo en un lugar seguro.</li>
+            <li>
+                Cuando estés seguro de que funciona, <strong>en producción</strong> agregá
+                a tu archivo <code class="px-1 bg-gray-900 rounded">.env</code>:
+                <pre class="rounded-md bg-gray-900/80 border border-gray-700 p-2 mt-1 text-yellow-200 text-xs">ADMIN_2FA_ENFORCED=True</pre>
+            </li>
+            <li>Reiniciá Gunicorn para que tome el cambio. A partir de ahí, el login del admin pedirá tu código TOTP.</li>
+        </ol>
+        <p class="text-xs text-gray-400 mt-3">
+            <strong>⚠ Importante</strong>: Si activás <code>ADMIN_2FA_ENFORCED=True</code> sin tener un dispositivo
+            confirmado, te bloqueás fuera del admin. Por eso esta página se asegura de que primero
+            el dispositivo esté <em>confirmed</em> antes de mostrarte las instrucciones.
+        </p>
+        <p class="text-xs text-gray-400 mt-2">
+            Rescate por SSH si te bloqueas:
+            <code class="px-1 bg-gray-900 rounded">python manage.py addstatictoken &lt;tu_usuario&gt;</code>
+            te genera un token de uso único para entrar.
+        </p>
+    </section>
+</div>
+
+{% if pending_totp and qr_provisioning_uri %}
+<script src="{% static 'vendor/qrcode.min.js' %}"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var holder = document.getElementById("otp-qr");
+    if (!holder || typeof QRCode === "undefined") return;
+    new QRCode(holder, {
+        text: "{{ qr_provisioning_uri|escapejs }}",
+        width: 220, height: 220,
+        correctLevel: QRCode.CorrectLevel.M,
+    });
+});
+</script>
+{% endif %}
+{% endblock %}
