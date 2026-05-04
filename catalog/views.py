@@ -220,6 +220,17 @@ def product_detail(request, slug: str):
         pct = int(round((n / total) * 100)) if total else 0
         rating_breakdown.append({"star": star, "count": n, "pct": pct})
 
+    related_products = list(
+        Product.objects.filter(
+            is_active=True,
+            category=product.category,
+        )
+        .exclude(pk=product.pk)
+        .select_related("category")
+        .prefetch_related("plans")
+        .order_by("-is_featured", "order", "name")[:4]
+    )
+
     return render(
         request,
         "catalog/product_detail.html",
@@ -231,6 +242,7 @@ def product_detail(request, slug: str):
             "review_count": total,
             "avg_rating": round(avg_rating, 1),
             "rating_breakdown": rating_breakdown,
+            "related_products": related_products,
         },
     )
 
