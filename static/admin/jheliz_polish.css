@@ -964,3 +964,341 @@ aside input[type="search"]:focus {
         width: 28px; height: 28px; font-size: 16px !important;
     }
 }
+
+/* =====================================================================
+ * Admin Modern v4 — sidebar estilo app + changelist / forms modernos
+ * El DOM real de Unfold usa <ol class="flex-col"> y <a class="...active">,
+ * así que corregimos selectores para sidebar y ampliamos tablas/forms.
+ * =================================================================== */
+
+/* ---------- Sidebar items con iconos en wrapper cuadrado ------------- */
+aside ol.flex-col > li > a {
+    padding: 6px 10px !important;
+    border-radius: 12px !important;
+    gap: 10px;
+    min-height: 44px !important;
+    transition: background-color .18s ease, color .18s ease, transform .15s ease !important;
+}
+aside ol.flex-col > li > a:hover {
+    background-color: rgba(236,72,153,.07) !important;
+    color: #fff !important;
+    transform: translateX(2px);
+}
+aside ol.flex-col > li > a.active,
+aside ol.flex-col > li > a.bg-base-100 {
+    background: linear-gradient(90deg, rgba(236,72,153,.14), rgba(168,85,247,.08) 60%, transparent) !important;
+    color: #fff !important;
+    box-shadow: inset 2px 0 0 var(--jh2-pink);
+    font-weight: 600 !important;
+}
+
+/* Icono dentro del item — wrapper de color */
+aside ol.flex-col > li > a .material-symbols-outlined {
+    display: inline-flex !important;
+    align-items: center; justify-content: center;
+    width: 32px !important; height: 32px !important;
+    margin-right: 0 !important;
+    border-radius: 10px;
+    font-size: 18px !important;
+    background: linear-gradient(135deg, rgba(236,72,153,.16), rgba(168,85,247,.1));
+    color: #f472b6;
+    flex-shrink: 0;
+    transition: transform .2s cubic-bezier(.22,.61,.36,1), background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+aside ol.flex-col > li > a:hover .material-symbols-outlined {
+    transform: scale(1.06) rotate(-3deg);
+    color: #fff;
+    background: linear-gradient(135deg, rgba(236,72,153,.28), rgba(168,85,247,.2));
+    box-shadow: 0 6px 14px -6px rgba(236,72,153,.55);
+}
+aside ol.flex-col > li > a.active .material-symbols-outlined,
+aside ol.flex-col > li > a.bg-base-100 .material-symbols-outlined {
+    background: linear-gradient(135deg, #ec4899, #a855f7) !important;
+    color: #fff !important;
+    box-shadow: 0 8px 18px -8px rgba(236,72,153,.7);
+}
+
+/* Colores por posición dentro de cada grupo de la sidebar */
+aside ol.flex-col > li:nth-child(1) > a:not(.active) .material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(236,72,153,.22), rgba(244,114,182,.12));
+    color: #f9a8d4;
+}
+aside ol.flex-col > li:nth-child(2) > a:not(.active) .material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(59,130,246,.22), rgba(14,165,233,.12));
+    color: #93c5fd;
+}
+aside ol.flex-col > li:nth-child(3) > a:not(.active) .material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(251,191,36,.22), rgba(234,179,8,.12));
+    color: #fde68a;
+}
+aside ol.flex-col > li:nth-child(4) > a:not(.active) .material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(16,185,129,.22), rgba(5,150,105,.12));
+    color: #6ee7b7;
+}
+aside ol.flex-col > li:nth-child(5) > a:not(.active) .material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(168,85,247,.22), rgba(124,58,237,.12));
+    color: #d8b4fe;
+}
+aside ol.flex-col > li:nth-child(6) > a:not(.active) .material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(244,63,94,.22), rgba(225,29,72,.12));
+    color: #fda4af;
+}
+aside ol.flex-col > li:nth-child(7) > a:not(.active) .material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(20,184,166,.22), rgba(13,148,136,.12));
+    color: #5eead4;
+}
+aside ol.flex-col > li:nth-child(8) > a:not(.active) .material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(148,163,184,.22), rgba(100,116,139,.12));
+    color: #cbd5e1;
+}
+
+/* Títulos de sección del sidebar (h2) */
+#nav-sidebar-apps h2 {
+    font-size: 10px !important;
+    letter-spacing: .14em !important;
+    text-transform: uppercase;
+    color: #a1a1aa !important;
+    font-weight: 700 !important;
+    margin-top: 18px !important;
+    margin-bottom: 6px !important;
+    padding-left: 14px !important;
+}
+
+/* Separador de grupos */
+#nav-sidebar-apps hr {
+    border-color: rgba(255,255,255,.06) !important;
+    margin: 12px 18px !important;
+}
+
+/* ---------- Changelist — filtros / acciones / paginación modernos -- */
+.changelist-search,
+#changelist-search,
+.changelist-search input[type="text"] {
+    border-radius: 12px !important;
+}
+
+.changelist-search input[type="text"],
+#toolbar input[type="text"] {
+    padding: 10px 14px 10px 38px !important;
+    background: rgba(255,255,255,.04) !important;
+    border: 1px solid rgba(255,255,255,.08) !important;
+    border-radius: 12px !important;
+    font-size: 14px !important;
+    transition: all .2s ease;
+}
+.changelist-search input[type="text"]:focus,
+#toolbar input[type="text"]:focus {
+    background: rgba(236,72,153,.06) !important;
+    border-color: var(--jh2-pink) !important;
+    box-shadow: 0 0 0 3px rgba(236,72,153,.15), 0 0 20px rgba(236,72,153,.18) !important;
+}
+
+/* Badges/tags de estado en el changelist (SHORT UUID, ESTADO, etc.) */
+.column-short_uuid,
+.field-short_uuid,
+td.field-short_uuid {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px !important;
+    letter-spacing: 0.02em;
+}
+
+/* Botones de acción ("Reenviar", etc.) que están en cyan: los modernizamos */
+td a.button,
+td button.button,
+td a[href*="resend"],
+td a.bg-cyan-500,
+td a[class*="bg-cyan"],
+a.bg-cyan-500,
+.text-cyan-500 {
+    background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%) !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 6px 12px !important;
+    border-radius: 9999px !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    box-shadow: 0 6px 16px -8px rgba(14,165,233,.55);
+    text-decoration: none !important;
+}
+td a.button:hover,
+a.bg-cyan-500:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px -8px rgba(14,165,233,.7) !important;
+}
+
+/* Badges de "ENTREGADO", "PENDIENTE", etc. — chip con pill */
+td .badge,
+td span.rounded-full,
+td span[class*="rounded-full"] {
+    padding: 3px 10px !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    border-radius: 9999px !important;
+}
+
+/* ---------- Paginación del changelist --------------------------------- */
+.paginator a,
+.paginator .this-page,
+.paginator span {
+    padding: 6px 12px !important;
+    border-radius: 10px !important;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--jh2-line);
+    margin-right: 4px;
+    transition: all .2s ease;
+}
+.paginator a:hover {
+    background: rgba(236,72,153,.1) !important;
+    border-color: var(--jh2-pink) !important;
+    color: #fff !important;
+}
+.paginator .this-page {
+    background: linear-gradient(135deg, #ec4899, #a855f7) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    font-weight: 700;
+}
+
+/* ---------- Action bar del changelist (bulk actions) ----------------- */
+#changelist-form .actions {
+    border-radius: 12px !important;
+    background: rgba(255,255,255,.03) !important;
+    border: 1px solid var(--jh2-line) !important;
+    padding: 10px 14px !important;
+    backdrop-filter: blur(8px);
+}
+
+/* ---------- Date hierarchy (filtros "Todas las fechas / Abril 2026") - */
+.xfull,
+ul.xfull li,
+div.xfull,
+body.change-list ul.xfull,
+body.change-list nav ul {
+    gap: 6px;
+}
+ul.xfull a,
+nav ul a,
+.change-list-object-tools a {
+    padding: 6px 12px !important;
+    border-radius: 9999px !important;
+    background: rgba(255,255,255,.03) !important;
+    border: 1px solid var(--jh2-line) !important;
+    font-size: 12px !important;
+    transition: all .18s ease !important;
+    text-decoration: none !important;
+}
+ul.xfull a:hover,
+nav ul a:hover {
+    background: rgba(236,72,153,.1) !important;
+    border-color: var(--jh2-pink) !important;
+    color: #fff !important;
+}
+
+/* ---------- Form de edición / change_form — fieldsets más aireados --- */
+fieldset.module {
+    padding: 20px !important;
+    margin-bottom: 18px !important;
+}
+fieldset.module h2 {
+    font-size: 13px !important;
+    letter-spacing: .08em !important;
+    text-transform: uppercase;
+    color: var(--jh2-muted) !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid var(--jh2-line);
+    margin-bottom: 16px !important;
+}
+
+/* Labels — más sutil */
+form label,
+.form-row label {
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    color: #cbd5e1 !important;
+    letter-spacing: 0.01em;
+    margin-bottom: 6px !important;
+}
+
+/* Help text */
+.help, .helptext, p.help {
+    font-size: 11px !important;
+    color: #a1a1aa !important;
+    margin-top: 4px;
+}
+
+/* ---------- Breadcrumbs (Pedidos > Pedidos) --------------------------- */
+.breadcrumbs,
+div.breadcrumbs {
+    font-size: 11px !important;
+    letter-spacing: .12em !important;
+    text-transform: uppercase;
+    padding: 12px 0 !important;
+    color: var(--jh2-muted) !important;
+}
+.breadcrumbs a,
+div.breadcrumbs a {
+    color: var(--jh2-pink-400) !important;
+    font-weight: 600;
+    transition: color .15s ease;
+}
+.breadcrumbs a:hover {
+    color: #fff !important;
+    text-shadow: 0 0 16px rgba(236,72,153,.6);
+}
+
+/* ---------- "Header" del Sitio administrativo ------------------------- */
+header .font-semibold,
+header #site-name,
+header h1,
+header a[href="/jheliz-admin/"] {
+    font-weight: 800 !important;
+    letter-spacing: -0.02em;
+}
+
+/* ---------- Cuerpo del changelist: cabecera con acciones (Export, Filtros) */
+.object-tools {
+    display: flex;
+    gap: 8px;
+}
+.object-tools a {
+    padding: 8px 14px !important;
+    border-radius: 10px !important;
+    background: rgba(255,255,255,.04) !important;
+    border: 1px solid var(--jh2-line) !important;
+    color: #fff !important;
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: none !important;
+    transition: all .18s ease;
+}
+.object-tools a:hover {
+    background: linear-gradient(135deg, rgba(236,72,153,.12), rgba(168,85,247,.08)) !important;
+    border-color: var(--jh2-pink) !important;
+    transform: translateY(-1px);
+}
+.object-tools a.addlink {
+    background: linear-gradient(135deg, #ec4899, #a855f7) !important;
+    border: none !important;
+    box-shadow: 0 8px 20px -8px rgba(236,72,153,.55);
+}
+.object-tools a.addlink::before {
+    content: "+";
+    margin-right: 6px;
+    font-weight: 800;
+}
+
+/* ---------- Ajustes móvil v4 ----------------------------------------- */
+@media (max-width: 768px) {
+    aside ol.flex-col > li > a {
+        padding: 4px 8px !important;
+        min-height: 40px !important;
+    }
+    aside ol.flex-col > li > a .material-symbols-outlined {
+        width: 28px !important; height: 28px !important;
+        font-size: 16px !important;
+    }
+    fieldset.module { padding: 14px !important; }
+    .object-tools a { padding: 6px 10px !important; font-size: 12px; }
+}
