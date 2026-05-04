@@ -1302,3 +1302,164 @@ header a[href="/jheliz-admin/"] {
     fieldset.module { padding: 14px !important; }
     .object-tools a { padding: 6px 10px !important; font-size: 12px; }
 }
+
+/* =====================================================================
+ * Admin Modern v5 — secciones del sidebar con color + hero card
+ * Sobrescribe / refuerza reglas de v3 + v4 para garantizar que apliquen
+ * con más especificidad (Tailwind w-[18px] usa clase arbitraria).
+ * =================================================================== */
+
+/* ---------- Cabecera "Jheliz / Panel de administración" con card ----- */
+aside #nav-sidebar-inner > div:first-of-type,
+#nav-sidebar-inner > div:first-of-type {
+    padding: 14px 16px !important;
+    margin: 10px 10px 0 !important;
+    border-radius: 16px !important;
+    background: linear-gradient(135deg, rgba(236,72,153,.12), rgba(168,85,247,.08)) !important;
+    border: 1px solid rgba(236,72,153,.25) !important;
+    box-shadow: 0 10px 24px -12px rgba(236,72,153,.35), inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* ---------- TÍTULOS DE SECCIÓN — acento con barra lateral + color --- */
+/* Reforzamos con mayor especificidad — selector más profundo */
+aside #nav-sidebar-apps h2,
+#nav-sidebar-apps div > h2,
+nav #nav-sidebar-apps h2 {
+    position: relative;
+    font-size: 10px !important;
+    letter-spacing: 0.16em !important;
+    text-transform: uppercase !important;
+    font-weight: 800 !important;
+    padding: 8px 16px 8px 24px !important;
+    margin: 16px 8px 4px !important;
+    color: #f9a8d4 !important;
+    background: linear-gradient(90deg, rgba(236,72,153,.08), transparent 70%);
+    border-radius: 10px !important;
+}
+aside #nav-sidebar-apps h2::before,
+#nav-sidebar-apps div > h2::before {
+    content: "";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 14px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #ec4899, #a855f7);
+    box-shadow: 0 0 10px rgba(236,72,153,.6);
+}
+
+/* Color por posición del grupo (Resumen / Ventas / Productos / etc.) */
+aside #nav-sidebar-apps > div:nth-of-type(1) h2 { color: #f9a8d4 !important; }
+aside #nav-sidebar-apps > div:nth-of-type(1) h2::before { background: linear-gradient(180deg, #ec4899, #a855f7); }
+
+aside #nav-sidebar-apps > div:nth-of-type(2) h2 { color: #6ee7b7 !important; background: linear-gradient(90deg, rgba(16,185,129,.08), transparent 70%); }
+aside #nav-sidebar-apps > div:nth-of-type(2) h2::before { background: linear-gradient(180deg, #10b981, #06b6d4); box-shadow: 0 0 10px rgba(16,185,129,.6);}
+
+aside #nav-sidebar-apps > div:nth-of-type(3) h2 { color: #fda4af !important; background: linear-gradient(90deg, rgba(244,63,94,.08), transparent 70%); }
+aside #nav-sidebar-apps > div:nth-of-type(3) h2::before { background: linear-gradient(180deg, #f43f5e, #ec4899); box-shadow: 0 0 10px rgba(244,63,94,.6);}
+
+aside #nav-sidebar-apps > div:nth-of-type(4) h2 { color: #93c5fd !important; background: linear-gradient(90deg, rgba(59,130,246,.08), transparent 70%); }
+aside #nav-sidebar-apps > div:nth-of-type(4) h2::before { background: linear-gradient(180deg, #3b82f6, #06b6d4); box-shadow: 0 0 10px rgba(59,130,246,.6);}
+
+aside #nav-sidebar-apps > div:nth-of-type(5) h2 { color: #fde68a !important; background: linear-gradient(90deg, rgba(251,191,36,.08), transparent 70%); }
+aside #nav-sidebar-apps > div:nth-of-type(5) h2::before { background: linear-gradient(180deg, #fbbf24, #f59e0b); box-shadow: 0 0 10px rgba(251,191,36,.6);}
+
+aside #nav-sidebar-apps > div:nth-of-type(6) h2 { color: #d8b4fe !important; background: linear-gradient(90deg, rgba(168,85,247,.08), transparent 70%); }
+aside #nav-sidebar-apps > div:nth-of-type(6) h2::before { background: linear-gradient(180deg, #a855f7, #7c3aed); box-shadow: 0 0 10px rgba(168,85,247,.6);}
+
+aside #nav-sidebar-apps > div:nth-of-type(7) h2 { color: #5eead4 !important; background: linear-gradient(90deg, rgba(20,184,166,.08), transparent 70%); }
+aside #nav-sidebar-apps > div:nth-of-type(7) h2::before { background: linear-gradient(180deg, #14b8a6, #0ea5e9); box-shadow: 0 0 10px rgba(20,184,166,.6);}
+
+aside #nav-sidebar-apps > div:nth-of-type(8) h2 { color: #cbd5e1 !important; background: linear-gradient(90deg, rgba(148,163,184,.08), transparent 70%); }
+aside #nav-sidebar-apps > div:nth-of-type(8) h2::before { background: linear-gradient(180deg, #94a3b8, #64748b);}
+
+/* ---------- Forzar wrapper de icono con MÁS especificidad ----------- */
+/* Tailwind usa "w-[18px]" (clase arbitrary) — la sobrescribimos */
+aside #nav-sidebar-apps ol.flex-col > li > a > span.material-symbols-outlined,
+aside #nav-sidebar-apps ol > li > a > span.material-symbols-outlined {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    font-size: 18px !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-right: 10px !important;
+    background: linear-gradient(135deg, rgba(236,72,153,.18), rgba(168,85,247,.1)) !important;
+    color: #f472b6 !important;
+    transition: transform .2s ease, background .2s ease, color .2s ease, box-shadow .2s ease !important;
+    flex-shrink: 0 !important;
+}
+
+/* Por cada sección del sidebar, los iconos usan un tinte propio */
+aside #nav-sidebar-apps > div:nth-of-type(1) ol > li > a > span.material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(236,72,153,.22), rgba(244,114,182,.12)) !important;
+    color: #f9a8d4 !important;
+}
+aside #nav-sidebar-apps > div:nth-of-type(2) ol > li > a > span.material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(16,185,129,.22), rgba(5,150,105,.12)) !important;
+    color: #6ee7b7 !important;
+}
+aside #nav-sidebar-apps > div:nth-of-type(3) ol > li > a > span.material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(244,63,94,.22), rgba(225,29,72,.12)) !important;
+    color: #fda4af !important;
+}
+aside #nav-sidebar-apps > div:nth-of-type(4) ol > li > a > span.material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(59,130,246,.22), rgba(14,165,233,.12)) !important;
+    color: #93c5fd !important;
+}
+aside #nav-sidebar-apps > div:nth-of-type(5) ol > li > a > span.material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(251,191,36,.22), rgba(234,179,8,.12)) !important;
+    color: #fde68a !important;
+}
+aside #nav-sidebar-apps > div:nth-of-type(6) ol > li > a > span.material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(168,85,247,.22), rgba(124,58,237,.12)) !important;
+    color: #d8b4fe !important;
+}
+aside #nav-sidebar-apps > div:nth-of-type(7) ol > li > a > span.material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(20,184,166,.22), rgba(13,148,136,.12)) !important;
+    color: #5eead4 !important;
+}
+aside #nav-sidebar-apps > div:nth-of-type(8) ol > li > a > span.material-symbols-outlined {
+    background: linear-gradient(135deg, rgba(148,163,184,.22), rgba(100,116,139,.12)) !important;
+    color: #cbd5e1 !important;
+}
+
+/* Hover y activo — sobrescriben */
+aside #nav-sidebar-apps ol > li > a:hover > span.material-symbols-outlined {
+    transform: scale(1.08) rotate(-3deg) !important;
+    box-shadow: 0 8px 18px -8px rgba(236,72,153,.55) !important;
+}
+aside #nav-sidebar-apps ol > li > a.active > span.material-symbols-outlined,
+aside #nav-sidebar-apps ol > li > a.bg-base-100 > span.material-symbols-outlined {
+    background: linear-gradient(135deg, #ec4899, #a855f7) !important;
+    color: #fff !important;
+    box-shadow: 0 10px 20px -8px rgba(236,72,153,.7) !important;
+}
+
+/* Reforzar item hover/active */
+aside #nav-sidebar-apps ol > li > a {
+    padding: 6px 12px !important;
+    border-radius: 12px !important;
+    min-height: 46px !important;
+    gap: 2px;
+}
+aside #nav-sidebar-apps ol > li > a:hover {
+    background: rgba(236,72,153,.06) !important;
+    transform: translateX(3px);
+}
+aside #nav-sidebar-apps ol > li > a.active,
+aside #nav-sidebar-apps ol > li > a.bg-base-100 {
+    background: linear-gradient(90deg, rgba(236,72,153,.18), rgba(168,85,247,.09) 60%, transparent) !important;
+    box-shadow: inset 3px 0 0 var(--jh2-pink) !important;
+}
+
+/* Ancho del sidebar un pelín más generoso */
+@media (min-width: 1280px) {
+    #nav-sidebar {
+        min-width: 280px !important;
+    }
+}
