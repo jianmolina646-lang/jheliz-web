@@ -6,7 +6,12 @@ from django.urls import include, path, re_path
 from django.views.static import serve as static_serve
 
 from blog.sitemaps import BlogPostSitemap
-from catalog.seo_views import google_site_verification, manifest_json, robots_txt
+from catalog.seo_views import (
+    google_site_verification,
+    manifest_json,
+    robots_txt,
+    service_worker,
+)
 from catalog.sitemaps import SITEMAPS
 from config import admin_views
 from orders import media_views as orders_media_views
@@ -131,6 +136,7 @@ urlpatterns = [
         name="google_site_verification",
     ),
     path("manifest.webmanifest", manifest_json, name="pwa-manifest"),
+    path("sw.js", service_worker, name="pwa-service-worker"),
     path(
         "sitemap.xml",
         sitemap_view,

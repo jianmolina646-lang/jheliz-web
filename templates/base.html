@@ -239,6 +239,9 @@
       <nav class="hidden md:flex items-center gap-0.5 text-[13px] font-medium">
         <a href="{% url 'catalog:home' %}" class="px-3 py-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/5 transition">Inicio</a>
         <a href="{% url 'catalog:products' %}" class="px-3 py-1.5 rounded-full text-zinc-300 hover:text-white hover:bg-white/5 transition">Productos</a>
+        <a href="{% url 'catalog:combo_builder' %}" class="px-3 py-1.5 rounded-full text-emerald-300 hover:text-emerald-200 font-semibold bg-emerald-500/5 border border-emerald-500/20 transition">
+          <span class="text-sm">🎁</span> Combo -15%
+        </a>
         {% if user.is_distributor %}
           <a href="{% url 'catalog:distributor_panel' %}" class="px-3 py-1.5 rounded-full text-jheliz-300 hover:text-jheliz-200 font-semibold">Panel distribuidor</a>
         {% else %}
@@ -384,6 +387,7 @@
 
   {% include "partials/mobile_bottom_nav.html" %}
   {% include "partials/cookie_banner.html" %}
+  {% include "partials/pwa_install.html" %}
   {% include "partials/tracking_body.html" %}
 </body>
 </html>

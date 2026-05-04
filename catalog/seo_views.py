@@ -50,10 +50,11 @@ def manifest_json(request):
     icon192 = request.build_absolute_uri("/static/img/icon-192.png")
     icon512 = request.build_absolute_uri("/static/img/icon-512.png")
     return JsonResponse({
+        "id": "/?source=pwa",
         "name": "Jheliz Services TV",
         "short_name": "Jheliz",
         "description": "Streaming y licencias al instante en Per\u00fa.",
-        "start_url": "/",
+        "start_url": "/?source=pwa",
         "scope": "/",
         "display": "standalone",
         "background_color": "#07060b",
@@ -66,7 +67,115 @@ def manifest_json(request):
             {"src": icon512, "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
         ],
         "categories": ["shopping", "entertainment"],
+        "shortcuts": [
+            {
+                "name": "Cat\u00e1logo",
+                "short_name": "Cat\u00e1logo",
+                "url": "/productos/",
+                "icons": [{"src": icon192, "sizes": "192x192"}],
+            },
+            {
+                "name": "Mis pedidos",
+                "short_name": "Pedidos",
+                "url": "/cuenta/",
+                "icons": [{"src": icon192, "sizes": "192x192"}],
+            },
+            {
+                "name": "Armar combo",
+                "short_name": "Combo",
+                "url": "/combos/",
+                "icons": [{"src": icon192, "sizes": "192x192"}],
+            },
+        ],
     })
+
+
+_SERVICE_WORKER_JS = """// Jheliz PWA service worker
+const VERSION = 'jheliz-v2';
+const STATIC_CACHE = `static-${VERSION}`;
+const RUNTIME_CACHE = `runtime-${VERSION}`;
+
+// Assets that should always work offline (the app shell).
+const APP_SHELL = [
+  '/',
+  '/productos/',
+  '/manifest.webmanifest',
+  '/static/img/icon-192.png',
+  '/static/img/icon-512.png',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE)
+      .then((cache) => cache.addAll(APP_SHELL).catch(() => null))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((k) => ![STATIC_CACHE, RUNTIME_CACHE].includes(k))
+            .map((k) => caches.delete(k))
+      )
+    ).then(() => self.clients.claim())
+  );
+});
+
+// Network-first for documents, cache-first for static assets.
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  // Don't cache admin, auth, checkout or anything POST-sensitive.
+  if (url.pathname.startsWith('/jheliz-admin') ||
+      url.pathname.startsWith('/cuenta') ||
+      url.pathname.startsWith('/pedidos') ||
+      url.pathname.startsWith('/soporte') ||
+      url.pathname.startsWith('/distribuidor/panel')) {
+    return;
+  }
+  const isStatic = url.pathname.startsWith('/static/') ||
+                   url.pathname.startsWith('/media/') ||
+                   /\\.(css|js|png|jpg|jpeg|svg|webp|woff2?|ico)$/i.test(url.pathname);
+  if (isStatic) {
+    event.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        if (res && res.ok) {
+          const clone = res.clone();
+          caches.open(RUNTIME_CACHE).then((c) => c.put(req, clone));
+        }
+        return res;
+      }).catch(() => hit))
+    );
+    return;
+  }
+  // Document requests: network first, fallback to cache, fallback to offline page.
+  if (req.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(req).then((res) => {
+        if (res && res.ok) {
+          const clone = res.clone();
+          caches.open(RUNTIME_CACHE).then((c) => c.put(req, clone));
+        }
+        return res;
+      }).catch(() =>
+        caches.match(req).then((hit) => hit || caches.match('/'))
+      )
+    );
+  }
+});
+"""
+
+
+@cache_control(public=True, max_age=3600)
+def service_worker(request):
+    """PWA service worker served from the site root so its scope covers the whole app."""
+    response = HttpResponse(_SERVICE_WORKER_JS, content_type="application/javascript")
+    response["Service-Worker-Allowed"] = "/"
+    return response
 
 
 def faq(request):

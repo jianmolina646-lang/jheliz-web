@@ -188,12 +188,18 @@ def cart_view(request):
         ok, msg = coupon.is_eligible_for(request.user, subtotal)
         if not ok:
             coupon_error = msg
+    combo_discount = cart.combo_discount_for(request.user)
+    combo_pct = cart.combo_tier_percent()
+    distinct_products = cart.distinct_product_count()
     return render(request, "orders/cart.html", {
         "cart": cart,
         "lines": lines,
         "subtotal": subtotal,
         "discount": discount,
-        "total": subtotal - discount,
+        "combo_discount": combo_discount,
+        "combo_percent_int": int(combo_pct * 100) if combo_pct else 0,
+        "distinct_products": distinct_products,
+        "total": subtotal - discount - combo_discount,
         "coupon": coupon,
         "coupon_error": coupon_error,
     })
@@ -355,13 +361,17 @@ def checkout(request):
 
     subtotal = cart.subtotal_for(request.user)
     discount = cart.discount_for(request.user)
+    combo_discount = cart.combo_discount_for(request.user)
+    combo_pct = cart.combo_tier_percent()
     return render(request, "orders/checkout.html", {
         "form": form,
         "cart": cart,
         "lines": _decorated_lines(cart, request.user),
         "subtotal": subtotal,
         "discount": discount,
-        "total": subtotal - discount,
+        "combo_discount": combo_discount,
+        "combo_percent_int": int(combo_pct * 100) if combo_pct else 0,
+        "total": subtotal - discount - combo_discount,
         "coupon": cart.get_coupon(),
         "yape_available": yape_available,
         "payment_settings": payment_settings,
@@ -473,6 +483,11 @@ def _create_order_from_cart(request, cart: Cart, contact: dict) -> Order:
                 order.save(update_fields=["coupon", "coupon_code", "discount_amount"])
                 # Bumpea el contador de usos del cupón (atomic).
                 Coupon.objects.filter(pk=coupon.pk).update(times_used=models.F("times_used") + 1)
+        # Aplicar descuento por combo (auto, sobre subtotal post-cupón).
+        combo = cart.combo_discount_for(request.user)
+        if combo > 0:
+            order.combo_discount_amount = combo
+            order.save(update_fields=["combo_discount_amount"])
         order.recompute_total()
     return order
 

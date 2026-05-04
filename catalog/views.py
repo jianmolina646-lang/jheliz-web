@@ -259,6 +259,95 @@ def product_detail(request, slug: str):
     )
 
 
+def combo_builder(request):
+    """Página 'Armá tu paquete': cliente elige varios productos y obtiene
+    un descuento automático al llegar al checkout.
+
+    No persiste nada propio — todo lo que hace es armar un carrito con los
+    planes seleccionados y redirigir a ``orders:cart``. El descuento del combo
+    lo calcula ``Cart.combo_discount_for`` (cart.py).
+    """
+    from decimal import Decimal
+    from orders.cart import COMBO_DISCOUNT_TIERS
+
+    products_qs = (
+        Product.objects.filter(is_active=True)
+        .filter(_audience_filter(request.user))
+        .select_related("category")
+        .prefetch_related("plans")
+        .order_by("-is_featured", "order", "name")
+        .distinct()
+    )
+    # Solo mostramos productos con algún plan apto para cliente final.
+    products = []
+    for p in products_qs:
+        plans = [
+            pl for pl in p.plans.all()
+            if pl.is_active and pl.available_for_customer and pl.price_customer > 0
+        ]
+        if not plans:
+            continue
+        # Elegir plan más barato por defecto (el cliente puede cambiarlo).
+        plans.sort(key=lambda pl: pl.price_customer)
+        products.append({
+            "product": p,
+            "plans": plans,
+            "default_plan": plans[0],
+        })
+
+    tiers = [
+        {"n": 2, "pct": int(COMBO_DISCOUNT_TIERS[2] * 100)},
+        {"n": 3, "pct": int(COMBO_DISCOUNT_TIERS[3] * 100)},
+    ]
+    return render(
+        request,
+        "catalog/combo_builder.html",
+        {
+            "combo_products": products,
+            "tiers": tiers,
+        },
+    )
+
+
+@require_POST
+def combo_add(request):
+    """Agrega todos los planes seleccionados en el combo builder al carrito.
+
+    Espera ``plan_id`` (una lista de IDs) en el POST. Duplicados se preservan
+    (si el cliente selecciona el mismo plan dos veces). Redirige al carrito.
+    """
+    from orders.cart import Cart
+    from catalog.models import Plan
+
+    plan_ids = request.POST.getlist("plan_id")
+    plan_ids = [pid for pid in plan_ids if pid and pid.isdigit()]
+    if not plan_ids:
+        messages.info(request, "Elegí al menos un producto para tu combo.")
+        return redirect("catalog:combo_builder")
+
+    cart = Cart(request)
+    plans = {
+        str(p.pk): p for p in Plan.objects.filter(pk__in=plan_ids, is_active=True)
+        .select_related("product")
+    }
+    added = 0
+    for pid in plan_ids:
+        plan = plans.get(pid)
+        if plan is None:
+            continue
+        cart.add(plan, quantity=1)
+        added += 1
+    if added:
+        messages.success(
+            request,
+            f"¡Combo armado! Agregamos {added} productos a tu carrito. "
+            "El descuento se aplica automáticamente.",
+        )
+    else:
+        messages.warning(request, "No pudimos agregar ninguno de los productos al carrito.")
+    return redirect("orders:cart")
+
+
 def submit_review(request, token: str):
     """Formulario de rese\u00f1a accesible v\u00eda magic link enviado al cliente."""
     review = get_object_or_404(
