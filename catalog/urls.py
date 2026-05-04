@@ -9,6 +9,11 @@ urlpatterns = [
     path("productos/", views.product_list, name="products"),
     path("categoria/<slug:slug>/", views.category_detail, name="category"),
     path("producto/<slug:slug>/", views.product_detail, name="product"),
+    path(
+        "producto/<slug:slug>/avisame/",
+        views.back_in_stock_subscribe,
+        name="back_in_stock_subscribe",
+    ),
     path("plataforma/<slug:slug>/", views.platform_landing, name="platform_landing"),
     path("distribuidor/", views.distributor_landing, name="distributor"),
     path("distribuidor/panel/", views.distributor_panel, name="distributor_panel"),

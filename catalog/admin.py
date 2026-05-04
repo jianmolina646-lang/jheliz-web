@@ -7,6 +7,7 @@ from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import display
 
 from .models import (
+    BackInStockAlert,
     Category,
     CustomerPlan,
     DistributorPlan,
@@ -958,3 +959,50 @@ class PlatformLandingAdmin(ModelAdmin):
             '<code style="font-size:11px">{}</code>',
             obj.accent_color or "#ec4899", obj.accent_color or "—",
         )
+
+
+@admin.register(BackInStockAlert)
+class BackInStockAlertAdmin(ModelAdmin):
+    list_display = (
+        "email",
+        "product",
+        "plan",
+        "status_chip",
+        "created_at",
+        "notified_at",
+    )
+    list_filter = ("status", "product")
+    search_fields = ("email", "product__name", "plan__name")
+    autocomplete_fields = ("product", "plan")
+    readonly_fields = (
+        "created_at", "notified_at", "user_agent", "ip",
+    )
+    actions = ["mark_cancelled", "mark_pending_again"]
+    list_per_page = 50
+
+    @display(description="Estado", label={
+        "Pendiente": "warning",
+        "Notificada": "success",
+        "Cancelada": "secondary",
+    })
+    def status_chip(self, obj):
+        return obj.get_status_display()
+
+    def mark_cancelled(self, request, queryset):
+        n = queryset.update(status=BackInStockAlert.Status.CANCELLED)
+        self.message_user(
+            request, f"{n} alerta(s) marcadas como canceladas.",
+            messages.SUCCESS,
+        )
+    mark_cancelled.short_description = "Marcar como canceladas"
+
+    def mark_pending_again(self, request, queryset):
+        n = queryset.update(
+            status=BackInStockAlert.Status.PENDING,
+            notified_at=None,
+        )
+        self.message_user(
+            request, f"{n} alerta(s) marcadas como pendientes de nuevo.",
+            messages.SUCCESS,
+        )
+    mark_pending_again.short_description = "Marcar como pendientes (re-enviar)"
