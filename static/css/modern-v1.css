@@ -1,0 +1,260 @@
+/* =====================================================================
+   Pack-Modern v1 — micro-animations, product cards, hero polish
+   Depends on design tokens already declared in base.html :root
+   ===================================================================== */
+
+/* ---------- Scroll-reveal (used with data-reveal) ------------------- */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 650ms cubic-bezier(.22,.61,.36,1),
+              transform 650ms cubic-bezier(.22,.61,.36,1);
+  will-change: opacity, transform;
+}
+[data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+/* Honor user reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] { opacity: 1; transform: none; transition: none; }
+  .mesh-accent::before { animation: none !important; }
+  .text-grad { animation: none !important; }
+}
+
+/* Stagger helpers (delay children) */
+[data-reveal-stagger] > * { transition-delay: 0ms; }
+[data-reveal-stagger] > *:nth-child(1) { transition-delay: 40ms; }
+[data-reveal-stagger] > *:nth-child(2) { transition-delay: 90ms; }
+[data-reveal-stagger] > *:nth-child(3) { transition-delay: 140ms; }
+[data-reveal-stagger] > *:nth-child(4) { transition-delay: 190ms; }
+[data-reveal-stagger] > *:nth-child(5) { transition-delay: 240ms; }
+[data-reveal-stagger] > *:nth-child(6) { transition-delay: 290ms; }
+[data-reveal-stagger] > *:nth-child(7) { transition-delay: 340ms; }
+[data-reveal-stagger] > *:nth-child(8) { transition-delay: 390ms; }
+
+/* ---------- Product card v2 (glassmorphism + 3D hover) -------------- */
+.product-card {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 400ms cubic-bezier(.22,.61,.36,1),
+              box-shadow 400ms cubic-bezier(.22,.61,.36,1),
+              border-color 250ms ease,
+              background 250ms ease;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.product-card::before {
+  content: '';
+  position: absolute; inset: 0; z-index: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg,
+    rgba(236,72,153,.10) 0%,
+    rgba(168,85,247,.05) 38%,
+    transparent 70%);
+  opacity: 0;
+  transition: opacity 350ms ease;
+  pointer-events: none;
+}
+.product-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 18px 40px -20px rgba(236,72,153,.45),
+    0 8px 20px -10px rgba(0,0,0,.6);
+  border-color: rgba(236,72,153,.35) !important;
+}
+.product-card:hover::before { opacity: 1; }
+.product-card > * { position: relative; z-index: 1; }
+
+/* Shine sweep on hover over the banner */
+.product-card__banner {
+  position: relative;
+}
+.product-card__banner::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg,
+    transparent 35%,
+    rgba(255,255,255,.10) 50%,
+    transparent 65%);
+  transform: translateX(-120%);
+  transition: transform 750ms ease;
+  pointer-events: none;
+  z-index: 2;
+  mix-blend-mode: overlay;
+}
+.product-card:hover .product-card__banner::after {
+  transform: translateX(120%);
+}
+
+/* ---------- Shiny badges (Top / Nuevo / Flash) ---------------------- */
+.badge-modern {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  position: relative; overflow: hidden;
+  box-shadow:
+    0 6px 18px -8px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(255,255,255,.28);
+  backdrop-filter: blur(6px);
+}
+.badge-modern--top {
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  color: #fff;
+}
+.badge-modern--nuevo {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+}
+.badge-modern--flash {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+  color: #fff;
+}
+.badge-modern--premium {
+  background: linear-gradient(135deg, #facc15, #eab308);
+  color: #1f2937;
+}
+.badge-modern::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg,
+    transparent 30%, rgba(255,255,255,.45) 50%, transparent 70%);
+  transform: translateX(-110%);
+  animation: badgeShine 4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+@keyframes badgeShine {
+  0%, 65%, 100% { transform: translateX(-110%); }
+  80% { transform: translateX(110%); }
+}
+
+/* ---------- Hero platform ribbon (floating chips) ------------------ */
+.platform-chip {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 12px; font-weight: 600;
+  color: #e4e4e7;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(10px);
+  transition: transform 220ms cubic-bezier(.22,.61,.36,1),
+              background 220ms ease, border-color 220ms ease;
+}
+.platform-chip:hover {
+  transform: translateY(-2px);
+  background: rgba(236,72,153,.10);
+  border-color: rgba(236,72,153,.35);
+  color: #fff;
+}
+.platform-chip .dot {
+  width: 6px; height: 6px; border-radius: 9999px;
+  background: #34d399;
+  box-shadow: 0 0 10px rgba(52,211,153,.7);
+}
+
+/* ---------- Stat counter: large pulsing pill ----------------------- */
+.stat-pulse {
+  position: relative;
+}
+.stat-pulse::after {
+  content: '';
+  position: absolute; top: 14px; right: 14px;
+  width: 8px; height: 8px;
+  border-radius: 9999px;
+  background: #34d399;
+  box-shadow: 0 0 12px rgba(52,211,153,.7);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+
+/* ---------- Floating CTA / comprar sticky (mobile) ----------------- */
+.floating-cta {
+  position: sticky; bottom: 12px; left: 0; right: 0; z-index: 30;
+}
+
+/* ---------- Skeleton loader (used while polling) ------------------- */
+.skeleton {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.04) 0%,
+    rgba(255,255,255,.10) 50%,
+    rgba(255,255,255,.04) 100%);
+  background-size: 200% 100%;
+  animation: skelShimmer 1.6s ease-in-out infinite;
+  border-radius: 8px;
+}
+@keyframes skelShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---------- Underline link w/ gradient ----------------------------- */
+.link-underline {
+  position: relative;
+  background-image: linear-gradient(90deg, #ec4899, #a855f7);
+  background-size: 0% 2px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  transition: background-size 250ms ease;
+  padding-bottom: 2px;
+}
+.link-underline:hover {
+  background-size: 100% 2px;
+}
+
+/* ---------- Category card hover halo ------------------------------- */
+.cat-card { position: relative; overflow: hidden; }
+.cat-card::before {
+  content: '';
+  position: absolute;
+  inset: -40% 50% 50% -40%;
+  background: radial-gradient(closest-side,
+    rgba(236,72,153,.35), transparent 70%);
+  opacity: 0;
+  transition: opacity 350ms ease, transform 450ms ease;
+  pointer-events: none;
+}
+.cat-card:hover::before {
+  opacity: 1;
+  transform: translate(30%, 30%);
+}
+
+/* ---------- Number counter transition (used w/ counter JS) ---------- */
+.num-flip {
+  font-variant-numeric: tabular-nums;
+  transition: color 300ms ease;
+}
+
+/* ---------- Small utility: soft inner glow on focus ---------------- */
+.glow-ring:focus-within {
+  box-shadow: 0 0 0 3px rgba(236,72,153,.18);
+  border-color: rgba(236,72,153,.55) !important;
+}
+
+/* ---------- Animated gradient border (ALE: used on key CTAs) ------- */
+.grad-border {
+  position: relative;
+}
+.grad-border::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from 180deg at 50% 50%,
+    rgba(236,72,153,.6),
+    rgba(168,85,247,.3),
+    rgba(236,72,153,.6));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: conicSpin 6s linear infinite;
+  pointer-events: none;
+}
+@keyframes conicSpin {
+  to { transform: rotate(360deg); }
+}

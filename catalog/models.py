@@ -128,6 +128,15 @@ class Product(models.Model):
     def get_absolute_url(self) -> str:
         return reverse("catalog:product", args=[self.slug])
 
+    @property
+    def is_new(self) -> bool:
+        """True si el producto fue creado hace menos de 21 días."""
+        if not self.created_at:
+            return False
+        from django.utils import timezone
+        from datetime import timedelta
+        return (timezone.now() - self.created_at) < timedelta(days=21)
+
     def whatsapp_pitch_for(self, user=None) -> str:
         """Texto pre-armado para que un distribuidor lo reenvíe a su cliente final.
 
