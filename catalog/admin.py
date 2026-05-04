@@ -11,6 +11,7 @@ from .models import (
     CustomerPlan,
     DistributorPlan,
     Plan,
+    PlatformLanding,
     Product,
     ProductReview,
     PromoBanner,
@@ -915,4 +916,45 @@ class ReclamacionAdmin(ModelAdmin):
             txt = f"{d}d"
         return format_html(
             '<span style="color:{};font-weight:600">{}</span>', color, txt,
+        )
+
+
+@admin.register(PlatformLanding)
+class PlatformLandingAdmin(ModelAdmin):
+    list_display = ("name", "slug", "is_published", "order", "accent_color_chip", "updated_at")
+    list_editable = ("order", "is_published")
+    list_filter = ("is_published",)
+    search_fields = ("name", "slug", "seo_title")
+    prepopulated_fields = {"slug": ("name",)}
+    filter_horizontal = ("featured_products",)
+    fieldsets = (
+        ("Identificación", {
+            "fields": ("name", "slug", "is_published", "order"),
+        }),
+        ("Hero / encabezado", {
+            "fields": ("tagline", "hero_description", "logo", "accent_color"),
+        }),
+        ("SEO", {
+            "fields": ("seo_title", "seo_description", "og_image"),
+        }),
+        ("Productos mostrados", {
+            "fields": ("category", "featured_products"),
+            "description": "Si seteas productos manualmente, tienen preferencia sobre la categoría.",
+        }),
+        ("Contenido adicional", {
+            "fields": ("body_html", "faq"),
+            "classes": ("collapse",),
+            "description": (
+                "FAQ: lista JSON [{\"q\": \"Pregunta\", \"a\": \"Respuesta\"}, ...]. "
+                "body_html: HTML libre para la sección intermedia."
+            ),
+        }),
+    )
+
+    @display(description="Color")
+    def accent_color_chip(self, obj):
+        return format_html(
+            '<span style="display:inline-block;width:18px;height:18px;border-radius:5px;background:{};border:1px solid rgba(255,255,255,.15);vertical-align:middle"></span> '
+            '<code style="font-size:11px">{}</code>',
+            obj.accent_color or "#ec4899", obj.accent_color or "—",
         )

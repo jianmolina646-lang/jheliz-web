@@ -2,7 +2,7 @@
 from django.contrib.sitemaps import Sitemap
 from django.urls import reverse
 
-from .models import Category, Product
+from .models import Category, PlatformLanding, Product
 
 
 class StaticViewSitemap(Sitemap):
@@ -51,8 +51,25 @@ class ProductSitemap(Sitemap):
         return obj.get_absolute_url()
 
 
+class PlatformLandingSitemap(Sitemap):
+    """Landing pages SEO por plataforma (/plataforma/netflix/, etc.)."""
+
+    priority = 0.95
+    changefreq = "weekly"
+
+    def items(self):
+        return PlatformLanding.objects.filter(is_published=True)
+
+    def lastmod(self, obj):
+        return obj.updated_at
+
+    def location(self, obj):
+        return obj.get_absolute_url()
+
+
 SITEMAPS = {
     "static": StaticViewSitemap,
     "categories": CategorySitemap,
     "products": ProductSitemap,
+    "landings": PlatformLandingSitemap,
 }

@@ -9,7 +9,7 @@ from django.db.models import Avg, Count
 from django.utils import timezone
 
 from .forms import ProductReviewForm
-from .models import Category, Plan, Product, ProductReview, Testimonial
+from .models import Category, PlatformLanding, Plan, Product, ProductReview, Testimonial
 
 
 def _product_schema(request, product, plans):
@@ -655,3 +655,43 @@ def _send_reclamacion_emails(obj):
             admin_email,
             [admin_email],
         ).send(fail_silently=True)
+
+
+def platform_landing(request, slug: str):
+    """Landing page SEO por plataforma (Netflix, Disney+, etc.)."""
+    landing = get_object_or_404(PlatformLanding, slug=slug, is_published=True)
+
+    products = list(
+        landing.get_featured_products()
+        .select_related("category")
+        .prefetch_related("plans")
+        .filter(is_active=True)
+        [:12]
+    )
+
+    # Reseñas de productos relacionados
+    product_ids = [p.id for p in products]
+    reviews = []
+    if product_ids:
+        reviews = list(
+            ProductReview.objects
+            .filter(
+                product_id__in=product_ids,
+                status=ProductReview.Status.APPROVED,
+            )
+            .select_related("product")
+            .order_by("-created_at")[:6]
+        )
+
+    # Otras landings para el footer
+    other_landings = PlatformLanding.objects.filter(
+        is_published=True
+    ).exclude(pk=landing.pk).order_by("order", "name")[:6]
+
+    context = {
+        "landing": landing,
+        "products": products,
+        "reviews": reviews,
+        "other_landings": other_landings,
+    }
+    return render(request, "catalog/platform_landing.html", context)

@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ landing.seo_title|default:landing.name }} | {{ SITE_NAME }}{% endblock %}
+{% block meta_description %}{{ landing.seo_description|default:landing.tagline }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<meta property="og:type" content="website" />
+<meta property="og:title" content="{{ landing.seo_title|default:landing.name }}" />
+<meta property="og:description" content="{{ landing.seo_description|default:landing.tagline }}" />
+{% if landing.og_image %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ landing.og_image.url }}" />{% endif %}
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ landing.get_absolute_url }}" />
+<style>
+  .landing-hero {
+    background: linear-gradient(135deg, {{ landing.accent_color|default:"#ec4899" }}33 0%, transparent 60%), radial-gradient(1000px 400px at 10% 0%, {{ landing.accent_color|default:"#ec4899" }}1f, transparent 70%);
+    border: 1px solid {{ landing.accent_color|default:"#ec4899" }}40;
+  }
+  .landing-accent-text { color: {{ landing.accent_color|default:"#ec4899" }}; }
+  .landing-accent-bg { background: {{ landing.accent_color|default:"#ec4899" }}; }
+  .landing-accent-border { border-color: {{ landing.accent_color|default:"#ec4899" }}; }
+  .landing-cta {
+    background: linear-gradient(135deg, {{ landing.accent_color|default:"#ec4899" }}, {{ landing.accent_color|default:"#a855f7" }});
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Hero -->
+<section class="landing-hero relative overflow-hidden rounded-3xl p-8 md:p-14 mb-10">
+  <div class="absolute -top-16 -right-16 w-80 h-80 rounded-full blur-3xl opacity-30 landing-accent-bg pointer-events-none"></div>
+  <div class="relative flex flex-col md:flex-row items-start gap-8">
+    {% if landing.logo %}
+      <img src="{{ landing.logo.url }}" alt="{{ landing.name }}" class="w-24 h-24 md:w-32 md:h-32 rounded-2xl object-contain bg-white/5 border border-white/10 p-3 shrink-0" />
+    {% endif %}
+    <div class="flex-1 min-w-0">
+      <p class="text-[11px] font-semibold tracking-[.18em] uppercase landing-accent-text mb-3">Plataforma premium</p>
+      <h1 class="font-display text-4xl md:text-6xl font-extrabold tracking-tight text-white" style="letter-spacing:-0.04em">
+        {{ landing.name }} <span class="text-zinc-400 text-2xl md:text-4xl font-normal block mt-2">barato en Perú</span>
+      </h1>
+      {% if landing.tagline %}
+        <p class="text-xl md:text-2xl text-zinc-200 mt-4 font-medium">{{ landing.tagline }}</p>
+      {% endif %}
+      {% if landing.hero_description %}
+        <div class="text-zinc-400 mt-5 max-w-2xl text-base md:text-lg leading-relaxed">
+          {{ landing.hero_description|safe }}
+        </div>
+      {% endif %}
+      <div class="flex flex-wrap gap-3 mt-6">
+        <a href="#planes" class="landing-cta inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold shadow-lg shadow-black/30 hover:shadow-xl transition">
+          Ver planes y precios
+          <svg class="icon" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#faq" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-zinc-200 font-semibold hover:bg-white/10 transition">
+          Preguntas frecuentes
+        </a>
+      </div>
+      <div class="flex flex-wrap items-center gap-5 mt-6 text-sm text-zinc-400">
+        <div class="flex items-center gap-2"><span class="landing-accent-text text-lg">⚡</span> Entrega en 2-5 min</div>
+        <div class="flex items-center gap-2"><span class="landing-accent-text text-lg">🛡️</span> Garantía 30 días</div>
+        <div class="flex items-center gap-2"><span class="landing-accent-text text-lg">💳</span> Yape, Mercado Pago</div>
+        <div class="flex items-center gap-2"><span class="landing-accent-text text-lg">⭐</span> +5 000 entregas</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Productos / Planes -->
+<section id="planes" class="mb-14">
+  <div class="flex items-end justify-between mb-6">
+    <div>
+      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-zinc-500">Planes disponibles</p>
+      <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight text-white mt-1">Elige tu plan de {{ landing.name }}</h2>
+    </div>
+    <a href="{% url 'catalog:products' %}" class="hidden md:inline-flex text-sm text-zinc-400 hover:text-white transition">Ver todos los productos →</a>
+  </div>
+  {% if products %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {% for p in products %}
+        {% include "catalog/_product_card.html" with product=p %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="surface rounded-xl p-8 text-center text-zinc-400">
+      Próximamente. Contáctanos por WhatsApp para consultar disponibilidad.
+    </div>
+  {% endif %}
+</section>
+
+<!-- Contenido SEO adicional -->
+{% if landing.body_html %}
+  <section class="surface rounded-2xl p-8 md:p-10 mb-14">
+    <div class="prose prose-invert max-w-none prose-h2:text-white prose-h3:text-white prose-a:landing-accent-text prose-strong:text-white">
+      {{ landing.body_html|safe }}
+    </div>
+  </section>
+{% endif %}
+
+<!-- ¿Por qué elegirnos? -->
+<section class="mb-14">
+  <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight text-white mb-6">¿Por qué comprar {{ landing.name }} en {{ SITE_NAME }}?</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="surface rounded-xl p-5">
+      <div class="w-12 h-12 rounded-xl landing-accent-bg/20 flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#ec4899' }}22">⚡</div>
+      <h3 class="font-bold text-white text-lg mb-1">Entrega inmediata</h3>
+      <p class="text-sm text-zinc-400">En menos de 5 minutos recibes las credenciales por WhatsApp y correo.</p>
+    </div>
+    <div class="surface rounded-xl p-5">
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#ec4899' }}22">🛡️</div>
+      <h3 class="font-bold text-white text-lg mb-1">Garantía real 30 días</h3>
+      <p class="text-sm text-zinc-400">Si algo deja de funcionar, reemplazamos tu cuenta sin costo extra.</p>
+    </div>
+    <div class="surface rounded-xl p-5">
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#ec4899' }}22">💬</div>
+      <h3 class="font-bold text-white text-lg mb-1">Soporte por WhatsApp</h3>
+      <p class="text-sm text-zinc-400">Respondemos en minutos, incluyendo fines de semana y feriados.</p>
+    </div>
+    <div class="surface rounded-xl p-5">
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#ec4899' }}22">💳</div>
+      <h3 class="font-bold text-white text-lg mb-1">Paga como prefieras</h3>
+      <p class="text-sm text-zinc-400">Yape, Plin, Mercado Pago, tarjeta. Todo 100% verificado.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Reseñas -->
+{% if reviews %}
+<section class="mb-14">
+  <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight text-white mb-6">Lo que dicen nuestros clientes</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for review in reviews %}
+      {% include "catalog/_review_card.html" with review=review %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- FAQ -->
+{% if landing.faq %}
+<section id="faq" class="mb-14">
+  <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight text-white mb-6">Preguntas frecuentes sobre {{ landing.name }}</h2>
+  <div class="space-y-3">
+    {% for item in landing.faq %}
+      <details class="surface rounded-xl p-5 cursor-pointer group">
+        <summary class="flex items-center justify-between gap-3 text-white font-semibold list-none">
+          <span>{{ item.q }}</span>
+          <svg class="icon transition-transform group-open:rotate-180 text-zinc-400 shrink-0" viewBox="0 0 24 24" style="width:20px;height:20px"><path d="M6 9l6 6 6-6"/></svg>
+        </summary>
+        <div class="mt-3 text-zinc-400 leading-relaxed">{{ item.a|linebreaksbr }}</div>
+      </details>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- Otras plataformas -->
+{% if other_landings %}
+<section class="mb-14">
+  <h2 class="font-display text-2xl font-extrabold tracking-tight text-white mb-4">Otras plataformas que ofrecemos</h2>
+  <div class="flex flex-wrap gap-2">
+    {% for l in other_landings %}
+      <a href="{{ l.get_absolute_url }}" class="surface rounded-lg px-4 py-2 text-sm text-zinc-300 hover:text-white transition border border-white/10 hover:border-white/20">
+        {{ l.name }}
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- CTA final -->
+<section class="landing-cta rounded-2xl p-8 md:p-10 text-center mb-14">
+  <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight text-white mb-3">
+    ¿Listo para disfrutar {{ landing.name }}?
+  </h2>
+  <p class="text-white/90 text-base md:text-lg mb-6">Entrega en minutos, garantía 30 días. Desde los planes más accesibles del mercado.</p>
+  <a href="#planes" class="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-white text-zinc-900 font-bold text-lg hover:bg-zinc-100 transition shadow-lg">
+    Comprar ahora
+    <svg class="icon" viewBox="0 0 24 24" style="width:20px;height:20px"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+  </a>
+</section>
+
+<!-- Schema.org FAQPage -->
+{% if landing.faq %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {% for item in landing.faq %}
+    {
+      "@type": "Question",
+      "name": "{{ item.q|default:''|escapejs }}",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "{{ item.a|default:''|escapejs }}"
+      }
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}
+
+{% endblock %}
