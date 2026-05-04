@@ -1,3 +1,4 @@
+import secrets
 import uuid
 from decimal import Decimal
 
@@ -7,6 +8,10 @@ from django.db import models
 from django.utils import timezone
 
 from .encryption import EncryptedTextField
+
+
+def _generate_renewal_token() -> str:
+    return secrets.token_urlsafe(24)
 
 
 class PaymentSettings(models.Model):
@@ -494,6 +499,13 @@ class OrderItem(models.Model):
     reported_broken_note = models.CharField(
         "Nota del reporte", max_length=200, blank=True,
     )
+    # Token para "magic link" de renovación (sin login). Se incluye en los
+    # correos de recordatorio de vencimiento para que el cliente pueda
+    # renovar de 1 click.
+    renewal_token = models.CharField(
+        "Token de renovación", max_length=48, blank=True, default="",
+        db_index=True,
+    )
 
     class Meta:
         verbose_name = "Item de pedido"
@@ -504,6 +516,12 @@ class OrderItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product_name} \u2014 {self.plan_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.renewal_token:
+            # Genera un token único; colisión en token_urlsafe(24) es ~imposible.
+            self.renewal_token = _generate_renewal_token()
+        super().save(*args, **kwargs)
 
     @property
     def subtotal(self) -> Decimal:

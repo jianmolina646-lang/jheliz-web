@@ -14,6 +14,7 @@ urlpatterns = [
     path("carrito/cupon/aplicar/", views.cart_apply_coupon, name="cart_apply_coupon"),
     path("carrito/cupon/quitar/", views.cart_remove_coupon, name="cart_remove_coupon"),
     path("renovar/<int:item_id>/", views.renew_item, name="renew_item"),
+    path("renovar/t/<str:token>/", views.renew_by_token, name="renew_by_token"),
     path("checkout/", views.checkout, name="checkout"),
     path("webhooks/mercadopago/", views.mercadopago_webhook, name="mercadopago_webhook"),
     path("webhooks/telegram/<str:secret>/", views.telegram_webhook, name="telegram_webhook"),
