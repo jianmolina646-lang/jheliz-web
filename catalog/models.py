@@ -823,3 +823,89 @@ class Reclamacion(models.Model):
     def dias_restantes(self) -> int:
         from django.utils import timezone
         return max(0, (self.vence_at.date() - timezone.localdate()).days)
+
+
+class PlatformLanding(models.Model):
+    """Landing page SEO por plataforma (Netflix, Disney+, Spotify, etc.).
+
+    Cada landing tiene su propia URL ``/plataforma/<slug>/`` con contenido
+    optimizado para SEO: H1, meta title/description, hero, FAQ, productos
+    destacados. Se gestiona desde el admin.
+    """
+
+    slug = models.SlugField(
+        "Slug (URL)", max_length=80, unique=True,
+        help_text="Se usa en la URL: jhelizservicestv.xyz/plataforma/<slug>/",
+    )
+    name = models.CharField(
+        "Nombre de plataforma", max_length=80,
+        help_text="Ej: Netflix, Disney+, Spotify, HBO Max.",
+    )
+    tagline = models.CharField(
+        "Tagline (subtítulo)", max_length=180, blank=True,
+        help_text="Frase corta debajo del H1. Ej: \"Cuentas premium desde S/5/mes\".",
+    )
+    hero_description = models.TextField(
+        "Descripción del hero", blank=True,
+        help_text="Texto introductorio debajo del tagline (1-2 párrafos). HTML permitido.",
+    )
+    body_html = models.TextField(
+        "Contenido adicional (HTML)", blank=True,
+        help_text="HTML extra para la sección intermedia (beneficios, cómo funciona, etc.).",
+    )
+    seo_title = models.CharField(
+        "Meta title (SEO)", max_length=70, blank=True,
+        help_text="Aparece en los resultados de Google. Máx 60 caracteres ideal.",
+    )
+    seo_description = models.CharField(
+        "Meta description (SEO)", max_length=200, blank=True,
+        help_text="Descripción que muestra Google. Máx 160 caracteres ideal.",
+    )
+    og_image = models.ImageField(
+        "Imagen Open Graph", upload_to="landings/", blank=True, null=True,
+        help_text="Imagen que se muestra al compartir en redes (1200x630 recomendado).",
+    )
+    accent_color = models.CharField(
+        "Color de acento (hex)", max_length=7, default="#ec4899", blank=True,
+        help_text="Color HEX del hero, ej: #e50914 (Netflix rojo), #0063e5 (Disney+ azul).",
+    )
+    logo = models.ImageField(
+        "Logo de plataforma", upload_to="landings/", blank=True, null=True,
+        help_text="Logo de la marca para mostrar en el hero.",
+    )
+    category = models.ForeignKey(
+        Category, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="landings",
+        help_text="Si se setea, se muestran los productos activos de esta categoría.",
+    )
+    featured_products = models.ManyToManyField(
+        Product, blank=True, related_name="landings",
+        help_text="Productos destacados manualmente (opcional, si se setean tienen preferencia sobre la categoría).",
+    )
+    faq = models.JSONField(
+        "FAQ (preguntas frecuentes)", default=list, blank=True,
+        help_text='Lista JSON: [{"q": "¿Pregunta?", "a": "Respuesta"}, ...]',
+    )
+    is_published = models.BooleanField("Publicada", default=True)
+    order = models.PositiveIntegerField("Orden", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("order", "name")
+        verbose_name = "Landing SEO (plataforma)"
+        verbose_name_plural = "Landings SEO (plataformas)"
+
+    def __str__(self) -> str:
+        return self.name
+
+    def get_absolute_url(self) -> str:
+        return reverse("catalog:platform_landing", args=[self.slug])
+
+    def get_featured_products(self):
+        """Productos a mostrar en la landing: manual > categoría > vacío."""
+        if self.featured_products.exists():
+            return self.featured_products.filter(is_active=True)
+        if self.category:
+            return self.category.products.filter(is_active=True)
+        return Product.objects.none()
