@@ -42,7 +42,7 @@
   <div>
     {% if products %}
       <p class="text-[11px] text-zinc-500 mb-4 uppercase tracking-[.15em] font-semibold">{{ products|length }} producto{{ products|length|pluralize }} encontrado{{ products|length|pluralize }}</p>
-      <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3" data-reveal-stagger>
         {% for p in products %}{% include "catalog/_product_card.html" with product=p %}{% endfor %}
       </div>
     {% else %}

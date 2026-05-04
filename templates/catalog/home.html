@@ -94,7 +94,7 @@
 
 <!-- Hero ----------------------------------------------------------------- -->
 <section class="mesh-accent pt-10 md:pt-20 pb-16 md:pb-24 text-center">
-  <div class="max-w-4xl mx-auto">
+  <div class="max-w-4xl mx-auto" data-reveal>
     <span class="hero-eyebrow badge-glow">
       <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
       Entrega inmediata · Soporte 24/7 en Perú
@@ -162,22 +162,22 @@
     </div>
     <a href="{% url 'catalog:tutorials' %}" class="text-sm text-zinc-400 hover:text-white transition hidden sm:inline">Ver tutoriales →</a>
   </div>
-  <div class="grid md:grid-cols-3 gap-3">
-    <div class="surface rounded-xl p-5 flex items-start gap-4">
+  <div class="grid md:grid-cols-3 gap-3" data-reveal-stagger>
+    <div class="surface rounded-xl p-5 flex items-start gap-4" data-reveal>
       <span class="step-mini">1</span>
       <div>
         <h3 class="font-display font-semibold">Eliges tu plan</h3>
         <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Netflix, Disney+, Office… al precio más bajo de Perú.</p>
       </div>
     </div>
-    <div class="surface rounded-xl p-5 flex items-start gap-4">
+    <div class="surface rounded-xl p-5 flex items-start gap-4" data-reveal>
       <span class="step-mini">2</span>
       <div>
         <h3 class="font-display font-semibold">Pagas con Yape o tarjeta</h3>
         <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Mercado Pago seguro o Yape con QR. Sin vueltas.</p>
       </div>
     </div>
-    <div class="surface rounded-xl p-5 flex items-start gap-4">
+    <div class="surface rounded-xl p-5 flex items-start gap-4" data-reveal>
       <span class="step-mini">3</span>
       <div>
         <h3 class="font-display font-semibold">Recibes en tu correo</h3>
@@ -197,9 +197,9 @@
     </div>
     <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition hidden sm:inline">Ver todo →</a>
   </div>
-  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-reveal-stagger>
     {% for c in top_categories %}
-      <a href="{{ c.get_absolute_url }}" class="surface surface-lift rounded-2xl p-5 text-center transition group relative overflow-hidden">
+      <a href="{{ c.get_absolute_url }}" class="surface surface-lift rounded-2xl p-5 text-center transition group relative overflow-hidden cat-card" data-reveal>
         <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br from-jheliz-500/10 via-fuchsia-500/5 to-transparent pointer-events-none"></div>
         <div class="text-3xl relative z-10">{{ c.emoji }}</div>
         <div class="mt-3 text-sm font-semibold text-zinc-200 group-hover:text-white relative z-10">{{ c.name }}</div>
@@ -219,7 +219,7 @@
     <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition">Ver todos →</a>
   </div>
   {% if featured_products %}
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" data-reveal-stagger>
       {% for p in featured_products %}{% include "catalog/_product_card.html" with product=p %}{% endfor %}
     </div>
   {% else %}
@@ -261,20 +261,22 @@
 
 <!-- Stats strip ---------------------------------------------------------- -->
 <section class="py-14 border-t hairline">
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-    <div class="surface rounded-xl p-5 text-center">
-      <div class="stat-num">+5K</div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3" data-reveal-stagger>
+    <div class="surface rounded-xl p-5 text-center stat-pulse" data-reveal>
+      <div class="stat-num num-flip"
+           data-counter="5000" data-counter-prefix="+" data-counter-decimals="0">+0</div>
       <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">Entregas</div>
     </div>
-    <div class="surface rounded-xl p-5 text-center">
-      <div class="stat-num">4.9<span class="text-amber-400">★</span></div>
+    <div class="surface rounded-xl p-5 text-center" data-reveal>
+      <div class="stat-num num-flip"
+           data-counter="4.9" data-counter-suffix="★" data-counter-decimals="1">0.0★</div>
       <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">500+ reseñas</div>
     </div>
-    <div class="surface rounded-xl p-5 text-center">
+    <div class="surface rounded-xl p-5 text-center" data-reveal>
       <div class="stat-num">2 min</div>
       <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">Tiempo entrega</div>
     </div>
-    <div class="surface rounded-xl p-5 text-center">
+    <div class="surface rounded-xl p-5 text-center" data-reveal>
       <div class="stat-num">30 días</div>
       <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">Garantía total</div>
     </div>
@@ -295,9 +297,9 @@
       <span class="text-zinc-500">/ 5 · 500+ reseñas</span>
     </div>
   </div>
-  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3" data-reveal-stagger>
     {% for t in testimonios %}
-      <figure class="surface rounded-xl p-5 flex flex-col">
+      <figure class="surface rounded-xl p-5 flex flex-col" data-reveal>
         <div class="flex items-center gap-0.5 text-amber-400">
           {% for _ in "xxxxx" %}
             <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:14px;height:14px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
