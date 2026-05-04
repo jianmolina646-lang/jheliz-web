@@ -345,10 +345,23 @@ def dashboard_callback(request, context):
     for item in needs_action:
         item["classes"] = _TONE_CLASSES[item["tone"]]
 
+    # ---- Status de 2FA del usuario actual ----------------------------------
+    # Sirve para mostrar un banner si el superuser todavía no tiene TOTP.
+    has_2fa = False
+    try:
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        if hasattr(request, "user") and request.user.is_authenticated:
+            has_2fa = TOTPDevice.objects.filter(
+                user=request.user, confirmed=True,
+            ).exists()
+    except Exception:  # pragma: no cover - defensive
+        has_2fa = False
+
     context.update(
         {
             "dashboard_greeting": greeting,
             "dashboard_user_first_name": user_first_name,
+            "dashboard_user_has_2fa": has_2fa,
             "dashboard_orders_today": orders_today,
             "dashboard_sales_today": sales_today,
             "dashboard_pending_orders_count": pending_orders + verifying_orders,
