@@ -249,3 +249,431 @@ html { scroll-behavior: smooth; }
         min-height: 100%;
     }
 }
+
+/* =====================================================================
+ * Admin Modern v2 — botones, tablas, inputs, sidebar, dashboard avanzado
+ * Se apila sobre el polish v1; prioriza gradientes sutiles, glassmorphism
+ * en tarjetas, micro-interacciones en hover y jerarquía tipográfica.
+ * =================================================================== */
+
+:root {
+    --jh2-bg:        #0b0a10;
+    --jh2-surface:   rgba(255,255,255,0.025);
+    --jh2-line:      rgba(255,255,255,0.08);
+    --jh2-line-hover:rgba(244,114,182,0.35);
+    --jh2-text:      #e5e7eb;
+    --jh2-muted:     #a1a1aa;
+    --jh2-pink:      #ec4899;
+    --jh2-pink-400:  #f472b6;
+    --jh2-violet:    #a855f7;
+    --jh2-grad:      linear-gradient(135deg, #ec4899 0%, #d946ef 45%, #a855f7 100%);
+    --jh2-grad-soft: linear-gradient(135deg, rgba(236,72,153,.10), rgba(168,85,247,.06));
+    --jh2-radius:    14px;
+    --jh2-radius-sm: 10px;
+    --jh2-shadow-md: 0 10px 28px -14px rgba(236,72,153,.45), 0 4px 12px -6px rgba(0,0,0,.5);
+    --jh2-shadow-lg: 0 22px 50px -20px rgba(236,72,153,.55), 0 10px 24px -12px rgba(0,0,0,.5);
+}
+
+/* ---------- Cards / secciones con glassmorphism ----------------------- */
+.unfold #content-main section,
+.unfold #content-main .border.rounded-xl,
+.unfold #content-main .border.rounded-lg,
+.unfold .dashboard .module,
+.unfold fieldset.module {
+    background: var(--jh2-surface) !important;
+    border-color: var(--jh2-line) !important;
+    border-radius: var(--jh2-radius) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+}
+.unfold #content-main section:hover,
+.unfold #content-main .border.rounded-xl:hover,
+.unfold #content-main .border.rounded-lg:hover {
+    border-color: var(--jh2-line-hover) !important;
+    box-shadow: var(--jh2-shadow-md);
+}
+
+/* ---------- Botones ---------------------------------------------------- */
+.unfold button,
+.unfold .button,
+.unfold input[type="submit"],
+.unfold input[type="button"],
+.unfold a.bg-primary-500,
+.unfold a.bg-primary-600 {
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.005em;
+    transition: transform .15s cubic-bezier(.22,.61,.36,1),
+                box-shadow .18s ease,
+                filter .18s ease,
+                background-color .18s ease !important;
+    will-change: transform;
+}
+.unfold button:not(:disabled):hover,
+.unfold .button:not(:disabled):hover,
+.unfold input[type="submit"]:not(:disabled):hover,
+.unfold input[type="button"]:not(:disabled):hover,
+.unfold a.bg-primary-500:hover,
+.unfold a.bg-primary-600:hover {
+    transform: translateY(-1px);
+}
+.unfold button:active,
+.unfold .button:active,
+.unfold input[type="submit"]:active,
+.unfold input[type="button"]:active {
+    transform: translateY(0) scale(.98);
+}
+
+/* Botón primario: gradient rosa-violeta + shine al hover */
+.unfold button.bg-primary-500,
+.unfold button.bg-primary-600,
+.unfold a.bg-primary-500,
+.unfold a.bg-primary-600,
+.unfold .button.default,
+.unfold input[type="submit"].default {
+    background-image: var(--jh2-grad) !important;
+    background-color: transparent !important;
+    border: none !important;
+    color: #fff !important;
+    box-shadow: var(--jh2-shadow-md);
+    position: relative;
+    overflow: hidden;
+}
+.unfold button.bg-primary-500::before,
+.unfold button.bg-primary-600::before,
+.unfold a.bg-primary-500::before,
+.unfold a.bg-primary-600::before,
+.unfold input[type="submit"].default::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.18) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform .55s cubic-bezier(.22,.61,.36,1);
+    pointer-events: none;
+}
+.unfold button.bg-primary-500:hover::before,
+.unfold button.bg-primary-600:hover::before,
+.unfold a.bg-primary-500:hover::before,
+.unfold a.bg-primary-600:hover::before,
+.unfold input[type="submit"].default:hover::before {
+    transform: translateX(120%);
+}
+.unfold button.bg-primary-500:hover,
+.unfold button.bg-primary-600:hover,
+.unfold a.bg-primary-500:hover,
+.unfold a.bg-primary-600:hover,
+.unfold input[type="submit"].default:hover {
+    box-shadow: var(--jh2-shadow-lg);
+}
+
+/* Botón secundario (outline) */
+.unfold button.bg-base-700,
+.unfold a.bg-base-700,
+.unfold button.border,
+.unfold a.border,
+.unfold input[type="submit"]:not(.default) {
+    background: rgba(255,255,255,.04) !important;
+    border: 1px solid var(--jh2-line) !important;
+}
+.unfold button.bg-base-700:hover,
+.unfold a.bg-base-700:hover,
+.unfold button.border:hover,
+.unfold a.border:hover {
+    border-color: var(--jh2-line-hover) !important;
+    background: rgba(236,72,153,.06) !important;
+}
+
+/* Botón de "eliminar" — tono rojo */
+.unfold .deletelink,
+.unfold a.deletelink,
+.unfold button.deletelink {
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+    color: #fff !important;
+    border: none !important;
+    box-shadow: 0 6px 18px -8px rgba(239,68,68,.55);
+}
+
+/* ---------- Inputs / Selects / Textareas ------------------------------ */
+.unfold input[type="text"],
+.unfold input[type="email"],
+.unfold input[type="search"],
+.unfold input[type="number"],
+.unfold input[type="url"],
+.unfold input[type="tel"],
+.unfold input[type="password"],
+.unfold input[type="date"],
+.unfold input[type="datetime-local"],
+.unfold textarea,
+.unfold select {
+    border-radius: var(--jh2-radius-sm) !important;
+    background: rgba(255,255,255,.03) !important;
+    border: 1px solid var(--jh2-line) !important;
+    transition: border-color .18s ease, background .18s ease, box-shadow .18s ease !important;
+}
+.unfold input[type="text"]:hover:not(:focus),
+.unfold input[type="email"]:hover:not(:focus),
+.unfold input[type="search"]:hover:not(:focus),
+.unfold input[type="number"]:hover:not(:focus),
+.unfold textarea:hover:not(:focus),
+.unfold select:hover:not(:focus) {
+    border-color: rgba(255,255,255,.16) !important;
+    background: rgba(255,255,255,.045) !important;
+}
+
+/* Placeholder un pelín más legible */
+.unfold input::placeholder,
+.unfold textarea::placeholder {
+    color: rgba(161,161,170,.75);
+}
+
+/* ---------- Tablas ---------------------------------------------------- */
+.unfold table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.unfold table thead th {
+    background: rgba(255,255,255,.035) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--jh2-muted) !important;
+    border-bottom: 1px solid var(--jh2-line) !important;
+    position: sticky; top: 0; z-index: 2;
+    backdrop-filter: blur(8px);
+}
+.unfold table tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.unfold table tbody tr:hover {
+    background: linear-gradient(90deg, rgba(236,72,153,.06), rgba(168,85,247,.03) 60%, transparent) !important;
+}
+.unfold table tbody tr:hover td {
+    color: #fff !important;
+}
+.unfold table tbody tr.selected {
+    background: rgba(236,72,153,.08) !important;
+    box-shadow: inset 3px 0 0 var(--jh2-pink);
+}
+
+/* Links en celdas — animación del subrayado */
+.unfold table a {
+    position: relative;
+    transition: color .18s ease;
+}
+.unfold table a::after {
+    content: "";
+    position: absolute; left: 0; right: 0; bottom: -2px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--jh2-pink), var(--jh2-violet));
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform .22s cubic-bezier(.22,.61,.36,1);
+}
+.unfold table a:hover::after { transform: scaleX(1); }
+.unfold table a:hover { text-decoration: none !important; }
+
+/* ---------- Sidebar --------------------------------------------------- */
+.unfold aside { border-right: 1px solid var(--jh2-line) !important; }
+.unfold aside h3,
+.unfold aside .text-font-subtle-light {
+    font-size: 10px !important;
+    letter-spacing: .14em;
+    font-weight: 700;
+    color: var(--jh2-muted) !important;
+    text-transform: uppercase;
+}
+.unfold aside a {
+    position: relative;
+    border-radius: var(--jh2-radius-sm) !important;
+    transition: color .18s ease, background-color .18s ease, transform .12s ease !important;
+}
+.unfold aside a:hover {
+    background-color: rgba(236,72,153,.08) !important;
+    color: #fff !important;
+    transform: translateX(2px);
+}
+.unfold aside a.bg-primary-50,
+.unfold aside a.bg-primary-100,
+.unfold aside a[aria-current="page"],
+.unfold aside a.active {
+    background: var(--jh2-grad-soft) !important;
+    color: #fff !important;
+    box-shadow: inset 2px 0 0 var(--jh2-pink);
+}
+
+/* ---------- Top header (barra superior) ------------------------------ */
+.unfold header,
+.unfold header.sticky,
+.unfold body > header {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(11,10,16,.72) !important;
+    border-bottom: 1px solid var(--jh2-line) !important;
+}
+
+/* ---------- Dashboard KPIs ------------------------------------------- */
+.unfold #content-main .kpi-card,
+.unfold #content-main .grid > div.border,
+.unfold #content-main .grid > div.rounded-xl,
+.unfold #content-main .grid > a.border {
+    position: relative;
+    overflow: hidden;
+}
+.unfold #content-main .kpi-card::before,
+.unfold #content-main .grid > div.rounded-xl::before,
+.unfold #content-main .grid > a.border::before {
+    content: "";
+    position: absolute;
+    top: -40%; right: -20%;
+    width: 180px; height: 180px;
+    background: radial-gradient(closest-side, rgba(236,72,153,.18), transparent 70%);
+    filter: blur(24px);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .3s ease;
+}
+.unfold #content-main .kpi-card:hover::before,
+.unfold #content-main .grid > div.rounded-xl:hover::before,
+.unfold #content-main .grid > a.border:hover::before {
+    opacity: 1;
+}
+
+/* Números grandes en cards del dashboard */
+.unfold #content-main .text-3xl,
+.unfold #content-main .text-4xl,
+.unfold #content-main .text-5xl {
+    font-weight: 800 !important;
+    letter-spacing: -0.03em;
+    background: linear-gradient(180deg, #fff 0%, #e4e4e7 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* ---------- Badges / chips / pills ------------------------------------ */
+.unfold .badge,
+.unfold .tag,
+.unfold span.rounded-full.px-2,
+.unfold span.rounded-full.px-3 {
+    font-weight: 600 !important;
+    letter-spacing: .02em;
+    border: 1px solid rgba(255,255,255,.05);
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+.unfold .badge:hover,
+.unfold span.rounded-full.px-2:hover,
+.unfold span.rounded-full.px-3:hover {
+    transform: translateY(-1px);
+}
+
+/* ---------- Filtros (changelist sidebar derecho) ---------------------- */
+.unfold #changelist-filter {
+    background: var(--jh2-surface) !important;
+    border: 1px solid var(--jh2-line) !important;
+    border-radius: var(--jh2-radius) !important;
+}
+.unfold #changelist-filter h3 {
+    font-size: 10px; letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--jh2-muted);
+}
+.unfold #changelist-filter a {
+    border-radius: 8px !important;
+    transition: background-color .18s ease, color .18s ease;
+}
+.unfold #changelist-filter a:hover {
+    background-color: rgba(236,72,153,.08) !important;
+    color: #fff !important;
+}
+.unfold #changelist-filter li.selected a {
+    background: var(--jh2-grad-soft) !important;
+    color: #fff !important;
+    font-weight: 600;
+}
+
+/* ---------- Mensajes flash -------------------------------------------- */
+.unfold ul.messagelist li {
+    border-radius: var(--jh2-radius-sm) !important;
+    border: 1px solid var(--jh2-line) !important;
+    backdrop-filter: blur(8px);
+    animation: jhFadeInUp .3s ease both;
+}
+.unfold ul.messagelist li.success { border-color: rgba(16,185,129,.35) !important; }
+.unfold ul.messagelist li.error   { border-color: rgba(239,68,68,.4) !important; }
+.unfold ul.messagelist li.warning { border-color: rgba(245,158,11,.4) !important; }
+
+/* ---------- Pestañas de change_form --------------------------------- */
+.unfold .tabs a,
+.unfold nav[role="tablist"] a {
+    border-radius: 8px 8px 0 0 !important;
+    transition: color .18s ease, border-color .18s ease;
+}
+.unfold .tabs a:hover,
+.unfold nav[role="tablist"] a:hover {
+    color: var(--jh2-pink-400) !important;
+}
+.unfold .tabs a[aria-selected="true"],
+.unfold nav[role="tablist"] a[aria-selected="true"] {
+    border-bottom: 2px solid var(--jh2-pink) !important;
+    color: #fff !important;
+}
+
+/* ---------- Breadcrumbs ----------------------------------------------- */
+.unfold .breadcrumbs {
+    font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--jh2-muted);
+}
+.unfold .breadcrumbs a {
+    color: var(--jh2-muted);
+    transition: color .15s ease;
+}
+.unfold .breadcrumbs a:hover { color: var(--jh2-pink-400); }
+
+/* ---------- Submit row sticky (change_form) ------------------------- */
+.unfold .submit-row {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(11,10,16,.78) !important;
+    border-top: 1px solid var(--jh2-line) !important;
+    box-shadow: 0 -8px 28px -18px rgba(0,0,0,.7);
+    border-radius: var(--jh2-radius) var(--jh2-radius) 0 0;
+}
+
+/* ---------- Loader global (prefix en nav) ---------------------------- */
+@keyframes jh2Spin {
+    to { transform: rotate(360deg); }
+}
+.jh2-spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.2);
+    border-top-color: var(--jh2-pink);
+    animation: jh2Spin .7s linear infinite;
+    display: inline-block; vertical-align: -2px;
+}
+
+/* ---------- Scroll reveal hook (si usamos data-reveal en templates) -- */
+.unfold [data-reveal] {
+    opacity: 0; transform: translateY(10px);
+    transition: opacity .5s ease, transform .5s cubic-bezier(.22,.61,.36,1);
+}
+.unfold [data-reveal].is-visible {
+    opacity: 1; transform: none;
+}
+
+/* ---------- Ajuste móvil v2 ------------------------------------------ */
+@media (max-width: 768px) {
+    .unfold #content-main section,
+    .unfold #content-main .border.rounded-xl {
+        border-radius: 12px !important;
+    }
+    .unfold table thead th {
+        font-size: 10px !important;
+        padding: 6px 8px !important;
+    }
+    .unfold .submit-row {
+        padding: 12px !important;
+    }
+}
