@@ -13,6 +13,76 @@
 
 {% block extra_head %}
 {% if product_schema %}<script type="application/ld+json">{{ product_schema|safe }}</script>{% endif %}
+<style>
+  /* --- Premium detail view ------------------------------------- */
+  .pd-hero {
+    position: relative; overflow: hidden;
+  }
+  .pd-hero__zoom {
+    transition: transform 700ms cubic-bezier(.22,.61,.36,1);
+  }
+  .pd-hero:hover .pd-hero__zoom { transform: scale(1.04); }
+  .pd-hero__glow {
+    position: absolute; inset: -30% -20% auto auto;
+    width: 70%; height: 140%;
+    background: radial-gradient(closest-side, rgba(236,72,153,.35), transparent 70%);
+    filter: blur(30px);
+    pointer-events: none;
+  }
+  /* Tabs */
+  .pd-tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); }
+  .pd-tab {
+    padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 600; color: #a1a1aa;
+    border-bottom: 2px solid transparent; cursor: pointer;
+    transition: color 180ms ease, border-color 180ms ease;
+  }
+  .pd-tab:hover { color: #fff; }
+  .pd-tab.is-active { color: #fff; border-bottom-color: var(--pink); }
+  .pd-tabpanel { display: none; padding-top: 1.25rem; animation: pdFade .3s ease; }
+  .pd-tabpanel.is-active { display: block; }
+  @keyframes pdFade { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none;} }
+  /* Share bubble */
+  .share-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.45rem 0.85rem; border-radius: 9999px;
+    font-size: 0.8rem; color: #e4e4e7;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+    transition: all 180ms ease;
+  }
+  .share-btn:hover { background: rgba(236,72,153,.12); border-color: rgba(236,72,153,.35); color: #fff; }
+  /* Sticky mobile CTA */
+  .pd-mobile-cta {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    padding: 10px 14px max(12px, env(safe-area-inset-bottom)) 14px;
+    background: linear-gradient(180deg, rgba(8,7,13,.75), rgba(8,7,13,.98));
+    backdrop-filter: blur(16px);
+    border-top: 1px solid var(--line);
+    display: none;
+  }
+  @media (max-width: 1023px) { .pd-mobile-cta { display: flex; align-items: center; gap: .75rem; } }
+  .pd-mobile-cta .pd-mobile-price {
+    font-family: 'Geist', sans-serif; font-weight: 800; font-size: 1.15rem; letter-spacing: -.02em;
+  }
+  /* FAQ accordion */
+  details.faq-item {
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 0.85rem 1rem; background: rgba(255,255,255,.025);
+    transition: background 180ms ease, border-color 180ms ease;
+  }
+  details.faq-item[open] { background: rgba(236,72,153,.05); border-color: rgba(236,72,153,.25); }
+  details.faq-item summary {
+    cursor: pointer; font-weight: 600; color: #e4e4e7;
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    list-style: none; outline: none;
+  }
+  details.faq-item summary::-webkit-details-marker { display: none; }
+  details.faq-item summary::after {
+    content: '+'; font-size: 1.35rem; color: #a1a1aa; font-weight: 400;
+    transition: transform 220ms ease;
+  }
+  details.faq-item[open] summary::after { transform: rotate(45deg); color: #f472b6; }
+  details.faq-item > div { margin-top: .65rem; color: #a1a1aa; font-size: .9rem; line-height: 1.55; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -24,18 +94,19 @@
   <span class="text-zinc-300">{{ product.name }}</span>
 </nav>
 
-<section class="grid lg:grid-cols-[1.1fr_1fr] gap-6">
+<section class="grid lg:grid-cols-[1.1fr_1fr] gap-6" data-reveal>
   <!-- Left: product info ------------------------------------------------- -->
   <div class="surface rounded-2xl overflow-hidden">
     <!-- Hero banner del producto -->
-    <div class="relative aspect-[16/8] md:aspect-[16/7] overflow-hidden"
+    <div class="pd-hero relative aspect-[16/8] md:aspect-[16/7] overflow-hidden"
          {% if not product.image %}style="{% product_gradient product %}"{% endif %}>
+      <div class="pd-hero__glow"></div>
       {% if product.image %}
         <img src="{{ product.image.url }}" alt="{{ product.name }}"
-             class="absolute inset-0 w-full h-full object-cover"
+             class="pd-hero__zoom absolute inset-0 w-full h-full object-cover"
              loading="eager" decoding="async">
       {% else %}
-        <div class="absolute inset-0 flex items-center justify-center text-9xl drop-shadow-2xl opacity-90" aria-hidden="true">
+        <div class="pd-hero__zoom absolute inset-0 flex items-center justify-center text-9xl drop-shadow-2xl opacity-90" aria-hidden="true">
           {{ product.icon|default:product.category.emoji }}
         </div>
       {% endif %}
@@ -43,6 +114,11 @@
       <span class="absolute top-4 left-4 text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-black/50 text-zinc-100 backdrop-blur-sm font-semibold">
         {{ product.category.emoji }} {{ product.category.name }}
       </span>
+      <div class="absolute top-4 right-4 flex flex-col gap-1.5 items-end">
+        {% if product.is_featured %}<span class="badge-modern badge-modern--top"><span>⭐</span> Top ventas</span>{% endif %}
+        {% if product.is_new %}<span class="badge-modern badge-modern--nuevo"><span>✨</span> Nuevo</span>{% endif %}
+        {% if product.delivery_is_instant %}<span class="badge-modern badge-modern--flash"><span>⚡</span> Entrega inmediata</span>{% endif %}
+      </div>
     </div>
 
     <div class="p-6 md:p-8">
@@ -92,23 +168,83 @@
         <p class="mt-6 text-zinc-200 leading-relaxed">{{ product.short_description }}</p>
       {% endif %}
 
-    {% if product.description %}
-      <div class="mt-6 prose prose-invert prose-zinc max-w-none text-zinc-300 leading-relaxed whitespace-pre-line">{{ product.description }}</div>
-    {% endif %}
+    <!-- Share row -->
+    <div class="mt-5 flex flex-wrap items-center gap-2">
+      <span class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold mr-1">Compartir</span>
+      <a class="share-btn"
+         href="https://wa.me/?text={{ product.name|urlencode }}%20{{ request.build_absolute_uri|urlencode }}"
+         target="_blank" rel="noopener" aria-label="Compartir por WhatsApp">
+        <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        WhatsApp
+      </a>
+      <button type="button" class="share-btn" onclick="navigator.clipboard.writeText(location.href).then(()=>{this.innerText='✓ Copiado';setTimeout(()=>location.reload(),1100);}).catch(()=>{});">
+        <svg class="icon" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Copiar link
+      </button>
+    </div>
 
-    <!-- Why buy from us inline -->
-    <div class="mt-8 pt-6 border-t hairline grid sm:grid-cols-3 gap-4 text-sm">
-      <div class="flex items-start gap-2.5">
-        <svg class="icon mt-0.5 text-jheliz-400" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-        <div><div class="font-semibold text-zinc-100">Entrega rápida</div><div class="text-xs text-zinc-500">Apenas confirmamos tu pago</div></div>
+    <!-- Tabs: Descripción / Garantía / Preguntas --------------------- -->
+    <div class="mt-8 pt-6 border-t hairline" data-pd-tabs>
+      <div class="pd-tabs" role="tablist">
+        <button type="button" class="pd-tab is-active" data-pd-tab="desc" role="tab" aria-selected="true">Descripción</button>
+        <button type="button" class="pd-tab" data-pd-tab="garantia" role="tab" aria-selected="false">Garantía y soporte</button>
+        <button type="button" class="pd-tab" data-pd-tab="faq" role="tab" aria-selected="false">Preguntas frecuentes</button>
       </div>
-      <div class="flex items-start gap-2.5">
-        <svg class="icon mt-0.5 text-jheliz-400" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <div><div class="font-semibold text-zinc-100">Garantía real</div><div class="text-xs text-zinc-500">Reposición sin preguntas</div></div>
+
+      <div class="pd-tabpanel is-active" data-pd-panel="desc">
+        {% if product.description %}
+          <div class="prose prose-invert prose-zinc max-w-none text-zinc-300 leading-relaxed whitespace-pre-line">{{ product.description }}</div>
+        {% else %}
+          <p class="text-zinc-400 leading-relaxed">{{ product.short_description|default:"Cuenta premium lista para usar en tu dispositivo favorito. Entrega rápida con garantía real." }}</p>
+        {% endif %}
+        <div class="mt-6 grid sm:grid-cols-3 gap-4 text-sm">
+          <div class="flex items-start gap-2.5">
+            <svg class="icon mt-0.5 text-jheliz-400" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <div><div class="font-semibold text-zinc-100">Entrega rápida</div><div class="text-xs text-zinc-500">Apenas confirmamos tu pago</div></div>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <svg class="icon mt-0.5 text-jheliz-400" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <div><div class="font-semibold text-zinc-100">Garantía real</div><div class="text-xs text-zinc-500">Reposición sin preguntas</div></div>
+          </div>
+          <div class="flex items-start gap-2.5">
+            <svg class="icon mt-0.5 text-jheliz-400" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <div><div class="font-semibold text-zinc-100">Soporte humano</div><div class="text-xs text-zinc-500">WhatsApp y tickets</div></div>
+          </div>
+        </div>
       </div>
-      <div class="flex items-start gap-2.5">
-        <svg class="icon mt-0.5 text-jheliz-400" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <div><div class="font-semibold text-zinc-100">Soporte humano</div><div class="text-xs text-zinc-500">WhatsApp y tickets</div></div>
+
+      <div class="pd-tabpanel" data-pd-panel="garantia">
+        <div class="space-y-4 text-sm text-zinc-300 leading-relaxed">
+          <p><strong class="text-white">Garantía durante toda la suscripción.</strong> Si la cuenta deja de funcionar por motivos ajenos a un mal uso, te reponemos el acceso sin preguntas.</p>
+          <p><strong class="text-white">Soporte 24/7.</strong> Puedes abrir un ticket desde tu panel o escribirnos al WhatsApp <a class="text-jheliz-400 hover:text-jheliz-300" href="https://wa.me/{{ WHATSAPP_NUMBER }}">{{ WHATSAPP_NUMBER }}</a>. Respondemos rápido.</p>
+          <p><strong class="text-white">Qué no cubre.</strong> Cambiar la contraseña, compartir la cuenta con terceros fuera del perfil asignado, o usar la cuenta en países con restricción invalida la garantía.</p>
+          <p><strong class="text-white">Devoluciones.</strong> Si la entrega demora más de lo estipulado, puedes solicitar reembolso completo dentro de las primeras 24 horas.</p>
+        </div>
+      </div>
+
+      <div class="pd-tabpanel" data-pd-panel="faq">
+        <div class="space-y-3">
+          <details class="faq-item">
+            <summary>¿Cómo me entregan la cuenta?</summary>
+            <div>Apenas confirmamos tu pago te llega un correo con las credenciales y también aparecen en tu panel de cliente dentro de <a href="{% url 'accounts:dashboard' %}" class="text-jheliz-400 hover:text-jheliz-300">Mi cuenta</a>. Si elegiste entrega inmediata, suele tardar menos de 2 minutos.</div>
+          </details>
+          <details class="faq-item">
+            <summary>¿Qué pasa si me piden un código de verificación?</summary>
+            <div>Si la plataforma te envía un código de login / activación de TV / "estoy de viaje", puedes pedirlo en <a href="{% url 'code_create' %}" class="text-jheliz-400 hover:text-jheliz-300">«Pedir código»</a> con el email de tu cuenta y nosotros te lo entregamos al instante.</div>
+          </details>
+          <details class="faq-item">
+            <summary>¿Puedo pagar con Yape?</summary>
+            <div>Sí, aceptamos <strong>Yape, Plin, tarjeta y Mercado Pago</strong>. En el checkout eliges el método que prefieras.</div>
+          </details>
+          <details class="faq-item">
+            <summary>¿Puedo usar la cuenta en mi Smart TV?</summary>
+            <div>Sí, la cuenta funciona en Smart TV, móvil, PC y tablets. Si la plataforma te pide un código de activación para autorizar el dispositivo, escríbenos y te lo pasamos.</div>
+          </details>
+          <details class="faq-item">
+            <summary>¿Y si la cuenta deja de funcionar?</summary>
+            <div>Te reponemos el acceso mientras la suscripción esté activa, sin preguntas. Escríbenos por WhatsApp o abre un ticket desde tu panel.</div>
+          </details>
+        </div>
       </div>
     </div>
     </div>{# /p-6 #}
@@ -210,6 +346,29 @@
   </div>
 </section>
 
+<!-- Mobile sticky CTA ---------------------------------------------------- -->
+{% with seo_plan=product|cheapest_plan_for:user %}
+  {% if seo_plan %}
+  <div class="pd-mobile-cta">
+    <div class="flex-1 min-w-0">
+      <div class="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">Desde</div>
+      <div class="pd-mobile-price text-white">
+        {% if user.is_distributor and seo_plan.price_distributor %}
+          {{ CURRENCY_SYMBOL }} {{ seo_plan.price_distributor|floatformat:2|intcomma }}
+        {% else %}
+          {{ CURRENCY_SYMBOL }} {{ seo_plan.price_customer|floatformat:2|intcomma }}
+        {% endif %}
+      </div>
+    </div>
+    <a href="#" class="btn btn-primary btn-lg whitespace-nowrap"
+       onclick="document.querySelector('form[hx-post]').scrollIntoView({behavior:'smooth',block:'start'});return false;">
+      Ver planes
+      <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+  {% endif %}
+{% endwith %}
+
 <!-- Reviews ------------------------------------------------------------- -->
 <section class="mt-10">
   <div class="flex items-end justify-between gap-4 flex-wrap mb-5">
@@ -271,6 +430,40 @@
   {% endif %}
 </section>
 {% endblock %}
+
+{% if related_products %}
+<section class="mt-16" data-reveal>
+  <div class="flex items-end justify-between mb-6">
+    <div>
+      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">También te puede interesar</p>
+      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1 tracking-tight">Productos similares</h2>
+    </div>
+    <a href="{{ product.category.get_absolute_url }}" class="text-sm text-zinc-400 hover:text-white transition">Ver más de {{ product.category.name }} →</a>
+  </div>
+  <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3" data-reveal-stagger>
+    {% for p in related_products %}
+      {% include "catalog/_product_card.html" with product=p %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- Tabs + sticky behavior JS ------------------------------------------ -->
+<script>
+(function(){
+  var root = document.querySelector('[data-pd-tabs]');
+  if (!root) return;
+  var tabs = root.querySelectorAll('[data-pd-tab]');
+  var panels = root.querySelectorAll('[data-pd-panel]');
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(){
+      var key = tab.getAttribute('data-pd-tab');
+      tabs.forEach(function(t){ t.classList.toggle('is-active', t===tab); t.setAttribute('aria-selected', t===tab ? 'true':'false'); });
+      panels.forEach(function(p){ p.classList.toggle('is-active', p.getAttribute('data-pd-panel')===key); });
+    });
+  });
+})();
+</script>
 
 {% block tracking_events %}
 <script>
