@@ -55,6 +55,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Geist:wght@400;500;600;700;800;900&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/modern_2026.css' %}">
+  <script defer src="{% static 'js/modern_2026.js' %}"></script>
   <style>
     /* -- Design system v2 --------------------------------------------------
        Linear / Stripe minimal-tech vibe + jheliz pink as accent only.
@@ -227,8 +229,8 @@
   {% include "catalog/_promo_banner.html" %}
 
   <!-- Header (floating pill) --------------------------------------------- -->
-  <header class="sticky top-3 z-40 px-3 md:px-6">
-    <div class="max-w-6xl mx-auto rounded-2xl border hairline backdrop-blur-xl bg-[#08070d]/70 shadow-[0_10px_40px_-20px_rgba(236,72,153,.35)] flex items-center justify-between gap-4 px-4 md:px-5 h-14">
+  <header class="sticky top-3 z-40 px-3 md:px-6 j2026-header-shell">
+    <div class="j2026-header max-w-6xl mx-auto rounded-2xl border hairline backdrop-blur-xl bg-[#08070d]/70 shadow-[0_10px_40px_-20px_rgba(236,72,153,.35)] flex items-center justify-between gap-4 px-4 md:px-5 h-14">
       <a href="{% url 'catalog:home' %}" class="flex items-center gap-2.5 group" aria-label="{{ SITE_NAME }}">
         <img src="{% static 'img/logo-header.png' %}" alt="{{ SITE_NAME }}" class="h-8 w-8 object-contain" width="32" height="32" loading="eager">
         <span class="font-display font-bold text-[15px] tracking-tight text-white">{{ SITE_NAME }}</span>

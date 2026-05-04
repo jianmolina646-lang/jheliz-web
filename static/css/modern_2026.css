@@ -1,0 +1,378 @@
+/* ============================================================
+   Modern 2026 polish — Jheliz storefront
+   Additive layer on top of the existing dark "Linear/Stripe" theme.
+   No structural changes; touches hero, cards, sections, header,
+   stats and testimonials with subtle motion + bento layouts.
+   ============================================================ */
+
+/* ---- 1. Smooth scroll + nicer focus -------------------------- */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal, .reveal-up, .reveal-stagger > * { opacity: 1 !important; transform: none !important; }
+  .marquee-track { animation: none !important; }
+}
+
+::selection { background: rgba(236,72,153,.45); color: #fff; }
+
+/* ---- 2. Section reveal on scroll ----------------------------- */
+.reveal-up {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+  transition: opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1);
+  will-change: opacity, transform;
+}
+.reveal-up.is-visible { opacity: 1; transform: none; }
+
+.reveal-stagger > * {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  transition: opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1);
+  will-change: opacity, transform;
+}
+.reveal-stagger.is-visible > * { opacity: 1; transform: none; }
+.reveal-stagger.is-visible > *:nth-child(1) { transition-delay: .04s; }
+.reveal-stagger.is-visible > *:nth-child(2) { transition-delay: .12s; }
+.reveal-stagger.is-visible > *:nth-child(3) { transition-delay: .20s; }
+.reveal-stagger.is-visible > *:nth-child(4) { transition-delay: .28s; }
+.reveal-stagger.is-visible > *:nth-child(5) { transition-delay: .36s; }
+.reveal-stagger.is-visible > *:nth-child(6) { transition-delay: .44s; }
+.reveal-stagger.is-visible > *:nth-child(7) { transition-delay: .52s; }
+.reveal-stagger.is-visible > *:nth-child(8) { transition-delay: .60s; }
+
+/* ---- 3. Sticky header — scroll-aware glass ------------------- */
+.j2026-header-shell { transition: padding .25s ease, transform .25s ease; }
+.j2026-header { transition: background .25s ease, box-shadow .25s ease, border-color .25s ease; }
+body.is-scrolled .j2026-header {
+  background: rgba(10, 8, 18, .82) !important;
+  border-color: rgba(255,255,255,.12) !important;
+  box-shadow:
+    0 12px 40px -18px rgba(236,72,153,.45),
+    0 1px 0 rgba(255,255,255,.04) inset;
+}
+
+/* ---- 4. Hero polish ----------------------------------------- */
+.j2026-hero {
+  position: relative;
+  isolation: isolate;
+}
+.j2026-hero__beam {
+  position: absolute; inset: -10% -20% auto -20%; height: 70%;
+  z-index: -2; pointer-events: none;
+  background:
+    radial-gradient(60% 70% at 50% 0%, rgba(236,72,153,.32), transparent 60%),
+    radial-gradient(50% 60% at 80% 20%, rgba(168,85,247,.22), transparent 65%),
+    radial-gradient(45% 55% at 15% 35%, rgba(99,102,241,.18), transparent 70%);
+  filter: blur(40px) saturate(1.2);
+  animation: heroBeam 24s ease-in-out infinite alternate;
+}
+@keyframes heroBeam {
+  0%   { transform: translate3d(-2%,  0%, 0) scale(1.00); opacity: .9; }
+  50%  { transform: translate3d( 2%, -2%, 0) scale(1.04); opacity: 1.0; }
+  100% { transform: translate3d(-2%,  1%, 0) scale(1.02); opacity: .95; }
+}
+/* subtle dotted grid layered behind the beam */
+.j2026-hero__grid {
+  position: absolute; inset: 0; z-index: -3;
+  background-image:
+    radial-gradient(rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(60% 60% at 50% 30%, black, transparent 75%);
+  -webkit-mask-image: radial-gradient(60% 60% at 50% 30%, black, transparent 75%);
+  pointer-events: none;
+}
+
+.j2026-hero__chip {
+  position: relative; isolation: isolate;
+}
+.j2026-hero__chip::before {
+  content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: 9999px;
+  padding: 1px;
+  background: linear-gradient(110deg, rgba(236,72,153,.55), rgba(168,85,247,.55), rgba(236,72,153,.55));
+  background-size: 220% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: ringSpin 6s linear infinite;
+  opacity: .9;
+}
+@keyframes ringSpin {
+  to { background-position: -220% 0; }
+}
+
+/* Floating platform "pillars" around the hero (decorative) */
+.j2026-hero__floaters {
+  position: absolute; inset: 0; pointer-events: none; z-index: -1;
+  display: none;
+}
+@media (min-width: 1024px) {
+  .j2026-hero__floaters { display: block; }
+}
+.j2026-floater {
+  position: absolute;
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .55rem .85rem; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 12px 40px -16px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 12px; color: #e4e4e7; font-weight: 600;
+  white-space: nowrap;
+  animation: floatY 7s ease-in-out infinite;
+}
+.j2026-floater .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 3px rgba(52,211,153,.18);
+}
+.j2026-floater--n { top: 8%; left: 4%;  animation-delay: 0s;   }
+.j2026-floater--h { top: 22%; right: 4%; animation-delay: 1.2s; }
+.j2026-floater--p { top: 60%; left: 2%;  animation-delay: 2.1s; }
+.j2026-floater--c { top: 70%; right: 6%; animation-delay: 0.8s; }
+@keyframes floatY {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -10px, 0); }
+}
+
+/* Scroll-down indicator */
+.j2026-scroll-cue {
+  display: inline-flex; align-items: center; gap: .5rem;
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(255,255,255,.55);
+  padding-top: 22px; position: relative;
+}
+.j2026-scroll-cue::before {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 1.5px; height: 18px;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,.6));
+  animation: dropLine 2s ease-in-out infinite;
+}
+@keyframes dropLine {
+  0%   { transform: translate(-50%, -10px); opacity: 0; }
+  40%  { opacity: 1; }
+  100% { transform: translate(-50%, 8px); opacity: 0; }
+}
+
+/* ---- 5. Brand-strip marquee --------------------------------- */
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+          mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+  overflow: hidden;
+}
+.marquee-track {
+  display: flex; gap: 3rem; white-space: nowrap;
+  animation: marquee 38s linear infinite;
+  width: max-content;
+}
+.marquee-track:hover { animation-play-state: paused; }
+@keyframes marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+/* ---- 6. "Cómo funciona" steps ------------------------------- */
+.j2026-step {
+  position: relative;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.012));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  padding: 22px;
+  overflow: hidden;
+  transition: border-color .25s ease, transform .25s ease;
+}
+.j2026-step:hover {
+  border-color: rgba(236,72,153,.4);
+  transform: translateY(-3px);
+}
+.j2026-step::after {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(140deg, rgba(236,72,153,.0), rgba(236,72,153,.18), rgba(168,85,247,.0));
+  opacity: 0; transition: opacity .35s ease;
+}
+.j2026-step:hover::after { opacity: 1; }
+.j2026-step__num {
+  width: 48px; height: 48px; border-radius: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(236,72,153,.95), rgba(168,85,247,.95) 60%, rgba(99,102,241,.95));
+  color: #fff; font-weight: 800; font-size: 18px;
+  box-shadow:
+    0 14px 38px -12px rgba(236,72,153,.65),
+    inset 0 1px 0 rgba(255,255,255,.35),
+    inset 0 -10px 18px -10px rgba(0,0,0,.35);
+  letter-spacing: -.02em;
+}
+
+/* ---- 7. Bento "Por qué Jheliz" ------------------------------ */
+.j2026-bento {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 768px) {
+  .j2026-bento {
+    grid-template-columns: 1.4fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+  .j2026-bento .b-wide  { grid-column: 1 / 2; grid-row: 1 / 3; }
+  .j2026-bento .b-top   { grid-column: 2 / 4; grid-row: 1 / 2; }
+  .j2026-bento .b-bl    { grid-column: 2 / 3; grid-row: 2 / 3; }
+  .j2026-bento .b-br    { grid-column: 3 / 4; grid-row: 2 / 3; }
+}
+.j2026-bento__card {
+  position: relative; isolation: isolate;
+  border-radius: 22px;
+  padding: 22px;
+  border: 1px solid rgba(255,255,255,.08);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.008));
+  overflow: hidden;
+  transition: border-color .3s ease, transform .3s ease;
+}
+.j2026-bento__card:hover { border-color: rgba(236,72,153,.4); transform: translateY(-2px); }
+.j2026-bento__card.b-wide {
+  background:
+    radial-gradient(80% 70% at 100% 0%, rgba(236,72,153,.18), transparent 60%),
+    radial-gradient(70% 70% at 0% 100%, rgba(168,85,247,.14), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.012));
+  padding: 28px;
+}
+.j2026-bento__card.b-wide h3 {
+  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+  line-height: 1.05;
+  letter-spacing: -.035em;
+}
+.j2026-icon-bubble {
+  width: 44px; height: 44px; border-radius: 14px;
+  background: rgba(236,72,153,.13);
+  border: 1px solid rgba(236,72,153,.32);
+  color: #f9a8d4;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+}
+.j2026-icon-bubble--lg {
+  width: 60px; height: 60px; border-radius: 18px;
+  background:
+    radial-gradient(140% 140% at 0% 0%, rgba(236,72,153,.26), rgba(168,85,247,.18) 70%);
+  border: 1px solid rgba(236,72,153,.35);
+  color: #fbcfe8;
+}
+
+/* ---- 8. Stats — gradient borders + counter ------------------ */
+.j2026-stat {
+  position: relative; padding: 24px 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.008));
+  border: 1px solid rgba(255,255,255,.08);
+  text-align: center;
+  overflow: hidden;
+}
+.j2026-stat::before {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+  background: linear-gradient(135deg, rgba(236,72,153,.55), rgba(168,85,247,.0) 60%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  opacity: .5; pointer-events: none;
+}
+.j2026-stat .num {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-weight: 800; line-height: 1;
+  letter-spacing: -.045em;
+  font-size: clamp(2.2rem, 3.5vw, 3.4rem);
+  background: linear-gradient(180deg, #ffffff, #d4d4d8 70%, #a1a1aa);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.j2026-stat .lbl {
+  margin-top: 10px; font-size: 11px; letter-spacing: .15em;
+  text-transform: uppercase; color: #a1a1aa; font-weight: 600;
+}
+
+/* ---- 9. Product card — 3D tilt + glow ----------------------- */
+.product-card {
+  --tx: 0deg; --ty: 0deg; --gx: 50%; --gy: 50%;
+  transform-style: preserve-3d;
+  transition: transform .25s cubic-bezier(.22,.61,.36,1), border-color .2s ease, box-shadow .25s ease;
+  will-change: transform;
+}
+@media (hover: hover) and (pointer: fine) {
+  .product-card.j2026-tilt {
+    transform: perspective(900px) rotateX(var(--ty)) rotateY(var(--tx));
+  }
+  .product-card.j2026-tilt:hover {
+    border-color: rgba(236,72,153,.45) !important;
+    box-shadow:
+      0 28px 60px -28px rgba(236,72,153,.45),
+      0 0 0 1px rgba(236,72,153,.12) inset;
+  }
+  .product-card.j2026-tilt::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(280px 220px at var(--gx) var(--gy), rgba(255,255,255,.10), transparent 60%);
+    opacity: 0; transition: opacity .25s ease;
+    pointer-events: none; mix-blend-mode: screen; z-index: 2;
+    border-radius: inherit;
+  }
+  .product-card.j2026-tilt:hover::before { opacity: 1; }
+}
+
+/* ---- 10. Testimonials — subtle quote glyph ------------------ */
+.j2026-quote {
+  position: relative;
+  border-radius: 18px;
+  padding: 22px;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.008));
+  border: 1px solid rgba(255,255,255,.08);
+  transition: border-color .25s ease, transform .25s ease;
+}
+.j2026-quote:hover {
+  border-color: rgba(236,72,153,.35);
+  transform: translateY(-2px);
+}
+.j2026-quote::before {
+  content: '“';
+  position: absolute; top: -28px; left: 14px;
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-size: 110px; line-height: 1; font-style: italic;
+  background: linear-gradient(180deg, rgba(236,72,153,.35), rgba(236,72,153,0));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  pointer-events: none;
+}
+
+/* ---- 11. CTA "Para distribuidores" -------------------------- */
+.j2026-cta {
+  position: relative; isolation: isolate;
+  border-radius: 24px; padding: 36px;
+  background:
+    radial-gradient(90% 110% at 0% 0%, rgba(236,72,153,.18), transparent 65%),
+    radial-gradient(90% 110% at 100% 100%, rgba(168,85,247,.18), transparent 65%),
+    linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.008));
+  border: 1px solid rgba(255,255,255,.10);
+  overflow: hidden;
+}
+.j2026-cta::after {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+  background: conic-gradient(from 90deg at 50% 50%,
+    rgba(236,72,153,.55), rgba(168,85,247,.45), rgba(99,102,241,.35), rgba(236,72,153,.55));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  opacity: .4; pointer-events: none;
+  animation: rotateConic 14s linear infinite;
+}
+@keyframes rotateConic {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- 12. Section heading helper ----------------------------- */
+.j2026-eyebrow {
+  display: inline-flex; align-items: center; gap: .55rem;
+  font-size: 11px; font-weight: 600; letter-spacing: .18em;
+  text-transform: uppercase; color: #f9a8d4;
+}
+.j2026-eyebrow::before {
+  content: ''; width: 18px; height: 1.5px; background: linear-gradient(90deg, #ec4899, transparent);
+}

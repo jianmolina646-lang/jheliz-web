@@ -93,9 +93,17 @@
 {% block content %}
 
 <!-- Hero ----------------------------------------------------------------- -->
-<section class="mesh-accent pt-10 md:pt-20 pb-16 md:pb-24 text-center">
-  <div class="max-w-4xl mx-auto">
-    <span class="hero-eyebrow badge-glow">
+<section class="j2026-hero mesh-accent pt-10 md:pt-20 pb-16 md:pb-24 text-center">
+  <div class="j2026-hero__grid"></div>
+  <div class="j2026-hero__beam"></div>
+  <div class="j2026-hero__floaters" aria-hidden="true">
+    <span class="j2026-floater j2026-floater--n"><span class="dot"></span>Netflix entregado · hace 2 min</span>
+    <span class="j2026-floater j2026-floater--h"><span class="dot"></span>HBO Max entregado · hace 5 min</span>
+    <span class="j2026-floater j2026-floater--p"><span class="dot"></span>Prime entregado · hace 9 min</span>
+    <span class="j2026-floater j2026-floater--c"><span class="dot"></span>Crunchyroll entregado · hace 12 min</span>
+  </div>
+  <div class="max-w-4xl mx-auto reveal-up">
+    <span class="hero-eyebrow j2026-hero__chip">
       <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
       Entrega inmediata · Soporte 24/7 en Perú
     </span>
@@ -131,6 +139,10 @@
         Hecho en Perú
       </div>
     </div>
+
+    <div class="mt-10 hidden md:flex justify-center">
+      <span class="j2026-scroll-cue">scroll</span>
+    </div>
   </div>
 
   {% if starter_strip %}
@@ -154,50 +166,44 @@
 {% include "catalog/_brand_strip.html" %}
 
 <!-- Cómo funciona — 3 pasos rápidos ----------------------------------- -->
-<section class="py-10 border-t hairline">
+<section class="py-12 border-t hairline reveal-up">
   <div class="flex items-end justify-between mb-8">
     <div>
-      <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Cómo funciona</p>
-      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1">3 pasos y tu cuenta lista</h2>
+      <p class="j2026-eyebrow">Cómo funciona</p>
+      <h2 class="font-display text-2xl md:text-4xl font-bold mt-2 tracking-tight">3 pasos y tu cuenta lista</h2>
     </div>
     <a href="{% url 'catalog:tutorials' %}" class="text-sm text-zinc-400 hover:text-white transition hidden sm:inline">Ver tutoriales →</a>
   </div>
-  <div class="grid md:grid-cols-3 gap-3">
-    <div class="surface rounded-xl p-5 flex items-start gap-4">
-      <span class="step-mini">1</span>
-      <div>
-        <h3 class="font-display font-semibold">Eliges tu plan</h3>
-        <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Netflix, Disney+, Office… al precio más bajo de Perú.</p>
-      </div>
+  <div class="grid md:grid-cols-3 gap-4 reveal-stagger">
+    <div class="j2026-step">
+      <span class="j2026-step__num">1</span>
+      <h3 class="font-display font-semibold mt-4 text-lg">Eliges tu plan</h3>
+      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Netflix, Disney+, Office… al precio más bajo de Perú.</p>
     </div>
-    <div class="surface rounded-xl p-5 flex items-start gap-4">
-      <span class="step-mini">2</span>
-      <div>
-        <h3 class="font-display font-semibold">Pagas con Yape o tarjeta</h3>
-        <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Mercado Pago seguro o Yape con QR. Sin vueltas.</p>
-      </div>
+    <div class="j2026-step">
+      <span class="j2026-step__num">2</span>
+      <h3 class="font-display font-semibold mt-4 text-lg">Pagas con Yape o tarjeta</h3>
+      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Mercado Pago seguro o Yape con QR. Sin vueltas.</p>
     </div>
-    <div class="surface rounded-xl p-5 flex items-start gap-4">
-      <span class="step-mini">3</span>
-      <div>
-        <h3 class="font-display font-semibold">Recibes en tu correo</h3>
-        <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Credenciales en minutos + dashboard con tus cuentas.</p>
-      </div>
+    <div class="j2026-step">
+      <span class="j2026-step__num">3</span>
+      <h3 class="font-display font-semibold mt-4 text-lg">Recibes en tu correo</h3>
+      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Credenciales en minutos + dashboard con tus cuentas.</p>
     </div>
   </div>
 </section>
 
 <!-- Categories ----------------------------------------------------------- -->
 {% if top_categories %}
-<section class="py-12 border-t hairline">
+<section class="py-12 border-t hairline reveal-up">
   <div class="flex items-end justify-between mb-8">
     <div>
-      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-zinc-500">Catálogo</p>
+      <p class="j2026-eyebrow">Catálogo</p>
       <h2 class="font-display text-3xl md:text-5xl font-extrabold mt-2 tracking-tight">Explora por categoría</h2>
     </div>
     <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition hidden sm:inline">Ver todo →</a>
   </div>
-  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 reveal-stagger">
     {% for c in top_categories %}
       <a href="{{ c.get_absolute_url }}" class="surface surface-lift rounded-2xl p-5 text-center transition group relative overflow-hidden">
         <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br from-jheliz-500/10 via-fuchsia-500/5 to-transparent pointer-events-none"></div>
@@ -210,17 +216,17 @@
 {% endif %}
 
 <!-- Featured products ---------------------------------------------------- -->
-<section class="py-12 border-t hairline">
+<section class="py-12 border-t hairline reveal-up">
   <div class="flex items-end justify-between mb-8">
     <div>
-      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Destacados</p>
+      <p class="j2026-eyebrow">Destacados</p>
       <h2 class="font-display text-3xl md:text-5xl font-extrabold mt-2 tracking-tight">Los más vendidos del mes</h2>
     </div>
     <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition">Ver todos →</a>
   </div>
   {% if featured_products %}
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-      {% for p in featured_products %}{% include "catalog/_product_card.html" with product=p %}{% endfor %}
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 reveal-stagger">
+      {% for p in featured_products %}{% include "catalog/_product_card.html" with product=p tilt=True %}{% endfor %}
     </div>
   {% else %}
     <div class="surface rounded-xl p-8 text-center text-zinc-400">
@@ -231,63 +237,88 @@
 </section>
 
 <!-- Value props ---------------------------------------------------------- -->
-<section class="py-16 border-t hairline">
-  <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-zinc-500">Por qué Jheliz</p>
+<section class="py-16 border-t hairline reveal-up">
+  <p class="j2026-eyebrow">Por qué Jheliz</p>
   <h2 class="font-display text-3xl md:text-5xl font-extrabold mt-2 mb-10 tracking-tight max-w-3xl">La forma más rápida de comprar streaming <span class="hero-italic text-zinc-400">en Perú</span>.</h2>
-  <div class="grid md:grid-cols-3 gap-3">
-    <div class="surface rounded-xl p-6">
-      <div class="w-10 h-10 rounded-lg bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-jheliz-300">
-        <svg class="icon-lg icon" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+  <div class="j2026-bento reveal-stagger">
+    <!-- Tile grande: entrega inmediata -->
+    <div class="j2026-bento__card b-wide">
+      <div class="j2026-icon-bubble j2026-icon-bubble--lg">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
       </div>
-      <h3 class="font-display font-semibold mt-4">Entrega inmediata</h3>
-      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Apenas confirmamos el pago, la cuenta aparece en tu panel y te llega por correo.</p>
+      <h3 class="font-display font-bold mt-5 text-zinc-100">Entrega inmediata, sin esperar.</h3>
+      <p class="text-sm md:text-base text-zinc-400 mt-3 leading-relaxed max-w-md">
+        Apenas confirmamos el pago la cuenta aparece en tu panel y te llega por correo. Promedio: <span class="text-zinc-200 font-semibold">2 minutos</span>.
+      </p>
+      <div class="mt-6 flex flex-wrap gap-2">
+        <span class="chip chip-pink">Yape · MercadoPago</span>
+        <span class="chip">Auto-entrega 24/7</span>
+        <span class="chip">+5 000 entregas</span>
+      </div>
     </div>
-    <div class="surface rounded-xl p-6">
-      <div class="w-10 h-10 rounded-lg bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-jheliz-300">
-        <svg class="icon-lg icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+
+    <!-- Tile horizontal arriba: garantía -->
+    <div class="j2026-bento__card b-top">
+      <div class="flex items-start gap-4">
+        <div class="j2026-icon-bubble shrink-0">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div>
+          <h3 class="font-display font-semibold text-zinc-100">Garantía real durante todo el período</h3>
+          <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Si la cuenta falla, te la reponemos sin preguntas raras. Punto.</p>
+        </div>
       </div>
-      <h3 class="font-display font-semibold mt-4">Garantía real</h3>
-      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Si algo falla durante el periodo, te reponemos la cuenta sin preguntas.</p>
     </div>
-    <div class="surface rounded-xl p-6">
-      <div class="w-10 h-10 rounded-lg bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-jheliz-300">
-        <svg class="icon-lg icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+
+    <!-- Tile abajo izquierda: soporte humano -->
+    <div class="j2026-bento__card b-bl">
+      <div class="j2026-icon-bubble">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </div>
-      <h3 class="font-display font-semibold mt-4">Soporte humano</h3>
-      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Abre un ticket desde tu cuenta o escríbenos al WhatsApp {{ WHATSAPP_NUMBER }}.</p>
+      <h3 class="font-display font-semibold mt-4 text-zinc-100">Soporte humano</h3>
+      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Abre un ticket o escríbenos al WhatsApp <span class="text-zinc-200 font-semibold">{{ WHATSAPP_NUMBER }}</span>.</p>
+    </div>
+
+    <!-- Tile abajo derecha: hecho en Perú -->
+    <div class="j2026-bento__card b-br">
+      <div class="j2026-icon-bubble">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M12 22s-8-4.5-8-12a8 8 0 0 1 16 0c0 7.5-8 12-8 12z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <h3 class="font-display font-semibold mt-4 text-zinc-100">Hecho en Perú</h3>
+      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Atención local, precios en S/, entregas en minutos en todo el país.</p>
     </div>
   </div>
 </section>
 
 <!-- Stats strip ---------------------------------------------------------- -->
-<section class="py-14 border-t hairline">
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-    <div class="surface rounded-xl p-5 text-center">
-      <div class="stat-num">+5K</div>
-      <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">Entregas</div>
+<section class="py-14 border-t hairline reveal-up">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 reveal-stagger">
+    <div class="j2026-stat">
+      <div class="num" data-counter>+5000</div>
+      <div class="lbl">Entregas</div>
     </div>
-    <div class="surface rounded-xl p-5 text-center">
-      <div class="stat-num">4.9<span class="text-amber-400">★</span></div>
-      <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">500+ reseñas</div>
+    <div class="j2026-stat">
+      <div class="num"><span data-counter>4.9</span><span class="text-amber-400">★</span></div>
+      <div class="lbl">500+ reseñas</div>
     </div>
-    <div class="surface rounded-xl p-5 text-center">
-      <div class="stat-num">2 min</div>
-      <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">Tiempo entrega</div>
+    <div class="j2026-stat">
+      <div class="num"><span data-counter>2</span><span class="text-zinc-400 text-2xl ml-1">min</span></div>
+      <div class="lbl">Tiempo entrega</div>
     </div>
-    <div class="surface rounded-xl p-5 text-center">
-      <div class="stat-num">30 días</div>
-      <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">Garantía total</div>
+    <div class="j2026-stat">
+      <div class="num"><span data-counter>30</span><span class="text-zinc-400 text-2xl ml-1">días</span></div>
+      <div class="lbl">Garantía total</div>
     </div>
   </div>
 </section>
 
 <!-- Testimonios ---------------------------------------------------------- -->
 {% if testimonios %}
-<section class="py-14 border-t hairline">
-  <div class="flex items-end justify-between mb-8">
+<section class="py-14 border-t hairline reveal-up">
+  <div class="flex items-end justify-between mb-10">
     <div>
-      <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Reseñas</p>
-      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1">Lo que dicen nuestros clientes</h2>
+      <p class="j2026-eyebrow">Reseñas</p>
+      <h2 class="font-display text-2xl md:text-4xl font-bold mt-2 tracking-tight">Lo que dicen nuestros clientes</h2>
     </div>
     <div class="hidden sm:flex items-center gap-1 text-sm text-zinc-400">
       <svg class="icon" viewBox="0 0 24 24" style="color:#fbbf24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -295,9 +326,9 @@
       <span class="text-zinc-500">/ 5 · 500+ reseñas</span>
     </div>
   </div>
-  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 reveal-stagger">
     {% for t in testimonios %}
-      <figure class="surface rounded-xl p-5 flex flex-col">
+      <figure class="j2026-quote flex flex-col">
         <div class="flex items-center gap-0.5 text-amber-400">
           {% for _ in "xxxxx" %}
             <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:14px;height:14px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -318,9 +349,9 @@
 {% endif %}
 
 <!-- CTA strip ------------------------------------------------------------ -->
-<section class="mt-8 mesh-accent surface rounded-3xl p-8 md:p-14 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden relative">
+<section class="mt-12 j2026-cta flex flex-col md:flex-row items-start md:items-center justify-between gap-6 reveal-up">
   <div class="max-w-xl relative z-10">
-    <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Para distribuidores</p>
+    <p class="j2026-eyebrow">Para distribuidores</p>
     <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight mt-2">¿Vendes cuentas? <span class="hero-italic text-zinc-400">Trabaja</span> con nosotros.</h2>
     <p class="text-base text-zinc-400 mt-3 leading-relaxed">Precios mayoristas, panel de gestión propio y entrega automatizada.</p>
   </div>
