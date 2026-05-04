@@ -656,19 +656,32 @@ def renewals_view(request):
 
 def _whatsapp_link(item) -> str:
     """Genera un link wa.me con texto pre-rellenado para invitar al cliente
-    a renovar.
+    a renovar con 1 click (magic link).
     """
     import urllib.parse
+    from django.conf import settings as dj_settings
+
     phone = (item.order.phone or "").strip().replace(" ", "").replace("+", "")
     if not phone:
         return ""
     if not phone.startswith("51") and len(phone) == 9:
         phone = "51" + phone
     fecha = item.expires_at.strftime("%d/%m/%Y") if item.expires_at else ""
-    txt = (
-        f"Hola! Te recordamos que tu *{item.product_name} ({item.plan_name})* "
-        f"vence el {fecha}. ¿Quieres renovarlo? Te paso el link de pago."
+
+    site_url = getattr(dj_settings, "SITE_URL", "").rstrip("/")
+    renew_link = (
+        f"{site_url}/renovar/t/{item.renewal_token}/"
+        if item.renewal_token else ""
     )
+    txt_lines = [
+        f"Hola! Te recordamos que tu *{item.product_name} ({item.plan_name})* "
+        f"vence el {fecha}.",
+    ]
+    if renew_link:
+        txt_lines.append(f"Renueva con 1 click aquí 👉 {renew_link}")
+    else:
+        txt_lines.append("¿Quieres renovarlo? Te paso el link de pago.")
+    txt = "\n\n".join(txt_lines)
     return f"https://wa.me/{phone}?text={urllib.parse.quote(txt)}"
 
 

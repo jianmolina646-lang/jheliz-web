@@ -52,6 +52,38 @@ def renew_item(request, item_id: int):
     return redirect("orders:cart")
 
 
+def renew_by_token(request, token: str):
+    """Renovación por magic link (sin login).
+
+    Este endpoint se usa desde el correo/WhatsApp de recordatorio de vencimiento:
+    abrir el link agrega el mismo plan al carrito y redirige al carrito para
+    que el cliente revise y pague. No requiere login — el token actúa como
+    identificador; el cliente completa sus datos en checkout como siempre.
+    """
+    item = get_object_or_404(
+        OrderItem.objects.select_related("plan__product", "order"),
+        renewal_token=token,
+    )
+    if not item.plan or not item.plan.is_active:
+        messages.error(request, "Este plan ya no está disponible. Mira las opciones actualizadas.")
+        product = item.plan.product if item.plan else None
+        return redirect(product.get_absolute_url() if product else "catalog:products")
+
+    cart = Cart(request)
+    cart.add(
+        plan=item.plan,
+        quantity=1,
+        profile_name=item.requested_profile_name or "",
+        pin=item.requested_pin or "",
+        notes=f"Renovación de #{item.order.short_uuid}",
+    )
+    messages.success(
+        request,
+        f"Listo, agregamos {item.product_name} — {item.plan_name} a tu carrito para renovar.",
+    )
+    return redirect("orders:cart")
+
+
 @require_POST
 def add_to_cart(request):
     plan = _plan_from_request(request)
