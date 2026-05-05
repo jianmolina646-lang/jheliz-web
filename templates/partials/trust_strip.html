@@ -1,0 +1,61 @@
+{# Tira horizontal de sellos de confianza. Usa datos reales del site_context.
+   Se incluye donde haga falta (home, cart, checkout, product_detail…). #}
+{% if SOCIAL_PROOF %}
+<div class="trust-strip grid grid-cols-2 sm:grid-cols-4 gap-3 py-4">
+  <div class="trust-pill">
+    <div class="trust-pill__icon">🧾</div>
+    <div class="trust-pill__body">
+      <div class="trust-pill__value">{{ SOCIAL_PROOF.total_orders_label }}</div>
+      <div class="trust-pill__label">Pedidos entregados</div>
+    </div>
+  </div>
+  <div class="trust-pill">
+    <div class="trust-pill__icon">⭐</div>
+    <div class="trust-pill__body">
+      <div class="trust-pill__value">{{ SOCIAL_PROOF.avg_rating }}<span class="text-sm text-zinc-400">/5</span></div>
+      <div class="trust-pill__label">{{ SOCIAL_PROOF.review_count }} reseñas verificadas</div>
+    </div>
+  </div>
+  <div class="trust-pill">
+    <div class="trust-pill__icon">⚡</div>
+    <div class="trust-pill__body">
+      <div class="trust-pill__value">2 min</div>
+      <div class="trust-pill__label">Entrega promedio</div>
+    </div>
+  </div>
+  <div class="trust-pill">
+    <div class="trust-pill__icon">🛡️</div>
+    <div class="trust-pill__body">
+      <div class="trust-pill__value">{{ SOCIAL_PROOF.years_operating }} años</div>
+      <div class="trust-pill__label">Operando en Perú</div>
+    </div>
+  </div>
+</div>
+<style>
+  .trust-pill {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .75rem .9rem;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.02);
+    transition: all .15s ease;
+  }
+  .trust-pill:hover {
+    border-color: rgba(236,72,153,.3);
+    background: rgba(236,72,153,.04);
+  }
+  .trust-pill__icon {
+    font-size: 1.4rem; line-height: 1; flex-shrink: 0;
+  }
+  .trust-pill__body { min-width: 0; }
+  .trust-pill__value {
+    font-family: Geist, Inter, sans-serif;
+    font-weight: 700; font-size: 1rem; color: #fff;
+    letter-spacing: -.01em;
+  }
+  .trust-pill__label {
+    font-size: .7rem; color: #a1a1aa; line-height: 1.2;
+    margin-top: 1px;
+  }
+</style>
+{% endif %}

@@ -1,0 +1,89 @@
+{# PWA: registra el service worker y muestra un banner "Instalar app" #}
+<div id="pwa-install-banner"
+     class="fixed bottom-[72px] left-1/2 -translate-x-1/2 z-50 hidden"
+     style="max-width: 92vw;">
+  <div class="flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border"
+       style="background: rgba(20,14,22,.96); border-color: rgba(236,72,153,.35); backdrop-filter: blur(12px);">
+    <div class="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
+         style="background: linear-gradient(135deg, #ec4899, #db2777);">
+      <span class="text-lg">📱</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="text-sm font-semibold text-white">Instalar Jheliz</div>
+      <div class="text-xs text-zinc-400 truncate">Compra más rápido, como una app.</div>
+    </div>
+    <button id="pwa-install-dismiss" type="button"
+            class="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white transition">
+      Luego
+    </button>
+    <button id="pwa-install-btn" type="button"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition"
+            style="background: linear-gradient(135deg, #ec4899, #db2777);">
+      Instalar
+    </button>
+  </div>
+</div>
+<script>
+  (function () {
+    if (!('serviceWorker' in navigator)) return;
+    // Registrar service worker en ambiente con HTTPS
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .catch(function () { /* noop — sin service worker la web sigue andando */ });
+    });
+
+    // Install prompt
+    var deferred = null;
+    var banner = document.getElementById('pwa-install-banner');
+    var installBtn = document.getElementById('pwa-install-btn');
+    var dismissBtn = document.getElementById('pwa-install-dismiss');
+
+    function hideBanner() { if (banner) banner.classList.add('hidden'); }
+
+    function wasDismissed() {
+      try {
+        var t = parseInt(localStorage.getItem('jheliz-pwa-dismissed') || '0', 10);
+        if (!t) return false;
+        // volver a mostrar a los 14 días
+        return (Date.now() - t) < 14 * 24 * 3600 * 1000;
+      } catch (_) { return false; }
+    }
+
+    function markDismissed() {
+      try { localStorage.setItem('jheliz-pwa-dismissed', String(Date.now())); } catch (_) {}
+    }
+
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      deferred = e;
+      if (wasDismissed()) return;
+      // Mostrar el banner si el usuario lleva >10s en la web y no está en modo standalone
+      if (window.matchMedia('(display-mode: standalone)').matches) return;
+      setTimeout(function () {
+        if (banner) banner.classList.remove('hidden');
+      }, 10000);
+    });
+
+    if (installBtn) {
+      installBtn.addEventListener('click', function () {
+        if (!deferred) { hideBanner(); return; }
+        deferred.prompt();
+        deferred.userChoice.then(function (choice) {
+          markDismissed();
+          hideBanner();
+          deferred = null;
+        });
+      });
+    }
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', function () {
+        markDismissed();
+        hideBanner();
+      });
+    }
+    window.addEventListener('appinstalled', function () {
+      markDismissed();
+      hideBanner();
+    });
+  })();
+</script>

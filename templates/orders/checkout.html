@@ -95,18 +95,26 @@
       </div>
       {% endfor %}
     </div>
-    {% if discount > 0 %}
+    {% if discount > 0 or combo_discount > 0 %}
     <div class="mt-4 pt-4 border-t hairline space-y-1.5">
       <div class="flex justify-between text-sm">
         <span class="text-zinc-400">Subtotal</span>
         <span class="text-zinc-200">{{ CURRENCY_SYMBOL }} {{ subtotal|floatformat:2|intcomma }}</span>
       </div>
+      {% if discount > 0 %}
       <div class="flex justify-between text-sm">
         <span class="text-pink-300">
           Cupón <span class="font-mono text-xs">{{ coupon.code }}</span>
         </span>
         <span class="text-pink-300">−{{ CURRENCY_SYMBOL }} {{ discount|floatformat:2|intcomma }}</span>
       </div>
+      {% endif %}
+      {% if combo_discount > 0 %}
+      <div class="flex justify-between text-sm">
+        <span class="text-emerald-300">🎁 Combo -{{ combo_percent_int }}%</span>
+        <span class="text-emerald-300">−{{ CURRENCY_SYMBOL }} {{ combo_discount|floatformat:2|intcomma }}</span>
+      </div>
+      {% endif %}
     </div>
     {% endif %}
     <div class="flex justify-between items-baseline mt-4 pt-4 border-t hairline">

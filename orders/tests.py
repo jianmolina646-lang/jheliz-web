@@ -2521,3 +2521,146 @@ class TelegramMultiChannelTests(TestCase):
             _telegram.announce_coupon(coupon)
         chat_ids = [c.kwargs.get("chat_id") for c in call.call_args_list]
         self.assertEqual(chat_ids, ["@cust_chan"])
+
+
+# ---------------------------------------------------------------------------
+# Combo builder: auto-descuento por armar un carrito con varios productos.
+# ---------------------------------------------------------------------------
+
+
+_BASIC_STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
+
+@override_settings(STORAGES=_BASIC_STORAGES)
+class ComboBuilderTests(TestCase):
+    def setUp(self):
+        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.p1 = Product.objects.create(
+            category=self.cat, name="Netflix", slug="netflix",
+            is_active=True,
+        )
+        self.p2 = Product.objects.create(
+            category=self.cat, name="Disney+", slug="disney",
+            is_active=True,
+        )
+        self.p3 = Product.objects.create(
+            category=self.cat, name="Spotify", slug="spotify",
+            is_active=True,
+        )
+        self.plan1 = Plan.objects.create(
+            product=self.p1, name="1 mes",
+            price_customer=Decimal("20.00"),
+        )
+        self.plan2 = Plan.objects.create(
+            product=self.p2, name="1 mes",
+            price_customer=Decimal("15.00"),
+        )
+        self.plan3 = Plan.objects.create(
+            product=self.p3, name="1 mes",
+            price_customer=Decimal("10.00"),
+        )
+
+    def _cart_for(self, user=None):
+        from orders.cart import Cart
+        from django.test import RequestFactory
+        from django.contrib.sessions.backends.db import SessionStore
+
+        rf = RequestFactory()
+        request = rf.get("/")
+        session = SessionStore()
+        session.create()
+        request.session = session
+        request.user = user if user else None
+        cart = Cart(request)
+        cart.clear()
+        return cart
+
+    def test_single_product_has_no_combo_discount(self):
+        cart = self._cart_for()
+        cart.add(self.plan1, quantity=1)
+        self.assertEqual(cart.distinct_product_count(), 1)
+        self.assertEqual(cart.combo_discount_for(None), Decimal("0.00"))
+
+    def test_two_distinct_products_apply_10pct(self):
+        cart = self._cart_for()
+        cart.add(self.plan1, quantity=1)
+        cart.add(self.plan2, quantity=1)
+        self.assertEqual(cart.distinct_product_count(), 2)
+        subtotal = cart.subtotal_for(None)
+        discount = cart.combo_discount_for(None)
+        self.assertEqual(subtotal, Decimal("35.00"))
+        self.assertEqual(discount, Decimal("3.50"))  # 10% de 35
+        self.assertEqual(cart.total_for(None), Decimal("31.50"))
+
+    def test_three_distinct_products_apply_15pct(self):
+        cart = self._cart_for()
+        cart.add(self.plan1, quantity=1)
+        cart.add(self.plan2, quantity=1)
+        cart.add(self.plan3, quantity=1)
+        self.assertEqual(cart.distinct_product_count(), 3)
+        subtotal = cart.subtotal_for(None)
+        self.assertEqual(subtotal, Decimal("45.00"))
+        self.assertEqual(cart.combo_discount_for(None), Decimal("6.75"))
+        self.assertEqual(cart.total_for(None), Decimal("38.25"))
+
+    def test_two_same_product_is_not_a_combo(self):
+        cart = self._cart_for()
+        cart.add(self.plan1, quantity=2)
+        self.assertEqual(cart.distinct_product_count(), 1)
+        self.assertEqual(cart.combo_discount_for(None), Decimal("0.00"))
+
+    def test_distributor_gets_no_combo_discount(self):
+        User = get_user_model()
+        user = User.objects.create(
+            username="distri",
+            role="distribuidor",
+            distributor_approved=True,
+        )
+        self.assertTrue(user.is_distributor)
+        cart = self._cart_for(user=user)
+        cart.add(self.plan1, quantity=1)
+        cart.add(self.plan2, quantity=1)
+        self.assertEqual(cart.combo_discount_for(user), Decimal("0.00"))
+
+    def test_combo_builder_page_renders(self):
+        resp = self.client.get(reverse("catalog:combo_builder"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Armá tu combo")
+
+    def test_combo_add_adds_plans_to_cart_and_redirects(self):
+        resp = self.client.post(
+            reverse("catalog:combo_add"),
+            {"plan_id": [str(self.plan1.pk), str(self.plan2.pk)]},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse("orders:cart"), resp["Location"])
+
+    def test_combo_add_without_plans_redirects_back(self):
+        resp = self.client.post(reverse("catalog:combo_add"), {})
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse("catalog:combo_builder"), resp["Location"])
+
+
+class PWATests(TestCase):
+    def test_manifest_served(self):
+        resp = self.client.get(reverse("pwa-manifest"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/json", resp["Content-Type"])
+        data = resp.json()
+        self.assertEqual(data["short_name"], "Jheliz")
+        self.assertEqual(data["display"], "standalone")
+        # Los shortcuts de la app deben incluir el combo builder.
+        shortcut_urls = [s["url"] for s in data.get("shortcuts", [])]
+        self.assertIn("/combos/", shortcut_urls)
+
+    def test_service_worker_served(self):
+        resp = self.client.get(reverse("pwa-service-worker"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/javascript", resp["Content-Type"])
+        self.assertEqual(resp["Service-Worker-Allowed"], "/")
+        body = resp.content.decode()
+        self.assertIn("addEventListener('install'", body)
+        self.assertIn("addEventListener('fetch'", body)

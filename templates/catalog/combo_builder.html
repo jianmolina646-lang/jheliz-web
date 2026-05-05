@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Armá tu combo y ahorrá hasta 15% — {{ SITE_NAME }}{% endblock %}
+{% block meta_description %}Elegí 2 o 3 plataformas (Netflix, Disney+, Prime, Spotify…) y obtené descuento automático. Un solo pago, todo junto.{% endblock %}
+
+{% block content %}
+<section class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+  <!-- Header / hero -->
+  <div class="text-center mb-10">
+    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full border hairline text-xs font-semibold text-jheliz-300 bg-jheliz-500/10 mb-4">
+      <span class="text-base">✨</span> Nuevo
+    </span>
+    <h1 class="font-display text-3xl sm:text-4xl font-bold text-white">
+      Armá tu combo y ahorrá
+    </h1>
+    <p class="mt-3 text-zinc-400 max-w-2xl mx-auto">
+      Elegí las plataformas que querés y el descuento se aplica solo. Un carrito, un pago, todo en 2 minutos.
+    </p>
+
+    <div class="mt-6 inline-flex flex-wrap items-center gap-2 justify-center">
+      {% for t in tiers %}
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border hairline surface">
+          <span class="text-lg">🎁</span>
+          <div class="text-left">
+            <div class="text-xs text-zinc-500 uppercase tracking-wider font-semibold">
+              {{ t.n }}{% if forloop.last %}+{% endif %} productos
+            </div>
+            <div class="text-sm font-semibold text-white">
+              <span class="text-emerald-400">-{{ t.pct }}%</span> automático
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <form id="combo-form" method="post" action="{% url 'catalog:combo_add' %}" class="relative">
+    {% csrf_token %}
+
+    {% if combo_products %}
+    <!-- Grid de productos -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-40" id="combo-grid">
+      {% for item in combo_products %}
+        {% with product=item.product %}
+        <label class="combo-card surface surface-lift rounded-2xl overflow-hidden block cursor-pointer relative transition"
+               data-price="{{ item.default_plan.price_customer }}"
+               data-name="{{ product.name|escape }}">
+          <!-- banner -->
+          <div class="relative aspect-[16/9] overflow-hidden">
+            {% if product.image %}
+              <img src="{{ product.image.url }}" alt="{{ product.name }}"
+                   class="absolute inset-0 w-full h-full object-cover"
+                   loading="lazy">
+            {% else %}
+              <div class="absolute inset-0 flex items-center justify-center text-6xl">{{ product.icon|default:product.category.emoji }}</div>
+            {% endif %}
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+            <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-black/60 text-zinc-100 font-semibold">
+              {{ product.category.emoji }} {{ product.category.name }}
+            </span>
+            <!-- Checkmark -->
+            <span class="combo-check hidden absolute top-3 right-3 w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-lg">
+              <svg viewBox="0 0 20 20" class="w-5 h-5 text-white" fill="currentColor">
+                <path d="M16.7 5.3a1 1 0 0 1 0 1.4l-7 7a1 1 0 0 1-1.4 0l-3-3a1 1 0 1 1 1.4-1.4l2.3 2.3 6.3-6.3a1 1 0 0 1 1.4 0z"/>
+              </svg>
+            </span>
+          </div>
+
+          <!-- body -->
+          <div class="p-5">
+            <h3 class="font-display font-semibold text-white text-lg leading-tight">{{ product.name }}</h3>
+            {% if product.short_description %}
+              <p class="mt-1.5 text-xs text-zinc-400 line-clamp-2">{{ product.short_description }}</p>
+            {% endif %}
+
+            <!-- plan selector -->
+            <div class="mt-4 space-y-1.5">
+              {% for plan in item.plans %}
+                <label class="flex items-center justify-between gap-2 p-2.5 rounded-xl border hairline hover:border-jheliz-400/60 hover:bg-jheliz-500/5 transition cursor-pointer"
+                       data-plan-card>
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <input type="radio"
+                           name="plan-for-{{ product.id }}"
+                           value="{{ plan.id }}"
+                           data-plan-price="{{ plan.price_customer }}"
+                           {% if forloop.first %}checked{% endif %}
+                           class="combo-plan-radio accent-pink-500 w-4 h-4 shrink-0">
+                    <div class="min-w-0">
+                      <div class="text-sm font-semibold text-white truncate">{{ plan.name }}</div>
+                      <div class="text-[11px] text-zinc-500">{% if plan.duration_days %}{{ plan.duration_days }} días{% else %}Sin expiración{% endif %}</div>
+                    </div>
+                  </div>
+                  <span class="text-sm font-display font-bold text-white tracking-tight">
+                    {{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}
+                  </span>
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- hidden input — se llena con el plan seleccionado -->
+          <input type="hidden" name="plan_id" value="" class="combo-selected-plan" disabled>
+        </label>
+        {% endwith %}
+      {% endfor %}
+    </div>
+
+    <!-- Sticky bar -->
+    <div id="combo-bar"
+         class="fixed bottom-0 inset-x-0 z-40 pointer-events-none"
+         style="background: linear-gradient(180deg, rgba(7,6,11,0) 0%, rgba(7,6,11,.92) 35%, rgba(7,6,11,.98) 100%);">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-5">
+        <div class="pointer-events-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3 p-4 rounded-2xl border shadow-2xl"
+             style="background: rgba(20,14,22,.96); border-color: rgba(236,72,153,.35); backdrop-filter: blur(12px);">
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold" id="combo-status-label">
+              Elegí productos
+            </div>
+            <div class="mt-0.5 flex items-baseline gap-2">
+              <span class="text-2xl font-display font-bold text-white tracking-tight" id="combo-total">{{ CURRENCY_SYMBOL }} 0.00</span>
+              <span id="combo-savings" class="text-sm text-emerald-400 font-semibold hidden">
+                ahorrás <span data-combo-savings>{{ CURRENCY_SYMBOL }} 0.00</span>
+              </span>
+            </div>
+            <div class="mt-1 text-xs text-zinc-400" id="combo-hint">
+              Sumá 2 productos para activar <span class="text-emerald-400 font-semibold">-10%</span>, o 3+ para <span class="text-emerald-400 font-semibold">-15%</span>.
+            </div>
+          </div>
+          <button type="submit" id="combo-submit"
+                  class="shrink-0 px-6 py-3 rounded-xl text-sm font-display font-semibold text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  style="background: linear-gradient(135deg, #ec4899, #db2777); box-shadow: 0 10px 30px -10px rgba(236,72,153,.6);"
+                  disabled>
+            Agregar al carrito
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="text-center py-16 text-zinc-400">
+      No hay productos disponibles para armar un combo ahora mismo.
+    </div>
+    {% endif %}
+  </form>
+</section>
+
+<style>
+  .combo-card {
+    outline: 2px solid transparent; outline-offset: -2px;
+  }
+  .combo-card.is-selected {
+    outline-color: #ec4899;
+    box-shadow: 0 20px 40px -20px rgba(236,72,153,.55);
+  }
+  .combo-card.is-selected .combo-check { display: inline-flex; }
+</style>
+
+<script>
+  (function () {
+    var tiers = [
+      {n: 2, pct: {{ tiers.0.pct|default:10 }}},
+      {n: 3, pct: {{ tiers.1.pct|default:15 }}}
+    ];
+    var currency = '{{ CURRENCY_SYMBOL|default:"S/" }}';
+
+    var cards = document.querySelectorAll('.combo-card');
+    var totalEl = document.getElementById('combo-total');
+    var savingsEl = document.getElementById('combo-savings');
+    var savingsAmtEl = savingsEl.querySelector('[data-combo-savings]');
+    var hintEl = document.getElementById('combo-hint');
+    var submit = document.getElementById('combo-submit');
+    var statusLabel = document.getElementById('combo-status-label');
+
+    function fmt(n) {
+      return currency + ' ' + (Math.round(n * 100) / 100).toFixed(2);
+    }
+
+    function pctFor(count) {
+      if (count >= 3) return tiers[1].pct;
+      if (count === 2) return tiers[0].pct;
+      return 0;
+    }
+
+    function recalc() {
+      var selected = 0, subtotal = 0;
+      cards.forEach(function (card) {
+        if (card.classList.contains('is-selected')) {
+          selected += 1;
+          var radio = card.querySelector('.combo-plan-radio:checked');
+          if (radio) subtotal += parseFloat(radio.dataset.planPrice || '0') || 0;
+          // Enable the hidden plan_id with selected radio value
+          var hidden = card.querySelector('.combo-selected-plan');
+          if (hidden && radio) {
+            hidden.value = radio.value;
+            hidden.disabled = false;
+          }
+        } else {
+          var hidden = card.querySelector('.combo-selected-plan');
+          if (hidden) { hidden.value = ''; hidden.disabled = true; }
+        }
+      });
+      var pct = pctFor(selected);
+      var discount = subtotal * (pct / 100);
+      var total = subtotal - discount;
+
+      totalEl.textContent = fmt(total);
+      if (pct > 0) {
+        savingsEl.classList.remove('hidden');
+        savingsAmtEl.textContent = fmt(discount);
+      } else {
+        savingsEl.classList.add('hidden');
+      }
+      if (selected === 0) {
+        statusLabel.textContent = 'Elegí productos';
+        hintEl.innerHTML = 'Sumá 2 productos para activar <span class="text-emerald-400 font-semibold">-10%</span>, o 3+ para <span class="text-emerald-400 font-semibold">-15%</span>.';
+        submit.disabled = true;
+      } else if (selected === 1) {
+        statusLabel.textContent = '1 producto';
+        hintEl.innerHTML = 'Agregá 1 más para obtener <span class="text-emerald-400 font-semibold">-10%</span>.';
+        submit.disabled = false;
+      } else if (selected === 2) {
+        statusLabel.textContent = '2 productos · -10%';
+        hintEl.innerHTML = 'Agregá 1 más para subir a <span class="text-emerald-400 font-semibold">-15%</span>.';
+        submit.disabled = false;
+      } else {
+        statusLabel.textContent = selected + ' productos · -15%';
+        hintEl.innerHTML = '¡Descuento máximo activado!';
+        submit.disabled = false;
+      }
+    }
+
+    cards.forEach(function (card) {
+      card.addEventListener('click', function (e) {
+        // No togglear si el click fue en un radio button o su label interno
+        if (e.target.closest('[data-plan-card]')) {
+          recalc();
+          return;
+        }
+        card.classList.toggle('is-selected');
+        recalc();
+      });
+    });
+    // Cuando cambia el plan de un card ya seleccionado, recalcular
+    document.querySelectorAll('.combo-plan-radio').forEach(function (r) {
+      r.addEventListener('change', recalc);
+    });
+    recalc();
+  })();
+</script>
+{% endblock %}
