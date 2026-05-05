@@ -82,13 +82,16 @@ jobs:
             # Activado solo si la variable de repo NGINX_CONF_SYNC es "true".
             # Renderiza deploy/nginx.conf.example sustituyendo ${PROJECT_PATH}
             # vía envsubst y, si difiere del archivo en NGINX_CONF_PATH (default
-            # /etc/nginx/sites-available/jheliz), hace backup, valida con
+            # /etc/nginx/sites-enabled/jheliz), hace backup, valida con
             # `nginx -t` y recarga nginx. Si nginx -t falla, restaura el backup
-            # y aborta el deploy. El usuario SSH debe tener sudo NOPASSWD para
-            # `nginx`, `cp` y `systemctl reload nginx`.
+            # y aborta el deploy. Backups van a /var/backups/jheliz-nginx/ para
+            # NO contaminar sites-enabled/ (donde nginx leería los .bak).
+            # El usuario SSH debe tener sudo NOPASSWD para `nginx`, `cp`,
+            # `mkdir`, `tee` y `systemctl reload nginx` (o ser root).
             # ----------------------------------------------------------------
             if [ "${NGINX_CONF_SYNC:-false}" = "true" ]; then
-              NGINX_CONF="${NGINX_CONF_PATH:-/etc/nginx/sites-available/jheliz}"
+              NGINX_CONF="${NGINX_CONF_PATH:-/etc/nginx/sites-enabled/jheliz}"
+              BACKUP_DIR="/var/backups/jheliz-nginx"
               echo "→ Sincronizando nginx config en $NGINX_CONF..."
 
               if ! command -v envsubst >/dev/null 2>&1; then
@@ -98,7 +101,7 @@ jobs:
               if ! sudo -n true 2>/dev/null; then
                 echo "✗ El usuario SSH no tiene sudo NOPASSWD configurado."
                 echo "  Agrega en /etc/sudoers.d/jheliz-deploy:"
-                echo "    ${USER:-deploy} ALL=(root) NOPASSWD: /usr/sbin/nginx, /bin/cp, /bin/systemctl reload nginx"
+                echo "    ${USER:-deploy} ALL=(root) NOPASSWD: /usr/sbin/nginx, /bin/cp, /bin/mkdir, /bin/systemctl reload nginx"
                 exit 1
               fi
               if [ ! -f "$NGINX_CONF" ]; then
@@ -117,7 +120,8 @@ jobs:
                 echo "→ Diferencias detectadas:"
                 diff -u "$NGINX_CONF" "$DESIRED" || true
 
-                BACKUP="${NGINX_CONF}.bak.$(date +%s)"
+                sudo mkdir -p "$BACKUP_DIR"
+                BACKUP="$BACKUP_DIR/$(basename "$NGINX_CONF").bak.$(date +%s)"
                 sudo cp -p "$NGINX_CONF" "$BACKUP"
                 sudo cp "$DESIRED" "$NGINX_CONF"
 
