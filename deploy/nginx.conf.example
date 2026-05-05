@@ -1,18 +1,26 @@
 # ============================================================================
-# Ejemplo de configuración nginx recomendada para jhelizservicestv.xyz
+# Configuración nginx recomendada para jhelizservicestv.xyz.
 #
-# Cambios respecto al setup actual del servidor:
+# Esta plantilla usa la variable shell ${PROJECT_PATH} (ruta del repo en el
+# VPS, p. ej. /srv/jheliz). Para renderizarla a un nginx.conf válido:
 #
-#   1. http2 activado (servidor responde 1.5x más rápido en conexiones nuevas).
+#   PROJECT_PATH=/srv/jheliz envsubst '${PROJECT_PATH}' \
+#     < deploy/nginx.conf.example > /etc/nginx/sites-available/jheliz
+#
+# El workflow de GitHub Actions hace este envsubst + nginx -t + reload
+# automáticamente cuando se setea la variable de repo NGINX_CONF_SYNC=true
+# (ver .github/DEPLOY-AUTO.md).
+#
+# Cambios respecto al setup viejo:
+#   1. http2 activado.
 #   2. server_tokens off → ya no expone "nginx/1.24.0" en la cabecera Server.
-#   3. gzip + brotli para CSS/JS/HTML/JSON (reduce ~70% el tamaño).
-#   4. /static/ con cache de 1 año + immutable (los hashes los maneja
-#      WhiteNoise / collectstatic --hashed).
-#   5. /media/ con cache corto y proxy a Django (porque ahora hay rutas
-#      protegidas con auth — no se puede servir directamente como files).
-#
-# Pegar este bloque en /etc/nginx/sites-available/jhelizservicestv y reemplazar
-# el actual. Después: nginx -t && systemctl reload nginx.
+#   3. 301 www → no-www y 301 http → https forzando el host canónico
+#      (necesario para que Google deje de reportar duplicados con canonical
+#      distinto en Search Console).
+#   4. gzip para CSS/JS/HTML/JSON (reduce ~70% el tamaño).
+#   5. /static/ con cache de 1 año + immutable (los hashes los maneja
+#      WhiteNoise / collectstatic).
+#   6. /media/ proxyea a Django porque /media/payments/proofs/ requiere auth.
 # ============================================================================
 
 server {
@@ -90,7 +98,7 @@ server {
     # ---- Static (sirve directo desde el volumen, NO pasa por Django) ----
     # WhiteNoise sirve hashes inmutables en producción → cache 1 año.
     location /static/ {
-        alias /home/<usuario>/jheliz/staticfiles/;
+        alias ${PROJECT_PATH}/staticfiles/;
         access_log off;
         expires 1y;
         add_header Cache-Control "public, immutable";
@@ -131,7 +139,7 @@ server {
 
     # Favicon — opcional pero limpio:
     location = /favicon.ico {
-        alias /home/<usuario>/jheliz/staticfiles/favicon.ico;
+        alias ${PROJECT_PATH}/staticfiles/favicon.ico;
         access_log off;
         log_not_found off;
         expires 30d;
