@@ -59,6 +59,9 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # IP allowlist se evalúa MUY temprano, antes de gastar ciclos en sesiones,
+    # auth o CSRF para requests que vamos a rechazar de todas formas.
+    "config.admin_ip_allowlist.AdminIPAllowlistMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -507,6 +510,62 @@ AXES_VERBOSE = False
 # ---------------------------------------------------------------------------
 ADMIN_2FA_ENFORCED = config("ADMIN_2FA_ENFORCED", default=False, cast=bool)
 OTP_TOTP_ISSUER = "Jheliz Admin"
+
+# ---------------------------------------------------------------------------
+# IP allowlist para el admin
+#
+# `ADMIN_IP_ALLOWLIST`: lista separada por comas de IPs o CIDRs autorizados
+# a acceder a `/jheliz-admin/*`. Si está vacía → no hay restricción (default).
+# Ejemplos:
+#   ADMIN_IP_ALLOWLIST=203.0.113.42                  (una IP)
+#   ADMIN_IP_ALLOWLIST=203.0.113.0/24,2001:db8::/32  (rangos)
+#
+# `ADMIN_IP_ALLOWLIST_SOFT=True`: en vez de bloquear con 403, deja pasar
+# y solo loguea + alerta a Telegram. Útil para validar la lista antes de
+# activar el modo hard sin riesgo de auto-bloquearse.
+# ---------------------------------------------------------------------------
+ADMIN_IP_ALLOWLIST = config("ADMIN_IP_ALLOWLIST", default="")
+ADMIN_IP_ALLOWLIST_SOFT = config("ADMIN_IP_ALLOWLIST_SOFT", default=False, cast=bool)
+
+# ---------------------------------------------------------------------------
+# Sentry (monitoreo de errores en producción)
+#
+# Si `SENTRY_DSN` está configurado, los errores no manejados se envían a
+# Sentry con stack trace, request, user (sin PII por default) y release tag.
+# Si está vacío → Sentry no se inicializa (no overhead, no costo).
+# ---------------------------------------------------------------------------
+SENTRY_DSN = config("SENTRY_DSN", default="")
+SENTRY_ENVIRONMENT = config("SENTRY_ENVIRONMENT", default="production" if not DEBUG else "development")
+SENTRY_TRACES_SAMPLE_RATE = config("SENTRY_TRACES_SAMPLE_RATE", default=0.05, cast=float)
+
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.django import DjangoIntegration
+        from sentry_sdk.integrations.logging import LoggingIntegration
+
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            integrations=[
+                DjangoIntegration(),
+                LoggingIntegration(level=None, event_level=None),
+            ],
+            traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
+            # No mandar PII por default (email, IP, etc.). Si se necesita
+            # debug fino activar manualmente para una sesión específica.
+            send_default_pii=False,
+            environment=SENTRY_ENVIRONMENT,
+            # Tag por defecto: hostname para distinguir si se replica el
+            # deploy a otra máquina.
+            release=config("SENTRY_RELEASE", default=""),
+        )
+    except ImportError:  # pragma: no cover
+        # Si falta sentry-sdk en requirements, no rompe el arranque —
+        # solo se loguea un warning y la app sigue.
+        import logging
+        logging.getLogger(__name__).warning(
+            "SENTRY_DSN configurado pero sentry-sdk no está instalado"
+        )
 
 # ---------------------------------------------------------------------------
 # Security headers

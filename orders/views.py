@@ -535,10 +535,22 @@ def mercadopago_webhook(request):
             secret=secret,
         )
         if not ok:
+            request_id = request.headers.get("x-request-id", "")
             logger.warning(
                 "MP webhook con firma inválida (request-id=%s)",
-                request.headers.get("x-request-id", ""),
+                request_id,
             )
+            try:
+                from accounts.security_alerts import alert_admin_security
+
+                alert_admin_security(
+                    "Webhook Mercado Pago: firma inválida",
+                    request_id=request_id,
+                    data_id=data_id_qs,
+                    ip=request.META.get("REMOTE_ADDR", ""),
+                )
+            except Exception:  # pragma: no cover - alerta best-effort
+                logger.exception("No se pudo alertar al admin por webhook MP inválido")
             return HttpResponse(status=401)
     else:
         logger.warning(
