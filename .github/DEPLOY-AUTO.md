@@ -70,8 +70,10 @@ Ve a: **Settings → Secrets and variables → Actions** del repo.
 | Nombre              | Valor                                  |
 |---------------------|----------------------------------------|
 | `VPS_PROJECT_PATH`  | Ruta del proyecto en el VPS, default `/srv/jheliz` |
+| `NGINX_CONF_SYNC`   | `true` para que el deploy sincronice nginx (ver §6) |
+| `NGINX_CONF_PATH`   | Path del config nginx, default `/etc/nginx/sites-available/jheliz` |
 
-(Si tu proyecto está en `/srv/jheliz` no necesitas esta variable.)
+(Si tu proyecto está en `/srv/jheliz` no necesitas `VPS_PROJECT_PATH`.)
 
 ### 5. Asegúrate que tu usuario SSH puede correr `docker compose` sin sudo
 
@@ -83,6 +85,47 @@ docker compose ps   # debería listar sin pedir sudo
 
 Si requieres sudo siempre, puedes editar el workflow para usar `sudo docker compose ...`,
 pero entonces el usuario SSH tiene que estar en `sudoers` con `NOPASSWD`.
+
+### 6. (Opcional) Sincronización automática del config nginx
+
+El workflow puede aplicar `deploy/nginx.conf.example` al VPS en cada deploy
+(con backup, `nginx -t` y reload). Esto sirve para evitar tener que entrar
+manualmente al servidor cada vez que cambia algo de nginx (por ejemplo, el
+redirect `www → no-www` que se necesita para que Google deje de reportar
+canonicals duplicados en Search Console).
+
+**Activación** (una sola vez):
+
+```bash
+# 1. Confirma que en el VPS exista el config y mide su path
+ls /etc/nginx/sites-available/jheliz   # default que asume el workflow
+
+# 2. Da sudo NOPASSWD al usuario SSH solo para nginx + reload + cp
+sudo tee /etc/sudoers.d/jheliz-deploy > /dev/null <<EOF
+$(whoami) ALL=(root) NOPASSWD: /usr/sbin/nginx, /bin/cp, /bin/systemctl reload nginx
+EOF
+sudo chmod 0440 /etc/sudoers.d/jheliz-deploy
+sudo visudo -c   # debe imprimir "parsed OK"
+
+# 3. envsubst está en gettext-base (suele venir, si no:)
+sudo apt-get install -y gettext-base
+```
+
+Después en GitHub: **Settings → Secrets and variables → Actions → Variables**
+→ pon `NGINX_CONF_SYNC = true`. Opcionalmente `NGINX_CONF_PATH` si tu
+archivo no está en el path default.
+
+**Cómo funciona en cada deploy**:
+
+1. Renderiza `deploy/nginx.conf.example` sustituyendo `${PROJECT_PATH}`.
+2. Hace `diff` contra el archivo en `NGINX_CONF_PATH`.
+3. Si no hay diferencias: skip.
+4. Si hay diferencias: crea backup `*.bak.<timestamp>`, copia el nuevo,
+   ejecuta `sudo nginx -t`. Si falla, restaura el backup y aborta el deploy
+   en rojo. Si pasa, hace `sudo systemctl reload nginx`.
+
+**Para revertir**: en GitHub pon `NGINX_CONF_SYNC = false` (o bórrala). El
+nginx en el VPS no se vuelve a tocar.
 
 ## Cómo se dispara el deploy
 
