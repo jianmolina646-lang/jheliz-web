@@ -276,7 +276,20 @@ class Plan(models.Model):
 
     @property
     def available_stock(self) -> int:
-        return self.stock_items.filter(status=StockItem.Status.AVAILABLE).count()
+        """Cuenta el stock atendible por este plan.
+
+        Incluye:
+        - StockItems atados a este plan específicamente.
+        - StockItems del mismo producto con ``plan=None`` (genéricos),
+          porque el campo ``plan`` es opcional y "sirve para cualquier
+          plan del producto".
+        """
+        return StockItem.objects.filter(
+            product_id=self.product_id,
+            status=StockItem.Status.AVAILABLE,
+        ).filter(
+            models.Q(plan_id=self.pk) | models.Q(plan__isnull=True)
+        ).count()
 
     @property
     def is_low_stock(self) -> bool:

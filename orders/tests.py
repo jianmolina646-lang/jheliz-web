@@ -2366,7 +2366,9 @@ class TelegramChannelTests(TestCase):
         self.assertIn("Netflix Premium", text)
         self.assertIn("15.00", text)
         self.assertIn("1 mes", text)
-        self.assertTrue(text.startswith("🆕"))
+        # Header del anuncio nuevo (cliente final)
+        self.assertIn("NUEVO", text)
+        self.assertIn("🎬", text)
 
     def test_announce_product_calls_send(self):
         with patch("orders.telegram._call") as call:
@@ -2417,6 +2419,63 @@ class TelegramChannelTests(TestCase):
         self.assertIn("Disney+ &amp; HBO", text)
         self.assertIn("&lt;Premium&gt;", text)
         self.assertIn("Combo &amp; oferta", text)
+
+    def test_format_product_includes_stock_count_when_available(self):
+        """Si el producto tiene stock, el anuncio lo muestra (fix bug "0 cuentas")."""
+        from catalog.models import StockItem
+        plan = self.product.plans.first()
+        # 5 cuentas atadas al plan + 2 genéricas del producto.
+        for i in range(5):
+            StockItem.objects.create(
+                product=self.product, plan=plan,
+                credentials=f"cred{i}", status=StockItem.Status.AVAILABLE,
+            )
+        for i in range(2):
+            StockItem.objects.create(
+                product=self.product, plan=None,
+                credentials=f"gen{i}", status=StockItem.Status.AVAILABLE,
+            )
+        text = _telegram.format_product_announcement(self.product, kind="restock")
+        # El total del producto (7) debe aparecer como banner.
+        self.assertIn("7 cuentas listas", text)
+        # El plan-specific (5 + 2 genéricas = 7) debe mostrarse.
+        self.assertIn("7 disponibles", text)
+        self.assertIn("VOLVIÓ EL STOCK", text)
+
+    def test_format_product_omits_stock_banner_when_empty(self):
+        """Sin stock cargado no debe inventar 'X cuentas listas'."""
+        text = _telegram.format_product_announcement(self.product, kind="new")
+        self.assertNotIn("cuentas listas", text)
+        self.assertNotIn("Quedan solo", text)
+
+
+class PlanAvailableStockTests(TestCase):
+    """Plan.available_stock incluye los StockItems genéricos (plan=None)."""
+
+    def setUp(self):
+        from catalog.models import Category, Plan, Product, StockItem
+        cat = Category.objects.create(name="Streaming", slug="streaming-pa")
+        self.product = Product.objects.create(
+            name="Disney+", category=cat, slug="disney-pa", is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("12.00"), is_active=True,
+        )
+        # 3 atados al plan + 4 genéricos del producto.
+        for i in range(3):
+            StockItem.objects.create(
+                product=self.product, plan=self.plan,
+                credentials=f"plan{i}", status=StockItem.Status.AVAILABLE,
+            )
+        for i in range(4):
+            StockItem.objects.create(
+                product=self.product, plan=None,
+                credentials=f"gen{i}", status=StockItem.Status.AVAILABLE,
+            )
+
+    def test_available_stock_combines_plan_and_generic(self):
+        self.assertEqual(self.plan.available_stock, 7)
 
 
 @_override_settings(

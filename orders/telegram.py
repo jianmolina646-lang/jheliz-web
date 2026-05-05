@@ -330,7 +330,25 @@ def _product_button_row(product) -> list[dict]:
     return [{"text": "🛒 Ver en la web", "url": _product_url(product)}]
 
 
+def _product_total_available_stock(product) -> int:
+    """Cuenta el stock total disponible del producto (incluye genéricos)."""
+    try:
+        from catalog.models import StockItem  # type: ignore
+        return StockItem.objects.filter(
+            product_id=product.pk,
+            status=StockItem.Status.AVAILABLE,
+        ).count()
+    except Exception:
+        # En tests con productos simulados puede no existir el modelo.
+        return 0
+
+
 def _format_price_lines(product, audience: str = AUDIENCE_CUSTOMER) -> list[str]:
+    """Lista de planes con precio y stock disponible (formato moderno).
+
+    Cada línea: ``• <b>Plan</b> · 30 días · <b>S/ 25.00</b> · ✅ 5 cuentas``
+    Cuando un plan no tiene stock atado se muestra "Genérico".
+    """
     currency = getattr(settings, "DEFAULT_CURRENCY_SYMBOL", "S/")
     if audience == AUDIENCE_DISTRIB:
         plans_qs = product.plans.filter(
@@ -352,8 +370,22 @@ def _format_price_lines(product, audience: str = AUDIENCE_CUSTOMER) -> list[str]
         duration = (
             f"{plan.duration_days} días" if plan.duration_days else "sin expiración"
         )
+        # Stock por plan (incluye genéricos del producto).
+        try:
+            stock = plan.available_stock
+        except Exception:
+            stock = None
+        if stock is None:
+            stock_part = ""
+        elif stock <= 0:
+            stock_part = "  ·  ⚠️ <i>sin stock</i>"
+        elif stock <= 2:
+            stock_part = f"  ·  🔥 <b>quedan {stock}</b>"
+        else:
+            stock_part = f"  ·  ✅ <b>{stock} disponibles</b>"
         lines.append(
-            f"• {html.escape(plan.name)} ({duration}) — {currency} {price:.2f}"
+            f"  ▸ <b>{html.escape(plan.name)}</b>  ·  {duration}  ·  "
+            f"<b>{currency} {price:.2f}</b>{stock_part}"
         )
     return lines
 
@@ -363,53 +395,92 @@ def format_product_announcement(
     kind: str = "new",
     audience: str = AUDIENCE_CUSTOMER,
 ) -> str:
-    """Genera el mensaje para un producto.
+    """Genera el mensaje del canal para un producto.
 
     ``kind`` ∈ {'new', 'restock'}.
-    ``audience`` decide qué precios y banners aparecen.
+    ``audience`` decide qué precios aparecen.
     """
     safe_name = html.escape(product.name or "")
-    if audience == AUDIENCE_DISTRIB:
-        title_map = {
-            "new": f"🆕 <b>Nuevo en mayorista: {safe_name}</b>",
-            "restock": f"📦 <b>Stock disponible — {safe_name}</b>",
-        }
-    else:
-        title_map = {
-            "new": f"🆕 <b>Nuevo: {safe_name}</b>",
-            "restock": f"📦 <b>Volvió el stock — {safe_name}</b>",
-        }
-    lines = [title_map.get(kind, f"<b>{safe_name}</b>")]
+    is_distrib = audience == AUDIENCE_DISTRIB
+
+    headers = {
+        ("new", False): f"🎬✨  <b>NUEVO  ·  {safe_name}</b>  ✨🎬",
+        ("new", True): f"💎  <b>NUEVO MAYORISTA  ·  {safe_name}</b>  💎",
+        ("restock", False): f"📦💚  <b>VOLVIÓ EL STOCK  ·  {safe_name}</b>  💚📦",
+        ("restock", True): f"📦💎  <b>STOCK MAYORISTA  ·  {safe_name}</b>  💎📦",
+    }
+    header = headers.get((kind, is_distrib), f"<b>{safe_name}</b>")
+
+    divider = "━━━━━━━━━━━━━━━━━━━"
+
+    lines: list[str] = [header, ""]
     if product.short_description:
-        lines.append(html.escape(product.short_description))
+        lines.append(f"<i>{html.escape(product.short_description)}</i>")
+        lines.append("")
+
+    # Banner de stock total (sólo si hay stock; en kind=new puede ser 0
+    # si activaron el producto antes de cargar cuentas).
+    total_stock = _product_total_available_stock(product)
+    if total_stock > 0:
+        if total_stock <= 3:
+            lines.append(f"🔥 <b>¡Quedan solo {total_stock} cuenta(s)!</b>")
+        else:
+            lines.append(f"✅ <b>{total_stock} cuentas listas para entregar</b>")
+        lines.append("")
+
+    lines.append(divider)
+    if is_distrib:
+        lines.append("💼 <b>PRECIOS MAYORISTAS</b>")
+    else:
+        lines.append("💰 <b>PLANES Y PRECIOS</b>")
+    lines.append(divider)
+
     price_lines = _format_price_lines(product, audience=audience)
     if price_lines:
-        lines.append("")
-        if audience == AUDIENCE_DISTRIB:
-            lines.append("<i>Precios mayoristas:</i>")
         lines.extend(price_lines)
+    else:
+        lines.append("  <i>Consulta precios al hacer clic en el botón.</i>")
+
     lines.append("")
-    lines.append("✅ Garantía durante toda la suscripción")
-    lines.append("⚡ Entrega rápida")
+    lines.append(divider)
+    lines.append("⚡  Entrega en 2 minutos")
+    lines.append("🛡  Garantía durante toda la suscripción")
+    lines.append("💬  Soporte directo por WhatsApp")
     return "\n".join(lines)
 
 
 def format_coupon_announcement(coupon) -> str:
+    """Mensaje moderno para un cupón nuevo."""
     if coupon.discount_type == coupon.DiscountType.PERCENT:
-        descuento = f"{coupon.discount_value:g}%"
+        descuento = f"{coupon.discount_value:g}% OFF"
     else:
         currency = getattr(settings, "DEFAULT_CURRENCY_SYMBOL", "S/")
-        descuento = f"{currency} {coupon.discount_value:g}"
+        descuento = f"{currency} {coupon.discount_value:g} OFF"
+
+    divider = "━━━━━━━━━━━━━━━━━━━"
+    safe_code = html.escape(coupon.code or "")
     lines = [
-        f"💰 <b>Cupón nuevo: {html.escape(coupon.code)}</b>",
-        f"Descuento: <b>{html.escape(descuento)}</b>",
+        f"🎁🎉  <b>CUPÓN ACTIVO</b>  🎉🎁",
+        "",
+        divider,
+        f"  💸  <b>{html.escape(descuento)}</b>",
+        f"  🔑  Código: <code>{safe_code}</code>",
+        divider,
+        "",
     ]
+    extras: list[str] = []
     if getattr(coupon, "min_order_total", 0):
-        lines.append(f"Compra mínima: S/ {coupon.min_order_total:g}")
+        currency = getattr(settings, "DEFAULT_CURRENCY_SYMBOL", "S/")
+        extras.append(f"  · Compra mínima: <b>{currency} {coupon.min_order_total:g}</b>")
     if getattr(coupon, "valid_until", None):
-        lines.append(f"Válido hasta: {coupon.valid_until.strftime('%d/%m/%Y')}")
-    lines.append("")
-    lines.append("Aplica el código al pagar 👇")
+        extras.append(
+            f"  · Vence el <b>{coupon.valid_until.strftime('%d/%m/%Y')}</b>"
+        )
+    if extras:
+        lines.append("📋 <b>Condiciones</b>")
+        lines.extend(extras)
+        lines.append("")
+    lines.append("👉 Aplica el código al pagar y aprovéchalo ya.")
     return "\n".join(lines)
 
 
