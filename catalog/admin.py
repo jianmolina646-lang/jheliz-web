@@ -128,7 +128,29 @@ class ProductAdmin(ModelAdmin):
         "action_announce_to_customers",
         "action_announce_to_distributors",
         "action_announce_to_both",
+        "action_activate", "action_deactivate",
+        "action_mark_featured", "action_unmark_featured",
     )
+
+    @admin.action(description="✓ Activar (visible en tienda)")
+    def action_activate(self, request, queryset):
+        n = queryset.update(is_active=True)
+        self.message_user(request, f"{n} producto(s) activado(s).")
+
+    @admin.action(description="⏸ Desactivar (oculto en tienda)")
+    def action_deactivate(self, request, queryset):
+        n = queryset.update(is_active=False)
+        self.message_user(request, f"{n} producto(s) desactivado(s).")
+
+    @admin.action(description="⭐ Destacar en home")
+    def action_mark_featured(self, request, queryset):
+        n = queryset.update(is_featured=True)
+        self.message_user(request, f"{n} producto(s) destacado(s) en home.")
+
+    @admin.action(description="☆ Quitar de destacados")
+    def action_unmark_featured(self, request, queryset):
+        n = queryset.update(is_featured=False)
+        self.message_user(request, f"{n} producto(s) sin destacar.")
 
     def _run_announce(self, request, queryset, audience, label):
         from orders import telegram

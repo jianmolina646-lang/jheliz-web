@@ -1,0 +1,113 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}<h1>Entrega en masa</h1>{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <p class="text-sm text-gray-500 dark:text-gray-400">
+        Lista de pedidos en preparación. Cada pedido se entrega tomando el primer
+        <em>StockItem</em> AVAILABLE de cada plan, marcándolo como vendido y mandando
+        el correo de credenciales al cliente. Solo se ven los últimos 150 pedidos.
+    </p>
+
+    <div class="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-primary-500/30 bg-primary-500/5">
+        <div class="flex-1 min-w-[220px]">
+            <div class="text-xs uppercase text-gray-400">Total en preparación</div>
+            <div class="text-2xl font-bold text-white">{{ total_count }}</div>
+        </div>
+        <div class="flex-1 min-w-[220px]">
+            <div class="text-xs uppercase text-gray-400">Listos para entregar</div>
+            <div class="text-2xl font-bold text-emerald-400">{{ deliverable_count }}</div>
+            <div class="text-xs text-gray-500">tienen stock disponible para todos sus planes</div>
+        </div>
+        <form method="post" action="{% url 'admin_bulk_deliver_all' %}" class="shrink-0">
+            {% csrf_token %}
+            <button type="submit"
+                    {% if deliverable_count == 0 %}disabled{% endif %}
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary-500 to-violet-500 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-95"
+                    onclick="return confirm('¿Entregar TODOS los pedidos con stock disponible? ({{ deliverable_count }} pedido(s))');">
+                ⚡ Entregar todos ({{ deliverable_count }})
+            </button>
+        </form>
+    </div>
+
+    {% if rows %}
+    <div class="rounded-xl border border-gray-700 bg-gray-800/40 overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="text-left text-xs uppercase text-gray-400 border-b border-gray-700 bg-gray-900/40">
+                <tr>
+                    <th class="py-3 px-4">Pedido</th>
+                    <th class="py-3 px-4">Cliente</th>
+                    <th class="py-3 px-4">Items</th>
+                    <th class="py-3 px-4">Stock</th>
+                    <th class="py-3 px-4 text-right">Total</th>
+                    <th class="py-3 px-4 text-right">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr class="border-b border-gray-800/60 hover:bg-gray-800/30">
+                    <td class="py-3 px-4 align-top">
+                        <a href="{% url 'admin:orders_order_change' row.order.pk %}" class="text-primary-300 hover:underline font-mono text-xs">
+                            #{{ row.order.short_uuid }}
+                        </a>
+                        <div class="text-xs text-gray-500">
+                            {{ row.order.paid_at|default:row.order.created_at|date:"d M H:i" }}
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 align-top">
+                        <div class="text-gray-100">{{ row.order.email|default:row.order.user.email|default:"—" }}</div>
+                        <div class="text-xs text-gray-500">{{ row.order.phone|default:"" }}</div>
+                    </td>
+                    <td class="py-3 px-4 align-top">
+                        {% for it in row.items %}
+                        <div class="text-xs text-gray-300">
+                            {{ it.item.product_name }} · <span class="text-gray-500">{{ it.item.plan_name }}</span>
+                        </div>
+                        {% endfor %}
+                    </td>
+                    <td class="py-3 px-4 align-top">
+                        {% for it in row.items %}
+                        <div class="text-xs">
+                            {% if it.has_cred %}
+                                <span class="text-emerald-400">✓ ya tiene credenciales</span>
+                            {% elif it.avail > 0 %}
+                                <span class="text-emerald-400">✓ {{ it.avail }} en stock</span>
+                            {% else %}
+                                <span class="text-red-400">✗ sin stock</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </td>
+                    <td class="py-3 px-4 text-right align-top whitespace-nowrap">
+                        <span class="text-gray-200 font-medium">{{ row.order.currency }} {{ row.order.total }}</span>
+                    </td>
+                    <td class="py-3 px-4 text-right align-top whitespace-nowrap">
+                        {% if row.deliverable %}
+                        <form method="post" action="{% url 'admin_bulk_deliver_one' row.order.pk %}" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="px-3 py-1.5 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 text-xs font-semibold border border-emerald-500/40">
+                                ⚡ Entregar
+                            </button>
+                        </form>
+                        {% else %}
+                        <a href="{% url 'admin:orders_order_change' row.order.pk %}"
+                           class="px-3 py-1.5 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-semibold inline-block">
+                            Ver pedido
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-center py-12 text-gray-500 border border-dashed border-gray-700 rounded-xl">
+        <div class="text-4xl mb-2">🎉</div>
+        <div>No hay pedidos en preparación. Todo entregado.</div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

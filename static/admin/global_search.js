@@ -53,11 +53,57 @@
     var debounceTimer = null;
     var lastQuery = "";
 
+    // Quick actions estáticas que aparecen sin escribir nada o cuando el query
+    // matchea por nombre. Permiten navegar a páginas custom del admin con 2 letras.
+    var QUICK_ACTIONS = [
+        { kw: "stock inventario",      label: "📦 Stock",                    url: "/jheliz-admin/stock/" },
+        { kw: "renovacion vencer",     label: "🔁 Renovaciones pendientes",  url: "/jheliz-admin/renewals/" },
+        { kw: "entrega lote bulk",     label: "⚡ Entrega en masa",          url: "/jheliz-admin/bulk-delivery/" },
+        { kw: "reporte ventas",        label: "📊 Reportes financieros",     url: "/jheliz-admin/reports/" },
+        { kw: "clientes top",          label: "⭐ Clientes valiosos",        url: "/jheliz-admin/top-customers/" },
+        { kw: "cliente 360",           label: "👥 Buscar cliente",           url: "/jheliz-admin/customers/" },
+        { kw: "salud health",          label: "❤️ Estado de servicios",     url: "/jheliz-admin/health/" },
+        { kw: "yape inbox bandeja",    label: "💸 Bandeja Yape pendientes",  url: "/jheliz-admin/orders/order/yape-inbox/" },
+        { kw: "pedido nuevo",          label: "➕ Crear pedido",             url: "/jheliz-admin/orders/order/add/" },
+        { kw: "producto nuevo",        label: "➕ Crear producto",           url: "/jheliz-admin/catalog/product/add/" },
+        { kw: "cupon descuento",       label: "🎟 Cupones",                  url: "/jheliz-admin/orders/coupon/" },
+        { kw: "ticket soporte",        label: "💬 Tickets de soporte",       url: "/jheliz-admin/support/ticket/" },
+        { kw: "codigo solicitud",      label: "🔑 Solicitudes de código",    url: "/jheliz-admin/support/coderequest/" },
+        { kw: "plantilla respuesta",   label: "📝 Plantillas de respuesta",  url: "/jheliz-admin/support/replytemplate/" },
+        { kw: "reseña review",         label: "⭐ Reseñas",                 url: "/jheliz-admin/catalog/productreview/" },
+        { kw: "landing seo",           label: "🌐 Landing pages SEO",        url: "/jheliz-admin/catalog/platformlanding/" },
+        { kw: "reemplazar bloqueada",  label: "🔄 Reemplazar cuenta",        url: "/jheliz-admin/replace-blocked-account/" },
+    ];
+
+    function filterQuickActions(q){
+        if(!q) return QUICK_ACTIONS.slice(0, 8);
+        var ql = q.toLowerCase();
+        return QUICK_ACTIONS.filter(function(a){
+            return a.kw.indexOf(ql) >= 0 || a.label.toLowerCase().indexOf(ql) >= 0;
+        }).slice(0, 6);
+    }
+
+    function renderQuickActions(){
+        var actions = filterQuickActions("");
+        var html = '<div class="jh-cmd-section">Acciones rápidas</div>';
+        currentItems = [];
+        actions.forEach(function(a){
+            currentItems.push({ url: a.url, label: a.label });
+            var idx = currentItems.length - 1;
+            html += (
+                '<a class="jh-cmd-item" data-idx="' + idx + '" href="' + escapeHtml(a.url) + '">' +
+                '  <span>' + escapeHtml(a.label) + '</span>' +
+                '</a>'
+            );
+        });
+        html += '<div class="jh-cmd-empty" style="padding:12px 16px 16px;">Escribe para buscar pedidos, clientes, productos…</div>';
+        results.innerHTML = html;
+    }
+
     function open(){
         overlay.classList.add("open");
         input.value = "";
-        results.innerHTML = '<div class="jh-cmd-empty">Escribe al menos 2 letras...</div>';
-        currentItems = [];
+        renderQuickActions();
         activeIdx = -1;
         setTimeout(function(){ input.focus(); }, 0);
     }
@@ -77,6 +123,21 @@
     function renderResults(data){
         var html = "";
         currentItems = [];
+        // Mezcla acciones rápidas que matcheen el query encima de los resultados.
+        var q = input.value.trim();
+        var matchedActions = filterQuickActions(q);
+        if(matchedActions.length){
+            html += '<div class="jh-cmd-section">Acciones rápidas</div>';
+            matchedActions.forEach(function(a){
+                currentItems.push({ url: a.url, label: a.label });
+                var idx = currentItems.length - 1;
+                html += (
+                    '<a class="jh-cmd-item" data-idx="' + idx + '" href="' + escapeHtml(a.url) + '">' +
+                    '  <span>' + escapeHtml(a.label) + '</span>' +
+                    '</a>'
+                );
+            });
+        }
         var sections = [
             ["orders", "Pedidos"],
             ["customers", "Clientes"],
@@ -84,7 +145,7 @@
             ["plans", "Planes"],
             ["tickets", "Tickets"],
         ];
-        var any = false;
+        var any = matchedActions.length > 0;
         sections.forEach(function(pair){
             var key = pair[0], label = pair[1];
             var items = data[key] || [];
@@ -106,7 +167,6 @@
             html = '<div class="jh-cmd-empty">Sin resultados.</div>';
         }
         // Footer: link a la página completa de resultados.
-        var q = input.value.trim();
         if(q.length >= 2){
             html += (
                 '<a class="jh-cmd-item jh-cmd-seeall" href="' + API_URL +
@@ -124,8 +184,7 @@
         if(q === lastQuery) return;
         lastQuery = q;
         if(q.length < 2){
-            results.innerHTML = '<div class="jh-cmd-empty">Escribe al menos 2 letras...</div>';
-            currentItems = [];
+            renderQuickActions();
             return;
         }
         fetch(API_URL + "?q=" + encodeURIComponent(q), { credentials: "same-origin" })

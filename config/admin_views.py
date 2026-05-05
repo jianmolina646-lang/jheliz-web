@@ -1970,3 +1970,209 @@ def admin_2fa_setup(request):
         backup_codes=backup_codes,
     )
     return render(request, "admin/security_2fa.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Bulk delivery — entregar en masa pedidos en preparación con stock disponible
+# ---------------------------------------------------------------------------
+
+def _bulk_deliver_order(order, actor=None):
+    """Auto-asigna stock disponible a todos los items del pedido y entrega.
+
+    Devuelve ``(delivered, missing_items)`` donde ``missing_items`` es la lista
+    de items que no tuvieron stock disponible y por ende el pedido NO se
+    entregó (queda en PREPARING sin tocar).
+    """
+    from catalog.models import StockItem
+    from orders import emails
+    from orders.models import Order, OrderItem
+
+    items: list[OrderItem] = list(
+        order.items.select_related("product", "plan", "stock_item").all()
+    )
+    if not items:
+        return False, []
+
+    missing: list[OrderItem] = []
+    plan: list[tuple[OrderItem, StockItem | None]] = []
+
+    with transaction.atomic():
+        order_locked = (
+            Order.objects.select_for_update().filter(pk=order.pk).first()
+        )
+        if order_locked is None or order_locked.status != Order.Status.PREPARING:
+            # Alguien más ya movió el pedido; no lo tocamos.
+            return False, []
+
+        for item in items:
+            existing = item.stock_item
+            if existing is not None and existing.status == StockItem.Status.SOLD:
+                plan.append((item, None))
+                continue
+            if existing is not None and existing.status in {
+                StockItem.Status.AVAILABLE, StockItem.Status.RESERVED,
+            }:
+                stock = (
+                    StockItem.objects.select_for_update()
+                    .filter(
+                        pk=existing.pk,
+                        status__in=[StockItem.Status.AVAILABLE, StockItem.Status.RESERVED],
+                    ).first()
+                )
+                if stock:
+                    plan.append((item, stock))
+                    continue
+
+            plan_id = item.plan_id
+            stock = (
+                StockItem.objects.select_for_update()
+                .filter(status=StockItem.Status.AVAILABLE, plan_id=plan_id)
+                .order_by("id")
+                .first()
+            )
+            if stock is None:
+                missing.append(item)
+                continue
+            plan.append((item, stock))
+
+        if missing:
+            return False, missing
+
+        for item, stock in plan:
+            if stock is None:
+                continue
+            stock.status = StockItem.Status.SOLD
+            stock.sold_at = timezone.now()
+            stock.save(update_fields=["status", "sold_at"])
+            item.stock_item = stock
+            item.delivered_credentials = item.delivered_credentials or stock.credentials
+            item.save(update_fields=["stock_item", "delivered_credentials"])
+
+        order_locked.status = Order.Status.DELIVERED
+        order_locked.delivered_at = timezone.now()
+        order_locked.paid_at = order_locked.paid_at or order_locked.delivered_at
+        order_locked.save(update_fields=["status", "delivered_at", "paid_at"])
+
+    transaction.on_commit(lambda: _send_delivered_email(order_locked.pk))
+    return True, []
+
+
+def _send_delivered_email(order_id: int):
+    from orders import emails
+    from orders.models import Order
+
+    order = Order.objects.filter(pk=order_id).first()
+    if order is not None:
+        emails.send_order_delivered(order)
+
+
+@staff_member_required
+def bulk_delivery_view(request):
+    """Lista todos los pedidos PREPARING sin entregar con info de stock disponible."""
+    from django.db.models import Count
+    from catalog.models import StockItem
+    from orders.models import Order
+
+    orders = list(
+        Order.objects.filter(status=Order.Status.PREPARING)
+        .select_related("user")
+        .prefetch_related("items__product", "items__plan", "items__stock_item")
+        .order_by("-paid_at", "-created_at")[:150]
+    )
+
+    plan_ids = set()
+    for order in orders:
+        for item in order.items.all():
+            if item.plan_id:
+                plan_ids.add(item.plan_id)
+
+    avail_by_plan: dict[int, int] = {}
+    if plan_ids:
+        rows = (
+            StockItem.objects.filter(status=StockItem.Status.AVAILABLE, plan_id__in=plan_ids)
+            .values("plan_id")
+            .annotate(avail=Count("id"))
+        )
+        avail_by_plan = {r["plan_id"]: r["avail"] for r in rows}
+
+    rows = []
+    total_deliverable = 0
+    for order in orders:
+        items_info = []
+        order_deliverable = True
+        for item in order.items.all():
+            has_cred = bool(
+                item.stock_item_id and item.stock_item and item.stock_item.status == "sold"
+            ) or bool(item.delivered_credentials)
+            avail = avail_by_plan.get(item.plan_id, 0) if item.plan_id else 0
+            items_info.append({
+                "item": item,
+                "avail": avail,
+                "has_cred": has_cred,
+            })
+            if not has_cred and avail <= 0:
+                order_deliverable = False
+        if order_deliverable:
+            total_deliverable += 1
+        rows.append({
+            "order": order,
+            "items": items_info,
+            "deliverable": order_deliverable,
+        })
+
+    ctx = _admin_context(
+        request,
+        title="Entrega en masa",
+        rows=rows,
+        deliverable_count=total_deliverable,
+        total_count=len(rows),
+    )
+    return render(request, "admin/bulk_delivery.html", ctx)
+
+
+@staff_member_required
+@require_POST
+def bulk_deliver_one(request, order_id: int):
+    from orders.models import Order
+
+    order = get_object_or_404(Order, pk=order_id, status=Order.Status.PREPARING)
+    delivered, missing = _bulk_deliver_order(order, actor=request.user)
+    if delivered:
+        messages.success(request, f"Pedido #{order.short_uuid} entregado.")
+    else:
+        if missing:
+            names = ", ".join(f"{it.product_name} ({it.plan_name})" for it in missing)
+            messages.warning(
+                request,
+                f"Pedido #{order.short_uuid} no se pudo entregar: falta stock para {names}.",
+            )
+        else:
+            messages.info(
+                request,
+                f"Pedido #{order.short_uuid} ya no estaba en preparación.",
+            )
+    return redirect("admin_bulk_delivery")
+
+
+@staff_member_required
+@require_POST
+def bulk_deliver_all(request):
+    from orders.models import Order
+
+    orders = list(
+        Order.objects.filter(status=Order.Status.PREPARING)
+        .order_by("paid_at", "created_at")[:100]
+    )
+    delivered = 0
+    skipped = 0
+    for order in orders:
+        ok, _missing = _bulk_deliver_order(order, actor=request.user)
+        if ok:
+            delivered += 1
+        else:
+            skipped += 1
+    messages.success(
+        request,
+        f"{delivered} pedido(s) entregado(s) · {skipped} omitido(s) por falta de stock.",
+    )
+    return redirect("admin_bulk_delivery")
