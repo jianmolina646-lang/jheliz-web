@@ -27,6 +27,19 @@ def _round_label(value: int, floor: int = 1000) -> str:
     return f"{rounded}+"
 
 
+def _canonical_url(request) -> str:
+    """URL canónica estable para SEO (Google Search Console).
+
+    Se construye desde ``SITE_URL`` + ``request.path``, ignorando el host de
+    la request (www vs no-www) y los query strings (``?utm_*``, ``?source=pwa``,
+    ``?fbclid``, etc.). De lo contrario Google indexa cada variante como un
+    duplicado y reporta "Google ha elegido una versión canónica diferente".
+    """
+    base = (getattr(settings, "SITE_URL", "") or "").rstrip("/")
+    path = request.path or "/"
+    return f"{base}{path}"
+
+
 def site_context(request):
     cart_count = 0
     cart_items = request.session.get("cart") or []
@@ -120,6 +133,8 @@ def site_context(request):
         cache.set("jh_social_proof_stats", stats, 600)
 
     return {
+        "CANONICAL_URL": _canonical_url(request),
+        "SITE_URL_BASE": (getattr(settings, "SITE_URL", "") or "").rstrip("/"),
         "SOCIAL_PROOF": stats,
         "SITE_NAME": settings.SITE_NAME,
         "SITE_TAGLINE": settings.SITE_TAGLINE,

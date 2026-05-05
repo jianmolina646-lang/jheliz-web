@@ -25,16 +25,30 @@ server {
         root /var/www/certbot;
     }
 
-    # Todo el resto a HTTPS:
+    # Todo el resto a HTTPS, forzando el host canónico (sin www):
     location / {
-        return 301 https://$host$request_uri;
+        return 301 https://jhelizservicestv.xyz$request_uri;
     }
+}
+
+# Redirige www → no-www en HTTPS para evitar contenido duplicado en Google.
+# (sin esto, Google ve dos URLs con el mismo HTML y reporta "canonical
+# diferente" en Search Console).
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name www.jhelizservicestv.xyz;
+
+    ssl_certificate     /etc/letsencrypt/live/jhelizservicestv.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/jhelizservicestv.xyz/privkey.pem;
+
+    return 301 https://jhelizservicestv.xyz$request_uri;
 }
 
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name jhelizservicestv.xyz www.jhelizservicestv.xyz;
+    server_name jhelizservicestv.xyz;
 
     # ---- TLS (Let's Encrypt) ----
     ssl_certificate     /etc/letsencrypt/live/jhelizservicestv.xyz/fullchain.pem;

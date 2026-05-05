@@ -6,15 +6,15 @@
   <meta name="theme-color" content="#07060b">
   <title>{% block title %}Netflix, Disney+ y Office en Perú ✦ desde S/ 7 — {{ SITE_NAME }}{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}🎬 Cuentas premium con entrega en 2 min, pago con Yape o Mercado Pago, garantía 30 días. +5 000 entregas. Desde S/ 7.{% endblock %}" />
-  <link rel="canonical" href="{% block canonical_url %}{{ request.build_absolute_uri }}{% endblock %}">
+  <link rel="canonical" href="{% block canonical_url %}{{ CANONICAL_URL }}{% endblock %}">
 
   <!-- Open Graph (compartido en redes / WhatsApp) -->
   <meta property="og:type" content="{% block og_type %}website{% endblock %}">
   <meta property="og:site_name" content="{{ SITE_NAME }}">
   <meta property="og:title" content="{% block og_title %}Netflix, Disney+ y Office en Perú ✦ desde S/ 7 — {{ SITE_NAME }}{% endblock %}">
   <meta property="og:description" content="{% block og_description %}🎬 Cuentas premium con entrega en 2 min, pago con Yape o Mercado Pago, garantía 30 días. +5 000 entregas. Desde S/ 7.{% endblock %}">
-  <meta property="og:url" content="{{ request.build_absolute_uri }}">
-  <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.jpg' %}{% endblock %}">
+  <meta property="og:url" content="{{ CANONICAL_URL }}">
+  <meta property="og:image" content="{% block og_image %}{{ SITE_URL_BASE }}{% static 'img/og-image.jpg' %}{% endblock %}">
   <meta property="og:locale" content="es_PE">
   <meta name="twitter:card" content="summary_large_image">
 
