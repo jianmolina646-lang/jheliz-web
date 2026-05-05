@@ -36,6 +36,16 @@ urlpatterns = [
         admin_views.admin_2fa_setup,
         name="admin_2fa_setup",
     ),
+    path(
+        "jheliz-admin/auditoria/",
+        admin_views.auditlog_view,
+        name="admin_auditlog",
+    ),
+    path(
+        "jheliz-admin/auditoria/<int:pk>/",
+        admin_views.auditlog_detail,
+        name="admin_auditlog_detail",
+    ),
     path("jheliz-admin/reports/", admin_views.reports_view, name="admin_reports"),
     path(
         "jheliz-admin/reports/export.csv",
