@@ -234,6 +234,7 @@ UNFOLD = {
     "STYLES": [
         lambda request: _hashed_static("admin/jheliz_polish.css"),
         lambda request: _hashed_static("admin/notifications_bell.css"),
+        lambda request: _hashed_static("admin/users_redesign.css"),
     ],
     "SCRIPTS": [
         lambda request: _hashed_static("admin/global_search.js"),

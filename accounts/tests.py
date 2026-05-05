@@ -215,3 +215,226 @@ class PasswordResetFlowTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "¿Olvidaste tu contraseña?")
         self.assertContains(resp, reverse("accounts:password_reset"))
+
+
+# -- Rediseño moderno admin de Usuarios / Clientes / Distribuidores --------
+
+from datetime import timedelta
+from django.utils import timezone
+
+from accounts.admin_helpers import (
+    avatar_html,
+    chip,
+    chips,
+    contact_actions,
+    modern_table,
+    stat_grid,
+    time_ago,
+    user_card_cell,
+    _initials,
+    _avatar_colors,
+)
+
+
+class AdminHelpersTests(TestCase):
+    """Cubre los helpers visuales del admin de usuarios."""
+
+    def test_initials_from_full_name(self):
+        u = User(first_name="Jheliz", last_name="Servicios", username="jhz")
+        self.assertEqual(_initials(u), "JS")
+
+    def test_initials_fallback_username(self):
+        u = User(username="colocha", email="")
+        self.assertEqual(_initials(u), "CO")
+
+    def test_initials_handles_dots_and_underscores(self):
+        u = User(username="jian.molina", first_name="", last_name="")
+        self.assertEqual(_initials(u), "JM")
+
+    def test_avatar_colors_are_deterministic(self):
+        a = _avatar_colors("foo@bar.com")
+        b = _avatar_colors("foo@bar.com")
+        self.assertEqual(a, b)
+
+    def test_avatar_colors_differ_for_different_seeds(self):
+        a = _avatar_colors("a@b.com")
+        b = _avatar_colors("c@d.com")
+        # No exigimos que SIEMPRE difieran (hash colisiones), pero al menos
+        # una pareja debe diferir entre 8 colores.
+        seen = set()
+        for seed in ("a@b.com", "c@d.com", "x@y.com", "z@w.com"):
+            seen.add(_avatar_colors(seed))
+        self.assertGreater(len(seen), 1)
+
+    def test_user_card_cell_includes_name_and_sub(self):
+        u = User(username="jian", email="jian@x.com", first_name="Jian", last_name="Molina")
+        html = str(user_card_cell(u))
+        self.assertIn("Jian Molina", html)
+        self.assertIn("jian@x.com", html)
+        self.assertIn("jh-avatar", html)
+
+    def test_user_card_cell_escapes_html(self):
+        u = User(username="<script>", email="<x>@evil.com")
+        html = str(user_card_cell(u))
+        self.assertNotIn("<script>", html)
+        self.assertIn("&lt;script&gt;", html)
+
+    def test_chip_renders_with_tone_and_icon(self):
+        html = str(chip("VIP", tone="pink", icon="diamond"))
+        self.assertIn("VIP", html)
+        self.assertIn("diamond", html)
+        self.assertIn("jh-chip", html)
+
+    def test_chips_renders_multiple(self):
+        html = str(chips([("A", "success"), ("B", "warning")]))
+        self.assertIn("A", html)
+        self.assertIn("B", html)
+        self.assertIn("jh-chips", html)
+
+    def test_time_ago_handles_none(self):
+        self.assertEqual(time_ago(None), "—")
+
+    def test_time_ago_relative(self):
+        now = timezone.now()
+        self.assertEqual(time_ago(now), "ahora mismo")
+        self.assertIn("min", time_ago(now - timedelta(minutes=5)))
+        self.assertIn("h", time_ago(now - timedelta(hours=3)))
+        self.assertIn("día", time_ago(now - timedelta(days=2)))
+        self.assertIn("mes", time_ago(now - timedelta(days=60)))
+        self.assertIn("año", time_ago(now - timedelta(days=400)))
+
+    def test_contact_actions_with_phone_email_and_telegram(self):
+        u = User(
+            username="x", email="x@x.com", phone="+51 987 654 321",
+            telegram_username="@xyz",
+        )
+        html = str(contact_actions(u))
+        self.assertIn("wa.me/51987654321", html)
+        self.assertIn("mailto:x@x.com", html)
+        self.assertIn("t.me/xyz", html)
+
+    def test_contact_actions_with_no_data(self):
+        u = User(username="x", email="", phone="", telegram_username="")
+        html = str(contact_actions(u))
+        self.assertIn("—", html)
+
+    def test_stat_grid_renders_cards(self):
+        html = str(stat_grid([
+            {"label": "Pedidos", "value": "42", "tone": "cyan", "icon": "receipt_long"},
+            {"label": "Total", "value": "S/ 100"},
+        ]))
+        self.assertIn("Pedidos", html)
+        self.assertIn("42", html)
+        self.assertIn("Total", html)
+        self.assertIn("jh-stat-grid", html)
+
+    def test_modern_table_with_rows(self):
+        html = str(modern_table(
+            ["#", "Estado"],
+            [["123", "Pagado"], ["124", "Entregado"]],
+        ))
+        self.assertIn("123", html)
+        self.assertIn("124", html)
+        self.assertIn("jh-table", html)
+
+    def test_modern_table_empty(self):
+        html = str(modern_table(["A", "B"], []))
+        self.assertIn("Sin registros", html)
+
+
+class CustomerAdminListColumnsTests(TestCase):
+    """Verifica que el changelist de Clientes renderiza el rediseño."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_superuser(
+            username="admin2", email="a2@example.com", password="password",
+        )
+        cls.vip = User.objects.create_user(
+            username="vipclient", email="vip@x.com", password="x",
+            first_name="Cliente", last_name="VIP", role=Role.CLIENTE,
+            phone="+51999888777",
+        )
+        for _ in range(6):
+            Order.objects.create(
+                user=cls.vip, email=cls.vip.email,
+                total=Decimal("50"), status=Order.Status.DELIVERED,
+            )
+        cls.nuevo = User.objects.create_user(
+            username="nuevo", email="nuevo@x.com", password="x",
+            role=Role.CLIENTE,
+        )
+        Order.objects.create(
+            user=cls.nuevo, email=cls.nuevo.email,
+            total=Decimal("15"), status=Order.Status.DELIVERED,
+        )
+
+    def test_changelist_shows_avatar_chips_and_actions(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:accounts_customer_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-avatar", html)
+        self.assertIn("jh-user-cell", html)
+        self.assertIn("VIP", html)  # chip de cliente VIP (≥5 pedidos)
+        self.assertIn("Nuevo", html)  # chip de cliente nuevo (1 pedido)
+        self.assertIn("wa.me/51999888777", html)  # acción WhatsApp
+
+
+class DistributorAdminListColumnsTests(TestCase):
+    """Verifica que el changelist de Distribuidores renderiza el rediseño."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_superuser(
+            username="admin3", email="a3@example.com", password="password",
+        )
+        cls.aprobado = User.objects.create_user(
+            username="dist1", email="d1@x.com", password="x",
+            role=Role.DISTRIBUIDOR, distributor_approved=True,
+            wallet_balance=Decimal("123.45"),
+        )
+        cls.pendiente = User.objects.create_user(
+            username="dist2", email="d2@x.com", password="x",
+            role=Role.DISTRIBUIDOR, distributor_approved=False,
+        )
+
+    def test_changelist_shows_status_and_wallet_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:accounts_distributor_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-avatar", html)
+        self.assertIn("Aprobado", html)
+        self.assertIn("Pendiente", html)
+        self.assertIn("S/ 123.45", html)
+
+
+class CustomerChangeFormTests(TestCase):
+    """La ficha del cliente debe mostrar el panel de stats y secciones nuevas."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_superuser(
+            username="admin4", email="a4@example.com", password="password",
+        )
+        cls.cli = User.objects.create_user(
+            username="ficha", email="ficha@x.com", password="x",
+            role=Role.CLIENTE, first_name="Ana", last_name="López",
+        )
+        Order.objects.create(
+            user=cls.cli, email=cls.cli.email,
+            total=Decimal("80"), status=Order.Status.DELIVERED,
+        )
+
+    def test_change_form_renders_stats_panel(self):
+        self.client.force_login(self.staff)
+        url = reverse("admin:accounts_customer_change", args=[self.cli.pk])
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-stat-grid", html)
+        self.assertIn("Pedidos", html)
+        self.assertIn("Total gastado", html)
+        self.assertIn("Ticket promedio", html)
+        self.assertIn("Última compra", html)
