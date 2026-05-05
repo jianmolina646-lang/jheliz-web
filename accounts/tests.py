@@ -438,3 +438,122 @@ class CustomerChangeFormTests(TestCase):
         self.assertIn("Total gastado", html)
         self.assertIn("Ticket promedio", html)
         self.assertIn("Última compra", html)
+
+
+class WalletTransactionAdminTests(TestCase):
+    """Wallet movements: chip de tipo + monto con signo."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from accounts.models import WalletTransaction
+        cls.staff = User.objects.create_superuser(
+            username="walletadmin", email="w@x.com", password="x",
+        )
+        cls.distri = User.objects.create_user(
+            username="d1", email="d@x.com", password="x",
+            first_name="Carlos", last_name="Distri",
+        )
+        WalletTransaction.objects.create(
+            user=cls.distri, kind="recarga",
+            amount=Decimal("100.00"), balance_after=Decimal("100.00"),
+            reference="Yape #abc",
+        )
+        WalletTransaction.objects.create(
+            user=cls.distri, kind="compra",
+            amount=Decimal("-25.00"), balance_after=Decimal("75.00"),
+            reference="Pedido #123",
+        )
+
+    def test_changelist_renders_chips_and_amounts(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(
+            reverse("admin:accounts_wallettransaction_changelist")
+        )
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-amount", html)
+        self.assertIn("jh-chip", html)
+        self.assertIn("Recarga", html)
+        self.assertIn("Compra", html)
+        self.assertIn("jh-amount--pos", html)
+        self.assertIn("jh-amount--neg", html)
+
+
+class CatalogAdminListTests(TestCase):
+    """Productos / Stock / Reclamaciones renderean el diseño moderno."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from catalog.models import Category, Product, StockItem, Plan
+        cls.staff = User.objects.create_superuser(
+            username="catadm", email="c@x.com", password="x",
+        )
+        cls.category = Category.objects.create(name="Streaming", slug="streaming")
+        cls.product = Product.objects.create(
+            category=cls.category, name="Netflix Premium",
+            slug="netflix-premium", icon="🎬", is_active=True,
+        )
+        cls.plan = Plan.objects.create(
+            product=cls.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15"), price_distributor=Decimal("10"),
+            is_active=True,
+        )
+        StockItem.objects.create(
+            product=cls.product, plan=cls.plan,
+            credentials="email: a\nclave: b",
+            status="available",
+        )
+
+    def test_product_changelist_renders_modern_cell(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:catalog_product_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-product-cell", html)
+        self.assertIn("Netflix Premium", html)
+
+    def test_stockitem_changelist_renders_chip(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:catalog_stockitem_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-chip", html)
+        self.assertIn("Disponible", html)
+
+
+class BlogAdminListTests(TestCase):
+    """Posts y Categorías de blog usan los chips/cells modernos."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from blog.models import BlogCategory, BlogPost
+        cls.staff = User.objects.create_superuser(
+            username="bladm", email="b@x.com", password="x",
+        )
+        cls.cat = BlogCategory.objects.create(
+            name="Tutoriales", slug="tutoriales", emoji="📚",
+        )
+        cls.post = BlogPost.objects.create(
+            title="Cómo usar Netflix", slug="como-usar-netflix",
+            excerpt="...", body="...", status=BlogPost.Status.PUBLISHED,
+            category=cls.cat, is_featured=True, views_count=150,
+        )
+
+    def test_blogpost_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:blog_blogpost_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-product-cell", html)
+        self.assertIn("jh-chip", html)
+        self.assertIn("Destacado", html)
+        self.assertIn("150", html)
+
+    def test_blogcategory_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:blog_blogcategory_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-product-cell", html)
+        self.assertIn("Tutoriales", html)
+        self.assertIn("post", html)

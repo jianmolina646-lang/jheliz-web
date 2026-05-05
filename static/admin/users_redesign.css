@@ -228,3 +228,150 @@ body.change-list #result_list .field-user_card {
     .jh-stat { padding: 12px 14px; }
     .jh-stat__value { font-size: 18px; }
 }
+
+/* =====================================================================
+ * Utilidades reutilizables para cualquier ModelAdmin (Pedidos, Catálogo,
+ * Soporte, Wallet, Blog, etc.). Diseñadas para reemplazar `style=` inline
+ * y dar consistencia visual a TODO el panel admin moderno.
+ * ===================================================================== */
+
+/* ---------- Celda nombre + sub (ej. cliente / reclamación) ---------- */
+.jh-cell {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    min-width: 180px;
+}
+.jh-cell__name {
+    font-weight: 600;
+    color: rgb(248 250 252 / 0.95);
+}
+.jh-cell__name a {
+    color: inherit;
+    border-bottom: 1px dotted rgba(244, 114, 182, 0.6);
+    text-decoration: none;
+}
+.jh-cell__name a:hover {
+    color: #f9a8d4;
+}
+.jh-cell__sub {
+    font-size: 11.5px;
+    color: rgb(148 163 184 / 0.85);
+    margin-top: 1px;
+}
+
+/* ---------- Tags compactos (ej. items de un pedido) ---------- */
+.jh-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    line-height: 1.4;
+}
+.jh-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(148, 163, 184, 0.12);
+    color: rgb(203 213 225 / 0.95);
+    font-size: 11.5px;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ---------- Botones de acción rápida en changelist ---------- */
+.jh-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.jh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-decoration: none !important;
+    white-space: nowrap;
+    transition: transform .15s ease, filter .15s ease;
+}
+.jh-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+}
+.jh-btn--success { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; }
+.jh-btn--danger  { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; }
+.jh-btn--pink    { background: linear-gradient(135deg, #db2777, #f472b6); color: #fff; }
+.jh-btn--info    { background: linear-gradient(135deg, #0284c7, #0ea5e9); color: #fff; }
+.jh-btn--violet  { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: #fff; }
+
+/* ---------- Producto / categoría / post (imagen o emoji) ---------- */
+.jh-product-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 220px;
+}
+.jh-product-cell__img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(15, 23, 42, 0.6);
+    flex-shrink: 0;
+}
+.jh-product-cell__emoji {
+    font-size: 26px;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(168, 85, 247, .12), rgba(244, 114, 182, .10));
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+    line-height: 1;
+}
+.jh-product-cell__txt {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    min-width: 0;
+}
+.jh-product-cell__name {
+    font-weight: 600;
+    color: rgb(248 250 252 / 0.95);
+}
+.jh-product-cell__sub {
+    font-size: 11.5px;
+    color: rgb(148 163 184 / 0.85);
+    margin-top: 1px;
+}
+
+/* ---------- Importes con signo positivo / negativo (wallet, descuentos) ---------- */
+.jh-amount {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+.jh-amount--pos { color: #34d399; }
+.jh-amount--neg { color: #fb7185; }
+
+/* ---------- Indicador de color (PlatformLanding, Categoría) ---------- */
+.jh-color-dot {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--c, #ec4899);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    vertical-align: middle;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.jh-color-code {
+    font-size: 11px;
+    color: rgb(203 213 225 / 0.85);
+}
