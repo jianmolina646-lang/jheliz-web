@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
-from django.utils.html import format_html
+from django.utils.html import escape, format_html
 from import_export import resources
 from import_export.admin import ExportMixin
 from import_export.fields import Field
@@ -14,6 +14,7 @@ from unfold.admin import ModelAdmin, TabularInline
 from unfold.contrib.import_export.forms import ExportForm, ImportForm, SelectableFieldsExportForm
 from unfold.decorators import display
 
+from accounts.admin_helpers import chip, time_ago
 from . import credentials as creds_utils
 from . import emails
 from .models import (
@@ -224,22 +225,22 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     def display_customer(self, obj: Order):
         from urllib.parse import quote as _q
         name = (obj.user.get_full_name() if obj.user else "") or obj.email or obj.phone or "—"
+        sub = obj.email or obj.phone or ""
         if obj.email:
             link = f"/jheliz-admin/customers/{_q(obj.email, safe='')}/"
             return format_html(
-                '<div style="line-height:1.2">'
-                '<div><a href="{}" title="Ver vista 360°" style="color:inherit;border-bottom:1px dotted #f472b6">{}</a></div>'
-                '<div style="font-size:11px;color:#94a3b8">{}</div>'
+                '<div class="jh-cell">'
+                '<div class="jh-cell__name"><a href="{}" title="Ver vista 360°">{}</a></div>'
+                '<div class="jh-cell__sub">{}</div>'
                 '</div>',
-                link, name, obj.email,
+                link, name, sub or "—",
             )
         return format_html(
-            '<div style="line-height:1.2">'
-            '<div>{}</div>'
-            '<div style="font-size:11px;color:#94a3b8">{}</div>'
+            '<div class="jh-cell">'
+            '<div class="jh-cell__name">{}</div>'
+            '<div class="jh-cell__sub">{}</div>'
             '</div>',
-            name,
-            obj.email or "",
+            name, sub or "—",
         )
 
     @display(description="Productos")
@@ -249,26 +250,24 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         # de un vistazo qué se compró sin entrar al detalle del pedido.
         items = list(obj.items.all()[:5])
         if not items:
-            return format_html('<span style="color:#94a3b8">—</span>')
-        chips = []
+            return format_html('<span class="jh-muted">—</span>')
+        pieces = []
         for it in items:
             label = it.product_name or "—"
             tooltip_parts = [it.plan_name or ""]
             if it.requested_profile_name:
                 tooltip_parts.append(f"Perfil: {it.requested_profile_name}")
             tooltip = " · ".join(p for p in tooltip_parts if p)
-            chips.append(format_html(
-                '<span title="{}" style="display:inline-block;padding:1px 6px;margin:1px;'
-                'border-radius:4px;background:#1e293b;color:#cbd5e1;font-size:11px;">{}</span>',
+            pieces.append(format_html(
+                '<span class="jh-tag" title="{}">{}</span>',
                 tooltip, label,
             ))
         total = obj.items.count()
         if total > 5:
-            chips.append(format_html(
-                '<span style="font-size:11px;color:#94a3b8">+{} más</span>',
-                total - 5,
+            pieces.append(format_html(
+                '<span class="jh-muted">+{} m\u00e1s</span>', total - 5,
             ))
-        return format_html('<div style="line-height:1.4">{}</div>', format_html(''.join(['{}'] * len(chips)), *chips))
+        return format_html('<div class="jh-tags">{}</div>', format_html(''.join(['{}'] * len(pieces)), *pieces))
 
     @display(
         description="Estado",
@@ -290,36 +289,28 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     @display(description="Acciones rápidas")
     def display_actions(self, obj: Order):
         buttons = []
-        btn_style = (
-            "display:inline-block;padding:3px 10px;margin:0 2px;border-radius:6px;"
-            "font-size:11px;text-decoration:none;"
-        )
         if obj.status == Order.Status.VERIFYING and obj.payment_provider == "yape":
             buttons.append(format_html(
-                '<a href="{}" style="{}background:#22c55e;color:#fff">✓ Confirmar</a>',
+                '<a href="{}" class="jh-btn jh-btn--success">\u2713 Confirmar</a>',
                 reverse("admin:orders_order_confirm_yape", args=[obj.pk]),
-                btn_style,
             ))
             buttons.append(format_html(
-                '<a href="{}" style="{}background:#ef4444;color:#fff">✕ Rechazar</a>',
+                '<a href="{}" class="jh-btn jh-btn--danger">\u2715 Rechazar</a>',
                 reverse("admin:orders_order_reject_yape", args=[obj.pk]),
-                btn_style,
             ))
         if obj.status in {Order.Status.PAID, Order.Status.PREPARING, Order.Status.VERIFYING}:
             buttons.append(format_html(
-                '<a href="{}" style="{}background:#f472b6;color:#fff">📦 Entregar</a>',
+                '<a href="{}" class="jh-btn jh-btn--pink">\U0001F4E6 Entregar</a>',
                 reverse("admin:orders_order_deliver", args=[obj.pk]),
-                btn_style,
             ))
         if obj.status == Order.Status.DELIVERED:
             buttons.append(format_html(
-                '<a href="{}" style="{}background:#0ea5e9;color:#fff">↻ Reenviar</a>',
+                '<a href="{}" class="jh-btn jh-btn--info">\u21bb Reenviar</a>',
                 reverse("admin:orders_order_resend", args=[obj.pk]),
-                btn_style,
             ))
         if not buttons:
-            return "—"
-        return format_html("".join(str(b) for b in buttons))
+            return format_html('<span class="jh-muted">\u2014</span>')
+        return format_html('<div class="jh-actions-row">{}</div>', format_html("".join(str(b) for b in buttons)))
 
     @admin.display(description="Comprobante")
     def payment_proof_preview(self, obj: Order):

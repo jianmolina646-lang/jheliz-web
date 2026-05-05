@@ -2,10 +2,11 @@ from django import forms
 from django.contrib import admin, messages
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
-from django.utils.html import format_html
+from django.utils.html import escape, format_html
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import display
 
+from accounts.admin_helpers import chip
 from .models import (
     BackInStockAlert,
     Category,
@@ -205,13 +206,28 @@ class ProductAdmin(ModelAdmin):
 
     @display(description="Producto", ordering="name")
     def product_preview(self, obj: Product) -> str:
-        emoji = obj.icon or obj.category.emoji or ""
+        emoji = obj.icon or (obj.category.emoji if obj.category_id else "") or "\U0001F3AC"
+        if obj.image:
+            return format_html(
+                '<div class="jh-product-cell">'
+                '<img class="jh-product-cell__img" src="{}" alt="" loading="lazy" />'
+                '<div class="jh-product-cell__txt">'
+                '<div class="jh-product-cell__name">{}</div>'
+                '<div class="jh-product-cell__sub">{}</div>'
+                '</div></div>',
+                obj.image.url,
+                obj.name,
+                obj.category.name if obj.category_id else "",
+            )
         return format_html(
-            '<div class="flex items-center gap-2">'
-            '<span class="text-2xl">{}</span>'
-            '<span class="font-medium">{}</span>'
-            '</div>',
+            '<div class="jh-product-cell">'
+            '<span class="jh-product-cell__emoji">{}</span>'
+            '<div class="jh-product-cell__txt">'
+            '<div class="jh-product-cell__name">{}</div>'
+            '<div class="jh-product-cell__sub">{}</div>'
+            '</div></div>',
             emoji, obj.name,
+            obj.category.name if obj.category_id else "",
         )
 
     @display(
@@ -316,21 +332,15 @@ class StockItemAdmin(ModelAdmin):
         super().save_model(request, obj, form, change)
 
     def status_badge(self, obj):
-        from django.utils.safestring import mark_safe
-
-        styles = {
-            "available": ("#10b981", "✓ Disponible"),
-            "reserved": ("#6b7280", "● Reservada"),
-            "sold": ("#3b82f6", "✓ Vendida"),
-            "defective": ("#ef4444", "⚠ Caída"),
-            "disabled": ("#9ca3af", "○ Deshabilitada"),
+        tones = {
+            "available": ("success", "check_circle"),
+            "reserved": ("neutral", "radio_button_checked"),
+            "sold": ("info", "shopping_cart_checkout"),
+            "defective": ("danger", "warning"),
+            "disabled": ("neutral", "block"),
         }
-        color, text = styles.get(obj.status, ("#9ca3af", obj.get_status_display()))
-        return mark_safe(
-            f'<span style="display:inline-block;padding:2px 8px;border-radius:9999px;'
-            f'background:{color}22;color:{color};font-size:11px;font-weight:600;'
-            f'border:1px solid {color}55;">{text}</span>'
-        )
+        tone, icon = tones.get(obj.status, ("neutral", None))
+        return chip(obj.get_status_display(), tone=tone, icon=icon)
 
     status_badge.short_description = "Estado"
     status_badge.admin_order_field = "status"
@@ -917,29 +927,23 @@ class ReclamacionAdmin(ModelAdmin):
     @display(description="Cliente")
     def display_cliente(self, obj: Reclamacion):
         return format_html(
-            '<div style="line-height:1.2"><div>{}</div>'
-            '<div style="font-size:11px;color:#94a3b8">{}</div></div>',
-            obj.nombre, obj.email,
+            '<div class="jh-cell">'
+            '<div class="jh-cell__name">{}</div>'
+            '<div class="jh-cell__sub">{}</div>'
+            '</div>',
+            obj.nombre, obj.email or "\u2014",
         )
 
     @display(description="Vence en")
     def display_dias_restantes(self, obj: Reclamacion):
         d = obj.dias_restantes
         if obj.estado in ("respondido", "cerrado"):
-            color = "#94a3b8"
-            txt = "—"
-        elif d == 0:
-            color = "#ef4444"
-            txt = "VENCIDO"
-        elif d <= 3:
-            color = "#f59e0b"
-            txt = f"{d}d"
-        else:
-            color = "#10b981"
-            txt = f"{d}d"
-        return format_html(
-            '<span style="color:{};font-weight:600">{}</span>', color, txt,
-        )
+            return chip("\u2014", tone="neutral")
+        if d == 0:
+            return chip("Vencido", tone="danger", icon="error")
+        if d <= 3:
+            return chip(f"{d}d", tone="warning", icon="schedule")
+        return chip(f"{d}d", tone="success", icon="check_circle")
 
 
 @admin.register(PlatformLanding)
@@ -977,9 +981,9 @@ class PlatformLandingAdmin(ModelAdmin):
     @display(description="Color")
     def accent_color_chip(self, obj):
         return format_html(
-            '<span style="display:inline-block;width:18px;height:18px;border-radius:5px;background:{};border:1px solid rgba(255,255,255,.15);vertical-align:middle"></span> '
-            '<code style="font-size:11px">{}</code>',
-            obj.accent_color or "#ec4899", obj.accent_color or "—",
+            '<span class="jh-color-dot" style="--c:{}"></span> '
+            '<code class="jh-color-code">{}</code>',
+            obj.accent_color or "#ec4899", obj.accent_color or "\u2014",
         )
 
 

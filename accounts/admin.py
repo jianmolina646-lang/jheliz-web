@@ -616,11 +616,44 @@ class DistributorAdmin(ModelAdmin):
 
 @admin.register(WalletTransaction)
 class WalletTransactionAdmin(ModelAdmin):
-    list_display = ("user", "kind", "amount", "balance_after", "reference", "created_at")
+    list_display = (
+        "user_cell", "kind_chip", "amount_cell", "balance_after",
+        "reference", "created_relative",
+    )
     list_filter = ("kind", "created_at")
     search_fields = ("user__username", "user__email", "reference")
     autocomplete_fields = ("user",)
     readonly_fields = ("balance_after", "created_at")
+    list_select_related = ("user",)
+
+    @display(description="Usuario", ordering="user__email")
+    def user_cell(self, obj):
+        return user_card_cell(obj.user, sub=obj.user.email or obj.user.username)
+
+    @display(description="Tipo", ordering="kind")
+    def kind_chip(self, obj):
+        tones = {
+            "recarga":   ("success", "add_circle"),
+            "compra":    ("info", "shopping_cart"),
+            "reembolso": ("warning", "undo"),
+            "ajuste":    ("violet", "tune"),
+        }
+        tone, icon = tones.get(obj.kind, ("neutral", "swap_horiz"))
+        return chip(obj.get_kind_display(), tone=tone, icon=icon)
+
+    @display(description="Monto", ordering="amount")
+    def amount_cell(self, obj):
+        positive = obj.kind in {"recarga", "reembolso"} or obj.amount >= 0
+        sign = "+" if positive else "−"
+        cls = "jh-amount jh-amount--pos" if positive else "jh-amount jh-amount--neg"
+        return format_html(
+            '<span class="{}">{} S/ {}</span>',
+            cls, sign, f"{abs(obj.amount):,.2f}",
+        )
+
+    @display(description="Cuándo", ordering="-created_at")
+    def created_relative(self, obj):
+        return time_ago(obj.created_at)
 
 
 # ---------------------------------------------------------------------------
