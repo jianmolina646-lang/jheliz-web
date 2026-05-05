@@ -73,6 +73,21 @@ urlpatterns = [
         name="admin_renewals",
     ),
     path(
+        "jheliz-admin/bulk-delivery/",
+        admin_views.bulk_delivery_view,
+        name="admin_bulk_delivery",
+    ),
+    path(
+        "jheliz-admin/bulk-delivery/deliver/<int:order_id>/",
+        admin_views.bulk_deliver_one,
+        name="admin_bulk_deliver_one",
+    ),
+    path(
+        "jheliz-admin/bulk-delivery/deliver-all/",
+        admin_views.bulk_deliver_all,
+        name="admin_bulk_deliver_all",
+    ),
+    path(
         "jheliz-admin/renewals/<int:item_id>/renew/",
         admin_views.renew_item,
         name="admin_renew_item",
