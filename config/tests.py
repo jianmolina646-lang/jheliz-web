@@ -43,6 +43,21 @@ class SecurityHeadersTests(TestCase):
             resp.headers.get("X-Content-Type-Options"), "nosniff"
         )
 
+    def test_x_robots_tag_on_admin_paths(self):
+        """Las URLs del admin nunca deben ser indexables por buscadores."""
+        # Aunque el admin redirige a login (no autenticado), el middleware
+        # ya añadió la cabecera. Eso es defense-in-depth: incluso un 302
+        # accidentalmente filtrado en logs no se indexa.
+        resp = self.client.get("/jheliz-admin/")
+        self.assertEqual(
+            resp.headers.get("X-Robots-Tag"), "noindex, nofollow, noarchive"
+        )
+
+    def test_x_robots_tag_absent_on_public_pages(self):
+        """Las páginas públicas SÍ son indexables (no deben tener noindex)."""
+        resp = self.client.get("/")
+        self.assertNotIn("X-Robots-Tag", resp.headers)
+
     def test_coop_corp_set(self):
         resp = self.client.get("/")
         self.assertEqual(
@@ -191,3 +206,131 @@ class NotificationsBellEndpointTests(TestCase):
         ticket_items = [it for it in data["items"] if it["kind"] == "ticket"]
         self.assertEqual(len(ticket_items), 1)
         self.assertIn("Netflix", ticket_items[0]["title"])
+
+
+class AuditLogViewerTests(TestCase):
+    """Tests del visor de auditoría (`/jheliz-admin/auditoria/`)."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="admin",
+            email="admin@example.com",
+            password="x",
+            is_staff=True,
+        )
+        self.list_url = reverse("admin_auditlog")
+
+    def _create_log_entry(self, *, action, changes=None, object_repr="Pedido #1"):
+        from auditlog.models import LogEntry
+        from django.contrib.contenttypes.models import ContentType
+        from orders.models import Order
+
+        ct = ContentType.objects.get_for_model(Order)
+        return LogEntry.objects.create(
+            content_type=ct,
+            object_pk="1",
+            object_id=1,
+            object_repr=object_repr,
+            action=action,
+            changes=changes or {},
+            actor=self.staff,
+            remote_addr="10.0.0.1",
+        )
+
+    def test_requires_staff(self):
+        self.client.logout()
+        resp = self.client.get(self.list_url)
+        self.assertEqual(resp.status_code, 302)  # redirect a login
+
+    def test_list_page_renders_for_staff(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(self.list_url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Auditoría")
+
+    def test_list_shows_entry(self):
+        from auditlog.models import LogEntry
+
+        entry = self._create_log_entry(
+            action=LogEntry.Action.UPDATE,
+            changes={"status": ["pending", "paid"]},
+            object_repr="Pedido #1234",
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.get(self.list_url)
+        self.assertContains(resp, "Pedido #1234")
+        self.assertContains(resp, "Editó")
+        # El diff aparece en el preview.
+        self.assertContains(resp, "status")
+
+    def test_filter_by_action(self):
+        from auditlog.models import LogEntry
+
+        self._create_log_entry(
+            action=LogEntry.Action.CREATE, object_repr="Crear A",
+        )
+        self._create_log_entry(
+            action=LogEntry.Action.UPDATE, object_repr="Editar B",
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.get(self.list_url + "?action=create")
+        self.assertContains(resp, "Crear A")
+        self.assertNotContains(resp, "Editar B")
+
+    def test_filter_by_search(self):
+        from auditlog.models import LogEntry
+
+        self._create_log_entry(
+            action=LogEntry.Action.UPDATE,
+            object_repr="Pedido único X",
+        )
+        self._create_log_entry(
+            action=LogEntry.Action.UPDATE,
+            object_repr="Otro objeto Y",
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.get(self.list_url + "?q=único")
+        self.assertContains(resp, "Pedido único X")
+        self.assertNotContains(resp, "Otro objeto Y")
+
+    def test_detail_page(self):
+        from auditlog.models import LogEntry
+
+        entry = self._create_log_entry(
+            action=LogEntry.Action.UPDATE,
+            changes={"status": ["pending", "paid"], "total": ["10.00", "20.00"]},
+            object_repr="Pedido #999",
+        )
+        self.client.force_login(self.staff)
+        url = reverse("admin_auditlog_detail", args=[entry.pk])
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Pedido #999")
+        # El diff aparece en la tabla.
+        self.assertContains(resp, "status")
+        self.assertContains(resp, "total")
+        self.assertContains(resp, "10.00")
+        self.assertContains(resp, "20.00")
+
+    def test_detail_404_for_unknown_entry(self):
+        self.client.force_login(self.staff)
+        url = reverse("admin_auditlog_detail", args=[999999])
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 404)
+
+    def test_truncation_of_long_values(self):
+        """Valores muy largos en `changes` se truncan al renderizar para no romper el layout."""
+        from auditlog.models import LogEntry
+
+        long_value = "a" * 500
+        entry = self._create_log_entry(
+            action=LogEntry.Action.UPDATE,
+            changes={"notes": ["", long_value]},
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_auditlog_detail", args=[entry.pk]))
+        self.assertEqual(resp.status_code, 200)
+        # El truncado del helper limita a 200 chars + elipsis.
+        body = resp.content.decode()
+        self.assertNotIn(long_value, body)

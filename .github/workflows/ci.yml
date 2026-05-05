@@ -80,3 +80,19 @@ jobs:
 
       - name: Run tests
         run: python manage.py test --noinput -v 2
+
+      - name: Django security check (--deploy)
+        # Corre los chequeos de seguridad que Django hace para entornos de
+        # producción (HSTS, cookies seguras, X-Frame-Options, etc.). El flag
+        # `--fail-level WARNING` rompe CI si Django encuentra cualquier
+        # advertencia o error de seguridad, no solo errores duros.
+        # Forzamos DEBUG=False para que los checks dependientes de prod corran.
+        env:
+          DEBUG: "False"
+          # SECRET_KEY de CI con suficiente entropía/longitud para no disparar
+          # security.W009. Solo se usa en este chequeo, jamás contra prod.
+          SECRET_KEY: "ci-only-9f8a2c1b4e7d6a3b5c8f9e2a1d4c7b6e5f8a2c1b4e7d6a3b5c8f9e2a1d4c7b6e"
+          # Hosts incluyen el dominio real para que no rompa por
+          # ALLOWED_HOSTS. No conecta a la DB porque `check` no la toca.
+          ALLOWED_HOSTS: jhelizservicestv.xyz,www.jhelizservicestv.xyz,localhost
+        run: python manage.py check --deploy --fail-level WARNING

@@ -1,0 +1,90 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}
+<h1 class="flex items-center gap-2">
+    <a href="{% url 'admin_auditlog' %}"
+       class="text-gray-400 hover:text-gray-200">
+        <span class="material-symbols-outlined">arrow_back</span>
+    </a>
+    Auditoría · entrada #{{ entry.pk }}
+</h1>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div class="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+            <div class="text-xs text-gray-400">Cuándo</div>
+            <div class="text-sm text-gray-100 mt-1">
+                {{ entry.timestamp|date:"d M Y H:i:s" }}
+            </div>
+        </div>
+        <div class="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+            <div class="text-xs text-gray-400">Actor</div>
+            <div class="text-sm text-gray-100 mt-1">
+                {% if entry.actor %}
+                    {{ entry.actor.get_username }}
+                    {% if entry.actor.email %}
+                    <div class="text-xs text-gray-400">{{ entry.actor.email }}</div>
+                    {% endif %}
+                {% else %}
+                    <span class="text-gray-500 italic">— sin actor (signal directo) —</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+            <div class="text-xs text-gray-400">Acción</div>
+            <div class="mt-1">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs border {{ action_classes }}">
+                    <span class="material-symbols-outlined text-base">{{ action_icon }}</span>
+                    {{ action_label }}
+                </span>
+            </div>
+        </div>
+        <div class="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+            <div class="text-xs text-gray-400">IP / puerto</div>
+            <div class="text-sm text-gray-100 mt-1 font-mono">
+                {{ entry.remote_addr|default:"—" }}{% if entry.remote_port %}:{{ entry.remote_port }}{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+        <div class="text-xs text-gray-400">Objeto</div>
+        <div class="text-sm text-gray-100 mt-1">
+            <span class="font-mono text-gray-400">{{ model_label }}</span>
+            <span class="ml-2">#{{ entry.object_pk }}</span>
+            <span class="ml-2 text-gray-300">{{ entry.object_repr }}</span>
+        </div>
+    </div>
+
+    <div class="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+        <div class="text-xs text-gray-400 mb-2">Diff de campos</div>
+        {% if diffs %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-900/40 text-gray-300 text-xs uppercase">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Campo</th>
+                        <th class="px-3 py-2 text-left">Antes</th>
+                        <th class="px-3 py-2 text-left">Ahora</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800">
+                    {% for d in diffs %}
+                    <tr class="align-top">
+                        <td class="px-3 py-2 font-mono text-xs text-gray-300">{{ d.field }}</td>
+                        <td class="px-3 py-2 text-red-300 whitespace-pre-wrap break-all">{{ d.old }}</td>
+                        <td class="px-3 py-2 text-green-300 whitespace-pre-wrap break-all">{{ d.new }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-500">— sin diff disponible (acción de tipo {{ action_slug }}) —</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

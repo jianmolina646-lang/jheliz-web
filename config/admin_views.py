@@ -2176,3 +2176,236 @@ def bulk_deliver_all(request):
         f"{delivered} pedido(s) entregado(s) · {skipped} omitido(s) por falta de stock.",
     )
     return redirect("admin_bulk_delivery")
+
+
+# ---------------------------------------------------------------------------
+# Audit log viewer
+#
+# `auditlog` registra cada create/update/delete de los modelos rastreados
+# (Order, OrderItem, PaymentSettings, StockItem, Product, Plan), incluyendo
+# actor, IP, timestamp y diff de campos. Esta vista expone esa información
+# en una página filtrable para revisar quién cambió qué y cuándo, sin tener
+# que entrar al admin de auditlog (que es muy crudo).
+# ---------------------------------------------------------------------------
+
+_AUDIT_ACTION_LABELS = {
+    0: ("Creó", "create", "add_circle", "green"),
+    1: ("Editó", "update", "edit", "blue"),
+    2: ("Eliminó", "delete", "delete", "red"),
+    3: ("Accedió", "access", "visibility", "yellow"),
+}
+
+_AUDIT_TONE_CLASSES = {
+    "green": "border-green-500 bg-green-500/20 text-green-100",
+    "blue": "border-blue-500 bg-blue-500/20 text-blue-100",
+    "red": "border-red-500 bg-red-500/20 text-red-100",
+    "yellow": "border-yellow-500 bg-yellow-500/20 text-yellow-100",
+    "gray": "border-gray-500 bg-gray-500/20 text-gray-200",
+}
+
+
+def _parse_audit_changes(entry) -> list[dict]:
+    """Convierte el JSON `changes` de auditlog en una lista de diffs legibles.
+
+    Cada item: {field, old, new}. Trunca valores muy largos para no romper
+    el layout de la tabla.
+    """
+    raw = getattr(entry, "changes", None)
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (ValueError, TypeError):
+            return []
+    if not isinstance(raw, dict):
+        return []
+    diffs = []
+    for field, change in raw.items():
+        if isinstance(change, list) and len(change) == 2:
+            old, new = change
+        elif isinstance(change, dict):
+            old = change.get("old")
+            new = change.get("new")
+        else:
+            old = None
+            new = change
+        diffs.append({
+            "field": field,
+            "old": _truncate_for_display(old),
+            "new": _truncate_for_display(new),
+        })
+    return diffs
+
+
+def _truncate_for_display(value, limit: int = 200) -> str:
+    s = "" if value is None else str(value)
+    if len(s) > limit:
+        return s[: limit - 1] + "…"
+    return s
+
+
+@staff_member_required
+def auditlog_view(request):
+    """Listado paginado del audit log con filtros.
+
+    Filtros vía querystring:
+      - ``model``: ``app_label.model`` (ej. ``orders.order``).
+      - ``action``: ``create`` / ``update`` / ``delete`` / ``access``.
+      - ``actor``: id numérico del usuario que hizo el cambio.
+      - ``q``: búsqueda en ``object_repr`` o ``object_pk`` (LIKE).
+      - ``days``: ventana de los últimos N días (default 30).
+    """
+    from auditlog.models import LogEntry
+    from django.contrib.contenttypes.models import ContentType
+    from accounts.models import User
+
+    try:
+        days = max(1, min(int(request.GET.get("days", "30")), 365))
+    except (TypeError, ValueError):
+        days = 30
+    cutoff = timezone.now() - timedelta(days=days)
+
+    qs = (
+        LogEntry.objects.filter(timestamp__gte=cutoff)
+        .select_related("content_type", "actor")
+        .order_by("-timestamp")
+    )
+
+    model_filter = (request.GET.get("model") or "").strip().lower()
+    if model_filter and "." in model_filter:
+        app_label, model = model_filter.split(".", 1)
+        ct = ContentType.objects.filter(app_label=app_label, model=model).first()
+        if ct:
+            qs = qs.filter(content_type=ct)
+
+    action_filter = (request.GET.get("action") or "").strip().lower()
+    action_value_map = {
+        "create": LogEntry.Action.CREATE,
+        "update": LogEntry.Action.UPDATE,
+        "delete": LogEntry.Action.DELETE,
+        "access": getattr(LogEntry.Action, "ACCESS", 3),
+    }
+    if action_filter in action_value_map:
+        qs = qs.filter(action=action_value_map[action_filter])
+
+    actor_filter = (request.GET.get("actor") or "").strip()
+    if actor_filter.isdigit():
+        qs = qs.filter(actor_id=int(actor_filter))
+
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(
+            Q(object_repr__icontains=q) | Q(object_pk__icontains=q)
+        )
+
+    # Paginación simple (no usamos django Paginator para no traer dependencias
+    # nuevas de template; basta con limit + offset por página).
+    try:
+        page = max(1, int(request.GET.get("page", "1")))
+    except (TypeError, ValueError):
+        page = 1
+    per_page = 50
+    total = qs.count()
+    entries = list(qs[(page - 1) * per_page : page * per_page])
+
+    # Decorar cada entrada con el label del action, tono e icono, además del
+    # diff parseado para mostrar inline (las primeras 3 líneas).
+    rows = []
+    for entry in entries:
+        action_id = entry.action
+        label, slug, icon, tone = _AUDIT_ACTION_LABELS.get(
+            action_id, ("?", "other", "help", "gray")
+        )
+        diffs = _parse_audit_changes(entry)
+        rows.append({
+            "entry": entry,
+            "action_label": label,
+            "action_slug": slug,
+            "action_icon": icon,
+            "action_classes": _AUDIT_TONE_CLASSES[tone],
+            "model_label": (
+                f"{entry.content_type.app_label}.{entry.content_type.model}"
+                if entry.content_type_id else "?"
+            ),
+            "diffs": diffs,
+            "diff_preview": diffs[:3],
+            "diff_more": max(0, len(diffs) - 3),
+        })
+
+    # Opciones para los selects de filtro: solo modelos efectivamente
+    # registrados en auditlog (los que aparecen en LogEntry).
+    model_options_qs = (
+        LogEntry.objects.filter(timestamp__gte=cutoff)
+        .values("content_type__app_label", "content_type__model")
+        .distinct()
+        .order_by("content_type__app_label", "content_type__model")
+    )
+    model_options = [
+        {
+            "value": f"{r['content_type__app_label']}.{r['content_type__model']}",
+            "label": f"{r['content_type__app_label']}.{r['content_type__model']}",
+        }
+        for r in model_options_qs
+        if r["content_type__app_label"] and r["content_type__model"]
+    ]
+
+    actor_options = list(
+        User.objects.filter(is_staff=True)
+        .order_by("username")
+        .values("id", "username", "email")[:50]
+    )
+
+    has_prev = page > 1
+    has_next = page * per_page < total
+
+    ctx = _admin_context(
+        request,
+        title="Auditoría",
+        rows=rows,
+        total=total,
+        page=page,
+        per_page=per_page,
+        has_prev=has_prev,
+        has_next=has_next,
+        model_filter=model_filter,
+        action_filter=action_filter,
+        actor_filter=actor_filter,
+        q=q,
+        days=days,
+        model_options=model_options,
+        actor_options=actor_options,
+    )
+    return render(request, "admin/auditlog.html", ctx)
+
+
+@staff_member_required
+def auditlog_detail(request, pk: int):
+    """Vista de detalle de una entrada: diff completo del objeto cambiado."""
+    from auditlog.models import LogEntry
+
+    entry = get_object_or_404(
+        LogEntry.objects.select_related("content_type", "actor"),
+        pk=pk,
+    )
+    action_id = entry.action
+    label, slug, icon, tone = _AUDIT_ACTION_LABELS.get(
+        action_id, ("?", "other", "help", "gray")
+    )
+    diffs = _parse_audit_changes(entry)
+
+    ctx = _admin_context(
+        request,
+        title=f"Auditoría #{entry.pk}",
+        entry=entry,
+        action_label=label,
+        action_slug=slug,
+        action_icon=icon,
+        action_classes=_AUDIT_TONE_CLASSES[tone],
+        model_label=(
+            f"{entry.content_type.app_label}.{entry.content_type.model}"
+            if entry.content_type_id else "?"
+        ),
+        diffs=diffs,
+    )
+    return render(request, "admin/auditlog_detail.html", ctx)

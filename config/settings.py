@@ -451,6 +451,22 @@ UNFOLD = {
                     },
                 ],
             },
+            {
+                "title": "Seguridad",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "2FA / autenticador",
+                        "icon": "shield_lock",
+                        "link": "/jheliz-admin/security/2fa/",
+                    },
+                    {
+                        "title": "Auditoría",
+                        "icon": "fact_check",
+                        "link": "/jheliz-admin/auditoria/",
+                    },
+                ],
+            },
         ],
     },
 }
