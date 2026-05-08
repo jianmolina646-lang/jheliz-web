@@ -1,9 +1,18 @@
-{% load static %}
+{% load static livechat %}
+
+{# Horario "online" del soporte: 09:00 a 22:59 hora Lima (TIME_ZONE = America/Lima). #}
+{% livechat_is_online as jhz_is_online %}
 
 <!-- ============================================================
      Live chat (Jheliz) — burbuja flotante en todas las páginas
      ============================================================ -->
-<div id="jhz-chat-root" data-poll-interval="5000">
+<div id="jhz-chat-root"
+     data-poll-interval="5000"
+     data-status="{% if jhz_is_online %}online{% else %}offline{% endif %}"
+     {% if user.is_authenticated %}
+       data-prefill-name="{{ user.get_full_name|default:user.username }}"
+       data-prefill-email="{{ user.email|default:'' }}"
+     {% endif %}>
   <button id="jhz-chat-bubble"
           type="button"
           aria-label="Abrir chat de soporte Jheliz"
@@ -25,10 +34,21 @@
     <div class="flex items-center justify-between px-4 py-3 text-white"
          style="background:linear-gradient(135deg,#a855f7,#ec4899);">
       <div class="flex items-center gap-2 min-w-0">
-        <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">J</div>
+        <div class="relative w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
+          J
+          <span aria-hidden="true"
+                class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white"
+                style="background: {% if jhz_is_online %}#22c55e{% else %}#94a3b8{% endif %};"></span>
+        </div>
         <div class="min-w-0">
           <div class="font-bold text-sm leading-tight">Jheliz Soporte</div>
-          <div class="text-[11px] opacity-90 leading-tight">Te respondemos en minutos</div>
+          <div class="text-[11px] opacity-90 leading-tight">
+            {% if jhz_is_online %}
+              Online · Te respondemos en minutos
+            {% else %}
+              Fuera de horario · te respondemos al despertar
+            {% endif %}
+          </div>
         </div>
       </div>
       <button id="jhz-chat-close" type="button" aria-label="Cerrar chat" class="text-white/90 hover:text-white text-xl leading-none">×</button>
@@ -105,6 +125,9 @@
 
   var STORAGE_KEY = 'jhz_chat_room_v1';
   var POLL_MS = parseInt(ROOT.getAttribute('data-poll-interval') || '5000', 10);
+  var PREFILL_NAME = ROOT.getAttribute('data-prefill-name') || '';
+  var PREFILL_EMAIL = ROOT.getAttribute('data-prefill-email') || '';
+  var HAS_PREFILL = !!(PREFILL_NAME || PREFILL_EMAIL);
 
   var state = {
     token: null,
@@ -326,26 +349,44 @@
       });
   });
 
-  // Bootstrap: si ya hay token guardado, retomamos.
+  function bootSession(extra) {
+    return startSession(extra).then(function (data) {
+      if (!(data && data.ok)) return false;
+      state.token = data.room.token;
+      saveStored({
+        token: state.token,
+        name: (extra && extra.name) || data.room.customer_name || '',
+        email: (extra && extra.email) || data.room.customer_email || '',
+      });
+      THREAD.innerHTML = '';
+      state.seen.clear();
+      state.lastMessageId = 0;
+      (data.messages || []).forEach(function (m) {
+        renderMessage(m, { skipScroll: true });
+      });
+      if ((data.messages || []).length === 0) {
+        renderSystemHint();
+      }
+      showThread();
+      startPoll();
+      return true;
+    });
+  }
+
+  // Bootstrap:
+  //  1) Si ya tengo token en localStorage → retomo la sala.
+  //  2) Si no, pero el visitante está logueado → arranco automáticamente
+  //     con sus datos (sin mostrar el form).
+  //  3) Si no, muestro el form para que deje nombre/email.
   var stored = loadStored();
   if (stored && stored.token) {
     state.token = stored.token;
-    startSession({ name: stored.name, email: stored.email }).then(function (data) {
-      if (data && data.ok) {
-        state.token = data.room.token;
-        saveStored({ token: state.token, name: stored.name, email: stored.email });
-        THREAD.innerHTML = '';
-        state.seen.clear();
-        state.lastMessageId = 0;
-        (data.messages || []).forEach(function (m) { renderMessage(m, { skipScroll: true }); });
-        if ((data.messages || []).length === 0) {
-          renderSystemHint();
-        }
-        showThread();
-        startPoll();
-      } else {
-        showForm();
-      }
+    bootSession({ name: stored.name, email: stored.email }).then(function (ok) {
+      if (!ok) showForm();
+    });
+  } else if (HAS_PREFILL) {
+    bootSession({ name: PREFILL_NAME, email: PREFILL_EMAIL }).then(function (ok) {
+      if (!ok) showForm();
     });
   } else {
     showForm();

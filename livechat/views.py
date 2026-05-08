@@ -30,6 +30,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import ChatMessage, ChatRoom
+from .telegram_notify import notify_admin_new_customer_message
 
 
 _MAX_BODY = 4000  # cualquier cosa más larga lo cortamos para evitar abusos
@@ -158,6 +159,8 @@ def send(request: HttpRequest, token: str):
             body=body,
         )
         room.touch()
+
+    notify_admin_new_customer_message(room, msg)
 
     return JsonResponse({
         "ok": True,
