@@ -252,8 +252,9 @@
   }
   /* Make space below content so bottom nav doesn't cover footer text */
   body { padding-bottom: 62px; }
-  /* Hide the WhatsApp FAB a bit higher so it doesn't collide */
-  body > a[aria-label="Escríbenos por WhatsApp"] { bottom: 74px !important; right: 14px !important; }
+  /* Subir la burbuja del chat para que no choque con el nav inferior móvil */
+  #jhz-chat-bubble { bottom: 74px !important; right: 14px !important; }
+  #jhz-chat-panel { bottom: 74px !important; right: 14px !important; }
 }
 .mbn-item {
   position: relative;
