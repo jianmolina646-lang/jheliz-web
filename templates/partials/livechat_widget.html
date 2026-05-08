@@ -1,0 +1,354 @@
+{% load static %}
+
+<!-- ============================================================
+     Live chat (Jheliz) — burbuja flotante en todas las páginas
+     ============================================================ -->
+<div id="jhz-chat-root" data-poll-interval="5000">
+  <button id="jhz-chat-bubble"
+          type="button"
+          aria-label="Abrir chat de soporte Jheliz"
+          aria-expanded="false"
+          class="fixed bottom-5 right-24 z-50 inline-flex items-center justify-center w-14 h-14 rounded-full text-white shadow-lg hover:scale-105 active:scale-95 transition"
+          style="background:linear-gradient(135deg,#a855f7,#ec4899); box-shadow:0 8px 24px -6px rgba(236,72,153,.5);">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <span id="jhz-chat-badge"
+          class="absolute -top-1 -right-1 hidden min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold text-white items-center justify-center"
+          style="background:#ef4444;">0</span>
+  </button>
+
+  <div id="jhz-chat-panel"
+       class="fixed bottom-5 right-5 z-50 hidden flex-col rounded-2xl shadow-2xl overflow-hidden border"
+       style="width: min(360px, calc(100vw - 2.5rem)); height: min(540px, calc(100vh - 6rem));
+              background:#0f0f17; border-color:rgba(168,85,247,.35);">
+    <div class="flex items-center justify-between px-4 py-3 text-white"
+         style="background:linear-gradient(135deg,#a855f7,#ec4899);">
+      <div class="flex items-center gap-2 min-w-0">
+        <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">J</div>
+        <div class="min-w-0">
+          <div class="font-bold text-sm leading-tight">Jheliz Soporte</div>
+          <div class="text-[11px] opacity-90 leading-tight">Te respondemos en minutos</div>
+        </div>
+      </div>
+      <button id="jhz-chat-close" type="button" aria-label="Cerrar chat" class="text-white/90 hover:text-white text-xl leading-none">×</button>
+    </div>
+
+    <div id="jhz-chat-form-wrap" class="hidden p-4 flex-1 flex flex-col gap-3 overflow-y-auto">
+      <p class="text-sm text-zinc-300">¡Hola! Para empezar, dejanos tu nombre y correo. Así podemos contactarte si te desconectás.</p>
+      <form id="jhz-chat-form" class="flex flex-col gap-2">
+        <input type="text" name="name" placeholder="Tu nombre"
+               class="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white focus:border-pink-500 focus:outline-none">
+        <input type="email" name="email" placeholder="tu@correo.com" required
+               class="bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white focus:border-pink-500 focus:outline-none">
+        <button type="submit"
+                class="px-4 py-2 rounded-md text-white text-sm font-semibold"
+                style="background:linear-gradient(135deg,#a855f7,#ec4899);">
+          Empezar chat
+        </button>
+        <div id="jhz-chat-form-error" class="hidden text-xs text-rose-400"></div>
+      </form>
+    </div>
+
+    <div id="jhz-chat-thread-wrap" class="hidden flex-1 flex flex-col min-h-0">
+      <div id="jhz-chat-thread" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+        <!-- mensajes inyectados acá por JS -->
+      </div>
+      <form id="jhz-chat-send" class="border-t flex gap-2 p-2"
+            style="border-color: rgba(255,255,255,.08); background:#0a0a12;">
+        <input type="text" name="body" placeholder="Escribí tu mensaje…" autocomplete="off"
+               required maxlength="4000"
+               class="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white focus:border-pink-500 focus:outline-none">
+        <button type="submit" aria-label="Enviar"
+                class="px-3 rounded-md text-white"
+                style="background:linear-gradient(135deg,#a855f7,#ec4899);">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes jhz-msg-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .jhz-msg { animation: jhz-msg-in .18s ease-out; }
+  #jhz-chat-panel.is-open { display: flex !important; }
+  @media (max-width: 640px) {
+    #jhz-chat-panel.is-open {
+      bottom: 0 !important; right: 0 !important; left: 0 !important;
+      width: 100vw !important; max-width: 100vw !important;
+      height: 85vh !important; max-height: 85vh !important;
+      border-radius: 16px 16px 0 0 !important;
+    }
+  }
+</style>
+
+<script>
+(function () {
+  var ROOT = document.getElementById('jhz-chat-root');
+  if (!ROOT) return;
+  var BUBBLE = document.getElementById('jhz-chat-bubble');
+  var PANEL = document.getElementById('jhz-chat-panel');
+  var CLOSE = document.getElementById('jhz-chat-close');
+  var BADGE = document.getElementById('jhz-chat-badge');
+  var FORM_WRAP = document.getElementById('jhz-chat-form-wrap');
+  var FORM = document.getElementById('jhz-chat-form');
+  var FORM_ERR = document.getElementById('jhz-chat-form-error');
+  var THREAD_WRAP = document.getElementById('jhz-chat-thread-wrap');
+  var THREAD = document.getElementById('jhz-chat-thread');
+  var SEND = document.getElementById('jhz-chat-send');
+
+  var STORAGE_KEY = 'jhz_chat_room_v1';
+  var POLL_MS = parseInt(ROOT.getAttribute('data-poll-interval') || '5000', 10);
+
+  var state = {
+    token: null,
+    lastMessageId: 0,
+    pollTimer: null,
+    seen: new Set(),
+    isOpen: false,
+  };
+
+  function getCookie(name) {
+    var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  function csrf() { return getCookie('csrftoken'); }
+  function loadStored() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); }
+    catch (e) { return null; }
+  }
+  function saveStored(data) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+  }
+
+  function renderMessage(m, opts) {
+    if (state.seen.has(m.id)) return;
+    state.seen.add(m.id);
+    if (m.id > state.lastMessageId) state.lastMessageId = m.id;
+    var row = document.createElement('div');
+    row.className = 'jhz-msg flex flex-col';
+    var bubble = document.createElement('div');
+    var meta = document.createElement('div');
+    meta.className = 'text-[10px] text-zinc-500 mt-0.5';
+    if (m.sender === 'admin') {
+      row.classList.add('items-start');
+      bubble.className = 'rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm text-zinc-100 max-w-[85%]';
+      bubble.style.background = '#1f1f2b';
+      bubble.style.border = '1px solid rgba(255,255,255,.06)';
+      meta.textContent = 'Jheliz · ' + formatTime(m.created_at);
+    } else if (m.sender === 'system') {
+      row.classList.add('items-center');
+      bubble.className = 'text-[11px] text-zinc-400 italic px-3 py-1 rounded-full bg-zinc-800/60';
+      meta.textContent = formatTime(m.created_at);
+    } else {
+      row.classList.add('items-end');
+      bubble.className = 'rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm text-white max-w-[85%]';
+      bubble.style.background = 'linear-gradient(135deg,#a855f7,#ec4899)';
+      meta.className += ' text-right';
+      meta.textContent = 'vos · ' + formatTime(m.created_at);
+    }
+    bubble.textContent = m.body;
+    row.appendChild(bubble);
+    row.appendChild(meta);
+    THREAD.appendChild(row);
+    if (!opts || !opts.skipScroll) {
+      THREAD.scrollTop = THREAD.scrollHeight;
+    }
+  }
+
+  function formatTime(iso) {
+    try {
+      var d = new Date(iso);
+      var hh = String(d.getHours()).padStart(2, '0');
+      var mm = String(d.getMinutes()).padStart(2, '0');
+      return hh + ':' + mm;
+    } catch (e) { return ''; }
+  }
+
+  function showThread() {
+    FORM_WRAP.classList.add('hidden');
+    THREAD_WRAP.classList.remove('hidden');
+    THREAD_WRAP.classList.add('flex');
+  }
+  function showForm() {
+    FORM_WRAP.classList.remove('hidden');
+    FORM_WRAP.classList.add('flex');
+    THREAD_WRAP.classList.add('hidden');
+    THREAD_WRAP.classList.remove('flex');
+  }
+
+  function startSession(extra) {
+    var fd = new FormData();
+    if (state.token) fd.append('token', state.token);
+    fd.append('page_url', window.location.href);
+    if (extra && extra.name) fd.append('name', extra.name);
+    if (extra && extra.email) fd.append('email', extra.email);
+    return fetch('/chat/start/', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-CSRFToken': csrf() },
+      body: fd,
+    }).then(function (r) { return r.json(); });
+  }
+
+  function poll() {
+    if (!state.token) return Promise.resolve();
+    var url = '/chat/' + encodeURIComponent(state.token) + '/poll/?since_id=' + state.lastMessageId;
+    return fetch(url, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.ok && data.messages) {
+          var hadNew = false;
+          data.messages.forEach(function (m) {
+            renderMessage(m);
+            if (m.sender === 'admin' && !state.isOpen) {
+              hadNew = true;
+            }
+          });
+          if (hadNew) bumpBadge(data.messages.filter(function (m) {
+            return m.sender === 'admin';
+          }).length);
+        }
+      })
+      .catch(function () { /* network error: ignorar */ });
+  }
+
+  function startPoll() {
+    if (state.pollTimer) clearInterval(state.pollTimer);
+    state.pollTimer = setInterval(poll, POLL_MS);
+  }
+
+  function bumpBadge(n) {
+    if (!n) return;
+    var current = parseInt(BADGE.textContent || '0', 10) || 0;
+    BADGE.textContent = String(current + n);
+    BADGE.classList.remove('hidden');
+    BADGE.classList.add('flex');
+  }
+  function clearBadge() {
+    BADGE.textContent = '0';
+    BADGE.classList.add('hidden');
+    BADGE.classList.remove('flex');
+  }
+
+  function openPanel() {
+    PANEL.classList.add('is-open');
+    BUBBLE.setAttribute('aria-expanded', 'true');
+    state.isOpen = true;
+    clearBadge();
+    if (state.token) {
+      THREAD.scrollTop = THREAD.scrollHeight;
+    }
+  }
+  function closePanel() {
+    PANEL.classList.remove('is-open');
+    BUBBLE.setAttribute('aria-expanded', 'false');
+    state.isOpen = false;
+  }
+
+  BUBBLE.addEventListener('click', function () {
+    if (state.isOpen) {
+      closePanel();
+    } else {
+      openPanel();
+    }
+  });
+  CLOSE.addEventListener('click', closePanel);
+
+  FORM.addEventListener('submit', function (e) {
+    e.preventDefault();
+    FORM_ERR.classList.add('hidden');
+    var fd = new FormData(FORM);
+    var name = (fd.get('name') || '').toString().trim();
+    var email = (fd.get('email') || '').toString().trim();
+    if (!email) {
+      FORM_ERR.textContent = 'Necesitamos tu correo.';
+      FORM_ERR.classList.remove('hidden');
+      return;
+    }
+    startSession({ name: name, email: email }).then(function (data) {
+      if (!data || !data.ok) {
+        FORM_ERR.textContent = (data && data.error) || 'No pudimos abrir el chat.';
+        FORM_ERR.classList.remove('hidden');
+        return;
+      }
+      state.token = data.room.token;
+      saveStored({ token: state.token, name: name, email: email });
+      THREAD.innerHTML = '';
+      state.seen.clear();
+      state.lastMessageId = 0;
+      (data.messages || []).forEach(function (m) { renderMessage(m, { skipScroll: true }); });
+      if ((data.messages || []).length === 0) {
+        renderSystemHint();
+      }
+      THREAD.scrollTop = THREAD.scrollHeight;
+      showThread();
+      startPoll();
+    });
+  });
+
+  function renderSystemHint() {
+    var hint = {
+      id: -1,
+      sender: 'admin',
+      body: '¡Hola! Soy del equipo de Jheliz. ¿En qué te puedo ayudar?',
+      created_at: new Date().toISOString(),
+    };
+    renderMessage(hint, { skipScroll: true });
+  }
+
+  SEND.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!state.token) return;
+    var fd = new FormData(SEND);
+    var body = (fd.get('body') || '').toString().trim();
+    if (!body) return;
+    SEND.querySelector('input[name="body"]').value = '';
+    var url = '/chat/' + encodeURIComponent(state.token) + '/send/';
+    var send = new FormData();
+    send.append('body', body);
+    fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-CSRFToken': csrf() },
+      body: send,
+    }).then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.ok && data.message) {
+          renderMessage(data.message);
+        }
+      });
+  });
+
+  // Bootstrap: si ya hay token guardado, retomamos.
+  var stored = loadStored();
+  if (stored && stored.token) {
+    state.token = stored.token;
+    startSession({ name: stored.name, email: stored.email }).then(function (data) {
+      if (data && data.ok) {
+        state.token = data.room.token;
+        saveStored({ token: state.token, name: stored.name, email: stored.email });
+        THREAD.innerHTML = '';
+        state.seen.clear();
+        state.lastMessageId = 0;
+        (data.messages || []).forEach(function (m) { renderMessage(m, { skipScroll: true }); });
+        if ((data.messages || []).length === 0) {
+          renderSystemHint();
+        }
+        showThread();
+        startPoll();
+      } else {
+        showForm();
+      }
+    });
+  } else {
+    showForm();
+  }
+})();
+</script>

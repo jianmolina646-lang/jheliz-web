@@ -491,6 +491,7 @@ def notifications_count(request):
     El JS hace polling cada 30s y compara contra ``localStorage`` para saber
     cuáles items son nuevos vs ya vistos.
     """
+    from livechat.models import ChatMessage, ChatRoom
     from orders.models import Order
     from support.models import Ticket
 
@@ -559,6 +560,36 @@ def notifications_count(request):
             "relative": _humanize_delta(now - ts) if ts else "",
         })
 
+    # Chat en vivo: salas con mensajes del cliente que el admin no ha visto.
+    chat_rooms_unread = (
+        ChatRoom.objects.filter(status=ChatRoom.Status.OPEN)
+        .order_by("-last_message_at")[:item_limit]
+    )
+    chat_unread_total = 0
+    for room in chat_rooms_unread:
+        msg_qs = ChatMessage.objects.filter(
+            room_id=room.pk, sender=ChatMessage.Sender.CUSTOMER,
+        )
+        if room.last_admin_seen_at:
+            msg_qs = msg_qs.filter(created_at__gt=room.last_admin_seen_at)
+        unread_count = msg_qs.count()
+        if unread_count == 0:
+            continue
+        chat_unread_total += unread_count
+        ts = room.last_message_at or room.created_at
+        last_msg = ChatMessage.objects.filter(room_id=room.pk).order_by("-created_at").first()
+        snippet = (last_msg.body if last_msg else "")[:80]
+        items.append({
+            "id": f"livechat-{room.pk}",
+            "kind": "livechat",
+            "icon": "chat",
+            "title": f"Chat con {room.display_name} · {unread_count} sin leer",
+            "subtitle": snippet or "(mensaje vacío)",
+            "url": reverse("admin_livechat_detail", args=[room.pk]),
+            "created_at": ts.isoformat() if ts else None,
+            "relative": _humanize_delta(now - ts) if ts else "",
+        })
+
     # Más recientes primero, máximo 15 visibles en el bell.
     items.sort(key=lambda x: x["created_at"] or "", reverse=True)
     items = items[:15]
@@ -569,8 +600,12 @@ def notifications_count(request):
         "open_tickets": Ticket.objects.exclude(
             status__in=(Ticket.Status.RESOLVED, Ticket.Status.CLOSED),
         ).count(),
+        "livechat_unread": chat_unread_total,
     }
-    counts["total"] = counts["verifying"] + counts["preparing"] + counts["open_tickets"]
+    counts["total"] = (
+        counts["verifying"] + counts["preparing"]
+        + counts["open_tickets"] + counts["livechat_unread"]
+    )
 
     # Compat: el JS viejo del dashboard espera las claves verifying/preparing/total
     # en el nivel raíz; las dejamos ahí + un bloque "counts" duplicado para JS nuevo.
