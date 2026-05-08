@@ -91,7 +91,7 @@ def manifest_json(request):
 
 
 _SERVICE_WORKER_JS = """// Jheliz PWA service worker
-const VERSION = 'jheliz-v2';
+const VERSION = 'jheliz-v3';
 const STATIC_CACHE = `static-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
