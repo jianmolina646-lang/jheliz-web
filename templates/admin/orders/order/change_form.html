@@ -112,11 +112,175 @@ body.change-form { padding-bottom: 80px; }
     .jh-sticky-bar .jh-action { padding: 7px 10px; font-size: 12px; }
     .jh-sticky-bar .jh-info { font-size: 12px; }
 }
+
+/* ---------- Sticky TOP header (PR J item 10) ---------- */
+.jh-sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    margin: -16px -16px 18px;
+    padding: 12px 18px;
+    background: linear-gradient(180deg, rgba(15,23,42,0.98), rgba(15,23,42,0.94));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(244,114,182,0.18);
+    box-shadow: 0 4px 20px -10px rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    color: #e2e8f0;
+}
+.jh-sticky-header__back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: background .15s ease, transform .15s ease;
+}
+.jh-sticky-header__back:hover { background: rgba(255,255,255,0.12); transform: translateX(-2px); }
+.jh-sticky-header__back .material-symbols-outlined { font-size: 18px; }
+.jh-sticky-header__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.jh-sticky-header__title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 700; color: #fff;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jh-sticky-header__id {
+    color: #f472b6;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: .02em;
+}
+.jh-sticky-header__sub {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: 12px; color: #94a3b8;
+}
+.jh-sticky-header__pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em;
+}
+.jh-sticky-header__pill.pending,
+.jh-sticky-header__pill.verifying { background: rgba(245,158,11,0.18); color: #fbbf24; border: 1px solid rgba(245,158,11,0.35); }
+.jh-sticky-header__pill.paid,
+.jh-sticky-header__pill.preparing { background: rgba(59,130,246,0.18); color: #60a5fa; border: 1px solid rgba(59,130,246,0.35); }
+.jh-sticky-header__pill.delivered { background: rgba(16,185,129,0.18); color: #34d399; border: 1px solid rgba(16,185,129,0.35); }
+.jh-sticky-header__pill.canceled,
+.jh-sticky-header__pill.failed,
+.jh-sticky-header__pill.refunded { background: rgba(239,68,68,0.18); color: #f87171; border: 1px solid rgba(239,68,68,0.35); }
+.jh-sticky-header__total {
+    font-size: 16px; font-weight: 800; color: #fff;
+    margin-left: 4px;
+}
+.jh-sticky-header__actions {
+    display: inline-flex; gap: 6px;
+    margin-left: auto;
+}
+.jh-sticky-header__btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px;
+    font-size: 12.5px; font-weight: 600;
+    text-decoration: none !important;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    cursor: pointer;
+    transition: transform .15s ease, filter .15s ease, background .15s ease;
+    font-family: inherit;
+}
+.jh-sticky-header__btn:hover { transform: translateY(-1px); filter: brightness(1.15); }
+.jh-sticky-header__btn--primary { background: linear-gradient(135deg, #ec4899, #a855f7); border-color: transparent; }
+.jh-sticky-header__btn--info    { background: linear-gradient(135deg, #0284c7, #0ea5e9); border-color: transparent; }
+.jh-sticky-header__btn .material-symbols-outlined { font-size: 16px; }
+@media (max-width: 768px) {
+    .jh-sticky-header__total { display: none; }
+    .jh-sticky-header__btn span:not(.material-symbols-outlined) { display: none; }
+    .jh-sticky-header__btn { padding: 7px 9px; }
+}
+
+/* ---------- Polish para fieldsets colapsables (PR J item 11) ---------- */
+/* Unfold renderiza los fieldsets con clase "collapse" como un summary/details
+   nativo. Le damos un look más moderno con icono de chevron animado. */
+fieldset.collapse > h2,
+fieldset.module > h2 {
+    cursor: default;
+}
+fieldset.module > h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+fieldset.module > h2::before {
+    content: "";
+    display: inline-block;
+    width: 4px;
+    height: 18px;
+    background: linear-gradient(180deg, #ec4899, #a855f7);
+    border-radius: 2px;
+    margin-right: 4px;
+}
 </style>
 {% endif %}
 {% endblock %}
 
 {% block content %}
+{% if original %}
+<header class="jh-sticky-header" role="banner" aria-label="Resumen del pedido">
+    <a href="{% url 'admin:orders_order_changelist' %}"
+       class="jh-sticky-header__back" title="Volver al listado de pedidos"
+       aria-label="Volver">
+        <span class="material-symbols-outlined">arrow_back</span>
+    </a>
+    <div class="jh-sticky-header__main">
+        <div class="jh-sticky-header__title">
+            <span class="jh-sticky-header__id">#{{ original.short_uuid }}</span>
+            <span>{% firstof original.user.get_full_name original.email original.phone "Cliente" %}</span>
+        </div>
+        <div class="jh-sticky-header__sub">
+            <span class="jh-sticky-header__pill {{ original.status }}">
+                {{ original.get_status_display }}
+            </span>
+            {% if original.payment_provider %}
+            <span>· {{ original.get_payment_provider_display|default:original.payment_provider }}</span>
+            {% endif %}
+            <span class="jh-sticky-header__total">{{ original.currency }} {{ original.total }}</span>
+        </div>
+    </div>
+    <div class="jh-sticky-header__actions">
+        <button type="submit" name="_save" form="order_form"
+                class="jh-sticky-header__btn jh-sticky-header__btn--primary"
+                title="Guardar cambios">
+            <span class="material-symbols-outlined">save</span>
+            <span>Guardar</span>
+        </button>
+        {% if original.status == "delivered" %}
+        <a href="{% url 'admin:orders_order_resend' original.pk %}"
+           class="jh-sticky-header__btn jh-sticky-header__btn--info"
+           title="Reenviar credenciales al cliente">
+            <span class="material-symbols-outlined">forward_to_inbox</span>
+            <span>Reenviar</span>
+        </a>
+        {% endif %}
+    </div>
+</header>
+<script>
+// El botón "Guardar" del sticky header dispara el form principal del admin.
+// Django default le pone id="<modelname>_form" → "order_form".
+(function(){
+    var f = document.querySelector('form#order_form, form[id$="_form"]');
+    if (f && !f.id) f.id = 'order_form';
+})();
+</script>
+{% endif %}
+
 {{ block.super }}
 
 {% if original %}
