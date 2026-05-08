@@ -1,10 +1,15 @@
 """Tests del chat en vivo (público + admin)."""
 
+from datetime import datetime
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from .models import ChatMessage, ChatRoom
+from .templatetags.livechat import livechat_is_online
 
 
 User = get_user_model()
@@ -176,3 +181,115 @@ class AdminChatTests(TestCase):
         self.client.logout()
         resp = self.client.get(reverse("admin_livechat_index"))
         self.assertEqual(resp.status_code, 302)
+
+
+class TelegramNotifyTests(TestCase):
+    """Notificación al admin por Telegram cuando llega un mensaje del cliente."""
+
+    def setUp(self):
+        cache.clear()
+
+    @patch("livechat.telegram_notify.cache")
+    @patch("orders.telegram.notify_admin")
+    @patch("orders.telegram.is_configured", return_value=True)
+    def test_send_triggers_telegram_notify(self, _is_cfg, mock_notify, mock_cache):
+        mock_cache.get.return_value = None
+        room = ChatRoom.objects.create(
+            customer_name="Juan", customer_email="juan@x.com",
+        )
+        resp = self.client.post(
+            f"/chat/{room.token}/send/", data={"body": "ayuda con netflix"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        mock_notify.assert_called_once()
+        text_arg = mock_notify.call_args[0][0]
+        self.assertIn("Juan", text_arg)
+        self.assertIn("ayuda con netflix", text_arg)
+        # Después de notificar, marcamos cache para debounce.
+        mock_cache.set.assert_called_once()
+
+    @patch("livechat.telegram_notify.cache")
+    @patch("orders.telegram.notify_admin")
+    @patch("orders.telegram.is_configured", return_value=True)
+    def test_telegram_debounced_by_recent_notification(
+        self, _is_cfg, mock_notify, mock_cache,
+    ):
+        # Cache.get ya devuelve algo → no notificamos.
+        mock_cache.get.return_value = True
+        room = ChatRoom.objects.create(customer_email="x@y.com")
+        self.client.post(
+            f"/chat/{room.token}/send/", data={"body": "primer mensaje"},
+        )
+        self.client.post(
+            f"/chat/{room.token}/send/", data={"body": "segundo mensaje"},
+        )
+        mock_notify.assert_not_called()
+
+    @patch("orders.telegram.is_configured", return_value=False)
+    def test_telegram_skipped_when_not_configured(self, _is_cfg):
+        room = ChatRoom.objects.create(customer_email="x@y.com")
+        # No debe romper aunque no haya bot configurado.
+        resp = self.client.post(
+            f"/chat/{room.token}/send/", data={"body": "ping"},
+        )
+        self.assertEqual(resp.status_code, 200)
+
+
+class PrefillAuthenticatedUserTests(TestCase):
+    """Si el cliente está logueado, el widget debe pre-llenar nombre/email."""
+
+    def test_widget_renders_prefill_data_when_authenticated(self):
+        user = User.objects.create_user(
+            username="luis", email="luis@example.com",
+            first_name="Luis", last_name="Perez",
+            password="x",
+        )
+        self.client.force_login(user)
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'data-prefill-name="Luis Perez"')
+        self.assertContains(resp, 'data-prefill-email="luis@example.com"')
+
+    def test_widget_no_prefill_when_anonymous(self):
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "data-prefill-name=")
+        self.assertNotContains(resp, "data-prefill-email=")
+
+
+class OnlineStatusTagTests(TestCase):
+    """`livechat_is_online` y banner online/offline."""
+
+    @patch("livechat.templatetags.livechat.timezone")
+    def test_online_at_midday(self, mock_tz):
+        mock_tz.localtime.return_value = datetime(2026, 1, 1, 14, 0)
+        self.assertTrue(livechat_is_online())
+
+    @patch("livechat.templatetags.livechat.timezone")
+    def test_offline_at_3am(self, mock_tz):
+        mock_tz.localtime.return_value = datetime(2026, 1, 1, 3, 0)
+        self.assertFalse(livechat_is_online())
+
+    @patch("livechat.templatetags.livechat.timezone")
+    def test_offline_at_11pm(self, mock_tz):
+        mock_tz.localtime.return_value = datetime(2026, 1, 1, 23, 0)
+        self.assertFalse(livechat_is_online())
+
+    @patch("livechat.templatetags.livechat.timezone")
+    def test_online_at_9am_sharp(self, mock_tz):
+        mock_tz.localtime.return_value = datetime(2026, 1, 1, 9, 0)
+        self.assertTrue(livechat_is_online())
+
+    @patch("livechat.templatetags.livechat.timezone")
+    def test_widget_renders_online_banner(self, mock_tz):
+        mock_tz.localtime.return_value = datetime(2026, 1, 1, 14, 0)
+        resp = self.client.get("/")
+        self.assertContains(resp, "Online · Te respondemos en minutos")
+        self.assertContains(resp, 'data-status="online"')
+
+    @patch("livechat.templatetags.livechat.timezone")
+    def test_widget_renders_offline_banner(self, mock_tz):
+        mock_tz.localtime.return_value = datetime(2026, 1, 1, 3, 0)
+        resp = self.client.get("/")
+        self.assertContains(resp, "Fuera de horario")
+        self.assertContains(resp, 'data-status="offline"')
