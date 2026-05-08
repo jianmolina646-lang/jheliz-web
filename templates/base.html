@@ -259,7 +259,11 @@
         </a>
         {% if user.is_authenticated %}
           <a href="{% url 'accounts:dashboard' %}" class="hidden sm:inline-flex btn btn-secondary text-sm" style="padding:0.4rem 0.85rem;border-radius:9999px">{{ user.username }}</a>
-          <a href="{% url 'accounts:logout' %}" class="hidden sm:inline-flex btn btn-secondary text-sm" style="padding:0.4rem 0.85rem;border-radius:9999px">Salir</a>
+          {# Django 5 exige POST para logout. Usamos un <form> inline con un <button> estilizado como link. #}
+          <form method="post" action="{% url 'accounts:logout' %}" class="hidden sm:inline-flex">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary text-sm" style="padding:0.4rem 0.85rem;border-radius:9999px">Salir</button>
+          </form>
         {% else %}
           <a href="{% url 'accounts:login' %}" class="hidden sm:inline-flex btn btn-secondary text-sm" style="padding:0.4rem 0.85rem;border-radius:9999px">Ingresar</a>
           <a href="{% url 'accounts:signup' %}" class="btn btn-primary text-sm" style="padding:0.4rem 0.95rem;border-radius:9999px">Crear cuenta</a>
