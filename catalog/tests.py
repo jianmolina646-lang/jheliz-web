@@ -57,7 +57,7 @@ class StockUrgencyTests(TestCase):
 
 class StockImportDuplicateTests(TestCase):
     def setUp(self):
-        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.product = Product.objects.create(
             category=self.cat,
             name="Netflix Premium — 1 perfil",
@@ -252,7 +252,7 @@ class StockModuleViewsTests(TestCase):
         self.user = User.objects.create_user(
             username="cliente", email="c@example.com", password="pwd1234!",
         )
-        self.cat = Category.objects.create(name="Streaming", slug="streaming-mod")
+        self.cat = Category.objects.create(name="Streaming-mod", slug="streaming-mod")
         self.product_a = Product.objects.create(
             category=self.cat, name="Netflix Demo", slug="netflix-demo", is_active=True,
         )
@@ -365,7 +365,7 @@ class CheapestVisiblePlanTests(TestCase):
     """El `DESDE` de la card debe ignorar planes en S/ 0 o sólo-distribuidor."""
 
     def setUp(self):
-        self.cat = Category.objects.create(name="Streaming", slug="streaming-pp")
+        self.cat = Category.objects.create(name="Streaming-pp", slug="streaming-pp")
         self.product = Product.objects.create(
             category=self.cat, name="Prime Video Demo", slug="prime-video-demo",
             is_active=True,
@@ -452,7 +452,7 @@ class DistributorPanelTests(TestCase):
             email="c1@example.com",
             role="cliente",
         )
-        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.prod = Product.objects.create(
             category=self.cat, name="Netflix", slug="netflix", is_active=True,
         )
@@ -558,7 +558,7 @@ class DistributorPanelTests(TestCase):
 
 class BackInStockAlertTests(TestCase):
     def setUp(self):
-        self.cat = Category.objects.create(name="Streaming", slug="streaming-bis")
+        self.cat = Category.objects.create(name="Streaming-bis", slug="streaming-bis")
         self.product = Product.objects.create(
             category=self.cat,
             name="Test BIS Product",

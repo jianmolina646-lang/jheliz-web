@@ -36,7 +36,7 @@ from catalog.models import Category, Plan, Product, StockItem
 
 
 def _make_order_item(creds: str = "") -> OrderItem:
-    cat = Category.objects.create(name="Streaming", slug="streaming")
+    cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
     product = Product.objects.create(
         name="Netflix Premium", slug="netflix-premium", category=cat
     )
@@ -358,7 +358,7 @@ class MercadoPagoWebhookFallbackTests(TestCase):
 # ----- PR D -----
 
 def _make_setup():
-    cat = Category.objects.create(name="Streaming", slug="streaming")
+    cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
     product = Product.objects.create(
         name="Netflix Premium", slug="netflix-premium", category=cat
     )
@@ -513,7 +513,7 @@ from orders.models import Coupon  # noqa: E402
 
 class CouponTests(TestCase):
     def setUp(self):
-        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.product = Product.objects.create(
             name="Netflix Premium", slug="netflix-premium", category=self.cat,
             is_active=True, requires_customer_profile_data=False,
@@ -602,7 +602,7 @@ class OrderTimelineTests(TestCase):
     """Validación de Order.get_timeline() — bitácora combinando fuentes."""
 
     def setUp(self):
-        cat = Category.objects.create(name="Streaming", slug="streaming-t")
+        cat = Category.objects.create(name="Streaming-t", slug="streaming-t")
         product = Product.objects.create(
             name="Netflix", slug="netflix-timeline", category=cat,
         )
@@ -687,7 +687,7 @@ class YapeInboxTests(TestCase):
         self.admin = User.objects.create_user(
             username="staff-inbox", password="x", is_staff=True, is_superuser=True,
         )
-        cat = Category.objects.create(name="Streaming", slug="streaming-inbox")
+        cat = Category.objects.create(name="Streaming-inbox", slug="streaming-inbox")
         self.product = Product.objects.create(
             name="Netflix", slug="netflix-inbox", category=cat,
         )
@@ -840,7 +840,7 @@ class GlobalSearchTests(TestCase):
         self.admin = User.objects.create_user(
             username="staff-search", password="x", is_staff=True, is_superuser=True,
         )
-        cat = Category.objects.create(name="Streaming", slug="streaming-search")
+        cat = Category.objects.create(name="Streaming-search", slug="streaming-search")
         self.product = Product.objects.create(
             name="Netflix Premium Buscable", slug="netflix-buscable", category=cat,
         )
@@ -945,7 +945,7 @@ class ReplaceAccountCredentialsTests(TestCase):
         self.distri.distributor_approved = True
         self.distri.save()
 
-        cat = Category.objects.create(name="Streaming", slug="streaming-rep")
+        cat = Category.objects.create(name="Streaming-rep", slug="streaming-rep")
         self.product = Product.objects.create(
             name="Amazon", slug="amazon-rep", category=cat,
         )
@@ -1154,7 +1154,7 @@ class CartBulkTests(TestCase):
         self.cliente = User.objects.create_user(
             username="cart_cli", password="x", email="cli@example.com", role="cliente",
         )
-        self.cat = Category.objects.create(name="Streaming", slug="streaming-bulk")
+        self.cat = Category.objects.create(name="Streaming-bulk", slug="streaming-bulk")
         self.prod = Product.objects.create(
             category=self.cat, name="Netflix", slug="netflix-bulk",
             is_active=True, requires_customer_profile_data=True,
@@ -1342,7 +1342,7 @@ class DistributorExpiryReminderTests(TestCase):
 
 class ProductWhatsappPitchTests(TestCase):
     def setUp(self):
-        cat = Category.objects.create(name="Streaming", slug="streaming-pitch")
+        cat = Category.objects.create(name="Streaming-pitch", slug="streaming-pitch")
         self.product = Product.objects.create(
             category=cat, name="Netflix", slug="netflix-pitch",
             short_description="Plan Premium 4K compartido", icon="🎬",
@@ -2348,7 +2348,7 @@ class TelegramChannelTests(TestCase):
         # (la señal post_save publica al canal).
         self._call_patcher = patch("orders.telegram._call", return_value={"ok": True})
         self._call_patcher.start()
-        cat = Category.objects.create(name="Streaming")
+        cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.product = Product.objects.create(
             name="Netflix Premium",
             category=cat,
@@ -2454,7 +2454,7 @@ class PlanAvailableStockTests(TestCase):
 
     def setUp(self):
         from catalog.models import Category, Plan, Product, StockItem
-        cat = Category.objects.create(name="Streaming", slug="streaming-pa")
+        cat = Category.objects.create(name="Streaming-pa", slug="streaming-pa")
         self.product = Product.objects.create(
             name="Disney+", category=cat, slug="disney-pa", is_active=True,
         )
@@ -2488,7 +2488,7 @@ class TelegramMultiChannelTests(TestCase):
     def setUp(self):
         self._call_patcher = patch("orders.telegram._call", return_value={"ok": True})
         self._call_patcher.start()
-        cat = Category.objects.create(name="Streaming")
+        cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.product = Product.objects.create(
             name="Netflix Premium",
             category=cat,
@@ -2596,7 +2596,7 @@ _BASIC_STORAGES = {
 @override_settings(STORAGES=_BASIC_STORAGES)
 class ComboBuilderTests(TestCase):
     def setUp(self):
-        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.p1 = Product.objects.create(
             category=self.cat, name="Netflix", slug="netflix",
             is_active=True,

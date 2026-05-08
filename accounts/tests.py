@@ -488,7 +488,7 @@ class CatalogAdminListTests(TestCase):
         cls.staff = User.objects.create_superuser(
             username="catadm", email="c@x.com", password="x",
         )
-        cls.category = Category.objects.create(name="Streaming", slug="streaming")
+        cls.category = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         cls.product = Product.objects.create(
             category=cls.category, name="Netflix Premium",
             slug="netflix-premium", icon="🎬", is_active=True,
