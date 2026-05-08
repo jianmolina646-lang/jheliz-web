@@ -199,13 +199,17 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             .prefetch_related("items")
         )
 
+    # Fieldsets agrupados por workflow (PR J item 11). Las secciones menos
+    # usadas (credenciales y timestamps) arrancan colapsadas para reducir
+    # el scroll inicial; el operador las expande sólo si las necesita.
     fieldsets = (
-        ("Datos", {
+        ("Datos del cliente", {
             "fields": ("uuid", "user", "email", "phone", "telegram_username", "channel", "notes"),
         }),
         ("Credenciales entregadas", {
             "fields": ("delivered_credentials_summary",),
             "description": "Resumen de las cuentas entregadas al cliente (correo y clave por producto). Para editarlas, usá la tabla de Items más abajo.",
+            "classes": ("collapse",),
         }),
         ("Pago", {
             "fields": (
@@ -216,6 +220,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         }),
         ("Timestamps", {
             "fields": ("created_at", "paid_at", "delivered_at"),
+            "classes": ("collapse",),
         }),
     )
 
