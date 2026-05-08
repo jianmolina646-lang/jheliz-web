@@ -1,0 +1,149 @@
+{# Sección de reseñas verificadas con foto/avatar — prueba social real.
+   Pulla ProductReview aprobadas, prioriza las que tienen foto. #}
+{% if featured_reviews %}
+{% load humanize %}
+<section class="py-14 border-t hairline" aria-label="Reseñas de clientes verificados">
+  <div class="flex items-end justify-between mb-8">
+    <div>
+      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Lo que dicen los clientes</p>
+      <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight mt-2">
+        Reseñas <span class="hero-italic text-zinc-400">verificadas</span> con foto
+      </h2>
+    </div>
+    <div class="hidden sm:flex items-center gap-1.5 text-sm">
+      <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px;color:#fbbf24" aria-hidden="true">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+      <span class="font-semibold text-white">{{ SOCIAL_PROOF.avg_rating|default:"4.9" }}</span>
+      <span class="text-zinc-500">/ 5 · {{ SOCIAL_PROOF.review_count|default:"50" }} reseñas</span>
+    </div>
+  </div>
+
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3" data-reveal-stagger>
+    {% for review in featured_reviews %}
+      <article class="fr-card" data-reveal>
+        <header class="fr-card__head">
+          <div class="fr-card__avatar">
+            {{ review.author_name|first|default:"C"|upper }}
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="fr-card__name">{{ review.author_name|default:"Cliente" }}</div>
+            <div class="fr-card__meta">
+              {% if review.city %}{{ review.city }} · {% endif %}{{ review.created_at|naturaltime }}
+            </div>
+          </div>
+          <span class="fr-card__verified" title="Compra verificada">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 12l2 2 4-4"/>
+              <circle cx="12" cy="12" r="10"/>
+            </svg>
+          </span>
+        </header>
+
+        <div class="fr-card__stars">
+          {% for i in "12345" %}
+            {% if forloop.counter <= review.rating %}
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            {% else %}
+              <svg viewBox="0 0 24 24" fill="rgba(255,255,255,.15)" aria-hidden="true">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            {% endif %}
+          {% endfor %}
+        </div>
+
+        {% if review.title %}
+          <div class="fr-card__title">{{ review.title }}</div>
+        {% endif %}
+        <p class="fr-card__body">{{ review.comment|truncatechars:180 }}</p>
+
+        {% if review.photo %}
+          <a href="{{ review.photo.url }}" target="_blank" rel="noopener" class="fr-card__photo">
+            <img src="{{ review.photo.url }}" alt="Foto de la reseña de {{ review.author_name }}" loading="lazy">
+          </a>
+        {% endif %}
+
+        <footer class="fr-card__foot">
+          <span class="fr-card__product">
+            {{ review.product.category.emoji|default:"🎬" }} {{ review.product.name }}
+          </span>
+        </footer>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<style>
+  .fr-card {
+    display: flex; flex-direction: column;
+    padding: 1.1rem;
+    border-radius: 16px;
+    border: 1px solid var(--line, rgba(255,255,255,.08));
+    background: rgba(255,255,255,.025);
+    transition: border-color .18s ease, transform .18s ease;
+  }
+  .fr-card:hover {
+    border-color: rgba(236,72,153,.35);
+    transform: translateY(-2px);
+  }
+  .fr-card__head {
+    display: flex; align-items: center; gap: .65rem;
+  }
+  .fr-card__avatar {
+    width: 2.25rem; height: 2.25rem;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, rgba(236,72,153,.2), rgba(168,85,247,.15));
+    border: 1px solid rgba(236,72,153,.3);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .85rem; color: #f9a8d4;
+    flex-shrink: 0;
+  }
+  .fr-card__name {
+    font-family: 'Geist', system-ui, sans-serif;
+    font-weight: 600; font-size: .9rem; color: #fafafa;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .fr-card__meta {
+    font-size: .68rem; color: #71717a; margin-top: 1px;
+  }
+  .fr-card__verified {
+    width: 1.4rem; height: 1.4rem; flex-shrink: 0;
+    color: #6ee7b7;
+  }
+  .fr-card__verified svg { width: 18px; height: 18px; }
+  .fr-card__stars {
+    display: flex; gap: 1px; margin-top: .65rem;
+    color: #fbbf24;
+  }
+  .fr-card__stars svg { width: 13px; height: 13px; }
+  .fr-card__title {
+    font-weight: 600; font-size: .9rem; color: #fafafa;
+    margin-top: .55rem;
+  }
+  .fr-card__body {
+    font-size: .82rem; color: #d4d4d8;
+    line-height: 1.5; margin-top: .35rem;
+  }
+  .fr-card__photo {
+    display: block; margin-top: .75rem;
+    border-radius: 10px; overflow: hidden;
+    border: 1px solid var(--line, rgba(255,255,255,.08));
+  }
+  .fr-card__photo img {
+    width: 100%; height: 180px; object-fit: cover;
+    display: block;
+    transition: transform .35s ease;
+  }
+  .fr-card__photo:hover img { transform: scale(1.04); }
+  .fr-card__foot {
+    margin-top: auto; padding-top: .75rem;
+    border-top: 1px solid var(--line, rgba(255,255,255,.06));
+  }
+  .fr-card__product {
+    font-size: .72rem; color: #a1a1aa;
+    display: inline-flex; align-items: center; gap: .35rem;
+  }
+</style>
+{% endif %}

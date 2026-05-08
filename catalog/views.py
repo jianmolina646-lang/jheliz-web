@@ -2,6 +2,7 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.cache import cache
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.db.models import Q
@@ -62,6 +63,31 @@ def _product_schema(request, product, plans):
 def _testimonios():
     """Return published testimonios from the DB."""
     return Testimonial.objects.filter(is_published=True)[:9]
+
+
+def _featured_reviews(limit: int = 6):
+    """Reseñas reales aprobadas, priorizando las que tienen foto.
+
+    Las reseñas con foto generan más confianza que las que no.
+    Se cachean 5 min para no impactar el home en cada hit.
+    """
+    cache_key = "jh_featured_reviews"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    qs = (
+        ProductReview.objects.filter(status=ProductReview.Status.APPROVED)
+        .select_related("product")
+        .order_by("-created_at")
+    )
+    with_photo = list(qs.exclude(photo="").exclude(photo__isnull=True)[:limit])
+    if len(with_photo) < limit:
+        # Completar con reseñas sin foto si faltan.
+        remaining = limit - len(with_photo)
+        ids = [r.id for r in with_photo]
+        with_photo.extend(qs.exclude(id__in=ids)[:remaining])
+    cache.set(cache_key, with_photo, 300)
+    return with_photo
 
 
 def _recent_purchases(limit: int = 8):
@@ -149,6 +175,7 @@ def home(request):
             "featured_products": featured,
             "top_categories": top_categories,
             "testimonios": _testimonios(),
+            "featured_reviews": _featured_reviews(),
             "recent_purchases": _recent_purchases(),
             "starter_strip": starter_strip,
         },

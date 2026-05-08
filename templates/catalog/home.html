@@ -77,6 +77,36 @@
     border: 1px solid rgba(236,72,153,.25);
     box-shadow: 0 6px 24px -10px rgba(236,72,153,.5);
   }
+  .hero-live-pulse {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .35rem .75rem;
+    border-radius: 9999px;
+    background: rgba(16,185,129,.08);
+    border: 1px solid rgba(16,185,129,.25);
+    font-size: .72rem; color: #a7f3d0;
+    font-family: 'Geist', system-ui, sans-serif;
+  }
+  .hero-live-pulse__dot {
+    width: 7px; height: 7px;
+    border-radius: 9999px;
+    background: #34d399;
+    box-shadow: 0 0 0 0 rgba(52,211,153,.6);
+    animation: liveDot 1.6s ease-out infinite;
+  }
+  .hero-live-pulse__label {
+    font-weight: 700; letter-spacing: .08em;
+    color: #34d399;
+  }
+  .hero-live-pulse__sep { color: rgba(255,255,255,.25); }
+  .hero-live-pulse__value {
+    font-weight: 700; color: #fafafa;
+  }
+  .hero-live-pulse__text { color: #a1a1aa; }
+  @keyframes liveDot {
+    0% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); }
+    70% { box-shadow: 0 0 0 8px rgba(52,211,153,0); }
+    100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
+  }
   .badge-glow { position: relative; }
   .badge-glow::after {
     content: ''; position: absolute; inset: 0; border-radius: inherit;
@@ -99,6 +129,17 @@
       <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
       Entrega inmediata · Soporte 24/7 en Perú
     </span>
+
+    {# Live pulse counter — pedidos entregados hoy. SOCIAL_PROOF.today_orders #}
+    {% if SOCIAL_PROOF.today_orders %}
+    <div class="hero-live-pulse mt-4" role="status" aria-live="polite">
+      <span class="hero-live-pulse__dot" aria-hidden="true"></span>
+      <span class="hero-live-pulse__label">EN VIVO</span>
+      <span class="hero-live-pulse__sep">·</span>
+      <span class="hero-live-pulse__value">{{ SOCIAL_PROOF.today_orders }}</span>
+      <span class="hero-live-pulse__text">{% if SOCIAL_PROOF.today_orders == 1 %}pedido entregado hoy{% else %}pedidos entregados hoy{% endif %}</span>
+    </div>
+    {% endif %}
     <h1 class="hero-title mt-7">
       Streaming &amp; licencias<br>
       <span class="hero-italic text-zinc-300">al mejor</span>
@@ -283,7 +324,10 @@
   </div>
 </section>
 
-<!-- Testimonios ---------------------------------------------------------- -->
+<!-- Reseñas verificadas con foto (datos reales de ProductReview) ---------- -->
+{% include "partials/_featured_reviews.html" %}
+
+<!-- Testimonios curados ---------------------------------------------------- -->
 {% if testimonios %}
 <section class="py-14 border-t hairline">
   <div class="flex items-end justify-between mb-8">
