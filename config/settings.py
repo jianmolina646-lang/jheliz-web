@@ -240,9 +240,11 @@ UNFOLD = {
         lambda request: _hashed_static("admin/jheliz_polish.css"),
         lambda request: _hashed_static("admin/notifications_bell.css"),
         lambda request: _hashed_static("admin/users_redesign.css"),
+        lambda request: _hashed_static("admin/changelist_polish.css"),
     ],
     "SCRIPTS": [
         lambda request: _hashed_static("admin/global_search.js"),
+        lambda request: _hashed_static("admin/empty_state.js"),
         lambda request: _hashed_static("admin/ticket_templates.js"),
         lambda request: _hashed_static("admin/fab.js"),
         lambda request: _hashed_static("admin/toasts.js"),

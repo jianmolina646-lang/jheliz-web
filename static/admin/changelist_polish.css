@@ -1,0 +1,210 @@
+/*
+ * changelist_polish.css — PR I del paquete admin.
+ *
+ * Polish para los listados (changelists) del admin:
+ *   - Hover-reveal de botones de acción rápida en cada fila.
+ *   - Filter tabs encima del listado (Hoy / Pendientes / Sin entregar / Esta semana).
+ *   - Empty state bonito cuando no hay resultados.
+ *   - Pills de estado más prominentes (Unfold ya las dibuja, le damos más punch).
+ */
+
+/* ---------- Hover-reveal de acciones rápidas en fila ---------- */
+/* Por defecto los botones de acción quedan ocultos en opacidad reducida.
+   Al pasar el mouse sobre la fila (tr) aparecen completos. Esto reduce
+   ruido visual cuando uno está scrolleando una lista larga. */
+#result_list tbody tr .jh-actions-row {
+  opacity: 0.18;
+  filter: grayscale(0.4);
+  transform: translateX(-4px);
+  transition: opacity 160ms ease, transform 160ms ease, filter 160ms ease;
+}
+#result_list tbody tr:hover .jh-actions-row,
+#result_list tbody tr:focus-within .jh-actions-row {
+  opacity: 1;
+  filter: grayscale(0);
+  transform: translateX(0);
+}
+
+/* Botones grow up al hover individual. */
+.jh-actions-row .jh-btn {
+  position: relative;
+  overflow: hidden;
+}
+.jh-actions-row .jh-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.18), transparent 60%);
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: none;
+}
+.jh-actions-row .jh-btn:hover::after { opacity: 1; }
+
+/* Filas un poco más altas para que los botones tengan aire. */
+#result_list tbody tr td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+/* ---------- Filter tabs (encima del listado) ---------- */
+.jh-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(244,114,182,0.05), rgba(168,85,247,0.04));
+  border: 1px solid rgba(244,114,182,0.12);
+  border-radius: 12px;
+}
+.dark .jh-filter-tabs {
+  background: linear-gradient(135deg, rgba(244,114,182,0.08), rgba(168,85,247,0.05));
+  border-color: rgba(244,114,182,0.18);
+}
+.jh-filter-tabs__label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgb(var(--color-base-500));
+  align-self: center;
+  margin-right: 4px;
+}
+.jh-filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none !important;
+  border: 1px solid rgb(var(--color-base-200));
+  background: rgba(255,255,255,0.85);
+  color: rgb(var(--color-base-700));
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+.dark .jh-filter-tab {
+  background: rgb(var(--color-base-900));
+  border-color: rgb(var(--color-base-800));
+  color: rgb(var(--color-base-300));
+}
+.jh-filter-tab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px -6px rgba(244,114,182,0.45);
+  border-color: rgba(244,114,182,0.4);
+}
+.jh-filter-tab--active {
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  border-color: transparent;
+  color: #fff !important;
+  box-shadow: 0 6px 18px -6px rgba(168,85,247,0.55);
+}
+.dark .jh-filter-tab--active {
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  color: #fff !important;
+}
+.jh-filter-tab__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.06);
+  font-size: 11px;
+  font-weight: 700;
+}
+.jh-filter-tab--active .jh-filter-tab__count {
+  background: rgba(255,255,255,0.22);
+}
+.dark .jh-filter-tab__count { background: rgba(255,255,255,0.08); }
+
+/* ---------- Empty state ---------- */
+/* Django muestra ".paginator" con "0 X" cuando no hay resultados. Le damos
+   un look bonito con ilustración SVG centrada y CTA. */
+.jh-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  text-align: center;
+  margin: 24px 0;
+  border: 1px dashed rgba(244,114,182,0.25);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(244,114,182,0.03), rgba(168,85,247,0.02));
+}
+.dark .jh-empty-state {
+  border-color: rgba(244,114,182,0.18);
+  background: linear-gradient(135deg, rgba(244,114,182,0.05), rgba(168,85,247,0.03));
+}
+.jh-empty-state__icon {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 14px;
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 12px rgba(168,85,247,0.35));
+}
+.jh-empty-state__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgb(var(--color-base-900));
+  margin-bottom: 6px;
+}
+.dark .jh-empty-state__title { color: #fff; }
+.jh-empty-state__sub {
+  font-size: 13px;
+  color: rgb(var(--color-base-500));
+  margin-bottom: 18px;
+  max-width: 380px;
+}
+.dark .jh-empty-state__sub { color: rgb(var(--color-base-400)); }
+.jh-empty-state__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  color: #fff !important;
+  text-decoration: none !important;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 6px 18px -6px rgba(168,85,247,0.55);
+  transition: transform 140ms ease;
+}
+.jh-empty-state__cta:hover { transform: translateY(-1px); }
+
+/* ---------- Pills de estado (Unfold ya las renderiza, le damos más punch) ---------- */
+/* Unfold dibuja `<span class="...bg-success-500..." >` para los labels. Les
+   agregamos un sombreado por color que las hace destacar mejor. */
+#result_list .bg-success-50,
+#result_list [class*="bg-success-"] {
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.12);
+}
+#result_list [class*="bg-warning-"] {
+  box-shadow: 0 1px 2px rgba(245, 158, 11, 0.12);
+}
+#result_list [class*="bg-info-"] {
+  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.12);
+}
+#result_list [class*="bg-danger-"] {
+  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.14);
+}
+
+/* En mobile, esconder hover-reveal (los botones siempre visibles) porque
+   no hay hover real en touch. */
+@media (max-width: 768px) {
+  #result_list tbody tr .jh-actions-row {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
