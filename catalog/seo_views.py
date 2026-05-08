@@ -13,7 +13,7 @@ def robots_txt(request):
     sitemap_url = request.build_absolute_uri(reverse("django.contrib.sitemaps.views.sitemap"))
     body = "\n".join([
         "User-agent: *",
-        "Disallow: /jheliz-admin/",
+        "Disallow: /panel-jheliz-2026/",
         "Disallow: /cuenta/",
         "Disallow: /pedidos/",
         "Disallow: /soporte/",
@@ -130,7 +130,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   // Don't cache admin, auth, checkout or anything POST-sensitive.
-  if (url.pathname.startsWith('/jheliz-admin') ||
+  if (url.pathname.startsWith('/panel-jheliz-2026') ||
       url.pathname.startsWith('/cuenta') ||
       url.pathname.startsWith('/pedidos') ||
       url.pathname.startsWith('/soporte') ||

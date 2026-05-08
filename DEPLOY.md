@@ -186,7 +186,7 @@ docker compose --profile bot up -d telegram_bot
 ## 3) Checklist post-deploy
 
 - [ ] `jhelizservicestv.xyz` responde con HTTPS y muestra el home
-- [ ] `/jheliz-admin/` carga y puedes entrar como superuser
+- [ ] `/panel-jheliz-2026/` carga y puedes entrar como superuser
 - [ ] Carga al menos un Category + Product + Plan desde el admin
 - [ ] `python manage.py seed_catalog` si quieres ejemplos
 - [ ] Haz una compra de prueba con Mercado Pago (tarjeta TEST)

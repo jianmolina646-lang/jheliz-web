@@ -18,6 +18,11 @@ ALLOWED_HOSTS = config(
 )
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 
+# URL base del panel admin. Cambiá esto en .env para "esconder" el admin
+# de bots que escanean rutas conocidas (/admin/, /wp-admin/, etc.). El
+# valor NO debe llevar barras al inicio o al final.
+ADMIN_URL_PATH = config("ADMIN_URL_PATH", default="panel-jheliz-2026").strip("/")
+
 CSRF_TRUSTED_ORIGINS = [
     "https://jhelizservicestv.xyz",
     "https://www.jhelizservicestv.xyz",
@@ -271,37 +276,37 @@ UNFOLD = {
                     {
                         "title": "Dashboard",
                         "icon": "dashboard",
-                        "link": "/jheliz-admin/",
+                        "link": "/panel-jheliz-2026/",
                     },
                     {
                         "title": "Reportes financieros",
                         "icon": "monitoring",
-                        "link": "/jheliz-admin/reports/",
+                        "link": "/panel-jheliz-2026/reports/",
                     },
                     {
                         "title": "Clientes valiosos",
                         "icon": "workspace_premium",
-                        "link": "/jheliz-admin/top-customers/",
+                        "link": "/panel-jheliz-2026/top-customers/",
                     },
                     {
                         "title": "Renovaciones",
                         "icon": "autorenew",
-                        "link": "/jheliz-admin/renewals/",
+                        "link": "/panel-jheliz-2026/renewals/",
                     },
                     {
                         "title": "Stock por producto",
                         "icon": "inventory_2",
-                        "link": "/jheliz-admin/stock/",
+                        "link": "/panel-jheliz-2026/stock/",
                     },
                     {
                         "title": "Clientes 360°",
                         "icon": "groups",
-                        "link": "/jheliz-admin/customers/",
+                        "link": "/panel-jheliz-2026/customers/",
                     },
                     {
                         "title": "Estado de servicios",
                         "icon": "health_and_safety",
-                        "link": "/jheliz-admin/health/",
+                        "link": "/panel-jheliz-2026/health/",
                     },
                     {
                         "title": "Ver tienda",
@@ -317,17 +322,17 @@ UNFOLD = {
                     {
                         "title": "Pedidos",
                         "icon": "receipt_long",
-                        "link": "/jheliz-admin/orders/order/",
+                        "link": "/panel-jheliz-2026/orders/order/",
                     },
                     {
                         "title": "Items de pedidos",
                         "icon": "list_alt",
-                        "link": "/jheliz-admin/orders/orderitem/",
+                        "link": "/panel-jheliz-2026/orders/orderitem/",
                     },
                     {
                         "title": "Config. de pagos (Yape)",
                         "icon": "qr_code_2",
-                        "link": "/jheliz-admin/orders/paymentsettings/",
+                        "link": "/panel-jheliz-2026/orders/paymentsettings/",
                     },
                 ],
             },
@@ -338,42 +343,42 @@ UNFOLD = {
                     {
                         "title": "Productos",
                         "icon": "inventory_2",
-                        "link": "/jheliz-admin/catalog/product/",
+                        "link": "/panel-jheliz-2026/catalog/product/",
                     },
                     {
                         "title": "Planes — Cliente final",
                         "icon": "sell",
-                        "link": "/jheliz-admin/catalog/customerplan/",
+                        "link": "/panel-jheliz-2026/catalog/customerplan/",
                     },
                     {
                         "title": "Planes — Distribuidor",
                         "icon": "storefront",
-                        "link": "/jheliz-admin/catalog/distributorplan/",
+                        "link": "/panel-jheliz-2026/catalog/distributorplan/",
                     },
                     {
                         "title": "Planes (todos)",
                         "icon": "list",
-                        "link": "/jheliz-admin/catalog/plan/",
+                        "link": "/panel-jheliz-2026/catalog/plan/",
                     },
                     {
                         "title": "Categorías",
                         "icon": "category",
-                        "link": "/jheliz-admin/catalog/category/",
+                        "link": "/panel-jheliz-2026/catalog/category/",
                     },
                     {
                         "title": "Stock",
                         "icon": "inventory",
-                        "link": "/jheliz-admin/catalog/stockitem/",
+                        "link": "/panel-jheliz-2026/catalog/stockitem/",
                     },
                     {
                         "title": "Avísame cuando vuelva",
                         "icon": "notifications_active",
-                        "link": "/jheliz-admin/catalog/backinstockalert/",
+                        "link": "/panel-jheliz-2026/catalog/backinstockalert/",
                     },
                     {
                         "title": "Reseñas",
                         "icon": "reviews",
-                        "link": "/jheliz-admin/catalog/testimonial/",
+                        "link": "/panel-jheliz-2026/catalog/testimonial/",
                     },
                 ],
             },
@@ -384,17 +389,17 @@ UNFOLD = {
                     {
                         "title": "Pedidos mayoristas",
                         "icon": "local_shipping",
-                        "link": "/jheliz-admin/orders/distributororder/",
+                        "link": "/panel-jheliz-2026/orders/distributororder/",
                     },
                     {
                         "title": "Distribuidores",
                         "icon": "badge",
-                        "link": "/jheliz-admin/accounts/distributor/",
+                        "link": "/panel-jheliz-2026/accounts/distributor/",
                     },
                     {
                         "title": "Movimientos de wallet",
                         "icon": "account_balance_wallet",
-                        "link": "/jheliz-admin/accounts/wallettransaction/",
+                        "link": "/panel-jheliz-2026/accounts/wallettransaction/",
                     },
                 ],
             },
@@ -405,12 +410,12 @@ UNFOLD = {
                     {
                         "title": "Clientes",
                         "icon": "person",
-                        "link": "/jheliz-admin/accounts/customer/",
+                        "link": "/panel-jheliz-2026/accounts/customer/",
                     },
                     {
                         "title": "Usuarios (staff)",
                         "icon": "group",
-                        "link": "/jheliz-admin/accounts/user/",
+                        "link": "/panel-jheliz-2026/accounts/user/",
                     },
                 ],
             },
@@ -421,12 +426,12 @@ UNFOLD = {
                     {
                         "title": "Tickets",
                         "icon": "support_agent",
-                        "link": "/jheliz-admin/support/ticket/",
+                        "link": "/panel-jheliz-2026/support/ticket/",
                     },
                     {
                         "title": "Solicitudes de código",
                         "icon": "mark_email_unread",
-                        "link": "/jheliz-admin/support/coderequest/",
+                        "link": "/panel-jheliz-2026/support/coderequest/",
                     },
                 ],
             },
@@ -437,17 +442,17 @@ UNFOLD = {
                     {
                         "title": "Cupones / códigos",
                         "icon": "redeem",
-                        "link": "/jheliz-admin/orders/coupon/",
+                        "link": "/panel-jheliz-2026/orders/coupon/",
                     },
                     {
                         "title": "Posts del blog",
                         "icon": "article",
-                        "link": "/jheliz-admin/blog/blogpost/",
+                        "link": "/panel-jheliz-2026/blog/blogpost/",
                     },
                     {
                         "title": "Categorías de blog",
                         "icon": "label",
-                        "link": "/jheliz-admin/blog/blogcategory/",
+                        "link": "/panel-jheliz-2026/blog/blogcategory/",
                     },
                 ],
             },
@@ -458,12 +463,12 @@ UNFOLD = {
                     {
                         "title": "2FA / autenticador",
                         "icon": "shield_lock",
-                        "link": "/jheliz-admin/security/2fa/",
+                        "link": "/panel-jheliz-2026/security/2fa/",
                     },
                     {
                         "title": "Auditoría",
                         "icon": "fact_check",
-                        "link": "/jheliz-admin/auditoria/",
+                        "link": "/panel-jheliz-2026/auditoria/",
                     },
                 ],
             },
@@ -483,12 +488,17 @@ FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default="")
 # ---------------------------------------------------------------------------
 # django-axes: bloqueo por intentos fallidos de login
 # ---------------------------------------------------------------------------
-AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=5, cast=int)
-AXES_COOLOFF_TIME = config("AXES_COOLOFF_TIME_HOURS", default=1, cast=int)  # horas
+AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=3, cast=int)
+AXES_COOLOFF_TIME = config("AXES_COOLOFF_TIME_HOURS", default=24, cast=int)  # horas
 AXES_LOCKOUT_PARAMETERS = ["ip_address", "username"]
 AXES_RESET_ON_SUCCESS = True
 AXES_LOCKOUT_TEMPLATE = None  # usa el formulario default con mensaje de error
 AXES_VERBOSE = False
+
+# Notificaciones (email + Telegram) cuando alguien inicia sesión en el admin.
+# Útil para detectar rápido un acceso indebido — si recibes un correo de
+# login y no fuiste tú, sabés que tu password se filtró.
+ADMIN_LOGIN_NOTIFY = config("ADMIN_LOGIN_NOTIFY", default=True, cast=bool)
 
 # ---------------------------------------------------------------------------
 # 2FA (django-otp)

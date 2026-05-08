@@ -630,7 +630,7 @@ def distributor_report_broken(request, item_id: int):
             text_lines.append(f"Nota: {note}")
         text_lines.append("")
         text_lines.append(
-            "🔗 https://jhelizservicestv.xyz/jheliz-admin/orders/orderitem/"
+            "🔗 https://jhelizservicestv.xyz/panel-jheliz-2026/orders/orderitem/"
             f"{item.pk}/change/"
         )
         telegram.notify_admin("\n".join(text_lines))

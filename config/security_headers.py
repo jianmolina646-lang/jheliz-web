@@ -8,7 +8,7 @@ from django.conf import settings
 # request cuyo path empiece con este valor recibe `X-Robots-Tag: noindex,
 # nofollow` para que un crawler malicioso (o uno que llegó a una URL
 # filtrada en logs) nunca la indexe en buscadores.
-_ADMIN_PREFIX = "/jheliz-admin/"
+_ADMIN_PREFIX = "/panel-jheliz-2026/"
 
 
 class SecurityHeadersMiddleware:

@@ -24,7 +24,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Luego abre http://127.0.0.1:8000/ y el admin en http://127.0.0.1:8000/jheliz-admin/
+Luego abre http://127.0.0.1:8000/ y el admin en http://127.0.0.1:8000/panel-jheliz-2026/
 
 ## Roadmap
 

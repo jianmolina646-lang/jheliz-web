@@ -24,7 +24,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
-ADMIN_BASE = "https://jhelizservicestv.xyz/jheliz-admin"
+ADMIN_BASE = "https://jhelizservicestv.xyz/panel-jheliz-2026"
 
 
 # ---------- Configuración ----------
