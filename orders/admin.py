@@ -227,7 +227,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         name = (obj.user.get_full_name() if obj.user else "") or obj.email or obj.phone or "—"
         sub = obj.email or obj.phone or ""
         if obj.email:
-            link = f"/jheliz-admin/customers/{_q(obj.email, safe='')}/"
+            link = f"/panel-jheliz-2026/customers/{_q(obj.email, safe='')}/"
             return format_html(
                 '<div class="jh-cell">'
                 '<div class="jh-cell__name"><a href="{}" title="Ver vista 360°">{}</a></div>'

@@ -357,11 +357,31 @@ def dashboard_callback(request, context):
     except Exception:  # pragma: no cover - defensive
         has_2fa = False
 
+    # ---- Última sesión previa (capturada por accounts.admin_security) ------
+    previous_login_text = ""
+    previous_login_ip = ""
+    try:
+        from datetime import datetime as _dt
+        sess = getattr(request, "session", None)
+        prev_iso = sess.get("jheliz_previous_login") if sess else None
+        if prev_iso:
+            prev_dt = _dt.fromisoformat(prev_iso)
+            if timezone.is_naive(prev_dt):
+                prev_dt = timezone.make_aware(prev_dt)
+            previous_login_text = timezone.localtime(prev_dt).strftime(
+                "%d/%m/%Y a las %H:%M"
+            )
+            previous_login_ip = sess.get("jheliz_previous_login_ip", "") or ""
+    except Exception:  # pragma: no cover - defensive
+        previous_login_text = ""
+
     context.update(
         {
             "dashboard_greeting": greeting,
             "dashboard_user_first_name": user_first_name,
             "dashboard_user_has_2fa": has_2fa,
+            "dashboard_previous_login_text": previous_login_text,
+            "dashboard_previous_login_ip": previous_login_ip,
             "dashboard_orders_today": orders_today,
             "dashboard_sales_today": sales_today,
             "dashboard_pending_orders_count": pending_orders + verifying_orders,

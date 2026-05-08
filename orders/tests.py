@@ -833,7 +833,7 @@ class OrdersKanbanTests(TestCase):
 
 
 class GlobalSearchTests(TestCase):
-    """Endpoint /jheliz-admin/search/ con y sin ?full=1."""
+    """Endpoint /panel-jheliz-2026/search/ con y sin ?full=1."""
 
     def setUp(self):
         User = get_user_model()

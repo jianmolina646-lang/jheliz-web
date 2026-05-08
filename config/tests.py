@@ -48,7 +48,7 @@ class SecurityHeadersTests(TestCase):
         # Aunque el admin redirige a login (no autenticado), el middleware
         # ya añadió la cabecera. Eso es defense-in-depth: incluso un 302
         # accidentalmente filtrado en logs no se indexa.
-        resp = self.client.get("/jheliz-admin/")
+        resp = self.client.get("/panel-jheliz-2026/")
         self.assertEqual(
             resp.headers.get("X-Robots-Tag"), "noindex, nofollow, noarchive"
         )
@@ -209,7 +209,7 @@ class NotificationsBellEndpointTests(TestCase):
 
 
 class AuditLogViewerTests(TestCase):
-    """Tests del visor de auditoría (`/jheliz-admin/auditoria/`)."""
+    """Tests del visor de auditoría (`/panel-jheliz-2026/auditoria/`)."""
 
     def setUp(self):
         User = get_user_model()

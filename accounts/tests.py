@@ -83,7 +83,7 @@ class DashboardQueryTests(TestCase):
         """Antes: 15+ queries .exists() en el bucle de nuevos vs recurrentes.
         Ahora: una sola query agregada."""
         self.client.force_login(self.staff)
-        resp, n = _query_count(self.client, "/jheliz-admin/")
+        resp, n = _query_count(self.client, "/panel-jheliz-2026/")
         self.assertEqual(resp.status_code, 200)
         # Tope holgado para no romperse con cambios cosméticos en Unfold.
         self.assertLess(
