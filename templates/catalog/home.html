@@ -57,10 +57,70 @@
   @media (min-width: 768px) { .stat-num { font-size: 3.25rem; } }
   .hero-title {
     font-family: 'Geist', system-ui, sans-serif;
-    font-weight: 800;
-    letter-spacing: -0.045em;
-    line-height: 0.96;
-    font-size: clamp(2.6rem, 8vw, 5.5rem);
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    line-height: 0.94;
+    font-size: clamp(2.7rem, 8.4vw, 5.8rem);
+    text-shadow:
+      0 1px 0 rgba(255,255,255,.04),
+      0 14px 40px rgba(236,72,153,.18);
+  }
+
+  /* Floating orbs — emoji decorativos detrás del hero. Drift suave + fade. */
+  .hero-orbs {
+    position: absolute; inset: 0;
+    pointer-events: none; z-index: 0;
+    overflow: hidden;
+  }
+  .hero-orb {
+    position: absolute;
+    font-size: 2.6rem;
+    opacity: .14;
+    filter: blur(.4px) drop-shadow(0 8px 22px rgba(236,72,153,.35));
+    animation: orbDrift 18s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+  }
+  .hero-orb--1 { top:  8%; left:  6%; font-size: 3rem;   animation-duration: 22s; }
+  .hero-orb--2 { top: 14%; left: 80%; font-size: 2.2rem; animation-duration: 19s; animation-delay: -3s; }
+  .hero-orb--3 { top: 38%; left:  2%; font-size: 2.4rem; animation-duration: 24s; animation-delay: -7s; }
+  .hero-orb--4 { top: 52%; left: 86%; font-size: 2.8rem; animation-duration: 17s; animation-delay: -2s; }
+  .hero-orb--5 { top: 72%; left: 12%; font-size: 2.6rem; animation-duration: 21s; animation-delay: -10s; }
+  .hero-orb--6 { top: 78%; left: 76%; font-size: 2.3rem; animation-duration: 20s; animation-delay: -5s; }
+  .hero-orb--7 { top: 26%; left: 50%; font-size: 1.9rem; animation-duration: 23s; animation-delay: -8s; opacity: .09; }
+  .hero-orb--8 { top: 64%; left: 44%; font-size: 2.1rem; animation-duration: 25s; animation-delay: -12s; opacity: .1; }
+  @keyframes orbDrift {
+    0%   { transform: translate3d(0, 0, 0) rotate(-2deg); }
+    50%  { transform: translate3d(8px, -14px, 0) rotate(3deg); }
+    100% { transform: translate3d(-6px, 10px, 0) rotate(-3deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-orb { animation: none; opacity: .08; }
+  }
+  @media (max-width: 640px) {
+    .hero-orb--7, .hero-orb--8 { display: none; }
+    .hero-orb { font-size: 1.7rem !important; opacity: .1; }
+  }
+
+  /* Neon ring pulse alrededor del CTA primario en hero (intensifica ítem 11) */
+  .btn-primary.btn-neon {
+    position: relative;
+  }
+  .btn-primary.btn-neon::before {
+    content: '';
+    position: absolute; inset: -3px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, #ec4899, #a855f7, #6366f1, #ec4899);
+    background-size: 300% 300%;
+    animation: neonRotate 6s linear infinite;
+    z-index: -1;
+    filter: blur(8px); opacity: .55;
+  }
+  @keyframes neonRotate {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 300% 50%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-primary.btn-neon::before { animation: none; }
   }
   .hero-italic {
     font-family: 'Instrument Serif', Georgia, serif;
@@ -93,8 +153,9 @@
 {% block content %}
 
 <!-- Hero ----------------------------------------------------------------- -->
-<section class="mesh-accent pt-10 md:pt-20 pb-16 md:pb-24 text-center">
-  <div class="max-w-4xl mx-auto" data-reveal>
+<section class="mesh-accent pt-10 md:pt-20 pb-16 md:pb-24 text-center relative overflow-hidden">
+  {% include "partials/_hero_floating_orbs.html" %}
+  <div class="max-w-4xl mx-auto relative z-10" data-reveal>
     <span class="hero-eyebrow badge-glow">
       <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
       Entrega inmediata · Soporte 24/7 en Perú
@@ -109,7 +170,7 @@
       Pago con Mercado Pago o Yape; cuenta en tu correo en minutos.
     </p>
     <div class="mt-9 flex flex-wrap gap-3 justify-center">
-      <a href="{% url 'catalog:products' %}" class="btn btn-primary btn-lg">
+      <a href="{% url 'catalog:products' %}" class="btn btn-primary btn-lg btn-neon">
         Explorar catálogo
         <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
       </a>
