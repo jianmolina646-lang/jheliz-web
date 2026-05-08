@@ -268,9 +268,12 @@ UNFOLD = {
     "SIDEBAR": {
         "show_search": True,
         "show_all_applications": False,
+        # Reagrupada por WORKFLOW del día a día (no por modelo Django).
+        # Orden basado en frecuencia de uso real:
+        # Inicio → Vender (catálogo) → Pedidos → Clientes → Marketing → Soporte → Sistema.
         "navigation": [
             {
-                "title": "Resumen",
+                "title": "📊 Inicio",
                 "separator": False,
                 "items": [
                     {
@@ -284,24 +287,9 @@ UNFOLD = {
                         "link": "/panel-jheliz-2026/reports/",
                     },
                     {
-                        "title": "Clientes valiosos",
-                        "icon": "workspace_premium",
-                        "link": "/panel-jheliz-2026/top-customers/",
-                    },
-                    {
                         "title": "Renovaciones",
                         "icon": "autorenew",
                         "link": "/panel-jheliz-2026/renewals/",
-                    },
-                    {
-                        "title": "Stock por producto",
-                        "icon": "inventory_2",
-                        "link": "/panel-jheliz-2026/stock/",
-                    },
-                    {
-                        "title": "Clientes 360°",
-                        "icon": "groups",
-                        "link": "/panel-jheliz-2026/customers/",
                     },
                     {
                         "title": "Estado de servicios",
@@ -316,28 +304,7 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "Ventas (cliente final)",
-                "separator": True,
-                "items": [
-                    {
-                        "title": "Pedidos",
-                        "icon": "receipt_long",
-                        "link": "/panel-jheliz-2026/orders/order/",
-                    },
-                    {
-                        "title": "Items de pedidos",
-                        "icon": "list_alt",
-                        "link": "/panel-jheliz-2026/orders/orderitem/",
-                    },
-                    {
-                        "title": "Config. de pagos (Yape)",
-                        "icon": "qr_code_2",
-                        "link": "/panel-jheliz-2026/orders/paymentsettings/",
-                    },
-                ],
-            },
-            {
-                "title": "Catálogo",
+                "title": "🛒 Vender",
                 "separator": True,
                 "items": [
                     {
@@ -356,18 +323,18 @@ UNFOLD = {
                         "link": "/panel-jheliz-2026/catalog/distributorplan/",
                     },
                     {
-                        "title": "Planes (todos)",
-                        "icon": "list",
-                        "link": "/panel-jheliz-2026/catalog/plan/",
-                    },
-                    {
                         "title": "Categorías",
                         "icon": "category",
                         "link": "/panel-jheliz-2026/catalog/category/",
                     },
                     {
-                        "title": "Stock",
+                        "title": "Stock por producto",
                         "icon": "inventory",
+                        "link": "/panel-jheliz-2026/stock/",
+                    },
+                    {
+                        "title": "Stock (todos)",
+                        "icon": "list_alt",
                         "link": "/panel-jheliz-2026/catalog/stockitem/",
                     },
                     {
@@ -375,21 +342,57 @@ UNFOLD = {
                         "icon": "notifications_active",
                         "link": "/panel-jheliz-2026/catalog/backinstockalert/",
                     },
-                    {
-                        "title": "Reseñas",
-                        "icon": "reviews",
-                        "link": "/panel-jheliz-2026/catalog/testimonial/",
-                    },
                 ],
             },
             {
-                "title": "Distribuidor",
+                "title": "📦 Pedidos",
                 "separator": True,
                 "items": [
+                    {
+                        "title": "Pedidos clientes",
+                        "icon": "receipt_long",
+                        "link": "/panel-jheliz-2026/orders/order/",
+                    },
+                    {
+                        "title": "Bandeja Yape",
+                        "icon": "qr_code_scanner",
+                        "link": "/panel-jheliz-2026/orders/order/yape-inbox/",
+                    },
+                    {
+                        "title": "Items de pedidos",
+                        "icon": "list_alt",
+                        "link": "/panel-jheliz-2026/orders/orderitem/",
+                    },
                     {
                         "title": "Pedidos mayoristas",
                         "icon": "local_shipping",
                         "link": "/panel-jheliz-2026/orders/distributororder/",
+                    },
+                    {
+                        "title": "Reemplazar cuenta",
+                        "icon": "sync_alt",
+                        "link": "/panel-jheliz-2026/replace-blocked-account/",
+                    },
+                ],
+            },
+            {
+                "title": "👥 Clientes",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Clientes",
+                        "icon": "person",
+                        "link": "/panel-jheliz-2026/accounts/customer/",
+                    },
+                    {
+                        "title": "Clientes 360°",
+                        "icon": "groups",
+                        "link": "/panel-jheliz-2026/customers/",
+                    },
+                    {
+                        "title": "Clientes valiosos",
+                        "icon": "workspace_premium",
+                        "link": "/panel-jheliz-2026/top-customers/",
                     },
                     {
                         "title": "Distribuidores",
@@ -404,23 +407,33 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "Clientes",
+                "title": "🎯 Marketing",
                 "separator": True,
                 "items": [
                     {
-                        "title": "Clientes",
-                        "icon": "person",
-                        "link": "/panel-jheliz-2026/accounts/customer/",
+                        "title": "Cupones / códigos",
+                        "icon": "redeem",
+                        "link": "/panel-jheliz-2026/orders/coupon/",
                     },
                     {
-                        "title": "Usuarios (staff)",
-                        "icon": "group",
-                        "link": "/panel-jheliz-2026/accounts/user/",
+                        "title": "Reseñas",
+                        "icon": "reviews",
+                        "link": "/panel-jheliz-2026/catalog/testimonial/",
+                    },
+                    {
+                        "title": "Posts del blog",
+                        "icon": "article",
+                        "link": "/panel-jheliz-2026/blog/blogpost/",
+                    },
+                    {
+                        "title": "Categorías de blog",
+                        "icon": "label",
+                        "link": "/panel-jheliz-2026/blog/blogcategory/",
                     },
                 ],
             },
             {
-                "title": "Soporte",
+                "title": "💬 Soporte",
                 "separator": True,
                 "items": [
                     {
@@ -436,30 +449,19 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "Marketing",
+                "title": "⚙️ Sistema",
                 "separator": True,
                 "items": [
                     {
-                        "title": "Cupones / códigos",
-                        "icon": "redeem",
-                        "link": "/panel-jheliz-2026/orders/coupon/",
+                        "title": "Config. de pagos (Yape)",
+                        "icon": "qr_code_2",
+                        "link": "/panel-jheliz-2026/orders/paymentsettings/",
                     },
                     {
-                        "title": "Posts del blog",
-                        "icon": "article",
-                        "link": "/panel-jheliz-2026/blog/blogpost/",
+                        "title": "Usuarios (staff)",
+                        "icon": "group",
+                        "link": "/panel-jheliz-2026/accounts/user/",
                     },
-                    {
-                        "title": "Categorías de blog",
-                        "icon": "label",
-                        "link": "/panel-jheliz-2026/blog/blogcategory/",
-                    },
-                ],
-            },
-            {
-                "title": "Seguridad",
-                "separator": True,
-                "items": [
                     {
                         "title": "2FA / autenticador",
                         "icon": "shield_lock",
