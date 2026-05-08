@@ -95,10 +95,14 @@ def site_context(request):
             from orders.models import Order  # lazy import
             now = timezone.now()
             week_ago = now - timedelta(days=7)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
             delivered_or_paid = [Order.Status.PAID, Order.Status.DELIVERED]
             total_orders = Order.objects.filter(status__in=delivered_or_paid).count()
             weekly_orders = Order.objects.filter(
                 status__in=delivered_or_paid, created_at__gte=week_ago,
+            ).count()
+            today_orders = Order.objects.filter(
+                status__in=delivered_or_paid, created_at__gte=today_start,
             ).count()
             review_agg = ProductReview.objects.filter(
                 status=ProductReview.Status.APPROVED,
@@ -113,6 +117,7 @@ def site_context(request):
             stats = {
                 "total_orders": total_orders,
                 "weekly_orders": weekly_orders,
+                "today_orders": today_orders,
                 "avg_rating": round(avg_rating, 1),
                 "review_count": review_count,
                 "years_operating": years_operating,
@@ -124,6 +129,7 @@ def site_context(request):
             stats = {
                 "total_orders": 5000,
                 "weekly_orders": 140,
+                "today_orders": 12,
                 "avg_rating": 4.9,
                 "review_count": 50,
                 "years_operating": 2,
