@@ -1,5 +1,5 @@
 # ============================================================================
-# Configuración nginx canónica para jhelizservicestv.xyz (1:1 con la del VPS).
+# Configuración nginx canónica para ecormecejhelizstore.com (1:1 con la del VPS).
 #
 # Esta plantilla refleja exactamente /etc/nginx/sites-enabled/jheliz en el VPS.
 # La única variable que se sustituye al renderizar es la ruta del proyecto
@@ -12,31 +12,63 @@
 # Bloques (orden importa porque nginx prefiere el primer match):
 #   1. Server dedicado www → no-www en HTTPS (consolida señales SEO para
 #      Google Search Console; sin esto la URL canónica reporta "duplicada").
-#   2. Server principal HTTPS para jhelizservicestv.xyz (gestiona /static/,
+#   2. Server de migración SEO: redirige el dominio viejo (jhelizservicestv.xyz)
+#      al nuevo (ecormecejhelizstore.com) con 301 permanente preservando el
+#      path. Mantener este bloque AL MENOS 6 meses post-migración para que
+#      Google transfiera el ranking. Ver §Migración SEO en DEPLOY.md.
+#   3. Server principal HTTPS para ecormecejhelizstore.com (gestiona /static/,
 #      /media/, /media/payments/, ACME, /google<hash>.html para verificación
 #      de Search Console, y proxy a gunicorn).
-#   3. Server HTTP (port 80) que redirige a HTTPS, gestionado por Certbot.
+#   4. Server HTTP (port 80) que redirige a HTTPS, gestionado por Certbot.
 # ============================================================================
 
 # ---- 1) Redirect dedicado www → no-www ----
-# Evita el warning "conflicting server name www.jhelizservicestv.xyz" que
+# Evita el warning "conflicting server name www.ecormecejhelizstore.com" que
 # nginx emite si dejamos www. en el server_name del bloque principal.
 server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
-    server_name www.jhelizservicestv.xyz;
+    server_name www.ecormecejhelizstore.com;
 
-    ssl_certificate /etc/letsencrypt/live/jhelizservicestv.xyz/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/jhelizservicestv.xyz/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/ecormecejhelizstore.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ecormecejhelizstore.com/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
-    return 301 https://jhelizservicestv.xyz$request_uri;
+    return 301 https://ecormecejhelizstore.com$request_uri;
 }
 
-# ---- 2) Server principal HTTPS ----
+# ---- 2) Migración SEO: jhelizservicestv.xyz → ecormecejhelizstore.com ----
+# 301 permanente preservando path. Necesario para que Google transfiera el
+# ranking del dominio viejo al nuevo. Mantener vivo durante mínimo 6 meses
+# (idealmente para siempre). Configurar en Search Console "Change of Address"
+# DESDE la propiedad jhelizservicestv.xyz HACIA ecormecejhelizstore.com.
 server {
-    server_name jhelizservicestv.xyz 76.13.231.89;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name jhelizservicestv.xyz www.jhelizservicestv.xyz;
+
+    # Reusamos el certificado del dominio nuevo si seguimos resolviendo el
+    # viejo a esta IP. Si el cert del dominio viejo todavía vive, se puede
+    # apuntar acá: /etc/letsencrypt/live/jhelizservicestv.xyz/...
+    ssl_certificate /etc/letsencrypt/live/ecormecejhelizstore.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ecormecejhelizstore.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    return 301 https://ecormecejhelizstore.com$request_uri;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name jhelizservicestv.xyz www.jhelizservicestv.xyz;
+    return 301 https://ecormecejhelizstore.com$request_uri;
+}
+
+# ---- 3) Server principal HTTPS ----
+server {
+    server_name ecormecejhelizstore.com 144.172.111.120;
 
     client_max_body_size 20M;
 
@@ -90,26 +122,26 @@ server {
     listen [::]:443 ssl http2 ipv6only=on; # managed by Certbot
     listen 443 ssl http2; # managed by Certbot
 
-    ssl_certificate /etc/letsencrypt/live/jhelizservicestv.xyz/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/jhelizservicestv.xyz/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/ecormecejhelizstore.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/ecormecejhelizstore.com/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 }
 
-# ---- 3) Server HTTP (port 80) — redirect a HTTPS, gestionado por Certbot ----
+# ---- 4) Server HTTP (port 80) — redirect a HTTPS, gestionado por Certbot ----
 # Si Certbot lo regenera (renovación de cert), no es problema: este bloque
 # es funcionalmente equivalente al que pone Certbot por default.
 server {
-    if ($host = www.jhelizservicestv.xyz) {
+    if ($host = www.ecormecejhelizstore.com) {
         return 301 https://$host$request_uri;
     } # managed by Certbot
 
-    if ($host = jhelizservicestv.xyz) {
+    if ($host = ecormecejhelizstore.com) {
         return 301 https://$host$request_uri;
     } # managed by Certbot
 
     listen 80;
     listen [::]:80;
-    server_name jhelizservicestv.xyz www.jhelizservicestv.xyz 76.13.231.89;
+    server_name ecormecejhelizstore.com www.ecormecejhelizstore.com 144.172.111.120;
     return 404; # managed by Certbot
 }

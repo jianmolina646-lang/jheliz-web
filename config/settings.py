@@ -13,7 +13,7 @@ SECRET_KEY = config("SECRET_KEY", default="dev-insecure-key-change-me")
 DEBUG = config("DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
-    default="127.0.0.1,localhost,jhelizservicestv.xyz,www.jhelizservicestv.xyz",
+    default="127.0.0.1,localhost,ecormecejhelizstore.com,www.ecormecejhelizstore.com",
     cast=Csv(),
 )
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
@@ -24,8 +24,8 @@ SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 ADMIN_URL_PATH = config("ADMIN_URL_PATH", default="panel-jheliz-2026").strip("/")
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://jhelizservicestv.xyz",
-    "https://www.jhelizservicestv.xyz",
+    "https://ecormecejhelizstore.com",
+    "https://www.ecormecejhelizstore.com",
 ]
 
 INSTALLED_APPS = [
@@ -166,7 +166,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Email
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Jheliz <no-reply@jhelizservicestv.xyz>")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Jheliz <no-reply@ecormecejhelizstore.com>")
 SUPPORT_ADMIN_EMAIL = config("SUPPORT_ADMIN_EMAIL", default="")
 
 # SMTP (opcional, para enviar correos reales en prod)

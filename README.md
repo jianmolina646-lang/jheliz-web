@@ -1,6 +1,6 @@
 # Jheliz
 
-Plataforma de venta de **streaming y licencias** para Perú — dominio `jhelizservicestv.xyz`.
+Plataforma de venta de **streaming y licencias** para Perú — dominio `ecormecejhelizstore.com`.
 
 Construida con Django 5, Tailwind (CDN) y PostgreSQL (SQLite en local).
 

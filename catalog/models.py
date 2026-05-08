@@ -848,7 +848,7 @@ class PlatformLanding(models.Model):
 
     slug = models.SlugField(
         "Slug (URL)", max_length=80, unique=True,
-        help_text="Se usa en la URL: jhelizservicestv.xyz/plataforma/<slug>/",
+        help_text="Se usa en la URL: ecormecejhelizstore.com/plataforma/<slug>/",
     )
     name = models.CharField(
         "Nombre de plataforma", max_length=80,

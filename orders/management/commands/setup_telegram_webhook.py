@@ -20,7 +20,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             "--base-url",
-            default="https://jhelizservicestv.xyz",
+            default="https://ecormecejhelizstore.com",
             help="URL pública del sitio (https obligatorio para Telegram).",
         )
         parser.add_argument("--delete", action="store_true", help="Borra el webhook actual.")

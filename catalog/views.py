@@ -630,7 +630,7 @@ def distributor_report_broken(request, item_id: int):
             text_lines.append(f"Nota: {note}")
         text_lines.append("")
         text_lines.append(
-            "🔗 https://jhelizservicestv.xyz/panel-jheliz-2026/orders/orderitem/"
+            "🔗 https://ecormecejhelizstore.com/panel-jheliz-2026/orders/orderitem/"
             f"{item.pk}/change/"
         )
         telegram.notify_admin("\n".join(text_lines))
@@ -730,7 +730,7 @@ def _send_reclamacion_emails(obj):
         html = body.replace("\n", "<br>")
     msg = EmailMultiAlternatives(
         subject, body,
-        getattr(dj_settings, "DEFAULT_FROM_EMAIL", "ventas@jhelizservicestv.xyz"),
+        getattr(dj_settings, "DEFAULT_FROM_EMAIL", "ventas@ecormecejhelizstore.com"),
         [obj.email],
     )
     msg.attach_alternative(html, "text/html")
