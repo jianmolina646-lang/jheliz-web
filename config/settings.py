@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "orders.apps.OrdersConfig",
     "support.apps.SupportConfig",
     "blog.apps.BlogConfig",
+    "livechat.apps.LivechatConfig",
 ]
 
 MIDDLEWARE = [
@@ -438,6 +439,11 @@ UNFOLD = {
                 "title": "💬 Soporte",
                 "separator": True,
                 "items": [
+                    {
+                        "title": "Chats en vivo",
+                        "icon": "chat",
+                        "link": "/panel-jheliz-2026/livechat/",
+                    },
                     {
                         "title": "Tickets",
                         "icon": "support_agent",

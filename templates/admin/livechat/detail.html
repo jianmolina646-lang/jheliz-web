@@ -1,0 +1,124 @@
+{% extends 'admin/base.html' %}
+{% load i18n %}
+
+{% block title %}Chat con {{ room.display_name }} | Jheliz{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+  <section class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-base-700 bg-base-900 p-4">
+    <div class="min-w-0">
+      <a href="{% url 'admin_livechat_index' %}" class="text-xs text-base-400 hover:text-white">← Volver a chats</a>
+      <h1 class="text-lg sm:text-xl font-bold text-white truncate mt-1">
+        Chat con {{ room.display_name }}
+      </h1>
+      <div class="text-xs text-base-300 mt-0.5 flex flex-wrap gap-2 items-center">
+        {% if room.customer_email %}
+          <span>📧 {{ room.customer_email }}</span>
+        {% endif %}
+        {% if room.user %}
+          <span>·</span>
+          <span>Cuenta: <strong class="text-white">{{ room.user.username }}</strong></span>
+        {% endif %}
+        <span>·</span>
+        <span>Estado:
+          {% if room.status == 'closed' %}
+            <span class="text-base-400">Cerrada</span>
+          {% else %}
+            <span class="text-emerald-300">Abierta</span>
+          {% endif %}
+        </span>
+        {% if room.page_url %}
+          <span>·</span>
+          <span class="truncate">desde
+            <a href="{{ room.page_url }}" target="_blank" rel="noopener" class="text-primary-300 hover:underline">{{ room.page_url|truncatechars:60 }}</a>
+          </span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      {% if room.status == 'open' %}
+        <form method="post" action="{% url 'admin_livechat_close' room_id=room.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="text-xs px-3 py-1.5 rounded-md border border-base-600 text-base-200 hover:bg-base-800">
+            Cerrar chat
+          </button>
+        </form>
+      {% else %}
+        <form method="post" action="{% url 'admin_livechat_reopen' room_id=room.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="text-xs px-3 py-1.5 rounded-md border border-emerald-600 text-emerald-300 hover:bg-emerald-600/10">
+            Reabrir chat
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="rounded-xl border border-base-700 bg-base-900 p-4 flex flex-col" style="min-height: 65vh;">
+    <div id="livechat-scroll" class="flex-1 overflow-y-auto pr-1" style="max-height: 65vh;">
+      {% include "admin/livechat/_messages.html" %}
+    </div>
+
+    {% if room.status == 'open' %}
+      <form method="post"
+            action="{% url 'admin_livechat_reply' room_id=room.pk %}"
+            hx-post="{% url 'admin_livechat_reply' room_id=room.pk %}"
+            hx-target="#livechat-thread"
+            hx-swap="outerHTML"
+            hx-on::after-request="this.querySelector('textarea').value=''; const s=document.getElementById('livechat-scroll'); if(s){s.scrollTop=s.scrollHeight;}"
+            class="mt-4 border-t border-base-700 pt-4 flex flex-col gap-2">
+        {% csrf_token %}
+        <div class="flex flex-col md:flex-row gap-2">
+          <textarea name="body" rows="3"
+                    placeholder="Escribí tu respuesta… (Enter para nueva línea, Ctrl+Enter para enviar)"
+                    autofocus
+                    class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm p-3 focus:border-primary-500 focus:outline-none resize-none"></textarea>
+          <button type="submit"
+                  class="self-stretch md:self-auto px-5 py-2.5 rounded-md text-white text-sm font-semibold whitespace-nowrap"
+                  style="background:linear-gradient(135deg,#a855f7,#ec4899);">
+            Enviar
+          </button>
+        </div>
+        <div class="text-[11px] text-base-400">El cliente verá tu respuesta en su web en ~5s (refresh automático).</div>
+      </form>
+    {% else %}
+      <div class="mt-4 border-t border-base-700 pt-4 text-center text-base-300 text-sm">
+        Este chat está cerrado. Reabrilo para responder.
+      </div>
+    {% endif %}
+  </section>
+</div>
+
+<script>
+  (function () {
+    var s = document.getElementById('livechat-scroll');
+    if (s) { s.scrollTop = s.scrollHeight; }
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+      if (evt.target && evt.target.id === 'livechat-thread') {
+        var sc = document.getElementById('livechat-scroll');
+        if (sc) { sc.scrollTop = sc.scrollHeight; }
+      }
+    });
+
+    // Ctrl+Enter dispara submit
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        var form = document.querySelector('form[hx-post]');
+        if (form) {
+          if (typeof htmx !== 'undefined') {
+            htmx.trigger(form, 'submit');
+          } else {
+            form.submit();
+          }
+        }
+      }
+    });
+  })();
+</script>
+{% endblock %}

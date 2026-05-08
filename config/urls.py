@@ -14,6 +14,7 @@ from catalog.seo_views import (
 )
 from catalog.sitemaps import SITEMAPS
 from config import admin_views
+from livechat import admin_views as livechat_admin_views
 from orders import media_views as orders_media_views
 from support import views as support_views
 
@@ -152,6 +153,42 @@ urlpatterns = [
         admin_views.support_chat_messages,
         name="admin_support_chat_messages",
     ),
+    # ---- Live chat (cliente <-> admin) -----------------------------------
+    path(
+        "panel-jheliz-2026/livechat/",
+        livechat_admin_views.chat_index,
+        name="admin_livechat_index",
+    ),
+    path(
+        "panel-jheliz-2026/livechat/unread-count.json",
+        livechat_admin_views.chat_unread_count,
+        name="admin_livechat_unread_count",
+    ),
+    path(
+        "panel-jheliz-2026/livechat/<int:room_id>/",
+        livechat_admin_views.chat_detail,
+        name="admin_livechat_detail",
+    ),
+    path(
+        "panel-jheliz-2026/livechat/<int:room_id>/reply/",
+        livechat_admin_views.chat_reply,
+        name="admin_livechat_reply",
+    ),
+    path(
+        "panel-jheliz-2026/livechat/<int:room_id>/messages/",
+        livechat_admin_views.chat_messages_partial,
+        name="admin_livechat_messages",
+    ),
+    path(
+        "panel-jheliz-2026/livechat/<int:room_id>/close/",
+        livechat_admin_views.chat_close,
+        name="admin_livechat_close",
+    ),
+    path(
+        "panel-jheliz-2026/livechat/<int:room_id>/reopen/",
+        livechat_admin_views.chat_reopen,
+        name="admin_livechat_reopen",
+    ),
     path("panel-jheliz-2026/", admin.site.urls),
     # SEO / PWA endpoints (root-level)
     path("robots.txt", robots_txt, name="robots_txt"),
@@ -194,6 +231,7 @@ urlpatterns = [
     path("pedidos/", include("orders.urls", namespace="orders")),
     path("soporte/", include("support.urls", namespace="support")),
     path("blog/", include("blog.urls", namespace="blog")),
+    path("chat/", include("livechat.urls", namespace="livechat")),
     path("", include("catalog.urls", namespace="catalog")),
 ]
 
