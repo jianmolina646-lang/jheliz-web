@@ -188,16 +188,66 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     compressed_fields = True
     list_select_related = ("user",)
     change_form_template = "admin/orders/order/change_form.html"
+    # Banner con tabs de filtros rápidos (Hoy / Yape pendientes / Sin entregar
+    # / Esta semana). Se renderiza encima del listado vía Unfold.
+    list_before_template = "admin/orders/order/_filter_tabs.html"
 
     def get_queryset(self, request):
         # Trae el FK user de un solo JOIN (display_customer lo usa).
         # Prefetcheamos también los items para que `display_products` no
         # haga N+1 queries en el changelist.
-        return (
+        qs = (
             super().get_queryset(request)
             .select_related("user")
             .prefetch_related("items")
         )
+        # Filtro rápido vía ?jh_quick=...  (PR I, item 8).
+        # Aplica un subset común sin tocar list_filter ni search.
+        quick = request.GET.get("jh_quick")
+        if quick:
+            from datetime import timedelta
+            from django.utils import timezone as _tz
+            now = _tz.localtime()
+            today = now.date()
+            if quick == "today":
+                qs = qs.filter(created_at__date=today)
+            elif quick == "yape_pending":
+                qs = qs.filter(payment_provider="yape", status=Order.Status.VERIFYING)
+            elif quick == "undelivered":
+                qs = qs.filter(status__in=[
+                    Order.Status.PENDING, Order.Status.VERIFYING,
+                    Order.Status.PAID, Order.Status.PREPARING,
+                ])
+            elif quick == "this_week":
+                # Lunes de esta semana hasta hoy.
+                start = today - timedelta(days=today.weekday())
+                qs = qs.filter(created_at__date__gte=start)
+        return qs
+
+    def changelist_view(self, request, extra_context=None):
+        # Inyecta los conteos para los badges de las tabs (calculados
+        # sobre el queryset base, sin filtros aplicados).
+        from datetime import timedelta
+        from django.utils import timezone as _tz
+        # Conteos sobre todo el queryset visible para el usuario, sin
+        # aplicar los filtros activos (ni jh_quick ni list_filter).
+        base_qs = Order.objects.all()
+        now = _tz.localtime()
+        today = now.date()
+        week_start = today - timedelta(days=today.weekday())
+        counts = {
+            "today": base_qs.filter(created_at__date=today).count(),
+            "yape_pending": base_qs.filter(
+                payment_provider="yape", status=Order.Status.VERIFYING,
+            ).count(),
+            "undelivered": base_qs.filter(status__in=[
+                Order.Status.PENDING, Order.Status.VERIFYING,
+                Order.Status.PAID, Order.Status.PREPARING,
+            ]).count(),
+            "this_week": base_qs.filter(created_at__date__gte=week_start).count(),
+        }
+        extra_context = {**(extra_context or {}), "jh_filter_counts": counts}
+        return super().changelist_view(request, extra_context=extra_context)
 
     fieldsets = (
         ("Datos", {

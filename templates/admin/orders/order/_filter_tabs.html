@@ -1,0 +1,40 @@
+{% load i18n %}
+{# Filter tabs above the order changelist (PR I, item 8). #}
+{# Each tab links back to the same changelist with a different ?GET filter. #}
+{# `cl.params` is the current querystring dict from Django's ChangeList. #}
+{% with q=request.GET.urlencode %}
+<div class="jh-filter-tabs" role="tablist" aria-label="Filtros rápidos de pedidos">
+    <span class="jh-filter-tabs__label">Filtros rápidos:</span>
+    {% with active=request.GET.jh_quick %}
+    <a href="{% url 'admin:orders_order_changelist' %}"
+       class="jh-filter-tab {% if not active %}jh-filter-tab--active{% endif %}"
+       role="tab" aria-selected="{% if not active %}true{% else %}false{% endif %}">
+        🗂 Todos
+    </a>
+    <a href="{% url 'admin:orders_order_changelist' %}?jh_quick=today"
+       class="jh-filter-tab {% if active == 'today' %}jh-filter-tab--active{% endif %}"
+       role="tab" aria-selected="{% if active == 'today' %}true{% else %}false{% endif %}">
+        ⚡ Hoy
+        {% if jh_filter_counts.today %}<span class="jh-filter-tab__count">{{ jh_filter_counts.today }}</span>{% endif %}
+    </a>
+    <a href="{% url 'admin:orders_order_changelist' %}?jh_quick=yape_pending"
+       class="jh-filter-tab {% if active == 'yape_pending' %}jh-filter-tab--active{% endif %}"
+       role="tab" aria-selected="{% if active == 'yape_pending' %}true{% else %}false{% endif %}">
+        💸 Yape pendientes
+        {% if jh_filter_counts.yape_pending %}<span class="jh-filter-tab__count">{{ jh_filter_counts.yape_pending }}</span>{% endif %}
+    </a>
+    <a href="{% url 'admin:orders_order_changelist' %}?jh_quick=undelivered"
+       class="jh-filter-tab {% if active == 'undelivered' %}jh-filter-tab--active{% endif %}"
+       role="tab" aria-selected="{% if active == 'undelivered' %}true{% else %}false{% endif %}">
+        📦 Sin entregar
+        {% if jh_filter_counts.undelivered %}<span class="jh-filter-tab__count">{{ jh_filter_counts.undelivered }}</span>{% endif %}
+    </a>
+    <a href="{% url 'admin:orders_order_changelist' %}?jh_quick=this_week"
+       class="jh-filter-tab {% if active == 'this_week' %}jh-filter-tab--active{% endif %}"
+       role="tab" aria-selected="{% if active == 'this_week' %}true{% else %}false{% endif %}">
+        📅 Esta semana
+        {% if jh_filter_counts.this_week %}<span class="jh-filter-tab__count">{{ jh_filter_counts.this_week }}</span>{% endif %}
+    </a>
+    {% endwith %}
+</div>
+{% endwith %}
