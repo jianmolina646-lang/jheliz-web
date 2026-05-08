@@ -42,9 +42,19 @@ def _canonical_url(request) -> str:
 
 def site_context(request):
     cart_count = 0
+    cart_subtotal = None
     cart_items = request.session.get("cart") or []
     if isinstance(cart_items, list):
         cart_count = sum(int(it.get("quantity", 0)) for it in cart_items)
+    if cart_count > 0:
+        # Calcular subtotal en formato display-friendly. No persistimos —
+        # la sticky bar mobile (item 16) lo necesita visible.
+        try:
+            from orders.cart import Cart  # lazy import
+            cart = Cart(request)
+            cart_subtotal = cart.subtotal_for(getattr(request, "user", None))
+        except Exception:
+            cart_subtotal = None
 
     on_home = False
     try:
@@ -151,6 +161,7 @@ def site_context(request):
         "MERCADOPAGO_ENABLED": bool(settings.MERCADOPAGO_ACCESS_TOKEN),
         "nav_categories": Category.objects.filter(is_active=True)[:12],
         "cart_count": cart_count,
+        "cart_subtotal": cart_subtotal,
         "promo_banner": promo_banner,
         "GA4_ID": ga4_id,
         "META_PIXEL_ID": meta_pixel,
