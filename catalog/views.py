@@ -259,16 +259,29 @@ def product_detail(request, slug: str):
         pct = int(round((n / total) * 100)) if total else 0
         rating_breakdown.append({"star": star, "count": n, "pct": pct})
 
-    related_products = list(
-        Product.objects.filter(
-            is_active=True,
-            category=product.category,
-        )
+    # Recomendaciones cruzadas (item 18 — "Otros también compraron"):
+    # 1) Mismo categoría, excluyendo este producto, prioriza featured.
+    # 2) Si hay menos de 4, completar con productos populares de OTRAS
+    #    categorías (cross-sell verdadero) — gente que compra Netflix
+    #    también suele comprar Disney+ o Spotify.
+    same_cat = list(
+        Product.objects.filter(is_active=True, category=product.category)
         .exclude(pk=product.pk)
         .select_related("category")
         .prefetch_related("plans")
         .order_by("-is_featured", "order", "name")[:4]
     )
+    related_products = same_cat
+    if len(related_products) < 4:
+        existing_ids = [p.pk for p in related_products] + [product.pk]
+        cross_cat = list(
+            Product.objects.filter(is_active=True, is_featured=True)
+            .exclude(pk__in=existing_ids)
+            .select_related("category")
+            .prefetch_related("plans")
+            .order_by("order", "name")[: 4 - len(related_products)]
+        )
+        related_products = related_products + cross_cat
 
     return render(
         request,
