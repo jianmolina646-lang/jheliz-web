@@ -147,20 +147,107 @@
     {% endif %}
 
     {% if kpi %}
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-7 gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 kpi-grid">
         {% for card in kpi %}
-        <a href="{{ card.link }}" class="group block p-5 border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 hover:-translate-y-0.5 hover:shadow-xl transition">
-            <div class="flex items-start justify-between">
-                <div>
-                    <div class="text-xs font-medium uppercase tracking-wider text-base-500 dark:text-base-400">{{ card.title }}</div>
-                    <div class="mt-2 text-3xl font-bold text-base-900 dark:text-white">{{ card.metric }}</div>
-                    <div class="mt-1 text-xs text-base-500 dark:text-base-400">{{ card.footer }}</div>
+        <a href="{{ card.link }}"
+           class="kpi-card kpi-card--{{ card.tone|default:'neutral' }} group block relative overflow-hidden rounded-xl p-4 sm:p-5 transition hover:-translate-y-0.5 hover:shadow-2xl">
+            <div class="kpi-card__bg" aria-hidden="true"></div>
+            <div class="relative flex items-start justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                    <div class="kpi-card__title text-[10px] sm:text-xs font-semibold uppercase tracking-wider truncate">
+                        {{ card.title }}
+                    </div>
+                    <div class="kpi-card__metric mt-1.5 sm:mt-2 text-2xl sm:text-3xl font-extrabold leading-none truncate">
+                        {{ card.metric }}
+                    </div>
+                    {% if card.delta_pct is not None and card.delta_label %}
+                    <div class="mt-1.5 inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold
+                                {% if card.delta_pct >= 0 %}text-emerald-300{% else %}text-rose-300{% endif %}">
+                        <span class="material-symbols-outlined" style="font-size:14px;">
+                            {% if card.delta_pct >= 0 %}trending_up{% else %}trending_down{% endif %}
+                        </span>
+                        {{ card.delta_pct|floatformat:0 }}%
+                        <span class="kpi-card__delta-label opacity-70 font-normal">{{ card.delta_label }}</span>
+                    </div>
+                    {% else %}
+                    <div class="kpi-card__footer mt-1.5 text-[10px] sm:text-xs truncate">{{ card.footer }}</div>
+                    {% endif %}
                 </div>
-                <span class="material-symbols-outlined text-primary-500 group-hover:text-primary-400 text-3xl" aria-hidden="true">{{ card.icon }}</span>
+                <span class="kpi-card__icon shrink-0 inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg">
+                    <span class="material-symbols-outlined" aria-hidden="true" style="font-size:20px;">{{ card.icon }}</span>
+                </span>
             </div>
+            {% if card.sparkline %}
+            <div class="kpi-card__sparkline mt-3 h-8 -mx-1 opacity-90">{{ card.sparkline }}</div>
+            {% endif %}
         </a>
         {% endfor %}
     </div>
+    <style>
+      /* KPI cards rediseñadas — gradientes por tono + sparkline + badge delta. */
+      .kpi-card { color: rgb(var(--color-base-900)); }
+      .dark .kpi-card { color: #fff; }
+      .kpi-card__bg {
+        position: absolute; inset: 0; pointer-events: none;
+        background: linear-gradient(135deg, rgba(255,255,255,0.6), rgba(255,255,255,0.3));
+        opacity: 0;
+        transition: opacity 200ms ease;
+      }
+      .dark .kpi-card__bg {
+        background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.0));
+      }
+      .kpi-card:hover .kpi-card__bg { opacity: 1; }
+      .kpi-card { background: rgba(255,255,255,1); border: 1px solid rgb(var(--color-base-200)); }
+      .dark .kpi-card { background: rgb(var(--color-base-900)); border-color: rgb(var(--color-base-800)); }
+      .kpi-card__title { color: rgb(var(--color-base-500)); }
+      .dark .kpi-card__title { color: rgb(var(--color-base-400)); }
+      .kpi-card__metric { color: rgb(var(--color-base-900)); }
+      .dark .kpi-card__metric { color: #fff; }
+      .kpi-card__footer { color: rgb(var(--color-base-500)); }
+      .dark .kpi-card__footer { color: rgb(var(--color-base-400)); }
+
+      /* Tonos: cada uno cambia el color del icono y la sparkline (currentColor). */
+      .kpi-card--emerald .kpi-card__icon { background: linear-gradient(135deg, #10b981, #059669); color: #fff; box-shadow: 0 8px 18px -8px rgba(16,185,129,.6); }
+      .kpi-card--emerald .kpi-card__sparkline { color: #10b981; }
+      .kpi-card--primary .kpi-card__icon { background: linear-gradient(135deg, #ec4899, #be185d); color: #fff; box-shadow: 0 8px 18px -8px rgba(236,72,153,.6); }
+      .kpi-card--primary .kpi-card__sparkline { color: #ec4899; }
+      .kpi-card--violet  .kpi-card__icon { background: linear-gradient(135deg, #a855f7, #7c3aed); color: #fff; box-shadow: 0 8px 18px -8px rgba(168,85,247,.6); }
+      .kpi-card--violet  .kpi-card__sparkline { color: #a855f7; }
+      .kpi-card--blue    .kpi-card__icon { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 8px 18px -8px rgba(59,130,246,.6); }
+      .kpi-card--blue    .kpi-card__sparkline { color: #3b82f6; }
+      .kpi-card--amber   .kpi-card__icon { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; box-shadow: 0 8px 18px -8px rgba(245,158,11,.6); }
+      .kpi-card--rose    .kpi-card__icon { background: linear-gradient(135deg, #f43f5e, #be123c); color: #fff; box-shadow: 0 8px 18px -8px rgba(244,63,94,.6); }
+      .kpi-card--neutral .kpi-card__icon { background: rgb(var(--color-base-100)); color: rgb(var(--color-base-500)); }
+      .dark .kpi-card--neutral .kpi-card__icon { background: rgb(var(--color-base-800)); color: rgb(var(--color-base-400)); }
+
+      /* Borde acento sutil por tono — solo visible al hover para no saturar. */
+      .kpi-card--emerald:hover { border-color: rgba(16,185,129,.4); }
+      .kpi-card--primary:hover { border-color: rgba(236,72,153,.4); }
+      .kpi-card--violet:hover  { border-color: rgba(168,85,247,.4); }
+      .kpi-card--blue:hover    { border-color: rgba(59,130,246,.4); }
+      .kpi-card--amber:hover   { border-color: rgba(245,158,11,.4); }
+      .kpi-card--rose:hover    { border-color: rgba(244,63,94,.4); }
+
+      /* Cards "amber" y "rose" con valor > 0 destacan más (atención visual). */
+      .kpi-card--amber, .kpi-card--rose {
+        background: linear-gradient(135deg, rgba(255,255,255,1), rgba(255,255,255,0.96));
+      }
+      .dark .kpi-card--amber {
+        background: linear-gradient(135deg, rgba(245,158,11,.08), rgba(245,158,11,.02));
+        border-color: rgba(245,158,11,.25);
+      }
+      .dark .kpi-card--rose {
+        background: linear-gradient(135deg, rgba(244,63,94,.08), rgba(244,63,94,.02));
+        border-color: rgba(244,63,94,.25);
+      }
+
+      .kpi-sparkline { width: 100%; height: 100%; display: block; }
+
+      /* Mobile: ocultar el label del delta para dejar solo el % */
+      @media (max-width: 640px) {
+        .kpi-card__delta-label { display: none; }
+      }
+    </style>
     {% endif %}
 
     {% if reminder_status %}
