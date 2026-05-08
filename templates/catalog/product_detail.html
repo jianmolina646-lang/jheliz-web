@@ -29,6 +29,128 @@
     filter: blur(30px);
     pointer-events: none;
   }
+  /* Comparador de planes lado a lado */
+  .plan-cmp {
+    margin-top: 2.5rem;
+    padding: 1.75rem 1.25rem;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.005));
+  }
+  .plan-cmp__head { text-align: center; margin-bottom: 1.5rem; }
+  .plan-cmp__eyebrow {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: #f9a8d4;
+  }
+  .plan-cmp__title {
+    font-family: 'Geist', sans-serif;
+    font-weight: 800; font-size: 1.45rem;
+    margin-top: .35rem; letter-spacing: -.025em;
+    color: #fafafa;
+  }
+  @media (min-width: 768px) { .plan-cmp__title { font-size: 1.75rem; } }
+  .plan-cmp__sub { font-size: .82rem; color: #a1a1aa; margin-top: .45rem; }
+  .plan-cmp__grid {
+    display: grid; gap: .85rem;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 640px) { .plan-cmp__grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1024px) { .plan-cmp__grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); } }
+
+  .plan-cmp__card {
+    position: relative;
+    padding: 1.4rem 1.1rem;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.025);
+    display: flex; flex-direction: column;
+    transition: border-color .18s ease, transform .18s ease;
+  }
+  .plan-cmp__card:hover { border-color: rgba(236,72,153,.35); transform: translateY(-2px); }
+  .plan-cmp__card--popular {
+    border-color: rgba(236,72,153,.5);
+    background: linear-gradient(160deg, rgba(236,72,153,.08), rgba(168,85,247,.04));
+    box-shadow: 0 18px 40px -22px rgba(236,72,153,.6);
+  }
+  .plan-cmp__ribbon {
+    position: absolute; top: -.7rem; left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex; align-items: center; gap: .25rem;
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: .25rem .65rem;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #ec4899, #a855f7);
+    color: #fff;
+    box-shadow: 0 6px 18px -8px rgba(236,72,153,.7);
+  }
+  .plan-cmp__name { font-family: 'Geist', sans-serif; font-weight: 700; font-size: .98rem; color: #fafafa; }
+  .plan-cmp__duration {
+    font-size: .75rem; color: #a1a1aa; margin-top: .15rem;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .plan-cmp__price { margin-top: 1rem; display: flex; align-items: baseline; gap: .25rem; flex-wrap: wrap; }
+  .plan-cmp__currency { font-size: .85rem; color: #a1a1aa; font-weight: 600; }
+  .plan-cmp__amount {
+    font-family: 'Geist', sans-serif;
+    font-weight: 800; font-size: 1.85rem;
+    color: #fff; letter-spacing: -.03em;
+  }
+  .plan-cmp__chip {
+    font-size: .65rem; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: .2rem .5rem; border-radius: 9999px;
+    background: rgba(168,85,247,.15);
+    border: 1px solid rgba(168,85,247,.3);
+    color: #d8b4fe; margin-left: auto;
+  }
+  .plan-cmp__perday { font-size: .72rem; color: #71717a; margin-top: .15rem; }
+  .plan-cmp__features {
+    list-style: none; padding: 0; margin: 1rem 0 1.25rem 0;
+    display: flex; flex-direction: column; gap: .45rem;
+  }
+  .plan-cmp__features li {
+    display: flex; align-items: center; gap: .55rem;
+    font-size: .8rem; color: #d4d4d8;
+  }
+  .plan-cmp__features svg { width: 14px; height: 14px; color: #6ee7b7; flex-shrink: 0; }
+  .plan-cmp__cta {
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-top: auto; padding: .65rem 1rem;
+    border-radius: 10px; font-weight: 700; font-size: .85rem;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    color: #fafafa; cursor: pointer; text-decoration: none;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .plan-cmp__cta:hover { background: rgba(236,72,153,.12); border-color: rgba(236,72,153,.4); }
+  .plan-cmp__card--popular .plan-cmp__cta {
+    background: linear-gradient(135deg, #ec4899, #a855f7);
+    border-color: transparent; color: #fff;
+    box-shadow: 0 10px 28px -10px rgba(236,72,153,.7);
+  }
+  .plan-cmp__card--popular .plan-cmp__cta:hover { background: linear-gradient(135deg, #f472b6, #c084fc); }
+
+  /* Skeleton loader (item 10) */
+  .skeleton {
+    background: linear-gradient(90deg,
+      rgba(255,255,255,.025) 0%,
+      rgba(255,255,255,.06) 50%,
+      rgba(255,255,255,.025) 100%);
+    background-size: 200% 100%;
+    animation: skel 1.4s ease-in-out infinite;
+    border-radius: 8px;
+  }
+  @keyframes skel {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  .skel-line { height: .9rem; }
+  .skel-line.skel-line--lg { height: 1.4rem; }
+  .skel-block { height: 8rem; border-radius: 14px; }
+  @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
   /* Tabs */
   .pd-tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); }
   .pd-tab {
@@ -426,6 +548,9 @@
   </div>
 </section>
 
+{# Comparador de planes lado a lado (item 17). Solo se muestra si hay 2+ planes. #}
+{% include "partials/_plan_comparator.html" %}
+
 <!-- Mobile sticky CTA ---------------------------------------------------- -->
 {% with seo_plan=product|cheapest_plan_for:user %}
   {% if seo_plan %}
@@ -515,8 +640,8 @@
 <section class="mt-16" data-reveal>
   <div class="flex items-end justify-between mb-6">
     <div>
-      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">También te puede interesar</p>
-      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1 tracking-tight">Productos similares</h2>
+      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Otros también compraron</p>
+      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1 tracking-tight">Productos que combinan con {{ product.name }}</h2>
     </div>
     <a href="{{ product.category.get_absolute_url }}" class="text-sm text-zinc-400 hover:text-white transition">Ver más de {{ product.category.name }} →</a>
   </div>
