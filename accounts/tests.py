@@ -557,3 +557,136 @@ class BlogAdminListTests(TestCase):
         self.assertIn("jh-product-cell", html)
         self.assertIn("Tutoriales", html)
         self.assertIn("post", html)
+
+
+# -----------------------------------------------------------------------------
+# Web Push notifications
+# -----------------------------------------------------------------------------
+
+import json as _json_push
+from unittest.mock import patch as _patch
+
+from django.test import override_settings
+from accounts.models import PushSubscription
+
+
+@override_settings(VAPID_PUBLIC_KEY="testkey-public", VAPID_PRIVATE_KEY="testkey-private")
+class PushSubscribeEndpointTests(TestCase):
+    def test_config_returns_public_key(self):
+        resp = self.client.get(reverse("accounts:push_config"))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["public_key"], "testkey-public")
+        self.assertTrue(data["configured"])
+
+    def test_subscribe_creates_subscription(self):
+        body = _json_push.dumps({
+            "endpoint": "https://fcm.googleapis.com/fcm/send/abc",
+            "keys": {"p256dh": "P256-key-here", "auth": "AUTH-here"},
+        })
+        resp = self.client.post(
+            reverse("accounts:push_subscribe"),
+            data=body, content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["ok"])
+        self.assertEqual(PushSubscription.objects.count(), 1)
+
+    def test_subscribe_idempotent_by_endpoint(self):
+        body = _json_push.dumps({
+            "endpoint": "https://fcm.googleapis.com/fcm/send/abc",
+            "keys": {"p256dh": "P1", "auth": "A1"},
+        })
+        self.client.post(reverse("accounts:push_subscribe"), data=body, content_type="application/json")
+        # Mismo endpoint, distintas claves → actualiza, no crea otra fila
+        body2 = _json_push.dumps({
+            "endpoint": "https://fcm.googleapis.com/fcm/send/abc",
+            "keys": {"p256dh": "P2", "auth": "A2"},
+        })
+        self.client.post(reverse("accounts:push_subscribe"), data=body2, content_type="application/json")
+        self.assertEqual(PushSubscription.objects.count(), 1)
+        sub = PushSubscription.objects.first()
+        self.assertEqual(sub.p256dh, "P2")
+
+    def test_subscribe_validates_payload(self):
+        resp = self.client.post(
+            reverse("accounts:push_subscribe"),
+            data="not-json", content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        resp = self.client.post(
+            reverse("accounts:push_subscribe"),
+            data=_json_push.dumps({"endpoint": "x"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_unsubscribe_disables_subscription(self):
+        sub = PushSubscription.objects.create(
+            endpoint="https://x/y", p256dh="p", auth="a", is_enabled=True,
+        )
+        body = _json_push.dumps({"endpoint": sub.endpoint})
+        resp = self.client.post(
+            reverse("accounts:push_unsubscribe"),
+            data=body, content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        sub.refresh_from_db()
+        self.assertFalse(sub.is_enabled)
+
+
+@override_settings(VAPID_PUBLIC_KEY="kp", VAPID_PRIVATE_KEY="kr")
+class PushBroadcastViewTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="pb-staff", password="x", is_staff=True, is_superuser=True,
+        )
+        self.client.force_login(self.staff)
+        self.url = reverse("admin_push_broadcast")
+
+    def test_renders_form(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Notificaciones push")
+        self.assertContains(resp, "Enviar notificaci")
+
+    def test_requires_staff(self):
+        self.client.logout()
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 302)
+
+    @_patch("pywebpush.webpush")
+    def test_broadcast_calls_webpush(self, mock_webpush):
+        # Crear 2 subs activas
+        PushSubscription.objects.create(
+            endpoint="https://x/1", p256dh="p1", auth="a1",
+        )
+        PushSubscription.objects.create(
+            endpoint="https://x/2", p256dh="p2", auth="a2",
+        )
+        # 1 deshabilitada — no debe enviarse
+        PushSubscription.objects.create(
+            endpoint="https://x/3", p256dh="p3", auth="a3", is_enabled=False,
+        )
+        resp = self.client.post(self.url, {
+            "title": "Test", "body": "Body", "url": "/",
+        })
+        self.assertEqual(resp.status_code, 302)
+        # webpush fue llamado 2 veces (no para la deshabilitada)
+        self.assertEqual(mock_webpush.call_count, 2)
+
+
+@override_settings(VAPID_PUBLIC_KEY="", VAPID_PRIVATE_KEY="")
+class PushBroadcastUnconfiguredTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="pb-noconf", password="x", is_staff=True, is_superuser=True,
+        )
+        self.client.force_login(self.staff)
+
+    def test_warns_when_vapid_missing(self):
+        resp = self.client.get(reverse("admin_push_broadcast"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "VAPID no est")

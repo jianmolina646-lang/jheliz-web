@@ -31,4 +31,8 @@ urlpatterns = [
     ),
     path("", views.dashboard, name="dashboard"),
     path("perfil/", views.profile, name="profile"),
+    # Web Push (PWA notifications)
+    path("push/config/", views.push_config, name="push_config"),
+    path("push/subscribe/", views.push_subscribe, name="push_subscribe"),
+    path("push/unsubscribe/", views.push_unsubscribe, name="push_unsubscribe"),
 ]
