@@ -1,9 +1,11 @@
-{# Sticky bar inferior en mobile con CTA "Ver carrito (S/ X)".
-   Solo se muestra si:
-   - Hay items en el carrito (cart_count > 0)
-   - NO estamos ya en /carrito o /checkout
-   - Solo en breakpoints mobile (< lg, ≤1023px) — desktop tiene el carrito
-     siempre visible en la barra superior. #}
+{% comment %}
+  Sticky bar inferior en mobile con CTA "Ver carrito (S/ X)".
+  Solo se muestra si:
+  - Hay items en el carrito (cart_count > 0)
+  - NO estamos ya en /carrito o /checkout
+  - Solo en breakpoints mobile (< lg, ≤1023px) — desktop tiene el carrito
+    siempre visible en la barra superior.
+{% endcomment %}
 {% with view_name=request.resolver_match.url_name %}
 {% if cart_count and view_name != 'cart' and view_name != 'checkout' and view_name != 'cart_done' %}
 <aside class="sticky-mobile-cart"

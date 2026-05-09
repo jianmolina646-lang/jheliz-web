@@ -376,9 +376,11 @@
     .cart-toast { animation: cart-toast-in .2s ease-out, cart-toast-out .35s ease-in 3.5s forwards; }
   </style>
 
-  {# Botón flotante de WhatsApp removido — ahora está integrado dentro del
-     widget de chat (templates/partials/livechat_widget.html) para no tener
-     dos burbujas pegadas en la esquina inferior derecha en mobile. #}
+  {% comment %}
+    Botón flotante de WhatsApp removido — ahora está integrado dentro del
+    widget de chat (templates/partials/livechat_widget.html) para no tener
+    dos burbujas pegadas en la esquina inferior derecha en mobile.
+  {% endcomment %}
 
   {% include "partials/_sticky_mobile_cart.html" %}
   {% include "partials/mobile_bottom_nav.html" %}

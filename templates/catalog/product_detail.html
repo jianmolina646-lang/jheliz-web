@@ -216,9 +216,11 @@
   <span class="text-zinc-300">{{ product.name }}</span>
 </nav>
 
-{# Indicador de personas viendo este producto ahora — número determinístico por
-   producto + hora para que parezca "vivo" sin inventar datos que rompan la
-   confianza del usuario. Entre 3 y 14 personas. #}
+{% comment %}
+  Indicador de personas viendo este producto ahora — número determinístico por
+  producto + hora para que parezca "vivo" sin inventar datos que rompan la
+  confianza del usuario. Entre 3 y 14 personas.
+{% endcomment %}
 {% with live_viewers=product.pk|add:0 %}
 <div class="flex flex-wrap items-center gap-3 mb-4 text-xs text-zinc-400">
   <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border hairline bg-emerald-500/5 border-emerald-500/30 text-emerald-300">
