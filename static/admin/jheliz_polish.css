@@ -427,6 +427,28 @@ textarea::placeholder {
     color: rgba(161,161,170,.75);
 }
 
+/* =====================================================================
+ * Fix: <option>s del <select> ilegibles en el admin (tema oscuro).
+ *
+ * Sin esto, Linux/Chrome renderiza el dropdown nativo con fondo claro y
+ * texto del tema oscuro (gris claro) — opciones casi invisibles. Le
+ * decimos al browser que use el esquema oscuro para los selects.
+ * Y forzamos colores explícitos en <option> para Firefox/Safari, que no
+ * siempre respetan color-scheme.
+ * =================================================================== */
+select {
+    color-scheme: dark !important;
+}
+select option {
+    background-color: #1a1a23 !important;
+    color: #f4f4f5 !important;
+}
+select option:checked,
+select option:hover {
+    background: linear-gradient(0deg, rgba(236,72,153,.25), rgba(236,72,153,.25)), #1a1a23 !important;
+    color: #fff !important;
+}
+
 /* ---------- Tablas ---------------------------------------------------- */
 table {
     border-collapse: separate;
