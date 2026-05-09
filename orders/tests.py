@@ -2723,3 +2723,137 @@ class PWATests(TestCase):
         body = resp.content.decode()
         self.assertIn("addEventListener('install'", body)
         self.assertIn("addEventListener('fetch'", body)
+
+
+class QuickOrderCreateTests(TestCase):
+    """Vista express de pedido rápido en el admin: crea cliente + pedido +
+    item + (opcional) entrega de stock + email — todo en un POST."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staff-quick", password="x",
+            email="staff-quick@example.com",
+            is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="Streaming-Quick", slug="streaming-quick")
+        self.product = Product.objects.create(
+            name="Netflix Quick", slug="netflix-quick", category=cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"),
+        )
+        self.client = Client()
+        self.client.force_login(self.staff)
+        self.url = reverse("admin_quick_order_create")
+
+    def test_get_renders_form(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Crear pedido rápido")
+        self.assertContains(resp, "Netflix Quick")
+
+    def test_creates_user_order_and_assigns_stock(self):
+        from orders.models import Order
+        from catalog.models import StockItem as Stock
+
+        Stock.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: ya@quick.com\nContraseña: shhh",
+        )
+        resp = self.client.post(self.url, {
+            "email": "nuevo-cliente@example.com",
+            "full_name": "Nuevo Cliente",
+            "phone": "+51999000111",
+            "plan_id": str(self.plan.pk),
+            "quantity": "1",
+            "payment_method": "yape",
+            "auto_deliver": "on",
+            "send_email": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.get(email="nuevo-cliente@example.com")
+        self.assertEqual(order.status, Order.Status.DELIVERED)
+        self.assertEqual(order.payment_provider, "yape")
+        self.assertIsNotNone(order.paid_at)
+        self.assertIsNotNone(order.delivered_at)
+        item = order.items.get()
+        self.assertEqual(item.unit_price, Decimal("15.00"))
+        self.assertIsNotNone(item.stock_item_id)
+        self.assertIn("Correo:", item.delivered_credentials)
+        self.assertIsNotNone(item.expires_at)
+        # Cliente fue creado
+        User = get_user_model()
+        u = User.objects.get(email__iexact="nuevo-cliente@example.com")
+        self.assertEqual(u.phone, "+51999000111")
+        self.assertEqual(u.first_name, "Nuevo")
+
+    def test_creates_order_pending_when_no_stock_and_no_manual(self):
+        from orders.models import Order
+
+        # Sin stock + sin credenciales manuales pero con auto_deliver on:
+        # crea el pedido como PAID (no DELIVERED) y avisa al admin.
+        resp = self.client.post(self.url, {
+            "email": "sin-stock@example.com",
+            "plan_id": str(self.plan.pk),
+            "quantity": "1",
+            "payment_method": "manual",
+            "auto_deliver": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.get(email="sin-stock@example.com")
+        self.assertEqual(order.status, Order.Status.PAID)
+        self.assertIsNone(order.delivered_at)
+
+    def test_uses_existing_user_when_email_matches(self):
+        from orders.models import Order
+        User = get_user_model()
+        existing = User.objects.create_user(
+            username="existing-cli", password="x",
+            email="existing@example.com", phone="",
+        )
+        resp = self.client.post(self.url, {
+            "email": "existing@example.com",
+            "phone": "+51900000000",
+            "plan_id": str(self.plan.pk),
+            "payment_method": "yape",
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.get(email="existing@example.com")
+        self.assertEqual(order.user_id, existing.pk)
+        existing.refresh_from_db()
+        self.assertEqual(existing.phone, "+51900000000")
+
+    def test_manual_credentials_used_when_no_stock(self):
+        from orders.models import Order
+
+        creds = "Correo: manual@x.com\nContraseña: manualpass"
+        resp = self.client.post(self.url, {
+            "email": "manual@example.com",
+            "plan_id": str(self.plan.pk),
+            "payment_method": "manual",
+            "auto_deliver": "on",
+            "manual_credentials": creds,
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.get(email="manual@example.com")
+        self.assertEqual(order.status, Order.Status.DELIVERED)
+        item = order.items.get()
+        self.assertEqual(item.delivered_credentials, creds)
+        self.assertIsNone(item.stock_item_id)
+
+    def test_requires_staff(self):
+        self.client.logout()
+        resp = self.client.get(self.url)
+        # Redirect to admin login.
+        self.assertEqual(resp.status_code, 302)
+
+    def test_email_validation(self):
+        resp = self.client.post(self.url, {
+            "email": "no-valido",
+            "plan_id": str(self.plan.pk),
+        })
+        # Re-render con error (200, no redirect).
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Email del cliente inválido")
