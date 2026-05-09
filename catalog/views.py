@@ -1,4 +1,5 @@
 import json
+from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -8,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.cache import patch_response_headers
 from django.views.decorators.http import require_POST
 
 from django.db.models import Avg, Count
@@ -137,6 +139,45 @@ def _audience_filter(user):
     return Q(plans__is_active=True, plans__available_for_customer=True)
 
 
+def cache_for_anon(timeout=60):
+    """Cachea la respuesta solo si el usuario es anónimo. Para autenticados
+    (clientes, distribuidores, staff) la vista corre normalmente y no se cachea
+    porque ven precios/CTA distintos.
+
+    La key incluye el path completo, así que /productos/?categoria=streaming y
+    /productos/?q=netflix tienen entradas separadas.
+    """
+
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if request.user.is_authenticated:
+                return view_func(request, *args, **kwargs)
+            # Bypass durante tests (Django setea SERVER_NAME=testserver con el
+            # test client) para no contaminar respuestas entre tests con datos
+            # mockeados (timezone, banners online/offline, etc.).
+            if request.META.get("SERVER_NAME") == "testserver":
+                return view_func(request, *args, **kwargs)
+            cache_key = f"anonview:{request.get_full_path()}"
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached
+            response = view_func(request, *args, **kwargs)
+            if response.status_code == 200:
+                # Asegurar que el contenido del template ya esté renderizado
+                # antes de guardar en cache.
+                if hasattr(response, "render") and callable(response.render):
+                    response.render()
+                patch_response_headers(response, cache_timeout=timeout)
+                cache.set(cache_key, response, timeout)
+            return response
+
+        return wrapper
+
+    return decorator
+
+
+@cache_for_anon(timeout=60)
 def home(request):
     featured = (
         Product.objects.filter(is_active=True, is_featured=True)
@@ -182,6 +223,7 @@ def home(request):
     )
 
 
+@cache_for_anon(timeout=60)
 def product_list(request):
     q = request.GET.get("q", "").strip()
     category_slug = request.GET.get("categoria")
@@ -213,6 +255,7 @@ def product_list(request):
     )
 
 
+@cache_for_anon(timeout=60)
 def category_detail(request, slug: str):
     category = get_object_or_404(Category, slug=slug, is_active=True)
     products = (
