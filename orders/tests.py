@@ -2723,3 +2723,82 @@ class PWATests(TestCase):
         body = resp.content.decode()
         self.assertIn("addEventListener('install'", body)
         self.assertIn("addEventListener('fetch'", body)
+
+
+class AdvancedDashboardTests(TestCase):
+    """Vista del dashboard avanzado: heatmap, cohortes, funnel, distri perf,
+    tasa de renovación. Sólo asserts smoke + métricas básicas — no asumimos
+    el orden ni el formato exacto de cada celda."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staff-dash", password="x",
+            is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="Streaming-Dash", slug="streaming-dash")
+        self.product = Product.objects.create(
+            name="Netflix Dash", slug="netflix-dash", category=cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"),
+        )
+        self.client = Client()
+        self.client.force_login(self.staff)
+        self.url = reverse("admin_advanced_dashboard")
+
+    def _make_paid_order(self, email, paid_at):
+        from orders.models import Order, OrderItem
+        order = Order.objects.create(
+            email=email, total=Decimal("15.00"),
+            status=Order.Status.DELIVERED,
+            paid_at=paid_at, delivered_at=paid_at,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+        )
+        return order
+
+    def test_renders_dashboard(self):
+        # Sin datos también debe renderizar sin crashear.
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Dashboard avanzado")
+        self.assertContains(resp, "Hora pico de ventas")
+        self.assertContains(resp, "Cohortes de retención")
+        self.assertContains(resp, "Funnel de conversión")
+        self.assertContains(resp, "Tasa de renovación")
+
+    def test_renewal_rate_with_repeat_buyer(self):
+        # Un cliente con 2 pedidos del mismo producto → tasa = 100%.
+        now = timezone.now()
+        self._make_paid_order("repeat@x.com", now - timedelta(days=60))
+        self._make_paid_order("repeat@x.com", now - timedelta(days=2))
+        self._make_paid_order("once@x.com", now - timedelta(days=10))
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        # 1 par repetido / 2 pares únicos = 50% (locale es: usa coma decimal).
+        body = resp.content.decode()
+        self.assertTrue(
+            "50,0%" in body or "50.0%" in body,
+            "Esperaba ver 50% de tasa de renovación en el dashboard"
+        )
+
+    def test_funnel_shows_orders(self):
+        from orders.models import Order
+        Order.objects.create(
+            email="pending@x.com", total=Decimal("10"),
+            status=Order.Status.PENDING,
+        )
+        self._make_paid_order("delivered@x.com", timezone.now())
+        resp = self.client.get(self.url)
+        self.assertContains(resp, "Pagados")
+        self.assertContains(resp, "Entregados")
+
+    def test_requires_staff(self):
+        self.client.logout()
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 302)
