@@ -26,14 +26,4 @@ EXPOSE 8000
 # - --preload: comparte el código cargado entre workers (ahorra RAM y mejora cold starts).
 # - --keepalive 5: reusa conexiones nginx → gunicorn (5s) en lugar de cerrar+abrir.
 # - --max-requests/--max-requests-jitter: recicla workers para evitar memory leaks.
-CMD ["gunicorn", "config.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "2", \
-     "--threads", "4", \
-     "--worker-class", "gthread", \
-     "--preload", \
-     "--keepalive", "5", \
-     "--max-requests", "1000", \
-     "--max-requests-jitter", "100", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "4", "--worker-class", "gthread", "--preload", "--keepalive", "5", "--max-requests", "1000", "--max-requests-jitter", "100", "--access-logfile", "-", "--error-logfile", "-"]
