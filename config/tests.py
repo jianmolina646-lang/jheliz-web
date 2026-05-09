@@ -334,3 +334,97 @@ class AuditLogViewerTests(TestCase):
         # El truncado del helper limita a 200 chars + elipsis.
         body = resp.content.decode()
         self.assertNotIn(long_value, body)
+
+
+# -----------------------------------------------------------------------------
+# i18n + multi-país
+# -----------------------------------------------------------------------------
+
+from django.urls import reverse
+from django.test import override_settings
+
+
+class CountryMiddlewareTests(TestCase):
+    """Verifica que el middleware resuelve country desde cookie/header/default."""
+
+    def test_default_country_when_no_cookie(self):
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        # Por default debería ser PE.
+        self.assertContains(resp, "🇵🇪")
+
+    def test_country_from_cookie(self):
+        self.client.cookies["jheliz_country"] = "BR"
+        resp = self.client.get("/")
+        # El selector del footer renderiza la bandera del país activo.
+        self.assertContains(resp, "🇧🇷")
+
+    def test_country_from_geo_header(self):
+        # Sin cookie pero con header CF-IPCountry → debería resolver MX.
+        resp = self.client.get("/", HTTP_CF_IPCOUNTRY="MX")
+        self.assertContains(resp, "🇲🇽")
+
+    def test_set_country_persists_cookie(self):
+        resp = self.client.post(
+            reverse("set_country"),
+            {"code": "CO", "next": "/"},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.cookies.get("jheliz_country").value, "CO")
+
+    def test_set_country_rejects_unsupported(self):
+        resp = self.client.post(
+            reverse("set_country"),
+            {"code": "ZZ", "next": "/"},
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_set_country_blocks_open_redirect(self):
+        resp = self.client.post(
+            reverse("set_country"),
+            {"code": "CO", "next": "https://evil.example/"},
+        )
+        # Redirige pero a "/", no a la URL externa.
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp["Location"], "/")
+
+
+class LanguageSwitcherTests(TestCase):
+    """La vista built-in de Django para set_language sigue funcionando."""
+
+    def test_can_switch_to_english(self):
+        resp = self.client.post(
+            reverse("set_language"),
+            {"language": "en", "next": "/"},
+        )
+        self.assertEqual(resp.status_code, 302)
+        # La cookie de idioma se setea.
+        self.assertEqual(resp.cookies.get("django_language").value, "en")
+
+    def test_translates_navbar_in_english(self):
+        # Activar inglés via cookie y verificar que el header lo refleja.
+        self.client.cookies["django_language"] = "en"
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        self.assertIn("Products", body)
+        self.assertIn("Log in", body)
+
+    def test_translates_navbar_in_portuguese(self):
+        self.client.cookies["django_language"] = "pt"
+        resp = self.client.get("/")
+        body = resp.content.decode()
+        self.assertIn("Produtos", body)
+
+
+class FooterPickerRenderTests(TestCase):
+    """El footer renderiza los selectores con todos los países."""
+
+    def test_footer_lists_all_countries(self):
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        # Que aparezca al menos un país de cada continente (sanity).
+        self.assertIn("Perú", body)
+        self.assertIn("Brasil", body)
+        self.assertIn("Argentina", body)

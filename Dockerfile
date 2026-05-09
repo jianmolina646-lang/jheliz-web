@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends build-essential libpq-dev curl \
+ && apt-get install -y --no-install-recommends build-essential libpq-dev curl gettext \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -18,6 +18,10 @@ COPY . .
 # Static assets collected at build time
 RUN DJANGO_SECRET_KEY=build SECRET_KEY=build DEBUG=False \
     python manage.py collectstatic --noinput || true
+
+# Compilar traducciones (.po → .mo) si gettext está disponible.
+RUN DJANGO_SECRET_KEY=build SECRET_KEY=build DEBUG=False \
+    python manage.py compilemessages || true
 
 EXPOSE 8000
 
