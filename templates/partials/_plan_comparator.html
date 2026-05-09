@@ -1,6 +1,8 @@
-{# Comparador de planes lado a lado. Aparece cuando el producto tiene 2+ planes
-   activos visibles. Muestra precio + duración + precio por día + features
-   universales (garantía, soporte, entrega). #}
+{% comment %}
+  Comparador de planes lado a lado. Aparece cuando el producto tiene 2+ planes
+  activos visibles. Muestra precio + duración + precio por día + features
+  universales (garantía, soporte, entrega).
+{% endcomment %}
 {% load humanize %}
 {% if plans|length > 1 %}
 <section class="plan-cmp" aria-labelledby="plan-cmp-heading">
