@@ -153,6 +153,11 @@ def cache_for_anon(timeout=60):
         def wrapper(request, *args, **kwargs):
             if request.user.is_authenticated:
                 return view_func(request, *args, **kwargs)
+            # Bypass durante tests (Django setea SERVER_NAME=testserver con el
+            # test client) para no contaminar respuestas entre tests con datos
+            # mockeados (timezone, banners online/offline, etc.).
+            if request.META.get("SERVER_NAME") == "testserver":
+                return view_func(request, *args, **kwargs)
             cache_key = f"anonview:{request.get_full_path()}"
             cached = cache.get(cache_key)
             if cached is not None:
