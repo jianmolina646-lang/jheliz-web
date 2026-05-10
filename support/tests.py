@@ -98,6 +98,11 @@ class AdminSupportChatTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "No puedo entrar a Netflix.")
         self.assertContains(resp, 'id="ticket-messages"')
+        # Regression: sin htmx cargado el form respond hace POST normal y la
+        # página se recargaba sin actualizar el thread.
+        # Manifest static storage agrega hash al filename, por eso buscamos
+        # solo el prefijo "htmx.min" (matchea htmx.min.js o htmx.min.<hash>.js).
+        self.assertContains(resp, "htmx.min")
 
     def test_htmx_reply_creates_staff_message_and_returns_partial(self):
         self.client.force_login(self.staff)

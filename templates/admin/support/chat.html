@@ -1,10 +1,15 @@
 {% extends 'admin/base.html' %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}Chat — Ticket #{{ ticket.id }} | Soporte{% endblock %}
 
 {% block branding %}
   {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+  {# HTMX para que el form responda inline sin recargar la página completa. #}
+  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
 {% endblock %}
 
 {% block content %}

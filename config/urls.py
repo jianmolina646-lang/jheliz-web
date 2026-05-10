@@ -94,6 +94,11 @@ urlpatterns = [
         name="admin_renewals",
     ),
     path(
+        "panel-jheliz-2026/pedidos/rapido/",
+        admin_views.quick_order_create,
+        name="admin_quick_order_create",
+    ),
+    path(
         "panel-jheliz-2026/bulk-delivery/",
         admin_views.bulk_delivery_view,
         name="admin_bulk_delivery",
