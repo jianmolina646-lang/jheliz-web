@@ -479,3 +479,88 @@
     .jh2-pill__dot { animation: none !important; }
     .jh2-btn--primary::after { display: none; }
 }
+
+/* Hero (cliente 360 / dashboard) */
+.jh2-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(244,114,182,.08), rgba(139,92,246,.06) 60%, rgba(15,23,42,.65));
+    border: 1px solid rgba(244,114,182,.18);
+}
+.jh2-hero__halo {
+    position: absolute;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    filter: blur(60px);
+    pointer-events: none;
+}
+.jh2-hero__inner { position: relative; }
+.jh2-hero__title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #f8fafc;
+    background: linear-gradient(135deg, #f472b6, #c4b5fd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Mono utility */
+.jh2-mono {
+    font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+}
+
+/* Timeline */
+.jh2-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 14px 18px 18px;
+    position: relative;
+}
+.jh2-timeline::before {
+    content: "";
+    position: absolute;
+    left: 30px; top: 18px; bottom: 18px;
+    width: 2px;
+    background: rgba(244,114,182,.18);
+}
+.jh2-timeline__item {
+    position: relative;
+    padding: 4px 0 14px 50px;
+}
+.jh2-timeline__bullet {
+    position: absolute;
+    left: 18px; top: 4px;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 4px rgba(15,23,42,.95);
+}
+.jh2-timeline__link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+.jh2-timeline__link:hover .jh2-timeline__title { color: #f0abfc; }
+.jh2-timeline__title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #f1f5f9;
+    transition: color .2s ease;
+}
+.jh2-timeline__detail {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+.jh2-timeline__when {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 3px;
+}
