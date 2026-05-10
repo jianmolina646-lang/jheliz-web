@@ -565,6 +565,25 @@
     margin-top: 3px;
 }
 
+/* Variantes de botón pequeño (de PR4 pedidos) */
+.jh2-btn--sm {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+}
+
+/* Título de sección dentro de cards (de PR4 pedidos) */
+.jh2-section-title {
+    margin: 0 0 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    color: #f1f5f9;
+}
+
 /* ----------------------------------------------------------------- */
 /* Section: tabs, inputs, bento grid, mini-stats (PR3 catálogo/stock) */
 /* ----------------------------------------------------------------- */

@@ -111,15 +111,18 @@
 
 {% block content %}
 <div class="jh-rep-wrap">
-  <div class="jh-rep-header">
-    <h1>
-      <span class="material-symbols-outlined">sync_alt</span>
-      Reemplazar cuenta
-      <span style="color:#94a3b8;font-weight:500;font-size:13px;">({{ entries|length }} item{{ entries|length|pluralize }})</span>
-    </h1>
-    <a href="{% url 'admin:orders_orderitem_changelist' %}" class="jh-rep-back">
-      ← Volver al listado
-    </a>
+  <div class="jh2-page-head">
+    <div>
+      <div class="jh2-page-head__eyebrow">Items de pedido · Reemplazo</div>
+      <h1 class="jh2-page-head__title">Reemplazar cuenta</h1>
+      <p class="jh2-page-head__subtitle">{{ entries|length }} item{{ entries|length|pluralize }} seleccionado{{ entries|length|pluralize }}.</p>
+    </div>
+    <div class="jh2-page-head__actions">
+      <a href="{% url 'admin:orders_orderitem_changelist' %}" class="jh2-btn jh2-btn--ghost">
+        <span class="material-symbols-outlined" style="font-size:16px">arrow_back</span>
+        Volver al listado
+      </a>
+    </div>
   </div>
 
   {% if not entries %}
