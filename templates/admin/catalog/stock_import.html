@@ -14,70 +14,68 @@
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-    {# Formularioóleido #}
     <form method="post" enctype="multipart/form-data"
-          class="lg:col-span-2 flex flex-col gap-4 p-5 rounded-xl border border-base-700 bg-base-900">
+          class="jh2-card jh2-card--padded lg:col-span-2 flex flex-col gap-4">
       {% csrf_token %}
 
       {% if form.non_field_errors %}
-        <div class="p-3 rounded-md border border-red-500/40 bg-red-500/10 text-sm text-red-200">
-          {{ form.non_field_errors }}
-        </div>
+        <div class="jh2-alert jh2-alert--danger">{{ form.non_field_errors }}</div>
       {% endif %}
 
       {% for field in form %}
-        <div class="flex flex-col gap-1">
-          <label class="text-sm font-medium text-white">
-            {{ field.label }}{% if field.field.required %}<span class="text-primary-400">*</span>{% endif %}
+        <div class="jh2-field">
+          <label class="jh2-field__label">
+            {{ field.label }}{% if field.field.required %}<span class="jh2-field__required">*</span>{% endif %}
           </label>
           {{ field }}
           {% if field.help_text %}
-            <p class="text-xs text-base-400">{{ field.help_text|safe }}</p>
+            <p class="jh2-field__help">{{ field.help_text|safe }}</p>
           {% endif %}
           {% if field.errors %}
-            <p class="text-xs text-red-300">{{ field.errors|join:", " }}</p>
+            <p class="jh2-field__error">{{ field.errors|join:", " }}</p>
           {% endif %}
         </div>
       {% endfor %}
 
-      <div class="flex gap-2 pt-3 border-t border-base-800">
-        <button type="submit"
-                class="px-5 py-2 rounded-md bg-primary-500 hover:bg-primary-400 text-white font-semibold text-sm transition">
-          📥 Importar stock
+      <div class="jh2-actions" style="border-top:1px solid rgba(255,255,255,.06);padding-top:14px;justify-content:flex-start;">
+        <button type="submit" class="jh2-btn jh2-btn--primary">
+          <span class="material-symbols-outlined" style="font-size:16px;">upload</span>
+          Importar stock
         </button>
-        <a href="{% url 'admin_stock_overview' %}"
-           class="px-5 py-2 rounded-md border border-base-700 hover:bg-base-800 text-base-200 text-sm transition">
-          Cancelar
-        </a>
+        <a href="{% url 'admin_stock_overview' %}" class="jh2-btn jh2-btn--ghost">Cancelar</a>
       </div>
     </form>
 
-    {# Ayuda — formatos soportados #}
-    <aside class="rounded-xl border border-base-700 bg-base-900 p-5 text-sm text-base-200 self-start">
-      <div class="text-xs uppercase tracking-wide text-base-400 mb-2">Formatos soportados</div>
-      <div class="space-y-3">
+    <aside class="jh2-card jh2-card--padded self-start">
+      <h3 class="jh2-section-title">
+        <span class="material-symbols-outlined">help_outline</span>
+        Formatos soportados
+      </h3>
+      <div class="space-y-4">
         <div>
-          <div class="font-medium text-white mb-1">CSV con cabecera</div>
-          <pre class="p-2 rounded bg-base-950 border border-base-800 text-[11px] text-base-300 overflow-x-auto">email,password,perfil,pin
+          <div class="jh2-table__strong" style="margin-bottom:6px;">CSV con cabecera</div>
+          <pre class="jh2-codeblock">email,password,perfil,pin
 juan@gmail.com,Abc123,Perfil 1,1234
 maria@gmail.com,Xyz789,Perfil 2,5678</pre>
         </div>
         <div>
-          <div class="font-medium text-white mb-1">Línea por línea</div>
-          <pre class="p-2 rounded bg-base-950 border border-base-800 text-[11px] text-base-300 overflow-x-auto">juan@gmail.com|Abc123|Perfil 1|1234
+          <div class="jh2-table__strong" style="margin-bottom:6px;">Línea por línea</div>
+          <pre class="jh2-codeblock">juan@gmail.com|Abc123|Perfil 1|1234
 maria@gmail.com:Xyz789
 luis@gmail.com Abc456</pre>
-          <p class="text-[11px] text-base-400 mt-1">Separadores: <code class="text-primary-300">|</code> <code class="text-primary-300">,</code> <code class="text-primary-300">;</code> <code class="text-primary-300">:</code> tab o espacio.</p>
+          <p class="jh2-helper">
+            Separadores válidos: <code class="jh2-kbd">|</code> <code class="jh2-kbd">,</code> <code class="jh2-kbd">;</code> <code class="jh2-kbd">:</code> tab o espacio.
+          </p>
         </div>
         <div>
-          <div class="font-medium text-white mb-1">Bloques de texto libre</div>
-          <pre class="p-2 rounded bg-base-950 border border-base-800 text-[11px] text-base-300 overflow-x-auto">Correo: juan@gmail.com
+          <div class="jh2-table__strong" style="margin-bottom:6px;">Bloques de texto libre</div>
+          <pre class="jh2-codeblock">Correo: juan@gmail.com
 Clave: Abc123
 Perfil: Perfil 1
 
 Correo: maria@gmail.com
 Clave: Xyz789</pre>
-          <p class="text-[11px] text-base-400 mt-1">Separa bloques con una línea en blanco.</p>
+          <p class="jh2-helper">Separá bloques con una línea en blanco.</p>
         </div>
       </div>
     </aside>

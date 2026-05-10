@@ -12,66 +12,69 @@
 
   {% include "admin/stock/_header.html" %}
 
-  {# Toolbar: búsqueda live HTMX #}
-  <section class="rounded-xl border border-base-700 bg-base-900 px-5 py-4 flex flex-wrap items-center gap-3">
-    <label for="stock-search" class="text-sm text-base-300">Buscar producto</label>
+  <div class="jh2-toolbar">
+    <span class="jh2-toolbar__label">Buscar</span>
     <input id="stock-search" type="search" name="q" value="{{ q|default:'' }}"
-           placeholder="ej. Netflix, Disney…"
+           placeholder="Producto: Netflix, Disney…"
            hx-get="{% url 'admin_stock_overview' %}"
            hx-trigger="keyup changed delay:250ms, search"
            hx-target="#stock-cards"
            hx-select="#stock-cards"
            hx-swap="outerHTML"
            hx-push-url="true"
-           class="flex-1 max-w-md rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2
-                  focus:border-primary-500 focus:outline-none">
-    <span class="text-xs text-base-500">{{ cards|length }} producto{{ cards|length|pluralize:"s" }}</span>
-  </section>
+           class="jh2-input">
+    <span class="jh2-helper" style="margin:0;">{{ cards|length }} producto{{ cards|length|pluralize:"s" }}</span>
+  </div>
 
   {% if cards %}
-  <div id="stock-cards" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  <div id="stock-cards" class="jh2-bento-grid">
     {% for c in cards %}
-    <article class="group flex flex-col gap-4 rounded-xl border border-base-700 bg-base-900 p-5
-                    hover:border-primary-500/60 transition-colors">
-
-      <div class="flex items-start justify-between gap-3">
+    <article class="jh2-card jh2-card--padded jh2-card--hover">
+      <div class="flex items-start justify-between gap-3" style="margin-bottom:14px;">
         <div class="min-w-0">
-          <div class="text-base font-semibold text-white truncate">{{ c.product.name }}</div>
-          <div class="text-xs text-base-400 mt-0.5 truncate">{{ c.product.category.name|default:"Sin categoría" }}</div>
+          <div class="jh2-card__title" style="margin:0;font-size:14.5px;font-weight:600;color:#f1f5f9;">
+            {{ c.product.name }}
+          </div>
+          <div class="jh2-table__muted" style="margin-top:4px;">
+            {{ c.product.category.name|default:"Sin categoría" }}
+          </div>
         </div>
         {% if c.level == "empty" %}
-          <span class="shrink-0 text-[11px] px-2 py-1 rounded-full bg-red-500/10 text-red-300 border border-red-500/40 whitespace-nowrap">
-            Sin stock
-          </span>
+          {% include "admin/components/_pill.html" with text="Sin stock" variant="danger" %}
         {% elif c.level == "low" %}
-          <span class="shrink-0 text-[11px] px-2 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/40 whitespace-nowrap">
-            Bajo
-          </span>
+          {% include "admin/components/_pill.html" with text="Bajo" variant="warning" %}
         {% else %}
-          <span class="shrink-0 text-[11px] px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">
-            OK
-          </span>
+          {% include "admin/components/_pill.html" with text="OK" variant="success" %}
         {% endif %}
       </div>
 
-      <dl class="grid grid-cols-3 gap-x-4 gap-y-1 text-sm">
-        <dt class="text-[11px] uppercase tracking-wide text-emerald-300/80">Disp.</dt>
-        <dt class="text-[11px] uppercase tracking-wide text-blue-300/80">Vend.</dt>
-        <dt class="text-[11px] uppercase tracking-wide text-red-300/80">Caídas</dt>
-        <dd class="text-xl font-semibold text-emerald-200 leading-tight">{{ c.available }}</dd>
-        <dd class="text-xl font-semibold text-blue-200 leading-tight">{{ c.sold }}</dd>
-        <dd class="text-xl font-semibold text-red-200 leading-tight">{{ c.defective }}</dd>
-      </dl>
+      <div class="jh2-mini-stats">
+        <div class="jh2-mini-stat jh2-mini-stat--success">
+          <div class="jh2-mini-stat__label">Disp.</div>
+          <div class="jh2-mini-stat__value">{{ c.available }}</div>
+        </div>
+        <div class="jh2-mini-stat jh2-mini-stat--info">
+          <div class="jh2-mini-stat__label">Vend.</div>
+          <div class="jh2-mini-stat__value">{{ c.sold }}</div>
+        </div>
+        <div class="jh2-mini-stat jh2-mini-stat--danger">
+          <div class="jh2-mini-stat__label">Caídas</div>
+          <div class="jh2-mini-stat__value">{{ c.defective }}</div>
+        </div>
+      </div>
 
-      <div class="flex flex-wrap gap-2 pt-3 border-t border-base-800">
+      <div class="jh2-actions" style="margin-top:14px;justify-content:stretch;">
         <button type="button"
-                class="quick-add-btn flex-1 px-3 py-2 rounded-md bg-primary-500 hover:bg-primary-400 text-white text-sm font-semibold transition"
+                class="quick-add-btn jh2-btn jh2-btn--primary"
+                style="flex:1;"
                 data-product-id="{{ c.product.pk }}"
                 data-product-name="{{ c.product.name|escapejs }}">
-          + Agregar cuentas
+          <span class="material-symbols-outlined" style="font-size:16px;">add</span>
+          Agregar cuentas
         </button>
         <a href="{% url 'admin_stock_list' %}?product={{ c.product.pk }}"
-           class="flex-1 px-3 py-2 rounded-md border border-base-700 hover:border-base-500 hover:bg-base-800 text-base-200 text-sm text-center transition">
+           class="jh2-btn jh2-btn--ghost"
+           style="flex:1;text-align:center;justify-content:center;">
           Ver cuentas
         </a>
       </div>
@@ -79,18 +82,16 @@
     {% endfor %}
   </div>
   {% else %}
-  <div id="stock-cards" class="rounded-xl border border-dashed border-base-700 bg-base-900 p-10 text-center text-base-400">
+  <div id="stock-cards">
     {% if q %}
-      No hay productos que coincidan con <strong class="text-white">{{ q }}</strong>.
+      {% include "admin/components/_empty.html" with icon="search_off" title="Sin coincidencias" desc="No hay productos que coincidan con tu búsqueda." %}
     {% else %}
-      No hay productos activos. Crea productos primero en
-      <a href="/panel-jheliz-2026/catalog/product/" class="text-primary-300 underline">Catálogo → Productos</a>.
+      {% include "admin/components/_empty.html" with icon="inventory_2" title="Sin productos" desc="Creá productos primero en Catálogo → Productos." cta_label="Ir a Productos" cta_href="/panel-jheliz-2026/catalog/product/" %}
     {% endif %}
   </div>
   {% endif %}
 
 </div>
-
 {# Modal Quick-Add — restyled, mismo backend. #}
 <div id="quick-add-modal"
      class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
