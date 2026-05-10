@@ -2504,6 +2504,287 @@ def push_broadcast_view(request):
 
 
 # ---------------------------------------------------------------------------
+# Dashboard avanzado (analítica profunda)
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def advanced_dashboard_view(request):
+    """Analítica profunda del negocio: heatmap horario, cohortes de retención,
+    funnel de conversión, performance de distribuidores, tasa de renovación.
+
+    Complementa /reports/ y /reports/charts/ que ya muestran totales y top
+    productos. Acá se enfocan métricas que requieren cómputo y dan insights
+    accionables (ej. en qué hora/día tener soporte activo, cuántos clientes
+    repiten compra).
+    """
+    from accounts.models import Role
+    from orders.models import Order, OrderItem
+
+    paid_statuses = (
+        Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+    )
+    paid_qs = Order.objects.filter(status__in=paid_statuses)
+    now = timezone.localtime()
+    today = now.date()
+
+    # =====================================================================
+    # 1. HEATMAP horario (24 hrs × 7 días) — últimos 90 días
+    # =====================================================================
+    start_90 = timezone.now() - timedelta(days=90)
+    # Estructura: heatmap[day_of_week][hour] = count
+    heatmap = [[0 for _ in range(24)] for _ in range(7)]
+    for paid_at in paid_qs.filter(paid_at__gte=start_90).values_list("paid_at", flat=True):
+        if not paid_at:
+            continue
+        local = timezone.localtime(paid_at)
+        # weekday(): 0 = lunes, 6 = domingo
+        dow = local.weekday()
+        hour = local.hour
+        heatmap[dow][hour] += 1
+    # Para el chart: max value (para escalar la opacidad)
+    heatmap_max = max((max(row) for row in heatmap), default=0)
+    # Top 3 (dow, hour) con más ventas
+    top_slots = []
+    for dow in range(7):
+        for hour in range(24):
+            if heatmap[dow][hour] > 0:
+                top_slots.append((heatmap[dow][hour], dow, hour))
+    top_slots.sort(reverse=True)
+    top_slots = top_slots[:3]
+    dow_names = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    top_slots_labels = [
+        f"{dow_names[dow]} {hour:02d}:00 — {count} ventas"
+        for count, dow, hour in top_slots
+    ]
+
+    # =====================================================================
+    # 2. COHORTES DE RETENCIÓN (último 6 meses)
+    # =====================================================================
+    # Para cada mes M (cohort), de los emails que compraron en M, ¿qué % volvió
+    # a comprar en M+1, M+2, ..., M+5?
+    cohorts = []
+    cursor = today.replace(day=1)
+    cohort_months = []
+    for _ in range(6):
+        cohort_months.append(cursor)
+        if cursor.month == 1:
+            cursor = cursor.replace(year=cursor.year - 1, month=12)
+        else:
+            cursor = cursor.replace(month=cursor.month - 1)
+    cohort_months.reverse()  # del más antiguo al más reciente
+
+    # Para cada cohort, identificamos los emails que compraron por primera vez
+    # en ese mes, y vemos cuántos volvieron en los meses siguientes.
+    six_months_ago = timezone.make_aware(
+        datetime.combine(cohort_months[0], datetime.min.time())
+    )
+    # Mapa email -> primer mes (year, month)
+    first_purchase = {}
+    # Mapa email -> set de meses con compras
+    purchase_months = {}
+    for email, paid_at in paid_qs.filter(paid_at__gte=six_months_ago, email__gt="").values_list("email", "paid_at"):
+        if not paid_at or not email:
+            continue
+        local = timezone.localtime(paid_at)
+        month_key = (local.year, local.month)
+        purchase_months.setdefault(email, set()).add(month_key)
+        # Buscamos el primer mes para este email globalmente.
+        if email not in first_purchase or month_key < first_purchase[email]:
+            first_purchase[email] = month_key
+
+    for idx, m in enumerate(cohort_months):
+        cohort_key = (m.year, m.month)
+        cohort_emails = [e for e, fp in first_purchase.items() if fp == cohort_key]
+        n_cohort = len(cohort_emails)
+        retention_row = []
+        for offset in range(6):
+            # Mes M + offset
+            target_month = m
+            for _ in range(offset):
+                if target_month.month == 12:
+                    target_month = target_month.replace(year=target_month.year + 1, month=1)
+                else:
+                    target_month = target_month.replace(month=target_month.month + 1)
+            target_key = (target_month.year, target_month.month)
+            if offset == 0:
+                # 100% del cohort por definición.
+                retention_row.append(100 if n_cohort > 0 else 0)
+            else:
+                # Solo computamos si el target_month ya pasó.
+                target_first_day = target_month
+                if target_first_day > today:
+                    retention_row.append(None)
+                else:
+                    returners = sum(
+                        1 for e in cohort_emails
+                        if target_key in purchase_months.get(e, set())
+                    )
+                    pct = round((returners / n_cohort) * 100) if n_cohort > 0 else 0
+                    retention_row.append(pct)
+        cohorts.append({
+            "label": m.strftime("%b %y"),
+            "size": n_cohort,
+            "row": retention_row,
+        })
+
+    # =====================================================================
+    # 3. FUNNEL DE CONVERSIÓN (últimos 30 días)
+    # =====================================================================
+    last_30 = timezone.now() - timedelta(days=30)
+    funnel_qs = Order.objects.filter(created_at__gte=last_30)
+    funnel_counts = {
+        "creados": funnel_qs.count(),
+        "verificando": funnel_qs.filter(status=Order.Status.VERIFYING).count(),
+        "pagados": funnel_qs.filter(
+            status__in=(Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED),
+        ).count(),
+        "entregados": funnel_qs.filter(status=Order.Status.DELIVERED).count(),
+        "cancelados": funnel_qs.filter(
+            status__in=(Order.Status.CANCELED, Order.Status.FAILED),
+        ).count(),
+    }
+    # Tasa de conversión total (creados → entregados).
+    if funnel_counts["creados"] > 0:
+        conversion_rate = round(
+            funnel_counts["entregados"] / funnel_counts["creados"] * 100, 1
+        )
+        # Tasa de pago (creados → pagados) – descarta pendientes.
+        payment_rate = round(
+            funnel_counts["pagados"] / funnel_counts["creados"] * 100, 1
+        )
+    else:
+        conversion_rate = 0.0
+        payment_rate = 0.0
+
+    # =====================================================================
+    # 4. PERFORMANCE DE DISTRIBUIDORES (últimos 30 días)
+    # =====================================================================
+    from accounts.models import User
+    distri_perf = list(
+        User.objects.filter(role=Role.DISTRIBUIDOR, distributor_approved=True)
+        .annotate(
+            orders_30d=Count(
+                "orders", filter=Q(
+                    orders__status__in=paid_statuses,
+                    orders__paid_at__gte=last_30,
+                ),
+                distinct=True,
+            ),
+            revenue_30d=Sum(
+                "orders__total", filter=Q(
+                    orders__status__in=paid_statuses,
+                    orders__paid_at__gte=last_30,
+                ),
+            ),
+        )
+        .order_by("-revenue_30d")[:10]
+    )
+    distri_total_30d = sum(
+        (d.revenue_30d or Decimal("0") for d in distri_perf), Decimal("0")
+    )
+
+    # =====================================================================
+    # 5. TASA DE RENOVACIÓN (heurística: clientes con 2+ pedidos del mismo prod)
+    # =====================================================================
+    # Tomamos OrderItems de los últimos 6 meses agrupados por (email, product).
+    # Si hay 2+ entradas, el cliente "renovó" ese producto.
+    repeat_rows = (
+        OrderItem.objects
+        .filter(
+            order__status__in=paid_statuses,
+            order__paid_at__gte=six_months_ago,
+            order__email__gt="",
+        )
+        .values("order__email", "product_name")
+        .annotate(c=Count("id"))
+        .filter(c__gte=2)
+    )
+    n_repeat_pairs = repeat_rows.count()
+    n_unique_pairs = (
+        OrderItem.objects
+        .filter(
+            order__status__in=paid_statuses,
+            order__paid_at__gte=six_months_ago,
+            order__email__gt="",
+        )
+        .values("order__email", "product_name")
+        .distinct()
+        .count()
+    )
+    if n_unique_pairs > 0:
+        renewal_rate = round((n_repeat_pairs / n_unique_pairs) * 100, 1)
+    else:
+        renewal_rate = 0.0
+
+    # =====================================================================
+    # 6. COMPARATIVAS (esta semana vs anterior, este mes vs anterior)
+    # =====================================================================
+    today_dt = timezone.localtime()
+
+    def _revenue_in(start_dt, end_dt):
+        agg = paid_qs.filter(
+            paid_at__gte=start_dt, paid_at__lt=end_dt,
+        ).aggregate(rev=Sum("total"), n=Count("id"))
+        return float(agg["rev"] or 0), agg["n"] or 0
+
+    week_start = today_dt - timedelta(days=today_dt.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    last_week_start = week_start - timedelta(days=7)
+    this_week_rev, this_week_n = _revenue_in(week_start, today_dt + timedelta(days=1))
+    last_week_rev, last_week_n = _revenue_in(last_week_start, week_start)
+
+    def _pct(curr, prev):
+        if prev > 0:
+            return round((curr - prev) / prev * 100, 1)
+        if curr > 0:
+            return 100.0
+        return 0.0
+
+    week_trend = _pct(this_week_rev, last_week_rev)
+
+    month_start = today_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month_start.month == 1:
+        last_month_start = month_start.replace(year=month_start.year - 1, month=12)
+    else:
+        last_month_start = month_start.replace(month=month_start.month - 1)
+    this_month_rev, this_month_n = _revenue_in(month_start, today_dt + timedelta(days=1))
+    last_month_rev, last_month_n = _revenue_in(last_month_start, month_start)
+    month_trend = _pct(this_month_rev, last_month_rev)
+
+    ctx = _admin_context(
+        request,
+        title="Dashboard avanzado",
+        currency_symbol=settings.DEFAULT_CURRENCY_SYMBOL,
+        # Heatmap
+        heatmap=heatmap,
+        heatmap_max=heatmap_max,
+        heatmap_json=json.dumps(heatmap),
+        top_slots_labels=top_slots_labels,
+        # Cohortes
+        cohorts=cohorts,
+        # Funnel
+        funnel_counts=funnel_counts,
+        conversion_rate=conversion_rate,
+        payment_rate=payment_rate,
+        # Distri
+        distri_perf=distri_perf,
+        distri_total_30d=distri_total_30d,
+        # Renovaciones
+        renewal_rate=renewal_rate,
+        n_repeat_pairs=n_repeat_pairs,
+        n_unique_pairs=n_unique_pairs,
+        # Comparativas
+        this_week_rev=this_week_rev, last_week_rev=last_week_rev,
+        this_week_n=this_week_n, last_week_n=last_week_n,
+        week_trend=week_trend,
+        this_month_rev=this_month_rev, last_month_rev=last_month_rev,
+        this_month_n=this_month_n, last_month_n=last_month_n,
+        month_trend=month_trend,
+    )
+    return render(request, "admin/advanced_dashboard.html", ctx)
+
+
+# ---------------------------------------------------------------------------
 # Crear pedido rápido (registro express de venta ya pagada)
 # ---------------------------------------------------------------------------
 

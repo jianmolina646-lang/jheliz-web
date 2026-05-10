@@ -1,0 +1,323 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}<h1>Dashboard avanzado</h1>{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  .ad-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .ad-card-title {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-weight: 700; font-size: 1.05rem; margin: 0 0 1rem;
+  }
+  .ad-card-title .em { font-size: 1.3rem; }
+  .ad-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+  .ad-stat {
+    background: rgba(0,0,0,0.25);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+  }
+  .ad-stat-label {
+    font-size: 0.75rem; text-transform: uppercase;
+    letter-spacing: 0.05em; opacity: 0.65;
+  }
+  .ad-stat-value { font-size: 1.65rem; font-weight: 700; margin-top: 0.3rem; }
+  .ad-stat-trend { font-size: 0.78rem; margin-top: 0.3rem; }
+  .ad-trend-up { color: #34d399; }
+  .ad-trend-down { color: #f87171; }
+  .ad-trend-flat { opacity: 0.6; }
+
+  /* Heatmap */
+  .heatmap-table { width: 100%; border-collapse: separate; border-spacing: 2px; font-size: 0.7rem; }
+  .heatmap-table th { font-weight: 600; opacity: 0.6; text-align: center; padding: 0.2rem; }
+  .heatmap-table td { text-align: center; padding: 0.3rem 0.1rem; border-radius: 4px; min-width: 22px; }
+  .heatmap-cell { color: rgba(255,255,255,0.95); transition: transform 0.1s; cursor: default; }
+  .heatmap-cell:hover { transform: scale(1.15); outline: 2px solid #6366f1; }
+  .heatmap-row-label { text-align: right; padding-right: 0.5rem; opacity: 0.7; font-weight: 500; }
+
+  /* Cohort */
+  .cohort-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .cohort-table th, .cohort-table td { padding: 0.55rem 0.5rem; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .cohort-table th { background: rgba(255,255,255,0.04); font-weight: 600; opacity: 0.85; }
+  .cohort-cell { border-radius: 4px; font-weight: 500; }
+  .cohort-cell-empty { opacity: 0.25; }
+
+  /* Funnel */
+  .funnel-bar { display: flex; gap: 4px; height: 80px; align-items: flex-end; }
+  .funnel-step {
+    flex: 1; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border-radius: 6px 6px 0 0; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 0.95rem;
+    min-height: 8px;
+  }
+  .funnel-step .funnel-label {
+    position: absolute; bottom: -32px; left: 0; right: 0;
+    font-size: 0.7rem; text-align: center; color: rgba(255,255,255,0.7);
+    font-weight: 500; line-height: 1.1;
+  }
+
+  /* Distribuidor table */
+  .distri-table { width: 100%; font-size: 0.9rem; }
+  .distri-table th, .distri-table td { padding: 0.55rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .distri-table th { text-align: left; font-weight: 600; opacity: 0.7; }
+  .distri-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 1280px;">
+  <p style="opacity: 0.7; font-size: 0.9rem; margin-bottom: 1.5rem;">
+    Métricas accionables del negocio: cuándo vender, qué clientes vuelven, dónde se pierden ventas.
+    Complementa los <a href="{% url 'admin_reports' %}" style="text-decoration: underline;">reportes financieros</a>
+    y los <a href="{% url 'admin_reports_charts' %}" style="text-decoration: underline;">gráficos comparativos</a>.
+  </p>
+
+  <!-- Comparativas rápidas -->
+  <div class="ad-card">
+    <h2 class="ad-card-title"><span class="em">📈</span>Comparativas</h2>
+    <div class="ad-grid">
+      <div class="ad-stat">
+        <div class="ad-stat-label">Esta semana</div>
+        <div class="ad-stat-value">{{ currency_symbol }} {{ this_week_rev|floatformat:2 }}</div>
+        <div class="ad-stat-trend {% if week_trend > 0 %}ad-trend-up{% elif week_trend < 0 %}ad-trend-down{% else %}ad-trend-flat{% endif %}">
+          {{ this_week_n }} pedidos · {% if week_trend > 0 %}↑{% elif week_trend < 0 %}↓{% else %}→{% endif %} {{ week_trend }}% vs semana pasada
+        </div>
+      </div>
+      <div class="ad-stat">
+        <div class="ad-stat-label">Semana pasada</div>
+        <div class="ad-stat-value">{{ currency_symbol }} {{ last_week_rev|floatformat:2 }}</div>
+        <div class="ad-stat-trend ad-trend-flat">{{ last_week_n }} pedidos</div>
+      </div>
+      <div class="ad-stat">
+        <div class="ad-stat-label">Este mes</div>
+        <div class="ad-stat-value">{{ currency_symbol }} {{ this_month_rev|floatformat:2 }}</div>
+        <div class="ad-stat-trend {% if month_trend > 0 %}ad-trend-up{% elif month_trend < 0 %}ad-trend-down{% else %}ad-trend-flat{% endif %}">
+          {{ this_month_n }} pedidos · {% if month_trend > 0 %}↑{% elif month_trend < 0 %}↓{% else %}→{% endif %} {{ month_trend }}% vs mes anterior
+        </div>
+      </div>
+      <div class="ad-stat">
+        <div class="ad-stat-label">Mes anterior</div>
+        <div class="ad-stat-value">{{ currency_symbol }} {{ last_month_rev|floatformat:2 }}</div>
+        <div class="ad-stat-trend ad-trend-flat">{{ last_month_n }} pedidos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Heatmap horario -->
+  <div class="ad-card">
+    <h2 class="ad-card-title"><span class="em">🕐</span>Hora pico de ventas (últimos 90 días)</h2>
+    <p style="font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem;">
+      Cada celda = pedidos pagados en esa franja. Más oscuro = más ventas. Útil para programar tu disponibilidad de soporte.
+    </p>
+    <div style="overflow-x: auto;">
+      <table class="heatmap-table">
+        <thead>
+          <tr>
+            <th></th>
+            {% for h in "0123456789ABCDEFGHIJKLMN" %}
+              <th>{{ forloop.counter0 }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in heatmap %}
+          <tr>
+            {% with names="Lun,Mar,Mié,Jue,Vie,Sáb,Dom"|cut:"" %}
+            <td class="heatmap-row-label">{{ "Lun Mar Mié Jue Vie Sáb Dom"|cut:"  "|slice:forloop.counter0|slice:"-1:" }}</td>
+            {% endwith %}
+            {% for count in row %}
+            <td class="heatmap-cell"
+                data-count="{{ count }}"
+                title="{{ count }} venta{{ count|pluralize:'s,s' }}"
+                style="background: rgba(99,102,241,{{ count|stringformat:'s' }});">
+              {% if count %}{{ count }}{% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if top_slots_labels %}
+    <div style="margin-top: 1rem; font-size: 0.85rem; opacity: 0.85;">
+      <strong>🏆 Franjas top:</strong>
+      {% for label in top_slots_labels %}
+        <span style="margin-left: 0.5rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: rgba(99,102,241,0.2);">{{ label }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Funnel de conversión -->
+  <div class="ad-card">
+    <h2 class="ad-card-title"><span class="em">🔻</span>Funnel de conversión (últimos 30 días)</h2>
+    <div class="ad-grid" style="margin-bottom: 2.5rem;">
+      <div class="ad-stat">
+        <div class="ad-stat-label">Tasa de pago</div>
+        <div class="ad-stat-value">{{ payment_rate }}%</div>
+        <div class="ad-stat-trend ad-trend-flat">creados → pagados</div>
+      </div>
+      <div class="ad-stat">
+        <div class="ad-stat-label">Tasa de conversión total</div>
+        <div class="ad-stat-value">{{ conversion_rate }}%</div>
+        <div class="ad-stat-trend ad-trend-flat">creados → entregados</div>
+      </div>
+      <div class="ad-stat">
+        <div class="ad-stat-label">Pedidos cancelados</div>
+        <div class="ad-stat-value">{{ funnel_counts.cancelados }}</div>
+        <div class="ad-stat-trend ad-trend-flat">de {{ funnel_counts.creados }} totales</div>
+      </div>
+    </div>
+    <div class="funnel-bar">
+      {% with max_v=funnel_counts.creados %}
+        <div class="funnel-step" style="height: 100%;">
+          {{ funnel_counts.creados }}
+          <span class="funnel-label">Creados</span>
+        </div>
+        <div class="funnel-step" style="height: {% widthratio funnel_counts.verificando max_v 100 %}%;">
+          {{ funnel_counts.verificando }}
+          <span class="funnel-label">Verificando</span>
+        </div>
+        <div class="funnel-step" style="height: {% widthratio funnel_counts.pagados max_v 100 %}%;">
+          {{ funnel_counts.pagados }}
+          <span class="funnel-label">Pagados</span>
+        </div>
+        <div class="funnel-step" style="height: {% widthratio funnel_counts.entregados max_v 100 %}%;">
+          {{ funnel_counts.entregados }}
+          <span class="funnel-label">Entregados</span>
+        </div>
+      {% endwith %}
+    </div>
+  </div>
+
+  <!-- Cohortes de retención -->
+  <div class="ad-card">
+    <h2 class="ad-card-title"><span class="em">👥</span>Cohortes de retención</h2>
+    <p style="font-size: 0.85rem; opacity: 0.7; margin-bottom: 1rem;">
+      De los clientes nuevos de cada mes, ¿qué % volvió a comprar en los meses siguientes? Mide la fidelidad real.
+    </p>
+    <div style="overflow-x: auto;">
+      <table class="cohort-table">
+        <thead>
+          <tr>
+            <th>Cohort (mes)</th>
+            <th>Tamaño</th>
+            <th>Mes 0</th>
+            <th>+1</th>
+            <th>+2</th>
+            <th>+3</th>
+            <th>+4</th>
+            <th>+5</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in cohorts %}
+          <tr>
+            <td><strong>{{ c.label }}</strong></td>
+            <td>{{ c.size }}</td>
+            {% for pct in c.row %}
+              {% if pct == None %}
+              <td class="cohort-cell-empty">—</td>
+              {% else %}
+              <td class="cohort-cell" style="background: rgba(99,102,241,{{ pct|stringformat:'d' }}.0);">
+                {{ pct }}%
+              </td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tasa de renovación -->
+  <div class="ad-card">
+    <h2 class="ad-card-title"><span class="em">🔁</span>Tasa de renovación</h2>
+    <div class="ad-grid">
+      <div class="ad-stat">
+        <div class="ad-stat-label">% Clientes que renuevan (6m)</div>
+        <div class="ad-stat-value">{{ renewal_rate }}%</div>
+        <div class="ad-stat-trend ad-trend-flat">
+          {{ n_repeat_pairs }} de {{ n_unique_pairs }} (cliente, producto) repetidos
+        </div>
+      </div>
+    </div>
+    <p style="font-size: 0.85rem; opacity: 0.7; margin-top: 1rem;">
+      Heurístico: contamos clientes que compraron el mismo producto 2+ veces en los últimos 6 meses.
+      Si esto está bajo (&lt;25%), considerá agregar recordatorios automáticos antes del vencimiento.
+    </p>
+  </div>
+
+  <!-- Performance distribuidores -->
+  {% if distri_perf %}
+  <div class="ad-card">
+    <h2 class="ad-card-title"><span class="em">🤝</span>Performance de distribuidores (últimos 30 días)</h2>
+    <table class="distri-table">
+      <thead>
+        <tr>
+          <th>Distribuidor</th>
+          <th class="num">Pedidos</th>
+          <th class="num">Revenue</th>
+          <th class="num">% del total distri</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for d in distri_perf %}
+        <tr>
+          <td>{{ d.get_full_name|default:d.username }}<br><small style="opacity:0.6;">{{ d.email }}</small></td>
+          <td class="num">{{ d.orders_30d|default:0 }}</td>
+          <td class="num"><strong>{{ currency_symbol }} {{ d.revenue_30d|default:0|floatformat:2 }}</strong></td>
+          <td class="num">
+            {% if distri_total_30d %}
+              {% widthratio d.revenue_30d|default:0 distri_total_30d 100 %}%
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+(function() {
+  // Normalizar la opacidad de las celdas del heatmap (0..1 escalado al max).
+  var heatmap = {{ heatmap_json|safe }};
+  var max = {{ heatmap_max|default:1 }};
+  if (max < 1) max = 1;
+  document.querySelectorAll('.heatmap-cell').forEach(function(td) {
+    var n = parseInt(td.getAttribute('data-count'), 10) || 0;
+    var alpha = Math.min(1, 0.05 + (n / max) * 0.95);
+    td.style.background = 'rgba(99,102,241,' + alpha.toFixed(3) + ')';
+    if (n === 0) td.style.background = 'rgba(255,255,255,0.04)';
+  });
+  // Cohort cells: misma idea pero sobre porcentaje 0-100.
+  document.querySelectorAll('.cohort-cell').forEach(function(td) {
+    var raw = td.textContent.replace('%','').trim();
+    var n = parseInt(raw, 10) || 0;
+    var alpha = Math.min(1, 0.05 + (n / 100) * 0.85);
+    td.style.background = 'rgba(99,102,241,' + alpha.toFixed(3) + ')';
+  });
+  // Day labels: corregir lo que el template no logró.
+  var dows = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  document.querySelectorAll('.heatmap-table tbody tr').forEach(function(tr, i) {
+    var lbl = tr.querySelector('.heatmap-row-label');
+    if (lbl) lbl.textContent = dows[i] || '';
+  });
+})();
+</script>
+{% endblock %}

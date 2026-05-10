@@ -38,6 +38,11 @@ urlpatterns = [
         name="admin_push_broadcast",
     ),
     path(
+        "panel-jheliz-2026/dashboard/avanzado/",
+        admin_views.advanced_dashboard_view,
+        name="admin_advanced_dashboard",
+    ),
+    path(
         "panel-jheliz-2026/security/2fa/",
         admin_views.admin_2fa_setup,
         name="admin_2fa_setup",
