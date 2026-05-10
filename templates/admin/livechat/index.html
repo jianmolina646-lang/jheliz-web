@@ -8,37 +8,34 @@
 {% endblock %}
 
 {% block content %}
-<div class="flex flex-col gap-4">
-  <section class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-base-700 bg-base-900 p-4">
-    <div class="min-w-0">
-      <h1 class="text-xl font-bold text-white">💬 Chats en vivo</h1>
-      <div class="text-xs text-base-300 mt-1">
-        Salas abiertas: <strong class="text-white">{{ open_count }}</strong> ·
-        Mensajes sin leer: <strong class="text-white">{{ total_unread }}</strong>
-      </div>
+<div style="display:flex;flex-direction:column;gap:14px;">
+  <div class="jh2-page-head">
+    <div>
+      <div class="jh2-page-head__eyebrow">Soporte</div>
+      <h1 class="jh2-page-head__title">Chat en vivo</h1>
+      <p class="jh2-page-head__subtitle">
+        Abiertas: <strong style="color:#f8fafc;">{{ open_count }}</strong> ·
+        Sin leer: <strong style="color:#f8fafc;">{{ total_unread }}</strong>
+      </p>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="jh2-page-head__actions">
       {% if show_closed %}
-        <a href="{% url 'admin_livechat_index' %}" class="text-xs px-3 py-1.5 rounded-md border border-base-600 text-base-200 hover:bg-base-800">
-          Ver solo abiertas
-        </a>
+        <a href="{% url 'admin_livechat_index' %}" class="jh2-btn jh2-btn--ghost">Solo abiertas</a>
       {% else %}
-        <a href="?closed=1" class="text-xs px-3 py-1.5 rounded-md border border-base-600 text-base-200 hover:bg-base-800">
-          Ver también cerradas
-        </a>
+        <a href="?closed=1" class="jh2-btn jh2-btn--ghost">Ver cerradas</a>
       {% endif %}
     </div>
-  </section>
+  </div>
 
-  <section class="rounded-xl border border-base-700 bg-base-900">
+  <section class="jh2-card jh2-card--flush">
     {% if rooms_data %}
-    <div class="divide-y divide-base-700/60">
+    <div>
       {% for item in rooms_data %}
         {% with room=item.room %}
         <a href="{% url 'admin_livechat_detail' room_id=room.pk %}"
-           class="flex items-start gap-3 p-4 hover:bg-base-800 transition group">
-          <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold text-white"
-               style="background:linear-gradient(135deg,#a855f7,#ec4899);">
+           class="jh2-room" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);text-decoration:none;color:inherit;transition:background .2s ease;"
+           onmouseover="this.style.background='rgba(244,114,182,.06)'" onmouseout="this.style.background='transparent'">
+          <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;background:linear-gradient(135deg,#a855f7,#ec4899);">
             {{ room.display_name|slice:":1"|upper|default:"?" }}
           </div>
           <div class="flex-1 min-w-0">
@@ -51,15 +48,14 @@
               </div>
               <div class="flex items-center gap-2 flex-shrink-0">
                 {% if item.admin_unread > 0 %}
-                  <span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold text-white"
-                        style="background:#ec4899;">
+                  <span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:9999px;font-size:11px;font-weight:700;color:#fff;background:linear-gradient(135deg,#ec4899,#8b5cf6);">
                     {{ item.admin_unread }}
                   </span>
                 {% endif %}
                 {% if room.status == 'closed' %}
-                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-base-700 text-base-300">Cerrada</span>
+                  {% include "admin/components/_pill.html" with text="Cerrada" variant="neutral" static=True %}
                 {% else %}
-                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300">Abierta</span>
+                  {% include "admin/components/_pill.html" with text="Abierta" variant="success" %}
                 {% endif %}
                 <span class="text-[11px] text-base-400 whitespace-nowrap">
                   {% if room.last_message_at %}
@@ -93,11 +89,7 @@
       {% endfor %}
     </div>
     {% else %}
-      <div class="p-12 text-center text-base-300">
-        <div class="text-4xl mb-2">💬</div>
-        <div class="font-semibold text-white mb-1">No hay chats todavía</div>
-        <div class="text-sm">Cuando un visitante use el chat de la web, aparecerá acá.</div>
-      </div>
+      {% include "admin/components/_empty.html" with icon="chat" title="No hay chats todavía" desc="Cuando un visitante use el chat de la web, aparecerá acá." %}
     {% endif %}
   </section>
 </div>

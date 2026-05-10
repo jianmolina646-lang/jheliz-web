@@ -479,3 +479,25 @@
     .jh2-pill__dot { animation: none !important; }
     .jh2-btn--primary::after { display: none; }
 }
+
+/* Variantes de botón success / warning */
+.jh2-btn--success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    box-shadow: 0 4px 14px -6px rgba(16,185,129,.5);
+}
+.jh2-btn--success:hover { filter: brightness(1.08); }
+
+.jh2-btn--warning {
+    background: linear-gradient(135deg, #f59e0b, #ea580c);
+    color: #fff;
+    box-shadow: 0 4px 14px -6px rgba(245,158,11,.5);
+}
+.jh2-btn--warning:hover { filter: brightness(1.08); }
+
+/* Helper text */
+.jh2-helper {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+}
