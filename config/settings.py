@@ -195,6 +195,12 @@ STORAGES = {
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Tamaño máximo de upload (multipart). Necesario para imágenes del chat
+# (5 MB efectivo + overhead de form-data). nginx en producción acepta hasta 20M
+# (`client_max_body_size 20M`). Default de Django es 2.5 MB, demasiado bajo.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024  # 8 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024  # 8 MB
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Email

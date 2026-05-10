@@ -35,6 +35,22 @@ from .telegram_notify import notify_admin_new_customer_message
 
 _MAX_BODY = 4000  # cualquier cosa más larga lo cortamos para evitar abusos
 
+# Imágenes adjuntas
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB
+_ALLOWED_IMAGE_CT = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+
+
+def _validate_image(uploaded) -> str | None:
+    """Devuelve un mensaje de error si la imagen no es válida; None si OK."""
+    if uploaded is None:
+        return None
+    if uploaded.size > _MAX_IMAGE_BYTES:
+        return "La imagen es demasiado grande (máximo 5 MB)."
+    ct = (getattr(uploaded, "content_type", "") or "").lower()
+    if ct and ct not in _ALLOWED_IMAGE_CT:
+        return "Solo se permiten imágenes JPG, PNG, GIF o WebP."
+    return None
+
 
 def _client_ip(request: HttpRequest) -> str | None:
     xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
@@ -48,6 +64,7 @@ def _serialize_message(m: ChatMessage) -> dict:
         "id": m.pk,
         "sender": m.sender,
         "body": m.body,
+        "image_url": m.image.url if m.image else None,
         "created_at": m.created_at.isoformat(),
     }
 
@@ -145,18 +162,25 @@ def _get_room_or_404(token: str) -> ChatRoom:
 @require_POST
 def send(request: HttpRequest, token: str):
     room = _get_room_or_404(token)
-    body = (request.POST.get("body") or "").strip()
-    if not body:
+    body = (request.POST.get("body") or "").strip()[:_MAX_BODY]
+    image = request.FILES.get("image")
+
+    err = _validate_image(image)
+    if err:
+        return JsonResponse({"ok": False, "error": err}, status=400)
+
+    if not body and image is None:
         return JsonResponse(
-            {"ok": False, "error": "Escribí un mensaje."}, status=400,
+            {"ok": False, "error": "Escribí un mensaje o adjuntá una imagen."},
+            status=400,
         )
-    body = body[:_MAX_BODY]
 
     with transaction.atomic():
         msg = ChatMessage.objects.create(
             room=room,
             sender=ChatMessage.Sender.CUSTOMER,
             body=body,
+            image=image,
         )
         room.touch()
 
