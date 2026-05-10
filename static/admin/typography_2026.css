@@ -1,0 +1,207 @@
+/* Jheliz Admin · Tipografía 2026 (capa de display)
+ * ============================================================
+ * Carga fuentes premium 2026 (Geist / Space Grotesk / JetBrains Mono)
+ * y refresca titulares clave del admin con peso 800, tracking ajustado
+ * y un gradient rosa→violeta característico del sistema 2026.
+ *
+ * Esta hoja se carga DESPUÉS de jheliz_2026.css en UNFOLD["STYLES"]
+ * y solo modifica reglas de tipografía — no toca layout, colores
+ * de fondo, ni el sistema de cards/pills/stats existentes.
+ *
+ * Convenciones:
+ * - Headings de página y secciones: Space Grotesk 800, gradient.
+ * - Cuerpo del admin: Geist (más legible que Inter para dashboards).
+ * - Números, monos, IDs: JetBrains Mono con tabular-nums.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap');
+
+/* ---------------------------------------------------------------- */
+/* Tokens de tipografía 2026                                        */
+/* ---------------------------------------------------------------- */
+
+:root {
+    --jh2-font-body:    'Geist', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    --jh2-font-display: 'Space Grotesk', 'Geist', system-ui, sans-serif;
+    --jh2-font-mono:    'JetBrains Mono', 'Geist Mono', ui-monospace, Menlo, monospace;
+
+    /* Display sizes — un poco más generosos que la capa base para que
+       los titulares "respiren" más en el panel. Usan clamp() para
+       escalar de móvil a desktop sin breakpoints rígidos. */
+    --jh2-fs-display-lg: clamp(1.75rem, 1.2rem + 1.6vw, 2.25rem);
+    --jh2-fs-display:    clamp(1.5rem, 1.1rem + 1.2vw, 1.9rem);
+    --jh2-fs-h2:         clamp(1.05rem, .95rem + .4vw, 1.2rem);
+}
+
+/* ---------------------------------------------------------------- */
+/* Base body & headings — fuerza Geist en TODO el admin             */
+/* ---------------------------------------------------------------- */
+
+/* Selectores múltiples para cubrir tanto Unfold (body.unfold-*) como
+   las páginas extra que extienden de admin/base.html sin la clase de
+   Unfold. */
+body,
+body.unfold-admin,
+.unfold-admin,
+#main {
+    font-family: var(--jh2-font-body);
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* Headings nativos del admin que no usan jh2- — heredan display font */
+h1, h2, h3,
+.text-base-200, .text-white {
+    font-family: var(--jh2-font-display);
+    font-feature-settings: 'cv11', 'ss01';
+}
+
+/* ---------------------------------------------------------------- */
+/* Page heads (jh2-page-head__title) — el héroe de cada página     */
+/* ---------------------------------------------------------------- */
+
+.jh2-page-head__title {
+    font-family: var(--jh2-font-display);
+    font-size: var(--jh2-fs-display);
+    font-weight: 800;
+    letter-spacing: -.025em;
+    line-height: 1.15;
+
+    /* Gradient text rosa → violeta → índigo (el alma del 2026) */
+    background: linear-gradient(135deg, #f472b6 0%, #c4b5fd 45%, #818cf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+
+    /* Sutil glow detrás del texto para darle profundidad sin saturar */
+    text-shadow: 0 1px 24px rgba(196, 181, 253, .15);
+}
+
+/* Subtitle — más suave, espaciado refinado */
+.jh2-page-head__subtitle {
+    font-family: var(--jh2-font-body);
+    font-size: 13.5px;
+    font-weight: 500;
+    letter-spacing: -.005em;
+    color: rgba(203, 213, 225, .82);
+}
+
+/* Eyebrow (etiqueta superior tipo "PEDIDOS · CHECKOUT") */
+.jh2-page-head__eyebrow {
+    font-family: var(--jh2-font-display);
+    font-weight: 700;
+    letter-spacing: .12em;
+    color: rgba(196, 181, 253, .85);
+}
+
+/* ---------------------------------------------------------------- */
+/* Hero del cliente 360° y dashboards similares                     */
+/* ---------------------------------------------------------------- */
+
+.jh2-hero__title {
+    font-family: var(--jh2-font-display);
+    font-size: var(--jh2-fs-display-lg);
+    font-weight: 800;
+    letter-spacing: -.03em;
+    line-height: 1.1;
+
+    background: linear-gradient(135deg, #f472b6 0%, #c4b5fd 50%, #93c5fd 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ---------------------------------------------------------------- */
+/* Section titles dentro de cards                                    */
+/* ---------------------------------------------------------------- */
+
+.jh2-section-title {
+    font-family: var(--jh2-font-display);
+    font-size: var(--jh2-fs-h2);
+    font-weight: 700;
+    letter-spacing: -.012em;
+    color: #f8fafc;
+}
+
+/* ---------------------------------------------------------------- */
+/* Stats — números grandes con feel premium                         */
+/* ---------------------------------------------------------------- */
+
+.jh2-stat__value,
+.jh2-mini-stat__value {
+    font-family: var(--jh2-font-display);
+    font-weight: 700;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+.jh2-stat__label,
+.jh2-mini-stat__label {
+    font-family: var(--jh2-font-body);
+    font-weight: 600;
+}
+
+/* Mono — donde sale, que se vea bien (códigos, IDs, diff) */
+.jh2-mono,
+.jh2-codeblock,
+.jh2-kbd {
+    font-family: var(--jh2-font-mono);
+    font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+
+/* Pills, chips, table headers — peso un toque más fuerte */
+.jh2-pill,
+.jh2-chip,
+.jh2-tab,
+.jh2-table thead th {
+    font-family: var(--jh2-font-body);
+    font-weight: 600;
+    letter-spacing: -.005em;
+}
+
+/* Botones — Geist 600/700 luce más confiable que el default Tailwind */
+.jh2-btn,
+.jh2-btn--primary,
+.jh2-btn--ghost,
+.jh2-btn--success,
+.jh2-btn--warning,
+.jh2-btn--danger {
+    font-family: var(--jh2-font-body);
+    font-weight: 600;
+    letter-spacing: -.005em;
+}
+
+/* ---------------------------------------------------------------- */
+/* Sidebar de Unfold — refresco sutil                               */
+/* ---------------------------------------------------------------- */
+
+/* Títulos de sección en sidebar (los "✨ Inicio", "🛍️ Vender", etc.) */
+.unfold-admin nav [class*="text-base-300"],
+.unfold-admin nav .uppercase,
+nav .text-xs.uppercase {
+    font-family: var(--jh2-font-display) !important;
+    font-weight: 700 !important;
+    letter-spacing: .08em !important;
+}
+
+/* Site title (top-left "Jheliz") — más prominente */
+.unfold-admin header .site-title,
+.unfold-admin header h1,
+header [class*="text-white"] {
+    font-family: var(--jh2-font-display);
+    font-weight: 800;
+    letter-spacing: -.02em;
+}
+
+/* ---------------------------------------------------------------- */
+/* prefers-reduced-motion: el gradient queda; nada se anima         */
+/* ---------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .jh2-page-head__title,
+    .jh2-hero__title {
+        text-shadow: none;
+    }
+}

@@ -294,6 +294,10 @@ UNFOLD = {
         # stats, empty states ilustrados). Se carga al final para que sus
         # tokens y clases `.jh2-*` puedan sobrescribir reglas previas.
         lambda request: _hashed_static("admin/jheliz_2026.css"),
+        # Capa de tipografía 2026: Geist + Space Grotesk + JetBrains Mono,
+        # gradient en titulares, refresco de sidebar/headings. Va al final
+        # de las STYLES porque sobreescribe reglas de jheliz_2026.css.
+        lambda request: _hashed_static("admin/typography_2026.css"),
     ],
     "SCRIPTS": [
         lambda request: _hashed_static("admin/global_search.js"),
@@ -328,7 +332,7 @@ UNFOLD = {
         # Inicio → Vender (catálogo) → Pedidos → Clientes → Marketing → Soporte → Sistema.
         "navigation": [
             {
-                "title": "📊 Inicio",
+                "title": "✨ Inicio",
                 "separator": False,
                 "items": [
                     {
@@ -359,7 +363,7 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "🛒 Vender",
+                "title": "🛍️ Vender",
                 "separator": True,
                 "items": [
                     {
@@ -400,7 +404,7 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "📦 Pedidos",
+                "title": "🧾 Pedidos",
                 "separator": True,
                 "items": [
                     {
@@ -431,7 +435,7 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "👥 Clientes",
+                "title": "🤝 Clientes",
                 "separator": True,
                 "items": [
                     {
@@ -462,7 +466,7 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "🎯 Marketing",
+                "title": "🚀 Marketing",
                 "separator": True,
                 "items": [
                     {
@@ -488,7 +492,7 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "💬 Soporte",
+                "title": "🎧 Soporte",
                 "separator": True,
                 "items": [
                     {
@@ -509,7 +513,7 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "⚙️ Sistema",
+                "title": "🛠️ Sistema",
                 "separator": True,
                 "items": [
                     {
