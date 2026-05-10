@@ -132,7 +132,12 @@ class ChatMessage(models.Model):
         null=True, blank=True, related_name="chat_messages_sent",
         help_text="Usuario admin que mandó el mensaje, si aplica.",
     )
-    body = models.TextField("Mensaje")
+    body = models.TextField("Mensaje", blank=True, default="")
+    image = models.ImageField(
+        "Imagen", upload_to="livechat/images/%Y/%m/",
+        null=True, blank=True, max_length=500,
+        help_text="Imagen adjunta enviada desde el chat.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -144,5 +149,5 @@ class ChatMessage(models.Model):
         ]
 
     def __str__(self) -> str:
-        snippet = (self.body or "")[:40]
+        snippet = (self.body or "")[:40] or ("📷 imagen" if self.image else "")
         return f"{self.get_sender_display()}: {snippet}"

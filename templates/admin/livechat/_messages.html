@@ -7,11 +7,20 @@
   {% if messages_thread %}
     {% for m in messages_thread %}
       {% if m.sender == 'admin' %}
-        <div class="self-end max-w-[85%]">
-          <div class="rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm text-white"
-               style="background:linear-gradient(135deg,#a855f7,#ec4899);">
-            {{ m.body|linebreaksbr }}
-          </div>
+        <div class="self-end max-w-[85%] flex flex-col items-end gap-1">
+          {% if m.image %}
+            <a href="{{ m.image.url }}" target="_blank" rel="noopener" class="block">
+              <img src="{{ m.image.url }}" alt="Imagen enviada"
+                   class="rounded-2xl rounded-tr-sm max-w-full max-h-72 object-cover"
+                   style="border:1px solid rgba(255,255,255,.08);">
+            </a>
+          {% endif %}
+          {% if m.body %}
+            <div class="rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm text-white"
+                 style="background:linear-gradient(135deg,#a855f7,#ec4899);">
+              {{ m.body|linebreaksbr }}
+            </div>
+          {% endif %}
           <div class="text-[10px] text-base-400 text-right mt-0.5">
             {% if m.sender_user %}{{ m.sender_user.get_full_name|default:m.sender_user.username }} · {% endif %}{{ m.created_at|date:"d/m H:i" }}
           </div>
@@ -23,10 +32,19 @@
           </div>
         </div>
       {% else %}
-        <div class="self-start max-w-[85%]">
-          <div class="rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm text-base-100 bg-base-800 border border-base-700">
-            {{ m.body|linebreaksbr }}
-          </div>
+        <div class="self-start max-w-[85%] flex flex-col items-start gap-1">
+          {% if m.image %}
+            <a href="{{ m.image.url }}" target="_blank" rel="noopener" class="block">
+              <img src="{{ m.image.url }}" alt="Imagen del cliente"
+                   class="rounded-2xl rounded-tl-sm max-w-full max-h-72 object-cover"
+                   style="border:1px solid rgba(255,255,255,.08);">
+            </a>
+          {% endif %}
+          {% if m.body %}
+            <div class="rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm text-base-100 bg-base-800 border border-base-700">
+              {{ m.body|linebreaksbr }}
+            </div>
+          {% endif %}
           <div class="text-[10px] text-base-400 mt-0.5">
             {{ room.display_name }} · {{ m.created_at|date:"d/m H:i" }}
           </div>

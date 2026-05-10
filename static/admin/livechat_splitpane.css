@@ -365,6 +365,7 @@
     display: flex;
     gap: 10px;
     align-items: flex-end;
+    flex-wrap: wrap;
     padding: 14px 18px;
     border-top: 1px solid rgba(255, 255, 255, .06);
     background: rgba(15, 23, 42, .45);
@@ -398,6 +399,66 @@
     align-items: center;
     gap: 6px;
     height: 44px;
+}
+
+/* Helper genérico para esconder inputs/preview sin afectar al layout flex */
+.jh2-hidden {
+    display: none !important;
+}
+
+/* Botón de adjuntar imagen (clip) */
+.jh2-livechat__attach {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+}
+
+/* Preview de la imagen seleccionada antes de enviar */
+.jh2-livechat__attach-preview {
+    flex-basis: 100%;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 12px;
+    background: rgba(168, 85, 247, .08);
+    border: 1px dashed rgba(168, 85, 247, .35);
+    max-width: 220px;
+}
+
+.jh2-livechat__attach-preview img {
+    max-width: 200px;
+    max-height: 140px;
+    border-radius: 8px;
+    object-fit: cover;
+    display: block;
+}
+
+.jh2-livechat__attach-remove {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .65);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.jh2-livechat__attach-remove:hover {
+    background: rgba(220, 38, 38, .8);
 }
 
 .jh2-livechat__composer--locked {

@@ -28,6 +28,8 @@ def _build_text(room: ChatRoom, message: ChatMessage) -> str:
     body = (message.body or "").strip()
     if len(body) > 400:
         body = body[:397] + "…"
+    if message.image:
+        body = (body + "\n\n📷 (con imagen adjunta)").strip()
     return (
         f"<b>💬 Chat nuevo de {html.escape(who)}</b>\n"
         f"<i>{html.escape(email)}</i>\n\n"

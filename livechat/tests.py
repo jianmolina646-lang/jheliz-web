@@ -76,6 +76,56 @@ class PublicChatFlowTests(TestCase):
         )
         self.assertEqual(resp.status_code, 400)
 
+    def test_send_accepts_image_attachment(self):
+        from io import BytesIO
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        room = ChatRoom.objects.create(customer_email="a@b.com")
+        buf = BytesIO()
+        Image.new("RGB", (32, 32), color=(255, 0, 128)).save(buf, format="JPEG")
+        buf.seek(0)
+        img = SimpleUploadedFile(
+            "captura.jpg", buf.getvalue(), content_type="image/jpeg",
+        )
+        resp = self.client.post(
+            f"/chat/{room.token}/send/", data={"image": img},
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertTrue(data["ok"])
+        self.assertIsNotNone(data["message"]["image_url"])
+        self.assertEqual(ChatMessage.objects.count(), 1)
+        msg = ChatMessage.objects.first()
+        self.assertTrue(bool(msg.image))
+
+    def test_send_rejects_oversized_image(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        room = ChatRoom.objects.create(customer_email="a@b.com")
+        # 6 MB de bytes — supera el límite de 5 MB
+        big = SimpleUploadedFile(
+            "big.jpg", b"x" * (6 * 1024 * 1024), content_type="image/jpeg",
+        )
+        resp = self.client.post(
+            f"/chat/{room.token}/send/", data={"body": "hola", "image": big},
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("grande", resp.json()["error"])
+
+    def test_send_rejects_bad_image_mime(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        room = ChatRoom.objects.create(customer_email="a@b.com")
+        bad = SimpleUploadedFile(
+            "doc.pdf", b"%PDF-1.4 fake", content_type="application/pdf",
+        )
+        resp = self.client.post(
+            f"/chat/{room.token}/send/", data={"body": "x", "image": bad},
+        )
+        self.assertEqual(resp.status_code, 400)
+
     def test_send_404_for_invalid_token(self):
         resp = self.client.post(
             "/chat/no-existe-este-token-12345/send/",

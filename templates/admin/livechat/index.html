@@ -141,6 +141,56 @@
     });
 
     // ----------------------------------------------------------------
+    // Adjuntar imagen: el botón clip abre el file picker; al elegir
+    // archivo mostramos un preview con botón para quitarlo. El form ya
+    // tiene enctype=multipart/form-data y hx-encoding correcto.
+    // ----------------------------------------------------------------
+    function wireAttachButtons(scope) {
+      var attachBtns = (scope || document).querySelectorAll('.jh2-livechat__attach');
+      attachBtns.forEach(function (btn) {
+        if (btn.__jh2_wired) return;
+        btn.__jh2_wired = true;
+        var form = btn.closest('form');
+        if (!form) return;
+        var fileInput = form.querySelector('.jh2-livechat__file-picker');
+        var preview = form.querySelector('.jh2-livechat__attach-preview');
+        var previewImg = preview ? preview.querySelector('img') : null;
+        var removeBtn = preview ? preview.querySelector('.jh2-livechat__attach-remove') : null;
+
+        btn.addEventListener('click', function () { if (fileInput) fileInput.click(); });
+
+        if (fileInput) {
+          fileInput.addEventListener('change', function () {
+            var f = fileInput.files && fileInput.files[0];
+            if (!f) {
+              if (preview) preview.classList.add('jh2-hidden');
+              return;
+            }
+            if (f.size > 5 * 1024 * 1024) {
+              alert('La imagen es demasiado grande (máximo 5 MB).');
+              fileInput.value = '';
+              return;
+            }
+            if (previewImg) previewImg.src = URL.createObjectURL(f);
+            if (preview) preview.classList.remove('jh2-hidden');
+          });
+        }
+
+        if (removeBtn) {
+          removeBtn.addEventListener('click', function () {
+            if (fileInput) fileInput.value = '';
+            if (previewImg) previewImg.src = '';
+            if (preview) preview.classList.add('jh2-hidden');
+          });
+        }
+      });
+    }
+    wireAttachButtons();
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+      wireAttachButtons(evt.target);
+    });
+
+    // ----------------------------------------------------------------
     // Ctrl+Enter (o Cmd+Enter en Mac) envía el form de reply activo.
     // ----------------------------------------------------------------
     document.addEventListener('keydown', function (e) {

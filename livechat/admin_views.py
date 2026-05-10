@@ -21,6 +21,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import ChatMessage, ChatRoom
+from .views import _validate_image
 
 
 def _build_rooms_payload(*, show_closed: bool, limit: int = 200) -> tuple[list[dict], int, int]:
@@ -145,19 +146,26 @@ def _render_messages_partial(request: HttpRequest, room: ChatRoom):
 @require_POST
 def chat_reply(request: HttpRequest, room_id: int):
     room = get_object_or_404(ChatRoom, pk=room_id)
-    body = (request.POST.get("body") or "").strip()
-    if not body:
+    body = (request.POST.get("body") or "").strip()[:4000]
+    image = request.FILES.get("image")
+
+    # Validación silenciosa: si la imagen es inválida (tamaño/tipo),
+    # ignoramos el adjunto y avanzamos solo con el body si lo hay.
+    if image is not None and _validate_image(image):
+        image = None
+
+    if not body and image is None:
         if request.headers.get("HX-Request"):
             return _render_messages_partial(request, room)
         return redirect(reverse("admin_livechat_index") + f"?room={room.pk}")
 
-    body = body[:4000]
     with transaction.atomic():
         ChatMessage.objects.create(
             room=room,
             sender=ChatMessage.Sender.ADMIN,
             sender_user=request.user,
             body=body,
+            image=image,
         )
         room.touch()
         room.mark_admin_seen()

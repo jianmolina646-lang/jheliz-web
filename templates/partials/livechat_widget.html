@@ -104,13 +104,42 @@
       <div id="jhz-chat-thread" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
         <!-- mensajes inyectados acá por JS -->
       </div>
-      <form id="jhz-chat-send" class="border-t flex gap-2 p-2"
+      <div id="jhz-chat-attach-preview" class="hidden mx-2 mb-1 relative inline-flex items-start gap-2 p-2 rounded-md"
+           style="background:rgba(168,85,247,.08); border:1px dashed rgba(168,85,247,.35); max-width: calc(100% - 1rem);">
+        <img alt="Vista previa de imagen adjunta"
+             style="max-width:140px; max-height:90px; border-radius:6px; object-fit:cover;">
+        <button type="button" id="jhz-chat-attach-remove"
+                aria-label="Quitar imagen"
+                class="absolute -top-1 -right-1 w-5 h-5 rounded-full text-white text-xs leading-none flex items-center justify-center"
+                style="background:rgba(0,0,0,.7);">×</button>
+      </div>
+      <form id="jhz-chat-send" enctype="multipart/form-data"
+            class="border-t flex gap-2 p-2 items-center"
             style="border-color: rgba(255,255,255,.08); background:#0a0a12;">
+        <input type="file" name="image" accept="image/jpeg,image/png,image/gif,image/webp"
+               id="jhz-chat-file-input" class="hidden">
+        <input type="file" name="image_camera" accept="image/*" capture="environment"
+               id="jhz-chat-camera-input" class="hidden">
+        <button type="button" id="jhz-chat-attach" aria-label="Adjuntar imagen"
+                title="Adjuntar imagen (JPG, PNG, GIF, WebP — máx 5 MB)"
+                class="w-9 h-9 inline-flex items-center justify-center rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800 transition flex-shrink-0">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+        </button>
+        <button type="button" id="jhz-chat-camera" aria-label="Tomar foto"
+                title="Tomar foto con la cámara"
+                class="w-9 h-9 inline-flex items-center justify-center rounded-md text-zinc-300 hover:text-white hover:bg-zinc-800 transition flex-shrink-0">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </button>
         <input type="text" name="body" placeholder="Escribí tu mensaje…" autocomplete="off"
-               required maxlength="4000"
-               class="flex-1 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white focus:border-pink-500 focus:outline-none">
+               maxlength="4000"
+               class="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-white focus:border-pink-500 focus:outline-none">
         <button type="submit" aria-label="Enviar"
-                class="px-3 rounded-md text-white"
+                class="px-3 py-2 rounded-md text-white flex-shrink-0"
                 style="background:linear-gradient(135deg,#a855f7,#ec4899);">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -185,29 +214,58 @@
     state.seen.add(m.id);
     if (m.id > state.lastMessageId) state.lastMessageId = m.id;
     var row = document.createElement('div');
-    row.className = 'jhz-msg flex flex-col';
-    var bubble = document.createElement('div');
+    row.className = 'jhz-msg flex flex-col gap-1';
     var meta = document.createElement('div');
     meta.className = 'text-[10px] text-zinc-500 mt-0.5';
+
+    var imgEl = null;
+    if (m.image_url) {
+      imgEl = document.createElement('a');
+      imgEl.href = m.image_url;
+      imgEl.target = '_blank';
+      imgEl.rel = 'noopener';
+      var img = document.createElement('img');
+      img.src = m.image_url;
+      img.alt = 'Imagen del chat';
+      img.style.maxWidth = '220px';
+      img.style.maxHeight = '180px';
+      img.style.borderRadius = '14px';
+      img.style.objectFit = 'cover';
+      img.style.display = 'block';
+      img.style.border = '1px solid rgba(255,255,255,.08)';
+      imgEl.appendChild(img);
+    }
+
+    var bubble = null;
+    if (m.body) {
+      bubble = document.createElement('div');
+      if (m.sender === 'admin') {
+        bubble.className = 'rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm text-zinc-100 max-w-[85%]';
+        bubble.style.background = '#1f1f2b';
+        bubble.style.border = '1px solid rgba(255,255,255,.06)';
+      } else if (m.sender === 'system') {
+        bubble.className = 'text-[11px] text-zinc-400 italic px-3 py-1 rounded-full bg-zinc-800/60';
+      } else {
+        bubble.className = 'rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm text-white max-w-[85%]';
+        bubble.style.background = 'linear-gradient(135deg,#a855f7,#ec4899)';
+      }
+      bubble.textContent = m.body;
+    }
+
     if (m.sender === 'admin') {
       row.classList.add('items-start');
-      bubble.className = 'rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm text-zinc-100 max-w-[85%]';
-      bubble.style.background = '#1f1f2b';
-      bubble.style.border = '1px solid rgba(255,255,255,.06)';
       meta.textContent = 'Jheliz · ' + formatTime(m.created_at);
     } else if (m.sender === 'system') {
       row.classList.add('items-center');
-      bubble.className = 'text-[11px] text-zinc-400 italic px-3 py-1 rounded-full bg-zinc-800/60';
       meta.textContent = formatTime(m.created_at);
     } else {
       row.classList.add('items-end');
-      bubble.className = 'rounded-2xl rounded-tr-sm px-3.5 py-2 text-sm text-white max-w-[85%]';
-      bubble.style.background = 'linear-gradient(135deg,#a855f7,#ec4899)';
       meta.className += ' text-right';
       meta.textContent = 'vos · ' + formatTime(m.created_at);
     }
-    bubble.textContent = m.body;
-    row.appendChild(bubble);
+
+    if (imgEl) row.appendChild(imgEl);
+    if (bubble) row.appendChild(bubble);
     row.appendChild(meta);
     THREAD.appendChild(row);
     if (!opts || !opts.skipScroll) {
@@ -356,16 +414,79 @@
     renderMessage(hint, { skipScroll: true });
   }
 
+  // ------------------------------------------------------------------
+  // Adjuntar imagen (galería) + tomar foto (cámara). Ambos botones
+  // delegan en un input file separado — la cámara usa capture=environment
+  // (en mobile abre la cámara directamente).
+  // ------------------------------------------------------------------
+  var FILE_INPUT = document.getElementById('jhz-chat-file-input');
+  var CAMERA_INPUT = document.getElementById('jhz-chat-camera-input');
+  var ATTACH_BTN = document.getElementById('jhz-chat-attach');
+  var CAMERA_BTN = document.getElementById('jhz-chat-camera');
+  var ATTACH_PREVIEW = document.getElementById('jhz-chat-attach-preview');
+  var ATTACH_PREVIEW_IMG = ATTACH_PREVIEW ? ATTACH_PREVIEW.querySelector('img') : null;
+  var ATTACH_REMOVE = document.getElementById('jhz-chat-attach-remove');
+
+  var pendingImage = null;  // File seleccionado pero todavía sin enviar
+
+  function setPendingImage(file) {
+    pendingImage = file || null;
+    if (pendingImage && ATTACH_PREVIEW_IMG && ATTACH_PREVIEW) {
+      ATTACH_PREVIEW_IMG.src = URL.createObjectURL(pendingImage);
+      ATTACH_PREVIEW.classList.remove('hidden');
+      ATTACH_PREVIEW.classList.add('inline-flex');
+    } else if (ATTACH_PREVIEW) {
+      ATTACH_PREVIEW.classList.add('hidden');
+      ATTACH_PREVIEW.classList.remove('inline-flex');
+      if (ATTACH_PREVIEW_IMG) ATTACH_PREVIEW_IMG.src = '';
+    }
+  }
+
+  function handleFilePick(e) {
+    var input = e.target;
+    var f = input.files && input.files[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) {
+      alert('La imagen es demasiado grande (máximo 5 MB).');
+      input.value = '';
+      return;
+    }
+    var ct = (f.type || '').toLowerCase();
+    var allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (ct && allowed.indexOf(ct) === -1) {
+      alert('Solo se permiten imágenes JPG, PNG, GIF o WebP.');
+      input.value = '';
+      return;
+    }
+    setPendingImage(f);
+    input.value = '';  // reset para poder elegir el mismo archivo otra vez
+  }
+
+  if (ATTACH_BTN && FILE_INPUT) {
+    ATTACH_BTN.addEventListener('click', function () { FILE_INPUT.click(); });
+    FILE_INPUT.addEventListener('change', handleFilePick);
+  }
+  if (CAMERA_BTN && CAMERA_INPUT) {
+    CAMERA_BTN.addEventListener('click', function () { CAMERA_INPUT.click(); });
+    CAMERA_INPUT.addEventListener('change', handleFilePick);
+  }
+  if (ATTACH_REMOVE) {
+    ATTACH_REMOVE.addEventListener('click', function () { setPendingImage(null); });
+  }
+
   SEND.addEventListener('submit', function (e) {
     e.preventDefault();
     if (!state.token) return;
-    var fd = new FormData(SEND);
-    var body = (fd.get('body') || '').toString().trim();
-    if (!body) return;
-    SEND.querySelector('input[name="body"]').value = '';
+    var bodyInput = SEND.querySelector('input[name="body"]');
+    var body = (bodyInput.value || '').toString().trim();
+    if (!body && !pendingImage) return;
+    bodyInput.value = '';
     var url = '/chat/' + encodeURIComponent(state.token) + '/send/';
     var send = new FormData();
-    send.append('body', body);
+    if (body) send.append('body', body);
+    if (pendingImage) send.append('image', pendingImage);
+    var imgToSend = pendingImage;
+    setPendingImage(null);
     fetch(url, {
       method: 'POST',
       credentials: 'same-origin',
@@ -375,7 +496,13 @@
       .then(function (data) {
         if (data && data.ok && data.message) {
           renderMessage(data.message);
+        } else if (data && data.error) {
+          alert(data.error);
+          if (imgToSend) setPendingImage(imgToSend);  // restauramos preview
         }
+      })
+      .catch(function () {
+        if (imgToSend) setPendingImage(imgToSend);
       });
   });
 
