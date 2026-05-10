@@ -1,40 +1,37 @@
 {% extends "admin/base_site.html" %}
 {% load i18n %}
 
-{% block content_title %}
-<h1 class="flex items-center gap-2">
-    <span class="material-symbols-outlined text-primary-400">fact_check</span>
-    Auditoría
-    <span class="ml-2 inline-flex items-center justify-center rounded-full
-                 bg-blue-500/20 text-blue-200 text-xs px-2 py-0.5 font-semibold">
-        {{ total }}
-    </span>
-</h1>
-{% endblock %}
+{% block content_title %}{% endblock %}
 
 {% block content %}
-<div class="space-y-5">
+<div style="display:flex;flex-direction:column;gap:14px;">
 
-    <p class="text-sm text-gray-500 dark:text-gray-400">
-        Quién cambió qué y cuándo. Cada vez que se crea, edita o elimina un pedido,
-        producto, plan, stock o configuración de pagos, queda registrado aquí
-        con el actor (usuario), la IP, el timestamp y el diff de campos.
-    </p>
+    <div class="jh2-page-head">
+        <div>
+            <div class="jh2-page-head__eyebrow">Seguridad</div>
+            <h1 class="jh2-page-head__title">
+                Auditoría
+                <span class="jh2-pill jh2-pill--info" style="vertical-align:middle;margin-left:8px;font-size:13px;">
+                    <span class="jh2-pill__dot"></span>{{ total }}
+                </span>
+            </h1>
+            <p class="jh2-page-head__subtitle">
+                Quién cambió qué y cuándo. Cada vez que se crea, edita o elimina un pedido, producto, plan, stock o config de pagos, queda registrado con actor, IP, timestamp y diff.
+            </p>
+        </div>
+    </div>
 
     <!-- Filtros -->
-    <form method="get" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3
-                              p-4 rounded-xl border border-gray-700 bg-gray-800/40">
-        <div class="lg:col-span-2">
-            <label class="block text-xs text-gray-400 mb-1">Buscar (objeto / id)</label>
+    <form method="get" class="jh2-card jh2-card--padded" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+        <div style="grid-column:span 2;">
+            <label class="jh2-field__label">Buscar (objeto / id)</label>
             <input type="text" name="q" value="{{ q }}"
                    placeholder="Ej: pedido #1234, producto Netflix..."
-                   class="w-full rounded-md bg-gray-900 border border-gray-700
-                          text-sm px-3 py-2 text-white placeholder-gray-500" />
+                   class="jh2-input">
         </div>
         <div>
-            <label class="block text-xs text-gray-400 mb-1">Modelo</label>
-            <select name="model"
-                    class="w-full rounded-md bg-gray-900 border border-gray-700 text-sm px-3 py-2 text-white">
+            <label class="jh2-field__label">Modelo</label>
+            <select name="model" class="jh2-input">
                 <option value="">— Todos —</option>
                 {% for m in model_options %}
                 <option value="{{ m.value }}" {% if model_filter == m.value %}selected{% endif %}>{{ m.label }}</option>
@@ -42,9 +39,8 @@
             </select>
         </div>
         <div>
-            <label class="block text-xs text-gray-400 mb-1">Acción</label>
-            <select name="action"
-                    class="w-full rounded-md bg-gray-900 border border-gray-700 text-sm px-3 py-2 text-white">
+            <label class="jh2-field__label">Acción</label>
+            <select name="action" class="jh2-input">
                 <option value="">— Todas —</option>
                 <option value="create" {% if action_filter == "create" %}selected{% endif %}>Creó</option>
                 <option value="update" {% if action_filter == "update" %}selected{% endif %}>Editó</option>
@@ -53,9 +49,8 @@
             </select>
         </div>
         <div>
-            <label class="block text-xs text-gray-400 mb-1">Actor (staff)</label>
-            <select name="actor"
-                    class="w-full rounded-md bg-gray-900 border border-gray-700 text-sm px-3 py-2 text-white">
+            <label class="jh2-field__label">Actor (staff)</label>
+            <select name="actor" class="jh2-input">
                 <option value="">— Todos —</option>
                 {% for u in actor_options %}
                 <option value="{{ u.id }}" {% if actor_filter == u.id|stringformat:"s" %}selected{% endif %}>
@@ -65,10 +60,8 @@
             </select>
         </div>
         <div>
-            <label class="block text-xs text-gray-400 mb-1">Últimos N días</label>
-            <select name="days"
-                    class="w-full rounded-md bg-gray-900 border border-gray-700 text-sm px-3 py-2 text-white">
-                {% for d in "7,30,90,180,365"|cut:" "|slice:":"|cut:"" %}{% endfor %}
+            <label class="jh2-field__label">Últimos N días</label>
+            <select name="days" class="jh2-input">
                 <option value="7" {% if days == 7 %}selected{% endif %}>7 días</option>
                 <option value="30" {% if days == 30 %}selected{% endif %}>30 días</option>
                 <option value="90" {% if days == 90 %}selected{% endif %}>90 días</option>
@@ -77,115 +70,94 @@
             </select>
         </div>
 
-        <div class="lg:col-span-6 flex items-center gap-2 pt-1">
-            <button type="submit"
-                    class="px-4 py-2 rounded-md bg-primary-600 hover:bg-primary-500 text-white text-sm font-semibold inline-flex items-center gap-2">
-                <span class="material-symbols-outlined text-base">filter_alt</span>
+        <div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:4px;">
+            <button type="submit" class="jh2-btn jh2-btn--primary">
+                <span class="material-symbols-outlined" style="font-size:16px;">filter_alt</span>
                 Filtrar
             </button>
-            <a href="{% url 'admin_auditlog' %}"
-               class="px-4 py-2 rounded-md border border-gray-700 hover:bg-gray-800 text-gray-300 text-sm">
-                Limpiar
-            </a>
-            <span class="ml-auto text-xs text-gray-400">
-                Mostrando {{ rows|length }} de {{ total }} registros
+            <a href="{% url 'admin_auditlog' %}" class="jh2-btn jh2-btn--ghost">Limpiar</a>
+            <span style="margin-left:auto;font-size:12px;color:#94a3b8;">
+                Mostrando {{ rows|length }} de {{ total }}
             </span>
         </div>
     </form>
 
     {% if rows %}
-    <div class="overflow-x-auto rounded-xl border border-gray-700">
-        <table class="w-full text-sm">
-            <thead class="bg-gray-800/60 text-gray-300 text-xs uppercase">
+    <div class="jh2-card jh2-card--flush">
+      <div class="jh2-table-wrap">
+        <table class="jh2-table">
+            <thead>
                 <tr>
-                    <th class="px-3 py-2 text-left">Cuándo</th>
-                    <th class="px-3 py-2 text-left">Actor</th>
-                    <th class="px-3 py-2 text-left">Acción</th>
-                    <th class="px-3 py-2 text-left">Modelo</th>
-                    <th class="px-3 py-2 text-left">Objeto</th>
-                    <th class="px-3 py-2 text-left">Cambios</th>
-                    <th class="px-3 py-2 text-right">IP</th>
+                    <th>Cuándo</th>
+                    <th>Actor</th>
+                    <th>Acción</th>
+                    <th>Modelo</th>
+                    <th>Objeto</th>
+                    <th>Cambios</th>
+                    <th class="jh2-table__right">IP</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-gray-800">
+            <tbody>
                 {% for row in rows %}
-                <tr class="hover:bg-gray-800/30">
-                    <td class="px-3 py-2 whitespace-nowrap text-xs text-gray-400">
-                        <a href="{% url 'admin_auditlog_detail' row.entry.pk %}"
-                           class="hover:text-primary-300 underline-offset-2 hover:underline">
+                <tr>
+                    <td class="jh2-table__muted" style="white-space:nowrap;">
+                        <a href="{% url 'admin_auditlog_detail' row.entry.pk %}" style="color:inherit;text-decoration:none;border-bottom:1px dashed rgba(196,181,253,.3);">
                             {{ row.entry.timestamp|date:"d M Y H:i" }}
                         </a>
                     </td>
-                    <td class="px-3 py-2 whitespace-nowrap text-gray-200">
-                        {% if row.entry.actor %}
-                            {{ row.entry.actor.get_username }}
-                        {% else %}
-                            <span class="text-gray-500 italic">—</span>
-                        {% endif %}
+                    <td class="jh2-table__strong" style="white-space:nowrap;">
+                        {% if row.entry.actor %}{{ row.entry.actor.get_username }}{% else %}<span class="jh2-table__muted">—</span>{% endif %}
                     </td>
-                    <td class="px-3 py-2 whitespace-nowrap">
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs border {{ row.action_classes }}">
-                            <span class="material-symbols-outlined text-base">{{ row.action_icon }}</span>
+                    <td style="white-space:nowrap;">
+                        <span class="jh2-pill {{ row.action_classes }}" style="font-size:11px;">
+                            <span class="material-symbols-outlined" style="font-size:13px;">{{ row.action_icon }}</span>
                             {{ row.action_label }}
                         </span>
                     </td>
-                    <td class="px-3 py-2 text-xs text-gray-300 font-mono">{{ row.model_label }}</td>
-                    <td class="px-3 py-2 text-gray-200">{{ row.entry.object_repr|truncatechars:60 }}</td>
-                    <td class="px-3 py-2 text-xs text-gray-400">
+                    <td><span class="jh2-mono jh2-table__muted">{{ row.model_label }}</span></td>
+                    <td>{{ row.entry.object_repr|truncatechars:60 }}</td>
+                    <td class="jh2-table__muted">
                         {% if row.diff_preview %}
-                            <ul class="space-y-0.5">
+                            <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;">
                                 {% for d in row.diff_preview %}
-                                <li><span class="text-gray-300 font-mono">{{ d.field }}</span>:
-                                    <span class="text-red-300">{{ d.old|truncatechars:24 }}</span>
+                                <li>
+                                    <span class="jh2-mono" style="color:#cbd5e1;">{{ d.field }}</span>:
+                                    <span style="color:#fca5a5;">{{ d.old|truncatechars:24 }}</span>
                                     →
-                                    <span class="text-green-300">{{ d.new|truncatechars:24 }}</span>
+                                    <span style="color:#86efac;">{{ d.new|truncatechars:24 }}</span>
                                 </li>
                                 {% endfor %}
                                 {% if row.diff_more %}
-                                <li class="text-gray-500 italic">+ {{ row.diff_more }} más…</li>
+                                <li style="color:#64748b;font-style:italic;">+ {{ row.diff_more }} más…</li>
                                 {% endif %}
                             </ul>
-                        {% else %}
-                            <span class="text-gray-500">—</span>
-                        {% endif %}
+                        {% else %}—{% endif %}
                     </td>
-                    <td class="px-3 py-2 text-right text-xs text-gray-500 font-mono whitespace-nowrap">
+                    <td class="jh2-table__right jh2-mono jh2-table__muted" style="white-space:nowrap;">
                         {{ row.entry.remote_addr|default:"—" }}
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+      </div>
     </div>
 
-    <!-- Paginación -->
-    <div class="flex items-center justify-between text-xs text-gray-400">
-        <div>
-            Página {{ page }}
-        </div>
-        <div class="flex gap-2">
+    <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#94a3b8;">
+        <div>Página {{ page }}</div>
+        <div style="display:flex;gap:8px;">
             {% if has_prev %}
             <a href="?page={{ page|add:'-1' }}&q={{ q }}&model={{ model_filter }}&action={{ action_filter }}&actor={{ actor_filter }}&days={{ days }}"
-               class="px-3 py-1.5 rounded-md border border-gray-700 hover:bg-gray-800 text-gray-300">
-                ← Anterior
-            </a>
+               class="jh2-btn jh2-btn--ghost jh2-btn--sm">← Anterior</a>
             {% endif %}
             {% if has_next %}
             <a href="?page={{ page|add:'1' }}&q={{ q }}&model={{ model_filter }}&action={{ action_filter }}&actor={{ actor_filter }}&days={{ days }}"
-               class="px-3 py-1.5 rounded-md border border-gray-700 hover:bg-gray-800 text-gray-300">
-                Siguiente →
-            </a>
+               class="jh2-btn jh2-btn--ghost jh2-btn--sm">Siguiente →</a>
             {% endif %}
         </div>
     </div>
     {% else %}
-    <div class="rounded-xl border border-gray-700 bg-gray-800/30 p-8 text-center">
-        <span class="material-symbols-outlined text-4xl text-gray-500">inbox</span>
-        <p class="mt-2 text-sm text-gray-400">
-            No hay registros para los filtros seleccionados.
-        </p>
-    </div>
+    {% include "admin/components/_empty.html" with icon="fact_check" title="Sin registros" desc="No hay entradas de auditoría para los filtros seleccionados." %}
     {% endif %}
-
 </div>
 {% endblock %}
