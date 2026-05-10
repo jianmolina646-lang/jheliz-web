@@ -1,0 +1,456 @@
+/* Jheliz Admin · Chat en vivo (split-pane 2026)
+ * ============================================================
+ * Layout estilo Gmail / WhatsApp Web: lista a la izquierda, conversación
+ * a la derecha. Se carga después de jheliz_2026.css y typography_2026.css
+ * para que los tokens (colores, gradientes, fuentes) estén disponibles.
+ *
+ * Namespace `jh2-livechat__*` para no colisionar con jheliz_polish.css
+ * ni con Unfold/Tailwind.
+ */
+
+/* ---------------------------------------------------------------- */
+/* Layout principal                                                  */
+/* ---------------------------------------------------------------- */
+
+.jh2-livechat {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.jh2-livechat__shell {
+    display: grid;
+    grid-template-columns: minmax(280px, 35%) 1fr;
+    min-height: 70vh;
+    overflow: hidden;
+    padding: 0;
+}
+
+/* ---------------------------------------------------------------- */
+/* Lista de salas (columna izquierda)                                */
+/* ---------------------------------------------------------------- */
+
+.jh2-livechat__list {
+    border-right: 1px solid rgba(255, 255, 255, .06);
+    overflow-y: auto;
+    max-height: calc(85vh - 80px);
+    background: rgba(11, 18, 32, .35);
+}
+
+.jh2-livechat__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, .04);
+    text-decoration: none;
+    color: inherit;
+    transition: background .18s ease, border-color .18s ease;
+    position: relative;
+    isolation: isolate;
+}
+
+.jh2-livechat__item:hover {
+    background: rgba(244, 114, 182, .06);
+}
+
+.jh2-livechat__item.is-active {
+    background: linear-gradient(90deg, rgba(168, 85, 247, .14), rgba(168, 85, 247, .04));
+    border-left: 3px solid #c4b5fd;
+    padding-left: 13px;
+}
+
+.jh2-livechat__item.is-active::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, rgba(196, 181, 253, .07), transparent 60%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+.jh2-livechat__item-avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    font-family: var(--jh2-font-display, system-ui);
+    font-size: 15px;
+    letter-spacing: -.02em;
+}
+
+.jh2-livechat__item-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.jh2-livechat__item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.jh2-livechat__item-name {
+    font-weight: 600;
+    color: #f8fafc;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+
+.jh2-livechat__item-email {
+    color: #94a3b8;
+    font-weight: 400;
+    font-size: 12px;
+    margin-left: 4px;
+}
+
+.jh2-livechat__item-time {
+    flex-shrink: 0;
+    font-size: 11px;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+.jh2-livechat__item-preview {
+    color: #cbd5e1;
+    font-size: 13px;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jh2-livechat__item-sender {
+    color: #94a3b8;
+    margin-right: 3px;
+}
+
+.jh2-livechat__item-empty {
+    color: #64748b;
+    font-style: italic;
+}
+
+.jh2-livechat__item-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.jh2-livechat__unread {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    font-family: var(--jh2-font-mono, ui-monospace);
+    font-variant-numeric: tabular-nums;
+}
+
+.jh2-livechat__pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.jh2-livechat__pill--closed {
+    color: #94a3b8;
+    background: rgba(148, 163, 184, .12);
+}
+
+.jh2-livechat__empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: #94a3b8;
+}
+
+.jh2-livechat__empty-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+    opacity: .6;
+}
+
+.jh2-livechat__empty-title {
+    color: #f8fafc;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.jh2-livechat__empty-desc {
+    font-size: 13px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Panel de conversación (columna derecha)                           */
+/* ---------------------------------------------------------------- */
+
+.jh2-livechat__main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: rgba(8, 12, 22, .25);
+}
+
+.jh2-livechat__pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+
+.jh2-livechat__placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 64px 24px;
+    color: #94a3b8;
+    height: 100%;
+    min-height: 60vh;
+}
+
+.jh2-livechat__placeholder-icon {
+    font-size: 56px;
+    margin-bottom: 14px;
+    opacity: .55;
+}
+
+.jh2-livechat__placeholder-title {
+    color: #f8fafc;
+    font-weight: 700;
+    font-size: 18px;
+    font-family: var(--jh2-font-display, system-ui);
+    margin-bottom: 6px;
+    letter-spacing: -.01em;
+}
+
+.jh2-livechat__placeholder-desc {
+    font-size: 13px;
+    max-width: 380px;
+    line-height: 1.5;
+}
+
+/* Header del panel derecho ------------------------------------------------ */
+
+.jh2-livechat__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+    background: rgba(15, 23, 42, .5);
+}
+
+.jh2-livechat__header-main {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.jh2-livechat__avatar {
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    font-family: var(--jh2-font-display, system-ui);
+    font-size: 17px;
+    letter-spacing: -.02em;
+}
+
+.jh2-livechat__header-text {
+    min-width: 0;
+    flex: 1;
+}
+
+.jh2-livechat__header-title {
+    color: #f8fafc;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--jh2-font-display, system-ui);
+    letter-spacing: -.01em;
+}
+
+.jh2-livechat__status {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.jh2-livechat__status--open {
+    background: #34d399;
+    box-shadow: 0 0 0 2px rgba(52, 211, 153, .25);
+}
+
+.jh2-livechat__status--closed {
+    background: #64748b;
+}
+
+.jh2-livechat__header-meta {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jh2-livechat__header-meta a {
+    color: #c4b5fd;
+    text-decoration: none;
+}
+
+.jh2-livechat__header-meta a:hover {
+    text-decoration: underline;
+}
+
+.jh2-livechat__header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Thread (mensajes) ------------------------------------------------------- */
+
+.jh2-livechat__thread {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px;
+    min-height: 0;
+    max-height: calc(85vh - 220px);
+}
+
+/* Composer (reply form) --------------------------------------------------- */
+
+.jh2-livechat__composer {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    padding: 14px 18px;
+    border-top: 1px solid rgba(255, 255, 255, .06);
+    background: rgba(15, 23, 42, .45);
+}
+
+.jh2-livechat__textarea {
+    flex: 1;
+    min-height: 44px;
+    max-height: 160px;
+    resize: vertical;
+    padding: 10px 12px;
+    background: rgba(8, 12, 22, .6);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: var(--jh2-radius, 14px);
+    color: #f8fafc;
+    font-family: var(--jh2-font-body, system-ui);
+    font-size: 14px;
+    line-height: 1.45;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.jh2-livechat__textarea:focus {
+    outline: none;
+    border-color: rgba(196, 181, 253, .5);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, .15);
+}
+
+.jh2-livechat__send {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 44px;
+}
+
+.jh2-livechat__composer--locked {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+    padding: 18px;
+    border-top: 1px solid rgba(255, 255, 255, .06);
+    background: rgba(15, 23, 42, .45);
+    display: block;
+}
+
+/* ---------------------------------------------------------------- */
+/* Mobile / responsive                                               */
+/* ---------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+    .jh2-livechat__shell {
+        grid-template-columns: 1fr;
+        min-height: auto;
+    }
+
+    /* En mobile: si hay sala seleccionada, ocultamos la lista; si no, ocultamos
+       el panel placeholder/conversación. Truco: con el atributo selectivo del
+       div .jh2-livechat alternamos visibilidad. */
+    .jh2-livechat__list {
+        max-height: 60vh;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, .06);
+    }
+
+    .jh2-livechat__thread {
+        max-height: 50vh;
+    }
+
+    .jh2-livechat__send-label {
+        display: none;
+    }
+
+    .jh2-livechat__header {
+        padding: 10px 14px;
+    }
+
+    .jh2-livechat__header-actions form .jh2-btn {
+        padding-inline: 8px;
+    }
+}
+
+/* ---------------------------------------------------------------- */
+/* Pequeño helper de botones (sólo si --sm no existe ya)             */
+/* ---------------------------------------------------------------- */
+
+.jh2-btn.jh2-btn--sm {
+    padding: 6px 10px;
+    font-size: 12px;
+}

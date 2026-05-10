@@ -298,6 +298,10 @@ UNFOLD = {
         # gradient en titulares, refresco de sidebar/headings. Va al final
         # de las STYLES porque sobreescribe reglas de jheliz_2026.css.
         lambda request: _hashed_static("admin/typography_2026.css"),
+        # Split-pane del chat en vivo (lista a la izquierda + conversación
+        # a la derecha estilo Gmail/WhatsApp Web). Usa los tokens de fuente
+        # de typography_2026.css, así que va después de esa.
+        lambda request: _hashed_static("admin/livechat_splitpane.css"),
     ],
     "SCRIPTS": [
         lambda request: _hashed_static("admin/global_search.js"),

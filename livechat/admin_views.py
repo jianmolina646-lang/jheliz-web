@@ -1,12 +1,18 @@
-"""Vistas del lado admin del chat en vivo (en `/panel-jheliz-2026/livechat/`)."""
+"""Vistas del lado admin del chat en vivo (en `/panel-jheliz-2026/livechat/`).
+
+Diseño 2026: split-pane estilo Gmail/WhatsApp Web.
+- La lista de salas vive a la izquierda y el panel de conversación a la derecha.
+- Cuando el operador hace click en una sala, htmx carga el panel derecho con
+  `chat_room_partial` sin recargar la página entera.
+- La URL se actualiza vía `hx-push-url` para que refrescar / compartir vuelva
+  a abrir la sala correcta.
+"""
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.http import HttpRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -16,10 +22,8 @@ from django.views.decorators.http import require_GET, require_POST
 from .models import ChatMessage, ChatRoom
 
 
-@staff_member_required
-def chat_index(request: HttpRequest):
-    """Lista de salas de chat (bandeja del operador)."""
-    show_closed = request.GET.get("closed") == "1"
+def _build_rooms_payload(*, show_closed: bool, limit: int = 200) -> tuple[list[dict], int, int]:
+    """Construye la lista enriquecida de salas para la columna izquierda."""
     qs = ChatRoom.objects.all()
     if not show_closed:
         qs = qs.filter(status=ChatRoom.Status.OPEN)
@@ -27,9 +31,7 @@ def chat_index(request: HttpRequest):
         "-last_message_at", "-created_at",
     )
 
-    rooms = list(qs[:200])
-    # Pre-compute admin_unread y customer-side info para no pegarle a la BD
-    # múltiples veces en el template.
+    rooms = list(qs[:limit])
     enriched: list[dict] = []
     for r in rooms:
         last = r.messages.order_by("-created_at").first()
@@ -37,48 +39,91 @@ def chat_index(request: HttpRequest):
             "room": r,
             "admin_unread": r.admin_unread_count,
             "last_message": last,
-            "is_customer_typing": False,  # placeholder para futura mejora
         })
 
     open_count = ChatRoom.objects.filter(status=ChatRoom.Status.OPEN).count()
     total_unread = sum(item["admin_unread"] for item in enriched)
+    return enriched, open_count, total_unread
 
-    return render(
-        request,
-        "admin/livechat/index.html",
-        {
-            "rooms_data": enriched,
-            "show_closed": show_closed,
-            "open_count": open_count,
-            "total_unread": total_unread,
-            "title": "Chats en vivo",
-        },
-    )
+
+def _room_pane_context(request: HttpRequest, room: ChatRoom) -> dict:
+    """Contexto compartido para renderizar el panel derecho (header + thread +
+    reply form). Marca al admin como "visto" como side-effect."""
+    room.mark_admin_seen()
+    return {
+        "room": room,
+        "messages_thread": list(room.messages.all()),
+        "messages_poll_url": reverse(
+            "admin_livechat_messages", args=[room.pk]
+        ),
+        "reply_url": reverse("admin_livechat_reply", args=[room.pk]),
+        "close_url": reverse("admin_livechat_close", args=[room.pk]),
+        "reopen_url": reverse("admin_livechat_reopen", args=[room.pk]),
+    }
+
+
+@staff_member_required
+def chat_index(request: HttpRequest):
+    """Lista de salas (columna izquierda) + opcionalmente una sala abierta a
+    la derecha cuando se navega con `?room=<id>`."""
+    show_closed = request.GET.get("closed") == "1"
+    enriched, open_count, total_unread = _build_rooms_payload(show_closed=show_closed)
+
+    selected_room = None
+    selected_ctx: dict = {}
+    room_id_raw = request.GET.get("room") or ""
+    if room_id_raw.isdigit():
+        selected_room = ChatRoom.objects.filter(pk=int(room_id_raw)).first()
+        if selected_room is not None:
+            selected_ctx = _room_pane_context(request, selected_room)
+
+    context = {
+        "rooms_data": enriched,
+        "show_closed": show_closed,
+        "open_count": open_count,
+        "total_unread": total_unread,
+        "selected_room": selected_room,
+        "title": "Chats en vivo",
+    }
+    context.update(selected_ctx)
+    return render(request, "admin/livechat/index.html", context)
+
+
+@staff_member_required
+@require_GET
+def chat_room_partial(request: HttpRequest, room_id: int):
+    """Devuelve solo el panel derecho (cuando htmx lo solicita al clickear
+    una sala en la lista). Marca admin_seen como side-effect."""
+    room = get_object_or_404(ChatRoom, pk=room_id)
+    ctx = _room_pane_context(request, room)
+    return render(request, "admin/livechat/_room_pane.html", ctx)
 
 
 @staff_member_required
 def chat_detail(request: HttpRequest, room_id: int):
-    """Detalle de una sala — vista del operador."""
+    """Detalle directo de una sala. Renderiza el split-pane con la sala
+    seleccionada — útil para deep-links viejos / notificaciones / bookmarks
+    de operadores. Sirve la misma plantilla que ``chat_index`` para no
+    fragmentar la UX."""
     room = get_object_or_404(ChatRoom, pk=room_id)
-    room.mark_admin_seen()
-    return render(
-        request,
-        "admin/livechat/detail.html",
-        {
-            "room": room,
-            "messages_thread": list(room.messages.all()),
-            "messages_poll_url": reverse(
-                "admin_livechat_messages", args=[room.pk]
-            ),
-            "title": f"Chat con {room.display_name}",
-        },
-    )
+    show_closed = request.GET.get("closed") == "1"
+    enriched, open_count, total_unread = _build_rooms_payload(show_closed=show_closed)
+    selected_ctx = _room_pane_context(request, room)
+    context = {
+        "rooms_data": enriched,
+        "show_closed": show_closed,
+        "open_count": open_count,
+        "total_unread": total_unread,
+        "selected_room": room,
+        "title": f"Chat con {room.display_name}",
+    }
+    context.update(selected_ctx)
+    return render(request, "admin/livechat/index.html", context)
 
 
 def _render_messages_partial(request: HttpRequest, room: ChatRoom):
-    """Render del thread completo. Lo usan tanto el endpoint de polling como
-    la respuesta htmx después de un POST de reply (acá no podemos llamar a
-    `chat_messages_partial` directamente porque tiene `@require_GET`)."""
+    """Render del thread completo para el polling de htmx y la respuesta
+    tras un POST de reply."""
     room.mark_admin_seen()
     return render(
         request,
@@ -101,7 +146,7 @@ def chat_reply(request: HttpRequest, room_id: int):
     if not body:
         if request.headers.get("HX-Request"):
             return _render_messages_partial(request, room)
-        return redirect("admin_livechat_detail", room_id=room.pk)
+        return redirect(reverse("admin_livechat_index") + f"?room={room.pk}")
 
     body = body[:4000]
     with transaction.atomic():
@@ -116,7 +161,7 @@ def chat_reply(request: HttpRequest, room_id: int):
 
     if request.headers.get("HX-Request"):
         return _render_messages_partial(request, room)
-    return redirect("admin_livechat_detail", room_id=room.pk)
+    return redirect(reverse("admin_livechat_index") + f"?room={room.pk}")
 
 
 @staff_member_required
@@ -133,7 +178,10 @@ def chat_close(request: HttpRequest, room_id: int):
     room = get_object_or_404(ChatRoom, pk=room_id)
     room.status = ChatRoom.Status.CLOSED
     room.save(update_fields=["status"])
-    return redirect("admin_livechat_index")
+    if request.headers.get("HX-Request"):
+        ctx = _room_pane_context(request, room)
+        return render(request, "admin/livechat/_room_pane.html", ctx)
+    return redirect(reverse("admin_livechat_index") + f"?room={room.pk}")
 
 
 @staff_member_required
@@ -142,7 +190,10 @@ def chat_reopen(request: HttpRequest, room_id: int):
     room = get_object_or_404(ChatRoom, pk=room_id)
     room.status = ChatRoom.Status.OPEN
     room.save(update_fields=["status"])
-    return redirect("admin_livechat_detail", room_id=room.pk)
+    if request.headers.get("HX-Request"):
+        ctx = _room_pane_context(request, room)
+        return render(request, "admin/livechat/_room_pane.html", ctx)
+    return redirect(reverse("admin_livechat_index") + f"?room={room.pk}")
 
 
 @staff_member_required
