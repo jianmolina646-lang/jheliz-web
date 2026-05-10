@@ -1,105 +1,101 @@
 {# Partial — tabla de cuentas. Reusada por GET completo y por HTMX swap. #}
-<div id="stock-list-results" class="flex flex-col gap-3">
+<div id="stock-list-results" class="flex flex-col gap-3" style="margin-top:14px;">
 
 {% if items %}
-<div class="rounded-xl border border-base-700 bg-base-900 overflow-hidden">
-  <table class="w-full text-sm">
-    <thead class="bg-base-950 text-[11px] uppercase tracking-wide text-base-400">
+<div class="jh2-card jh2-card--flush">
+  <div class="jh2-table-wrap">
+  <table class="jh2-table">
+    <thead>
       <tr>
-        <th class="text-left px-4 py-3 font-medium">Producto / Plan</th>
-        <th class="text-left px-4 py-3 font-medium">Estado</th>
-        <th class="text-left px-4 py-3 font-medium">Cuenta</th>
-        <th class="text-left px-4 py-3 font-medium">Perfil</th>
-        <th class="text-left px-4 py-3 font-medium">PIN</th>
-        <th class="text-left px-4 py-3 font-medium">Etiqueta</th>
-        <th class="text-left px-4 py-3 font-medium">Fechas</th>
-        <th class="text-right px-4 py-3 font-medium">Acciones</th>
+        <th>Producto / Plan</th>
+        <th>Estado</th>
+        <th>Cuenta</th>
+        <th>Perfil</th>
+        <th>PIN</th>
+        <th>Etiqueta</th>
+        <th>Fechas</th>
+        <th class="jh2-table__right">Acciones</th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-base-800">
+    <tbody>
       {% for item in items %}
-      <tr class="hover:bg-base-800/40 transition-colors">
-        <td class="px-4 py-3 align-top">
-          <div class="text-white font-medium">{{ item.product.name }}</div>
-          <div class="text-xs text-base-400">{{ item.plan.name|default:"Cualquier plan" }}</div>
+      <tr>
+        <td>
+          <div class="jh2-table__strong">{{ item.product.name }}</div>
+          <div class="jh2-table__muted">{{ item.plan.name|default:"Cualquier plan" }}</div>
         </td>
-        <td class="px-4 py-3 align-top">
+        <td>
           {% if item.status == 'available' %}
-            <span class="text-[11px] px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">Disponible</span>
+            {% include "admin/components/_pill.html" with text="Disponible" variant="success" %}
           {% elif item.status == 'sold' %}
-            <span class="text-[11px] px-2 py-1 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/40 whitespace-nowrap">Vendida</span>
+            {% include "admin/components/_pill.html" with text="Vendida" variant="info" static=True %}
           {% elif item.status == 'reserved' %}
-            <span class="text-[11px] px-2 py-1 rounded-full bg-base-700 text-base-200 border border-base-600 whitespace-nowrap">Reservada</span>
+            {% include "admin/components/_pill.html" with text="Reservada" variant="neutral" static=True %}
           {% elif item.status == 'defective' %}
-            <span class="text-[11px] px-2 py-1 rounded-full bg-red-500/10 text-red-300 border border-red-500/40 whitespace-nowrap">Caída</span>
+            {% include "admin/components/_pill.html" with text="Caída" variant="danger" %}
           {% else %}
-            <span class="text-[11px] px-2 py-1 rounded-full bg-base-700/40 text-base-400 border border-base-700 whitespace-nowrap">Deshabilitada</span>
+            {% include "admin/components/_pill.html" with text="Deshabilitada" variant="neutral" static=True %}
           {% endif %}
         </td>
-        <td class="px-4 py-3 align-top">
-          <div class="text-base-200 text-xs font-mono whitespace-pre-wrap break-all max-w-[28ch]">{{ item.account_text|default:item.credentials|truncatechars:120 }}</div>
+        <td>
+          <div class="jh2-table__mono jh2-table__cell-wrap" style="max-width:28ch;">{{ item.account_text|default:item.credentials|truncatechars:120 }}</div>
         </td>
-        <td class="px-4 py-3 align-top">
+        <td>
           {% if item.profile_text %}
-            <div class="text-base-100 text-xs font-mono">{{ item.profile_text }}</div>
+            <div class="jh2-table__mono">{{ item.profile_text }}</div>
           {% else %}
-            <div class="text-base-500 text-xs">—</div>
+            <div class="jh2-table__muted">—</div>
           {% endif %}
         </td>
-        <td class="px-4 py-3 align-top">
+        <td>
           {% if item.pin_text %}
-            <div class="text-base-100 text-xs font-mono tracking-wider">{{ item.pin_text }}</div>
+            <div class="jh2-table__mono" style="letter-spacing:.08em;">{{ item.pin_text }}</div>
           {% else %}
-            <div class="text-base-500 text-xs">—</div>
+            <div class="jh2-table__muted">—</div>
           {% endif %}
         </td>
-        <td class="px-4 py-3 align-top">
-          <div class="text-base-200">{{ item.label|default:"—" }}</div>
-        </td>
-        <td class="px-4 py-3 align-top text-xs text-base-400">
+        <td><div class="jh2-table__strong">{{ item.label|default:"—" }}</div></td>
+        <td class="jh2-table__muted">
           <div>+{{ item.created_at|date:"d/m/y H:i" }}</div>
-          {% if item.sold_at %}<div class="text-blue-300">✓ {{ item.sold_at|date:"d/m/y H:i" }}</div>{% endif %}
+          {% if item.sold_at %}<div style="color:#93c5fd;">✓ {{ item.sold_at|date:"d/m/y H:i" }}</div>{% endif %}
         </td>
-        <td class="px-4 py-3 align-top text-right">
-          <div class="inline-flex flex-wrap justify-end gap-1">
+        <td class="jh2-table__right">
+          <div class="jh2-actions">
             {% if item.status != 'available' %}
-              <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="inline">
+              <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="jh2-inline-form">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="mark_available">
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <button type="submit"
-                        class="text-[11px] px-2 py-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 transition"
-                        title="Marcar como disponible">
-                  ✓ Disponible
+                <button type="submit" class="jh2-btn jh2-btn--success jh2-btn--sm" title="Marcar como disponible">
+                  <span class="material-symbols-outlined" style="font-size:14px;">check</span>
+                  Disponible
                 </button>
               </form>
             {% endif %}
             {% if item.status != 'defective' %}
-              <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="inline">
+              <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="jh2-inline-form">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="mark_defective">
                 <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <button type="submit"
-                        class="text-[11px] px-2 py-1 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/40 transition"
-                        title="Marcar como caída">
-                  ⚠ Caída
+                <button type="submit" class="jh2-btn jh2-btn--danger jh2-btn--sm" title="Marcar como caída">
+                  <span class="material-symbols-outlined" style="font-size:14px;">warning</span>
+                  Caída
                 </button>
               </form>
             {% endif %}
-            <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="inline">
+            <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="jh2-inline-form">
               {% csrf_token %}
               <input type="hidden" name="action" value="duplicate">
               <input type="hidden" name="next" value="{{ request.get_full_path }}">
-              <button type="submit"
-                      class="text-[11px] px-2 py-1 rounded-md bg-base-800 hover:bg-base-700 text-base-200 border border-base-700 transition"
-                      title="Duplicar como nueva disponible">
-                🔁 Duplicar
+              <button type="submit" class="jh2-btn jh2-btn--ghost jh2-btn--sm" title="Duplicar como nueva disponible">
+                <span class="material-symbols-outlined" style="font-size:14px;">content_copy</span>
+                Duplicar
               </button>
             </form>
             <a href="{% url 'admin:catalog_stockitem_change' item.pk %}"
-               class="text-[11px] px-2 py-1 rounded-md bg-base-800 hover:bg-base-700 text-base-200 border border-base-700 transition"
-               title="Editar en admin clásico">
-              ✎ Editar
+               class="jh2-btn jh2-btn--ghost jh2-btn--sm" title="Editar en admin clásico">
+              <span class="material-symbols-outlined" style="font-size:14px;">edit</span>
+              Editar
             </a>
           </div>
         </td>
@@ -107,31 +103,37 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 
 {% if page_obj %}
-<nav class="flex items-center justify-between text-sm text-base-400 px-1">
-  <div>Mostrando {{ page_obj.start_index }}–{{ page_obj.end_index }} de {{ paginator.count }} cuenta{{ paginator.count|pluralize:"s" }}.</div>
-  <div class="flex gap-2">
+<nav class="jh2-pagination">
+  <div class="jh2-helper" style="margin:0;">
+    Mostrando <strong>{{ page_obj.start_index }}–{{ page_obj.end_index }}</strong> de <strong>{{ paginator.count }}</strong> cuenta{{ paginator.count|pluralize:"s" }}.
+  </div>
+  <div class="jh2-actions">
     {% if page_obj.has_previous %}
-      <a href="?{{ querystring_prev }}"
-         class="px-3 py-1 rounded-md border border-base-700 hover:bg-base-800 text-base-200">← Anterior</a>
+      <a href="?{{ querystring_prev }}" class="jh2-btn jh2-btn--ghost jh2-btn--sm">
+        <span class="material-symbols-outlined" style="font-size:14px;">chevron_left</span>
+        Anterior
+      </a>
     {% endif %}
     {% if page_obj.has_next %}
-      <a href="?{{ querystring_next }}"
-         class="px-3 py-1 rounded-md border border-base-700 hover:bg-base-800 text-base-200">Siguiente →</a>
+      <a href="?{{ querystring_next }}" class="jh2-btn jh2-btn--ghost jh2-btn--sm">
+        Siguiente
+        <span class="material-symbols-outlined" style="font-size:14px;">chevron_right</span>
+      </a>
     {% endif %}
   </div>
 </nav>
 {% endif %}
 
 {% else %}
-<div class="rounded-xl border border-dashed border-base-700 bg-base-900 p-10 text-center text-base-400">
-  No hay cuentas que coincidan con los filtros.
-  {% if q or status != 'all' or product_filter %}
-    <a href="{% url 'admin_stock_list' %}" class="text-primary-300 ml-1">Limpiar filtros</a>.
-  {% endif %}
-</div>
+{% if q or status != 'all' or product_filter %}
+  {% include "admin/components/_empty.html" with icon="search_off" title="Sin coincidencias" desc="No hay cuentas que coincidan con los filtros aplicados." cta_label="Limpiar filtros" cta_href="/panel-jheliz-2026/stock/list/" %}
+{% else %}
+  {% include "admin/components/_empty.html" with icon="inbox" title="Sin cuentas" desc="Aún no agregaste cuentas. Usá la pestaña Importar o el botón de cada producto en Resumen." %}
+{% endif %}
 {% endif %}
 
 </div>
