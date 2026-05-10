@@ -131,16 +131,22 @@
 
 {% block content %}
 <div class="jh-inbox-wrap">
-    <div class="jh-inbox-header">
-        <h1>
-            <span class="material-symbols-outlined">qr_code_scanner</span>
-            Bandeja de verificación Yape
-        </h1>
-        <span class="jh-count">{{ orders|length }} pendiente{{ orders|length|pluralize:"s" }}</span>
-        <a class="jh-inbox-back" href="{% url 'admin:orders_order_changelist' %}">
-            <span class="material-symbols-outlined" style="font-size:16px">arrow_back</span>
-            Volver a pedidos
-        </a>
+    <div class="jh2-page-head">
+        <div>
+            <div class="jh2-page-head__eyebrow">Pedidos · Verificación Yape</div>
+            <h1 class="jh2-page-head__title">Bandeja Yape</h1>
+            <p class="jh2-page-head__subtitle">Aprobá o rechazá los comprobantes pendientes en lote.</p>
+        </div>
+        <div class="jh2-page-head__actions">
+            <span class="jh2-pill jh2-pill--warning">
+                <span class="jh2-pill__dot"></span>
+                {{ orders|length }} pendiente{{ orders|length|pluralize:"s" }}
+            </span>
+            <a class="jh2-btn jh2-btn--ghost" href="{% url 'admin:orders_order_changelist' %}">
+                <span class="material-symbols-outlined" style="font-size:16px">arrow_back</span>
+                Volver a pedidos
+            </a>
+        </div>
     </div>
 
     {% if orders %}
@@ -227,11 +233,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="jh-inbox-empty">
-        <span class="material-symbols-outlined">task_alt</span>
-        <div style="font-size:15px;color:#e2e8f0">Bandeja vacía</div>
-        <div style="margin-top:6px">No hay comprobantes Yape pendientes de verificación.</div>
-    </div>
+    {% include "admin/components/_empty.html" with icon="task_alt" title="Bandeja vacía" desc="No hay comprobantes Yape pendientes de verificación." %}
     {% endif %}
 </div>
 

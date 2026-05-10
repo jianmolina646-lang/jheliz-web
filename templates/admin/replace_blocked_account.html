@@ -119,12 +119,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
 {% block content %}
 <div class="jh-rb-wrap">
-  <div class="jh-rb-header">
-    <h1>
-      <span class="material-symbols-outlined">sync_alt</span>
-      Reemplazar cuenta bloqueada
-    </h1>
-    <a href="{% url 'admin:index' %}" style="margin-left:auto;color:#94a3b8;font-size:13px;text-decoration:none;">← Volver al admin</a>
+  <div class="jh2-page-head">
+    <div>
+      <div class="jh2-page-head__eyebrow">Pedidos · Mantenimiento</div>
+      <h1 class="jh2-page-head__title">Reemplazar cuenta bloqueada</h1>
+      <p class="jh2-page-head__subtitle">Buscá el correo viejo y reemplazá credenciales en todos los clientes afectados de un saque.</p>
+    </div>
+    <div class="jh2-page-head__actions">
+      <a href="{% url 'admin:index' %}" class="jh2-btn jh2-btn--ghost">
+        <span class="material-symbols-outlined" style="font-size:16px">arrow_back</span>
+        Volver al admin
+      </a>
+    </div>
   </div>
 
   <div class="jh-rb-help">
