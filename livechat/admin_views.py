@@ -10,6 +10,7 @@ Diseño 2026: split-pane estilo Gmail/WhatsApp Web.
 
 from __future__ import annotations
 
+from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import transaction
 from django.db.models import Count
@@ -78,6 +79,7 @@ def chat_index(request: HttpRequest):
             selected_ctx = _room_pane_context(request, selected_room)
 
     context = {
+        **admin.site.each_context(request),
         "rooms_data": enriched,
         "show_closed": show_closed,
         "open_count": open_count,
@@ -110,6 +112,7 @@ def chat_detail(request: HttpRequest, room_id: int):
     enriched, open_count, total_unread = _build_rooms_payload(show_closed=show_closed)
     selected_ctx = _room_pane_context(request, room)
     context = {
+        **admin.site.each_context(request),
         "rooms_data": enriched,
         "show_closed": show_closed,
         "open_count": open_count,
