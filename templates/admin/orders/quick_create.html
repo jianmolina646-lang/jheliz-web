@@ -1,0 +1,173 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  .qo-card { background: rgb(255 255 255 / 0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 1.25rem 1.5rem; }
+  .qo-grid { display: grid; gap: 1rem 1.25rem; }
+  @media (min-width: 720px) { .qo-grid-2 { grid-template-columns: 1fr 1fr; } }
+  .qo-label { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; margin-bottom: 0.35rem; display: block; }
+  .qo-input, .qo-select, .qo-textarea {
+    width: 100%; padding: 0.6rem 0.8rem; border-radius: 10px;
+    background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12);
+    color: inherit; font-size: 0.95rem; font-family: inherit;
+  }
+  .qo-input:focus, .qo-select:focus, .qo-textarea:focus {
+    outline: none; border-color: rgba(99,102,241,0.6); box-shadow: 0 0 0 3px rgba(99,102,241,0.18);
+  }
+  .qo-textarea { min-height: 88px; resize: vertical; }
+  .qo-help { font-size: 0.78rem; opacity: 0.65; margin-top: 0.35rem; }
+  .qo-toggle { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none; }
+  .qo-toggle input { width: 1.05rem; height: 1.05rem; accent-color: #6366f1; }
+  .qo-section-title { font-weight: 700; font-size: 1.05rem; margin: 0 0 0.85rem; }
+  .qo-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .qo-btn {
+    padding: 0.7rem 1.4rem; border-radius: 10px; border: 0; cursor: pointer;
+    font-weight: 600; font-size: 0.95rem;
+  }
+  .qo-btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; }
+  .qo-btn-primary:hover { filter: brightness(1.1); }
+  .qo-btn-secondary { background: rgba(255,255,255,0.08); color: inherit; }
+  .qo-hero { display: flex; gap: 1rem; align-items: center; margin-bottom: 1.5rem; }
+  .qo-hero-icon { font-size: 2.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 980px; margin: 0 auto;">
+  <div class="qo-hero">
+    <div class="qo-hero-icon">⚡</div>
+    <div>
+      <h1 style="font-size: 1.75rem; font-weight: 800; margin: 0;">Crear pedido rápido</h1>
+      <p style="margin: 0.25rem 0 0; opacity: 0.7; font-size: 0.95rem;">
+        Para cuando un cliente ya pagó por fuera (Yape, efectivo, transferencia) y necesitás registrar la venta + entregar en un paso.
+      </p>
+    </div>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    <!-- Cliente -->
+    <div class="qo-card" style="margin-bottom: 1rem;">
+      <div class="qo-section-title">👤 Cliente</div>
+      <div class="qo-grid qo-grid-2">
+        <div>
+          <label class="qo-label" for="qo-email">Email *</label>
+          <input class="qo-input" id="qo-email" type="email" name="email" required
+                 placeholder="cliente@gmail.com"
+                 value="{{ preset.email|default_if_none:'' }}" />
+          <div class="qo-help">Si el cliente no existe, se crea automático con este correo.</div>
+        </div>
+        <div>
+          <label class="qo-label" for="qo-name">Nombre completo (opcional)</label>
+          <input class="qo-input" id="qo-name" type="text" name="full_name"
+                 placeholder="Juan Pérez"
+                 value="{{ preset.full_name|default_if_none:'' }}" />
+        </div>
+        <div>
+          <label class="qo-label" for="qo-phone">WhatsApp (opcional)</label>
+          <input class="qo-input" id="qo-phone" type="tel" name="phone"
+                 placeholder="+51 999 999 999"
+                 value="{{ preset.phone|default_if_none:'' }}" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Producto -->
+    <div class="qo-card" style="margin-bottom: 1rem;">
+      <div class="qo-section-title">🛒 Producto</div>
+      <div class="qo-grid qo-grid-2">
+        <div>
+          <label class="qo-label" for="qo-plan">Plan *</label>
+          <select class="qo-select" id="qo-plan" name="plan_id" required>
+            <option value="">— Elegí un plan —</option>
+            {% for product_name, plans in plans_by_product.items %}
+              <optgroup label="{{ product_name }}">
+                {% for plan in plans %}
+                  <option value="{{ plan.pk }}"
+                          {% if preset.plan_id|stringformat:'s' == plan.pk|stringformat:'s' %}selected{% endif %}>
+                    {{ plan.name }} — S/ {{ plan.price_customer }}
+                    {% if plan.duration_days %}· {{ plan.duration_days }}d{% else %}· perpetuo{% endif %}
+                  </option>
+                {% endfor %}
+              </optgroup>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="qo-label" for="qo-quantity">Cantidad</label>
+          <input class="qo-input" id="qo-quantity" type="number" name="quantity"
+                 min="1" max="20" value="{{ preset.quantity|default:'1' }}" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Pago -->
+    <div class="qo-card" style="margin-bottom: 1rem;">
+      <div class="qo-section-title">💳 Pago</div>
+      <div class="qo-grid qo-grid-2">
+        <div>
+          <label class="qo-label" for="qo-method">Método de pago</label>
+          <select class="qo-select" id="qo-method" name="payment_method">
+            {% for value, label in payment_methods %}
+              <option value="{{ value }}"
+                      {% if preset.payment_method == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="qo-label" for="qo-paid-at">Fecha del pago</label>
+          <input class="qo-input" id="qo-paid-at" type="datetime-local" name="paid_at"
+                 value="{{ preset.paid_at|default:now_local }}" />
+          <div class="qo-help">Si no la sabés con exactitud, dejá la fecha de ahora.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Entrega -->
+    <div class="qo-card" style="margin-bottom: 1rem;">
+      <div class="qo-section-title">📦 Entrega</div>
+      <label class="qo-toggle" style="margin-bottom: 0.5rem;">
+        <input type="checkbox" name="auto_deliver"
+               {% if preset.auto_deliver|default:True %}checked{% endif %} />
+        <span>Entregar automáticamente (asignar stock disponible y marcar como entregado)</span>
+      </label>
+      <label class="qo-toggle" style="margin-bottom: 1rem;">
+        <input type="checkbox" name="send_email"
+               {% if preset.send_email|default:True %}checked{% endif %} />
+        <span>Enviar email al cliente con las credenciales</span>
+      </label>
+      <div>
+        <label class="qo-label" for="qo-creds">Credenciales manuales (opcional)</label>
+        <textarea class="qo-textarea" id="qo-creds" name="manual_credentials"
+                  placeholder="Ej:&#10;Email: cuenta@gmail.com&#10;Contraseña: ********&#10;Perfil: 2&#10;PIN: 1234">{{ preset.manual_credentials|default_if_none:'' }}</textarea>
+        <div class="qo-help">
+          Si no hay stock disponible para ese plan y querés entregar igual,
+          pegá las credenciales acá. Si hay stock, esto se ignora.
+        </div>
+      </div>
+    </div>
+
+    <!-- Notas -->
+    <div class="qo-card" style="margin-bottom: 1.5rem;">
+      <div class="qo-section-title">📝 Notas internas (opcional)</div>
+      <textarea class="qo-textarea" name="notes"
+                placeholder="Notas internas (no se muestran al cliente).">{{ preset.notes|default_if_none:'' }}</textarea>
+    </div>
+
+    <div class="qo-actions">
+      <button class="qo-btn qo-btn-primary" type="submit">⚡ Crear y entregar</button>
+      <a class="qo-btn qo-btn-secondary" href="{% url 'admin:orders_order_changelist' %}"
+         style="text-decoration: none;">Cancelar</a>
+    </div>
+  </form>
+
+  <div style="margin-top: 1.5rem; padding: 1rem 1.25rem; border-radius: 12px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.18); font-size: 0.88rem;">
+    💡 <strong>Tip</strong>: este atajo está pensado para registrar ventas que ya cerraste. Si el cliente todavía no te pagó,
+    usá el formulario completo de <a href="{% url 'admin:orders_order_add' %}" style="text-decoration: underline;">crear pedido</a>.
+  </div>
+</div>
+{% endblock %}

@@ -36,5 +36,11 @@
         {% if jh_filter_counts.this_week %}<span class="jh-filter-tab__count">{{ jh_filter_counts.this_week }}</span>{% endif %}
     </a>
     {% endwith %}
+    <a href="{% url 'admin_quick_order_create' %}"
+       class="jh-filter-tab"
+       style="margin-left: auto; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600;"
+       title="Registrar una venta que ya cerraste (Yape, efectivo, etc.)">
+        ⚡ Pedido rápido
+    </a>
 </div>
 {% endwith %}
