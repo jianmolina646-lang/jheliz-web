@@ -8,48 +8,48 @@
 {% endblock %}
 
 {% block content %}
-<div class="flex flex-col gap-6">
-    <!-- Header con avatar + datos + acciones -->
-    <section class="relative overflow-hidden rounded-xl border border-primary-500/30 bg-gradient-to-br from-primary-500/15 via-violet-500/10 to-base-900 p-6">
-        <div class="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary-500/20 blur-3xl pointer-events-none"></div>
-        <div class="relative flex flex-col md:flex-row items-start md:items-center gap-5">
-            <div class="w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-violet-500 flex items-center justify-center text-white text-2xl font-bold uppercase shrink-0 shadow-lg">
+<div style="display:flex;flex-direction:column;gap:18px;">
+
+    <!-- Hero header -->
+    <section class="jh2-hero">
+        <div class="jh2-hero__halo" style="top:-40px;right:-40px;background:rgba(244,114,182,0.25);"></div>
+        <div class="jh2-hero__halo" style="bottom:-30px;left:30%;background:rgba(139,92,246,0.18);"></div>
+        <div class="jh2-hero__inner" style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#f472b6,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:800;text-transform:uppercase;flex-shrink:0;box-shadow:0 8px 24px -8px rgba(244,114,182,.5);">
                 {{ customer_email|slice:":1" }}
             </div>
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <h1 class="text-xl sm:text-2xl font-bold text-white truncate">
+            <div style="flex:1;min-width:240px;">
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+                    <h1 class="jh2-hero__title" style="margin:0;font-size:22px;">
                         {% if customer_first_name %}{{ customer_first_name|capfirst }}{% else %}{{ customer_email }}{% endif %}
                     </h1>
                     {% if customer_user_id %}
-                    <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-500/30">Cuenta registrada</span>
+                    {% include "admin/components/_pill.html" with text="Cuenta registrada" variant="success" static=True %}
                     {% else %}
-                    <span class="text-xs px-2 py-0.5 rounded-full bg-base-700 text-base-300 border border-base-600">Invitado</span>
+                    {% include "admin/components/_pill.html" with text="Invitado" variant="neutral" static=True %}
                     {% endif %}
                 </div>
-                <div class="text-sm text-base-300 mt-1 truncate">{{ customer_email }}</div>
+                <div style="font-size:13.5px;color:#cbd5e1;margin-top:4px;">{{ customer_email }}</div>
                 {% if customer_phone %}
-                <div class="text-sm text-base-400 mt-0.5">📱 {{ customer_phone }}</div>
+                <div style="font-size:12.5px;color:#94a3b8;margin-top:2px;">📱 {{ customer_phone }}</div>
                 {% endif %}
             </div>
-            <div class="flex flex-wrap gap-2 shrink-0">
+            <div class="jh2-actions" style="flex-shrink:0;">
                 {% if whatsapp_url %}
                 <a href="{{ whatsapp_url }}" target="_blank" rel="noopener"
-                   class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-white text-sm font-medium transition shadow-md"
-                   style="background: linear-gradient(135deg, #25d366, #128c7e);">
-                    <span class="material-symbols-outlined" style="font-size:18px;">chat</span>
+                   class="jh2-btn"
+                   style="background:linear-gradient(135deg,#25d366,#128c7e);color:#fff;">
+                    <span class="material-symbols-outlined" style="font-size:16px;">chat</span>
                     WhatsApp
                 </a>
                 {% endif %}
-                <a href="mailto:{{ customer_email }}"
-                   class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-medium transition">
-                    <span class="material-symbols-outlined" style="font-size:18px;">mail</span>
+                <a href="mailto:{{ customer_email }}" class="jh2-btn jh2-btn--ghost">
+                    <span class="material-symbols-outlined" style="font-size:16px;">mail</span>
                     Email
                 </a>
                 {% if last_order %}
-                <a href="{% url 'admin:orders_order_change' last_order.pk %}"
-                   class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white text-sm font-medium transition shadow-md">
-                    <span class="material-symbols-outlined" style="font-size:18px;">shopping_bag</span>
+                <a href="{% url 'admin:orders_order_change' last_order.pk %}" class="jh2-btn jh2-btn--primary">
+                    <span class="material-symbols-outlined" style="font-size:16px;">shopping_bag</span>
                     Último pedido
                 </a>
                 {% endif %}
@@ -57,129 +57,118 @@
         </div>
     </section>
 
-    <!-- Stats hero -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div class="p-5 rounded-xl border border-base-800 bg-gradient-to-br from-emerald-500/10 to-base-900">
-            <div class="text-xs uppercase tracking-wider text-emerald-300/80">Total gastado</div>
-            <div class="mt-2 text-2xl font-bold text-white">S/ {{ total_spent|floatformat:2 }}</div>
-            <div class="mt-1 text-xs text-base-400">{{ delivered_count }} entregado{{ delivered_count|pluralize }}</div>
+    <!-- Stats -->
+    <div class="jh2-stat-grid">
+      <article class="jh2-stat jh2-stat--success">
+        <span class="jh2-stat__icon material-symbols-outlined">payments</span>
+        <div class="jh2-stat__label">Total gastado</div>
+        <div class="jh2-stat__value">S/ {{ total_spent|floatformat:2 }}</div>
+        <div class="jh2-stat__hint">{{ delivered_count }} entregado{{ delivered_count|pluralize }}</div>
+      </article>
+      <article class="jh2-stat jh2-stat--info">
+        <span class="jh2-stat__icon material-symbols-outlined">shopping_cart</span>
+        <div class="jh2-stat__label">Pedidos</div>
+        <div class="jh2-stat__value">{{ orders_count }}</div>
+        <div class="jh2-stat__hint">en total</div>
+      </article>
+      <article class="jh2-stat jh2-stat--neutral">
+        <span class="jh2-stat__icon material-symbols-outlined">event</span>
+        <div class="jh2-stat__label">Última compra</div>
+        <div class="jh2-stat__value">
+          {% if days_since is not None %}{% if days_since == 0 %}Hoy{% else %}{{ days_since }}d{% endif %}{% else %}—{% endif %}
         </div>
-        <div class="p-5 rounded-xl border border-base-800 bg-gradient-to-br from-cyan-500/10 to-base-900">
-            <div class="text-xs uppercase tracking-wider text-cyan-300/80">Pedidos</div>
-            <div class="mt-2 text-2xl font-bold text-white">{{ orders_count }}</div>
-            <div class="mt-1 text-xs text-base-400">en total</div>
-        </div>
-        <div class="p-5 rounded-xl border border-base-800 bg-gradient-to-br from-violet-500/10 to-base-900">
-            <div class="text-xs uppercase tracking-wider text-violet-300/80">Última compra</div>
-            <div class="mt-2 text-2xl font-bold text-white">
-                {% if days_since is not None %}
-                    {% if days_since == 0 %}Hoy{% else %}{{ days_since }}d{% endif %}
-                {% else %}—{% endif %}
-            </div>
-            <div class="mt-1 text-xs text-base-400">
-                {% if last_paid_at %}{{ last_paid_at|date:"d M Y" }}{% else %}sin pagos{% endif %}
-            </div>
-        </div>
-        <div class="p-5 rounded-xl border border-base-800 bg-gradient-to-br from-pink-500/10 to-base-900">
-            <div class="text-xs uppercase tracking-wider text-pink-300/80">Producto favorito</div>
-            <div class="mt-2 text-base font-bold text-white truncate">{{ favorite_product|default:"—" }}</div>
-            <div class="mt-1 text-xs text-base-400">más comprado</div>
-        </div>
+        <div class="jh2-stat__hint">{% if last_paid_at %}{{ last_paid_at|date:"d M Y" }}{% else %}sin pagos{% endif %}</div>
+      </article>
+      <article class="jh2-stat jh2-stat--warning">
+        <span class="jh2-stat__icon material-symbols-outlined">favorite</span>
+        <div class="jh2-stat__label">Producto favorito</div>
+        <div class="jh2-stat__value" style="font-size:18px;line-height:1.2;">{{ favorite_product|default:"—" }}</div>
+        <div class="jh2-stat__hint">más comprado</div>
+      </article>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Timeline -->
-        <section class="lg:col-span-2 border border-base-800 bg-base-900 rounded-xl overflow-hidden">
-            <header class="px-5 py-3 border-b border-base-800 flex items-center justify-between">
-                <h2 class="font-semibold text-white flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary-400">timeline</span>
-                    Timeline
-                </h2>
-                <span class="text-xs text-base-400">{{ timeline|length }} evento{{ timeline|length|pluralize }}</span>
-            </header>
-            {% if timeline %}
-            <ol class="relative px-5 py-4">
-                <div class="absolute left-9 top-4 bottom-4 w-px bg-base-800"></div>
-                {% for ev in timeline %}
-                <li class="relative pl-12 pb-5 last:pb-0">
-                    <span
-                        class="absolute left-5 top-1 w-7 h-7 rounded-full flex items-center justify-center -translate-x-1/2 ring-4 ring-base-900"
-                        style="background: {{ ev.color }};"
-                    >
-                        <span class="material-symbols-outlined text-white" style="font-size:16px;">{{ ev.icon }}</span>
-                    </span>
-                    <a href="{{ ev.link }}" class="block group">
-                        <div class="text-sm font-medium text-white group-hover:text-primary-300 transition">
-                            {{ ev.title }}
-                        </div>
-                        {% if ev.detail %}
-                        <div class="text-xs text-base-400 mt-0.5">{{ ev.detail }}</div>
-                        {% endif %}
-                        <div class="text-xs text-base-500 mt-0.5">
-                            {{ ev.when|date:"d M Y · H:i" }}
-                        </div>
-                    </a>
-                </li>
-                {% endfor %}
-            </ol>
-            {% else %}
-            <div class="p-10 text-center text-base-400">
-                Sin actividad registrada para este cliente.
-            </div>
-            {% endif %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- Timeline -->
+      <section class="jh2-card jh2-card--flush lg:col-span-2">
+        <header style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;">
+          <h2 class="jh2-section-title" style="margin:0;">
+            <span class="material-symbols-outlined" style="color:#f472b6;">timeline</span>
+            Timeline
+          </h2>
+          <span class="jh2-table__muted">{{ timeline|length }} evento{{ timeline|length|pluralize }}</span>
+        </header>
+        {% if timeline %}
+        <ol class="jh2-timeline">
+          {% for ev in timeline %}
+          <li class="jh2-timeline__item">
+            <span class="jh2-timeline__bullet" style="background:{{ ev.color }};">
+              <span class="material-symbols-outlined" style="font-size:14px;color:#fff;">{{ ev.icon }}</span>
+            </span>
+            <a href="{{ ev.link }}" class="jh2-timeline__link">
+              <div class="jh2-timeline__title">{{ ev.title }}</div>
+              {% if ev.detail %}<div class="jh2-timeline__detail">{{ ev.detail }}</div>{% endif %}
+              <div class="jh2-timeline__when">{{ ev.when|date:"d M Y · H:i" }}</div>
+            </a>
+          </li>
+          {% endfor %}
+        </ol>
+        {% else %}
+        {% include "admin/components/_empty.html" with icon="history" title="Sin actividad" desc="Este cliente todavía no tiene eventos registrados." %}
+        {% endif %}
+      </section>
+
+      <!-- Sidebar -->
+      <aside style="display:flex;flex-direction:column;gap:14px;">
+        <section class="jh2-card jh2-card--padded">
+          <h3 class="jh2-section-title" style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;">
+            Pedidos recientes
+          </h3>
+          <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;">
+            {% for o in orders|slice:":5" %}
+            <li style="border-top:1px solid rgba(255,255,255,.05);padding-top:8px;">
+              <a href="{% url 'admin:orders_order_change' o.pk %}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;color:inherit;text-decoration:none;">
+                <div style="min-width:0;">
+                  <div class="jh2-table__strong">#{{ o.short_uuid }}</div>
+                  <div class="jh2-table__muted">{{ o.get_status_display }} · {{ o.created_at|date:"d M" }}</div>
+                </div>
+                <span class="jh2-mono" style="color:#6ee7b7;font-weight:600;">{{ o.currency }} {{ o.total }}</span>
+              </a>
+            </li>
+            {% empty %}
+            <li class="jh2-table__muted">Sin pedidos.</li>
+            {% endfor %}
+          </ul>
         </section>
 
-        <!-- Sidebar derecha: pedidos resumidos + acciones -->
-        <aside class="flex flex-col gap-4">
-            <section class="border border-base-800 bg-base-900 rounded-xl p-4">
-                <h3 class="text-xs uppercase tracking-wider text-base-400 mb-3">Pedidos recientes</h3>
-                <ul class="divide-y divide-base-800">
-                    {% for o in orders|slice:":5" %}
-                    <li class="py-2">
-                        <a href="{% url 'admin:orders_order_change' o.pk %}" class="flex items-center justify-between gap-2 text-sm hover:text-primary-300 transition">
-                            <div class="min-w-0">
-                                <div class="font-medium text-white truncate">#{{ o.short_uuid }}</div>
-                                <div class="text-xs text-base-400">{{ o.get_status_display }} · {{ o.created_at|date:"d M" }}</div>
-                            </div>
-                            <span class="text-sm font-semibold text-emerald-300">{{ o.currency }} {{ o.total }}</span>
-                        </a>
-                    </li>
-                    {% empty %}
-                    <li class="text-sm text-base-400 py-2">Sin pedidos.</li>
-                    {% endfor %}
-                </ul>
-            </section>
-
-            <section class="border border-base-800 bg-base-900 rounded-xl p-4">
-                <h3 class="text-xs uppercase tracking-wider text-base-400 mb-3">Acciones rápidas</h3>
-                <div class="flex flex-col gap-2">
-                    <a href="{% url 'admin:orders_order_add' %}?email={{ customer_email|urlencode }}{% if customer_phone %}&phone={{ customer_phone|urlencode }}{% endif %}"
-                       class="inline-flex items-center gap-2 px-3 py-2 bg-primary-500 hover:bg-primary-600 rounded-lg text-white text-sm font-medium transition">
-                        <span class="material-symbols-outlined" style="font-size:18px;">add_shopping_cart</span>
-                        Crear pedido manual
-                    </a>
-                    <a href="{% url 'admin_renewals' %}?q={{ customer_email|urlencode }}"
-                       class="inline-flex items-center gap-2 px-3 py-2 bg-violet-500/20 hover:bg-violet-500/30 text-violet-200 rounded-lg text-sm font-medium transition">
-                        <span class="material-symbols-outlined" style="font-size:18px;">autorenew</span>
-                        Ver renovaciones
-                    </a>
-                    {% if reviews %}
-                    <a href="{% url 'admin:catalog_productreview_changelist' %}?q={{ customer_email|urlencode }}"
-                       class="inline-flex items-center gap-2 px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 rounded-lg text-sm font-medium transition">
-                        <span class="material-symbols-outlined" style="font-size:18px;">star</span>
-                        Reseñas ({{ reviews|length }})
-                    </a>
-                    {% endif %}
-                    {% if tickets %}
-                    <a href="{% url 'admin:support_ticket_changelist' %}?q={{ customer_email|urlencode }}"
-                       class="inline-flex items-center gap-2 px-3 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 rounded-lg text-sm font-medium transition">
-                        <span class="material-symbols-outlined" style="font-size:18px;">support_agent</span>
-                        Tickets ({{ tickets|length }})
-                    </a>
-                    {% endif %}
-                </div>
-            </section>
-        </aside>
+        <section class="jh2-card jh2-card--padded">
+          <h3 class="jh2-section-title" style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;">
+            Acciones rápidas
+          </h3>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <a href="{% url 'admin:orders_order_add' %}?email={{ customer_email|urlencode }}{% if customer_phone %}&phone={{ customer_phone|urlencode }}{% endif %}"
+               class="jh2-btn jh2-btn--primary">
+              <span class="material-symbols-outlined" style="font-size:16px;">add_shopping_cart</span>
+              Crear pedido manual
+            </a>
+            <a href="{% url 'admin_renewals' %}?q={{ customer_email|urlencode }}" class="jh2-btn jh2-btn--ghost">
+              <span class="material-symbols-outlined" style="font-size:16px;">autorenew</span>
+              Ver renovaciones
+            </a>
+            {% if reviews %}
+            <a href="{% url 'admin:catalog_productreview_changelist' %}?q={{ customer_email|urlencode }}" class="jh2-btn jh2-btn--ghost">
+              <span class="material-symbols-outlined" style="font-size:16px;">star</span>
+              Reseñas ({{ reviews|length }})
+            </a>
+            {% endif %}
+            {% if tickets %}
+            <a href="{% url 'admin:support_ticket_changelist' %}?q={{ customer_email|urlencode }}" class="jh2-btn jh2-btn--ghost">
+              <span class="material-symbols-outlined" style="font-size:16px;">support_agent</span>
+              Tickets ({{ tickets|length }})
+            </a>
+            {% endif %}
+          </div>
+        </section>
+      </aside>
     </div>
 </div>
 {% endblock %}
