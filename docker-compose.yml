@@ -4,12 +4,16 @@ services:
   web:
     build: .
     # Gunicorn:
-    # - 2 workers + 4 threads (gthread) en VPS de 1 CPU: 8 reqs concurrentes vs 3 antes,
-    #   sin que se serialicen requests bajo carga (sync con 1 CPU se serializa).
+    # - 3 workers + 4 threads (gthread): 12 reqs concurrentes; con --preload los
+    #   workers comparten memoria del master, así que 3 workers caben en 2GB RAM
+    #   sin estresar al sistema. Si un worker se cuelga en una query lenta del
+    #   admin, los otros 2 siguen sirviendo y nginx no tira 504.
+    # - --timeout 30: mata workers atascados a los 30s (default explícito).
+    # - --graceful-timeout 10: tras SIGTERM espera solo 10s antes de SIGKILL.
     # - --preload: carga el código una vez en master, fork() en workers (ahorra RAM).
-    # - --keepalive 5: nginx reusa la conexión a gunicorn, evita TCP handshake.
+    # - --keep-alive 5: nginx reusa la conexión a gunicorn, evita TCP handshake.
     # - --max-requests + jitter: recicla workers cada ~1k requests (evita memory leaks).
-    command: ["bash", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 4 --worker-class gthread --preload --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -"]
+    command: ["bash", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 4 --worker-class gthread --preload --timeout 30 --graceful-timeout 10 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -"]
     env_file: .env
     volumes:
       - ./media:/app/media
