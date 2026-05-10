@@ -182,6 +182,32 @@ class AdminChatTests(TestCase):
         resp = self.client.get(reverse("admin_livechat_index"))
         self.assertEqual(resp.status_code, 302)
 
+    def test_chat_detail_loads_htmx_script(self):
+        """Regression: el form de respuesta usa hx-post; sin htmx cargado el
+        navegador hacía un POST regular y la página se recargaba (= "se va a
+        otra pantalla"). Verifica que el template carga el bundle de htmx."""
+        room = ChatRoom.objects.create(customer_email="a@b.com")
+        resp = self.client.get(reverse("admin_livechat_detail", args=[room.pk]))
+        self.assertEqual(resp.status_code, 200)
+        # Django agrega un hash al filename via ManifestStaticFilesStorage,
+        # por eso buscamos el prefijo "htmx.min" (matchea htmx.min.js o
+        # htmx.min.<hash>.js)
+        self.assertIn(b"htmx.min", resp.content)
+
+    def test_chat_reply_with_htmx_returns_partial(self):
+        """Cuando el form se manda con HX-Request=true, la vista devuelve
+        sólo el partial del thread (no redirige)."""
+        room = ChatRoom.objects.create(customer_email="a@b.com")
+        resp = self.client.post(
+            reverse("admin_livechat_reply", args=[room.pk]),
+            data={"body": "Hola"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(resp.status_code, 200)
+        # Tiene que ser el partial, no una redirección.
+        self.assertContains(resp, 'id="livechat-thread"')
+        self.assertContains(resp, "Hola")
+
 
 class TelegramNotifyTests(TestCase):
     """Notificación al admin por Telegram cuando llega un mensaje del cliente."""
