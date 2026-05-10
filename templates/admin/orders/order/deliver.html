@@ -4,86 +4,93 @@
 {% block title %}{{ title }} | {{ site_title }}{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto flex flex-col gap-6">
-  <div>
-    <h1 class="text-2xl font-bold text-base-900 dark:text-white">Entregar credenciales</h1>
-    <p class="mt-1 text-sm text-base-500 dark:text-base-400">
-      Pedido <strong>#{{ order.short_uuid }}</strong> · Cliente:
-      {{ order.user.get_full_name|default:order.email }} · Total: {{ order.currency }} {{ order.total }}
-    </p>
+<div style="max-width:920px;margin:0 auto;display:flex;flex-direction:column;gap:18px;">
+
+  <div class="jh2-page-head">
+    <div>
+      <div class="jh2-page-head__eyebrow">Pedido #{{ order.short_uuid }}</div>
+      <h1 class="jh2-page-head__title">Entregar credenciales</h1>
+      <p class="jh2-page-head__subtitle">
+        Cliente: <strong>{{ order.user.get_full_name|default:order.email }}</strong> ·
+        Total: <strong>{{ order.currency }} {{ order.total }}</strong>
+      </p>
+    </div>
   </div>
 
   {% if order.payment_provider == "yape" and order.payment_proof %}
-  <div class="p-4 border border-amber-500/30 bg-amber-500/5 rounded-lg">
-    <div class="text-sm font-semibold text-amber-200 mb-2">Comprobante de pago Yape</div>
-    <a href="{{ order.payment_proof.url }}" target="_blank">
+  <div class="jh2-card jh2-card--padded" style="border-color:rgba(245,158,11,.4);">
+    <h3 class="jh2-section-title" style="color:#fcd34d;">
+      <span class="material-symbols-outlined" style="color:#fcd34d;">receipt_long</span>
+      Comprobante de pago Yape
+    </h3>
+    <a href="{{ order.payment_proof.url }}" target="_blank" rel="noopener">
       <img src="{{ order.payment_proof.url }}" alt="Comprobante"
-           style="max-width:300px;max-height:400px;border-radius:8px" />
+           style="max-width:300px;max-height:400px;border-radius:8px;display:block;" />
     </a>
   </div>
   {% endif %}
 
-  <form method="post" class="flex flex-col gap-5 p-6 border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900">
+  <form method="post" class="jh2-card jh2-card--padded" style="display:flex;flex-direction:column;gap:18px;">
     {% csrf_token %}
     {% for data in form.items_data %}
-    <div class="border border-base-200 dark:border-base-800 rounded-lg p-4">
-      <div class="flex items-baseline justify-between gap-3 mb-3">
-        <div class="font-semibold text-base-900 dark:text-white">
+    <div class="jh2-card" style="padding:14px 16px;background:rgba(15,23,42,.4);">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px;">
+        <div class="jh2-table__strong" style="font-size:14.5px;font-weight:600;">
           {{ data.item.product_name }} — {{ data.item.plan_name }}
         </div>
         {% if data.item.requested_profile_name or data.item.requested_pin %}
-        <div class="text-xs text-base-500">
-          {% if data.item.requested_profile_name %}Perfil: <strong>{{ data.item.requested_profile_name }}</strong>{% endif %}
-          {% if data.item.requested_pin %} · PIN: <strong>{{ data.item.requested_pin }}</strong>{% endif %}
+        <div class="jh2-table__muted">
+          {% if data.item.requested_profile_name %}Perfil: <strong style="color:#f1f5f9;">{{ data.item.requested_profile_name }}</strong>{% endif %}
+          {% if data.item.requested_pin %} · PIN: <strong style="color:#f1f5f9;">{{ data.item.requested_pin }}</strong>{% endif %}
         </div>
         {% endif %}
       </div>
 
       {% if data.stocks %}
-      <div class="mb-3 p-3 bg-pink-500/5 border border-pink-500/20 rounded-md">
-        <div class="text-xs font-semibold text-pink-300 mb-2">
-          📦 Stock disponible ({{ data.stocks|length }}) — click para auto-rellenar:
+      <div class="jh2-alert jh2-alert--info" style="margin-bottom:12px;">
+        <div style="font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">inventory_2</span>
+          Stock disponible ({{ data.stocks|length }}) — click para auto-rellenar
         </div>
-        <div class="flex flex-wrap gap-2">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
           {% for stock in data.stocks %}
           <button type="button"
-                  class="stock-fill-btn px-3 py-1.5 text-xs rounded border border-pink-400/40 bg-pink-500/10 hover:bg-pink-500/25 text-pink-100 transition"
+                  class="stock-fill-btn jh2-btn jh2-btn--ghost jh2-btn--sm"
                   data-target-creds="{{ data.creds_id }}"
                   data-target-stock-id="{{ data.stock_id }}"
                   data-stock-id="{{ stock.pk }}"
                   data-credentials="{{ stock.credentials }}">
             #{{ stock.pk }}{% if stock.label %} · {{ stock.label }}{% endif %}
-            {% if stock.plan %}<span class="opacity-60"> · {{ stock.plan.name }}</span>{% endif %}
+            {% if stock.plan %}<span style="opacity:.6;"> · {{ stock.plan.name }}</span>{% endif %}
           </button>
           {% endfor %}
         </div>
       </div>
       {% else %}
-      <div class="mb-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-md text-xs text-amber-200">
-        ⚠️ Sin stock disponible para este producto. Pega las credenciales manualmente o carga stock primero.
+      <div class="jh2-alert jh2-alert--warning" style="margin-bottom:12px;">
+        Sin stock disponible para este producto. Pegá las credenciales manualmente o cargá stock primero.
       </div>
       {% endif %}
 
-      <label class="block text-sm font-medium text-base-900 dark:text-white mb-1">
-        Credenciales a enviar
-      </label>
-      {{ data.creds_field }}
-      {{ data.stock_field }}
+      <div class="jh2-field">
+        <label class="jh2-field__label">Credenciales a enviar</label>
+        {{ data.creds_field }}
+        {{ data.stock_field }}
+      </div>
 
-      <label class="block text-sm font-medium text-base-900 dark:text-white mt-3 mb-1">
-        Vence (opcional)
-      </label>
-      {{ data.expires_field }}
+      <div class="jh2-field" style="margin-top:10px;">
+        <label class="jh2-field__label">Vence (opcional)</label>
+        {{ data.expires_field }}
+      </div>
     </div>
     {% endfor %}
 
-    <div class="flex gap-3 pt-3 border-t border-base-200 dark:border-base-800">
-      <button type="submit"
-        class="px-5 py-2 rounded bg-primary-500 hover:bg-primary-600 text-white font-semibold">
-        Guardar y enviar email al cliente
+    <div class="jh2-actions" style="border-top:1px solid rgba(255,255,255,.06);padding-top:14px;justify-content:flex-start;">
+      <button type="submit" class="jh2-btn jh2-btn--primary">
+        <span class="material-symbols-outlined" style="font-size:16px;">send</span>
+        Guardar y enviar email
       </button>
-      <a href="{% url 'admin:orders_order_change' order.pk %}"
-        class="px-5 py-2 rounded border border-base-200 dark:border-base-700 hover:bg-base-50 dark:hover:bg-base-800">
+      <a href="{% url 'admin:orders_order_change' order.pk %}" class="jh2-btn jh2-btn--ghost">
         Cancelar
       </a>
     </div>
@@ -98,11 +105,12 @@ document.addEventListener('click', function (e) {
   const stockEl = document.getElementById(btn.dataset.targetStockId);
   if (credsEl) credsEl.value = btn.dataset.credentials;
   if (stockEl) stockEl.value = btn.dataset.stockId;
-  // Visual feedback: highlight the chosen button.
   btn.parentElement.querySelectorAll('.stock-fill-btn').forEach(b => {
-    b.classList.remove('ring-2', 'ring-pink-400', 'bg-pink-500/30');
+    b.classList.remove('jh2-btn--primary');
+    b.classList.add('jh2-btn--ghost');
   });
-  btn.classList.add('ring-2', 'ring-pink-400', 'bg-pink-500/30');
+  btn.classList.remove('jh2-btn--ghost');
+  btn.classList.add('jh2-btn--primary');
 });
 </script>
 {% endblock %}
