@@ -1,0 +1,16 @@
+{% comment %}
+Componente: pill / badge de estado 2026.
+
+Parámetros (vía `with`):
+  text     — string, label visible (obligatorio).
+  variant  — "success" | "info" | "warning" | "danger" | "primary" | "neutral".
+  static   — bool, si true desactiva la animación del dot.
+  dot      — bool (default true). Si false, no muestra el dot.
+
+Uso:
+  include "admin/components/_pill.html" with text="Pagado" variant="success"
+{% endcomment %}
+<span class="jh2-pill jh2-pill--{{ variant|default:'neutral' }}{% if static %} jh2-pill--static{% endif %}">
+  {% if dot|default_if_none:True %}<span class="jh2-pill__dot"></span>{% endif %}
+  <span>{{ text }}</span>
+</span>

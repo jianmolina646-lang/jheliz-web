@@ -290,6 +290,10 @@ UNFOLD = {
         lambda request: _hashed_static("admin/notifications_bell.css"),
         lambda request: _hashed_static("admin/users_redesign.css"),
         lambda request: _hashed_static("admin/changelist_polish.css"),
+        # Capa "2026": sistema de diseño moderno (glass cards, pills, bento
+        # stats, empty states ilustrados). Se carga al final para que sus
+        # tokens y clases `.jh2-*` puedan sobrescribir reglas previas.
+        lambda request: _hashed_static("admin/jheliz_2026.css"),
     ],
     "SCRIPTS": [
         lambda request: _hashed_static("admin/global_search.js"),

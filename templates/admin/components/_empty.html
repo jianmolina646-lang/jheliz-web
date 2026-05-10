@@ -1,0 +1,23 @@
+{% comment %}
+Componente: empty state 2026 (icono flotante + título + descripción + CTA).
+
+Parámetros (vía `with`):
+  icon          — material-symbols (ej. "inbox").
+  title         — string.
+  desc          — string opcional.
+  cta_label     — string opcional (texto del botón).
+  cta_href      — string opcional (link del botón).
+
+Uso:
+  include "admin/components/_empty.html" with icon="inbox" title="No hay pedidos" desc="Cuando llegue uno, aparecerá acá." cta_label="Crear pedido" cta_href="/panel-jheliz-2026/pedidos/quick/"
+{% endcomment %}
+<div class="jh2-empty">
+  <div class="jh2-empty__icon">
+    <span class="material-symbols-outlined">{{ icon|default:"inbox" }}</span>
+  </div>
+  <div class="jh2-empty__title">{{ title|default:"Nada por acá" }}</div>
+  {% if desc %}<div class="jh2-empty__desc">{{ desc }}</div>{% endif %}
+  {% if cta_label and cta_href %}
+    <a href="{{ cta_href }}" class="jh2-btn jh2-btn--primary">{{ cta_label }}</a>
+  {% endif %}
+</div>

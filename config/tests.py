@@ -428,3 +428,72 @@ class FooterPickerRenderTests(TestCase):
         self.assertIn("Perú", body)
         self.assertIn("Brasil", body)
         self.assertIn("Argentina", body)
+
+
+class AdminDesignSystem2026Tests(TestCase):
+    """PR1 del rediseño 2026: verifica que los assets nuevos del sistema
+    de diseño se cargan en el admin y que los componentes reusables
+    renderizan."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staff-design",
+            password="x",
+            email="staff-design@example.com",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_login(self.staff)
+
+    def test_admin_loads_jheliz_2026_css(self):
+        # Usamos /panel-jheliz-2026/ (la home del admin) para verificar que
+        # Unfold inyecta nuestra capa CSS 2026. Manifest static storage le
+        # añade un hash al filename, por eso buscamos el prefijo.
+        resp = self.client.get("/panel-jheliz-2026/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "jheliz_2026")
+
+    def test_pill_component_renders(self):
+        from django.template import Context, Template
+
+        tpl = Template(
+            "{% include 'admin/components/_pill.html' "
+            "with text='Pagado' variant='success' %}"
+        )
+        out = tpl.render(Context({}))
+        self.assertIn("jh2-pill", out)
+        self.assertIn("jh2-pill--success", out)
+        self.assertIn("Pagado", out)
+
+    def test_stat_component_renders_with_link(self):
+        from django.template import Context, Template
+
+        tpl = Template(
+            "{% include 'admin/components/_stat.html' with "
+            "label='Pedidos hoy' value='42' icon='shopping_cart' "
+            "variant='info' href='/foo/' %}"
+        )
+        out = tpl.render(Context({}))
+        self.assertIn("jh2-stat", out)
+        self.assertIn("jh2-stat--info", out)
+        self.assertIn('href="/foo/"', out)
+        self.assertIn("42", out)
+        self.assertIn("Pedidos hoy", out)
+        self.assertIn("shopping_cart", out)
+
+    def test_empty_component_renders_with_cta(self):
+        from django.template import Context, Template
+
+        tpl = Template(
+            "{% include 'admin/components/_empty.html' with "
+            "icon='inbox' title='Sin pedidos' "
+            "desc='Cuando llegue uno aparece acá.' "
+            "cta_label='Crear' cta_href='/x/' %}"
+        )
+        out = tpl.render(Context({}))
+        self.assertIn("jh2-empty", out)
+        self.assertIn("Sin pedidos", out)
+        self.assertIn("Cuando llegue uno aparece acá.", out)
+        self.assertIn('href="/x/"', out)
+        self.assertIn(">Crear<", out)
