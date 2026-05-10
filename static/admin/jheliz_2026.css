@@ -138,6 +138,8 @@
 .jh2-stat--warning { --jh2-stat-glow: var(--jh2-grad-warning); }
 .jh2-stat--info    { --jh2-stat-glow: var(--jh2-grad-info); }
 .jh2-stat--neutral { --jh2-stat-glow: var(--jh2-grad-neutral); }
+.jh2-stat--danger  { --jh2-stat-glow: linear-gradient(135deg, #ef4444 0%, #f59e0b 100%); }
+.jh2-stat--primary { --jh2-stat-glow: var(--jh2-grad-primary); }
 
 /* ---------------------------------------------------------------- */
 /* Section: encabezado de página + breadcrumb-lite                   */
@@ -479,3 +481,202 @@
     .jh2-pill__dot { animation: none !important; }
     .jh2-btn--primary::after { display: none; }
 }
+
+/* ----------------------------------------------------------------- */
+/* Section: utilidades adicionales (PR2+)                              */
+/* ----------------------------------------------------------------- */
+
+/* Chips en toolbar (alias semántico) */
+.jh2-toolbar__label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: rgba(226,232,240,.55);
+    margin-right: 4px;
+}
+.jh2-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(226,232,240,.78);
+    background: rgba(148,163,184,.08);
+    border: 1px solid rgba(255,255,255,.06);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .2s ease, color .2s ease, border-color .2s ease;
+}
+.jh2-chip:hover {
+    background: rgba(148,163,184,.14);
+    color: #f1f5f9;
+}
+.jh2-chip--active {
+    background: linear-gradient(135deg, rgba(168,85,247,.22), rgba(99,102,241,.22));
+    color: #fef3c7;
+    border-color: rgba(168,85,247,.45);
+    box-shadow: 0 0 0 1px rgba(168,85,247,.25);
+}
+
+/* Variantes adicionales del card */
+.jh2-card--padded { padding: 18px 20px; }
+.jh2-card--flush  { padding: 0; overflow: hidden; }
+
+/* Section title con icono inline */
+.jh2-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin: 0 0 14px 0;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.jh2-section-title .material-symbols-outlined {
+    font-size: 18px;
+    color: rgba(168,85,247,.8);
+}
+
+/* Helpers de tabla */
+.jh2-table__right    { text-align: right; }
+.jh2-table__mono     { font-family: ui-monospace, "JetBrains Mono", Menlo, monospace; font-variant-numeric: tabular-nums; color: #f1f5f9; font-size: 13px; }
+.jh2-table__strong   { color: #f1f5f9; font-weight: 500; }
+.jh2-table__muted    { color: rgba(226,232,240,.5); font-size: 11.5px; margin-top: 2px; }
+.jh2-table__link     { color: #c4b5fd; font-size: 11.5px; text-decoration: none; }
+.jh2-table__link:hover { text-decoration: underline; }
+
+/* Helper text genérico */
+.jh2-helper {
+    font-size: 11.5px;
+    color: rgba(148,163,184,.7);
+    margin: 8px 4px 0;
+}
+
+/* Tags / mini-pills sin glow (para indicadores de estado en celdas) */
+.jh2-tags { display: inline-flex; gap: 4px; }
+.jh2-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    background: rgba(71,85,105,.25);
+    color: rgba(148,163,184,.6);
+    border: 1px solid rgba(255,255,255,.04);
+}
+.jh2-tag--info {
+    background: rgba(59,130,246,.18);
+    color: #93c5fd;
+    border-color: rgba(59,130,246,.3);
+}
+.jh2-tag--success {
+    background: rgba(16,185,129,.18);
+    color: #6ee7b7;
+    border-color: rgba(16,185,129,.3);
+}
+
+/* Acciones inline (pill de botones a la derecha de fila) */
+.jh2-actions { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.jh2-inline-form { display: inline; margin: 0; padding: 0; }
+
+/* Variantes botón */
+.jh2-btn--sm {
+    padding: 6px 11px;
+    font-size: 11.5px;
+}
+.jh2-btn--success {
+    background: rgba(16,185,129,.12);
+    color: #6ee7b7;
+    border: 1px solid rgba(16,185,129,.4);
+}
+.jh2-btn--success:hover {
+    background: rgba(16,185,129,.22);
+    border-color: rgba(16,185,129,.6);
+}
+
+
+
+/* ----------------------------------------------------------------- */
+/* Section: hero banner del dashboard                                 */
+/* ----------------------------------------------------------------- */
+.jh2-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px;
+    padding: 28px 28px 26px;
+    background:
+        linear-gradient(135deg, rgba(168,85,247,.12) 0%, rgba(99,102,241,.08) 50%, rgba(236,72,153,.10) 100%),
+        rgba(15,23,42,0.55);
+    border: 1px solid rgba(168,85,247,.20);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,.04) inset,
+        0 24px 64px -24px rgba(168,85,247,.30);
+    isolation: isolate;
+}
+.jh2-hero__halo {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: -1;
+    filter: blur(70px);
+}
+.jh2-hero__halo--a {
+    width: 320px; height: 320px;
+    top: -120px; right: -100px;
+    background: radial-gradient(circle, rgba(236,72,153,.45), transparent 70%);
+    opacity: .55;
+}
+.jh2-hero__halo--b {
+    width: 260px; height: 260px;
+    bottom: -120px; left: -80px;
+    background: radial-gradient(circle, rgba(99,102,241,.45), transparent 70%);
+    opacity: .42;
+}
+.jh2-hero__inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+@media (min-width: 720px) {
+    .jh2-hero__inner { flex-direction: row; align-items: center; gap: 24px; }
+}
+.jh2-hero__title {
+    font-size: clamp(1.6rem, 1.2vw + 1.4rem, 2.1rem);
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.15;
+    margin: 0;
+    letter-spacing: -.02em;
+}
+.jh2-hero__name {
+    background: var(--jh2-grad-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.jh2-hero__sub {
+    color: rgba(226,232,240,.78);
+    font-size: 13.5px;
+    margin: 8px 0 0;
+    line-height: 1.55;
+}
+.jh2-hero__sub strong { color: #f8fafc; font-weight: 600; }
+.jh2-hero__money {
+    color: #6ee7b7 !important;
+    font-variant-numeric: tabular-nums;
+}
+.jh2-hero__alert {
+    color: #fcd34d !important;
+    text-decoration: none;
+}
+.jh2-hero__alert:hover { text-decoration: underline; text-underline-offset: 2px; }
