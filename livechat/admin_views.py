@@ -75,6 +75,24 @@ def chat_detail(request: HttpRequest, room_id: int):
     )
 
 
+def _render_messages_partial(request: HttpRequest, room: ChatRoom):
+    """Render del thread completo. Lo usan tanto el endpoint de polling como
+    la respuesta htmx después de un POST de reply (acá no podemos llamar a
+    `chat_messages_partial` directamente porque tiene `@require_GET`)."""
+    room.mark_admin_seen()
+    return render(
+        request,
+        "admin/livechat/_messages.html",
+        {
+            "room": room,
+            "messages_thread": list(room.messages.all()),
+            "messages_poll_url": reverse(
+                "admin_livechat_messages", args=[room.pk]
+            ),
+        },
+    )
+
+
 @staff_member_required
 @require_POST
 def chat_reply(request: HttpRequest, room_id: int):
@@ -82,7 +100,7 @@ def chat_reply(request: HttpRequest, room_id: int):
     body = (request.POST.get("body") or "").strip()
     if not body:
         if request.headers.get("HX-Request"):
-            return chat_messages_partial(request, room_id)
+            return _render_messages_partial(request, room)
         return redirect("admin_livechat_detail", room_id=room.pk)
 
     body = body[:4000]
@@ -97,7 +115,7 @@ def chat_reply(request: HttpRequest, room_id: int):
         room.mark_admin_seen()
 
     if request.headers.get("HX-Request"):
-        return chat_messages_partial(request, room_id)
+        return _render_messages_partial(request, room)
     return redirect("admin_livechat_detail", room_id=room.pk)
 
 
@@ -106,18 +124,7 @@ def chat_reply(request: HttpRequest, room_id: int):
 def chat_messages_partial(request: HttpRequest, room_id: int):
     """HTMX poll endpoint — devuelve solo el partial con el thread."""
     room = get_object_or_404(ChatRoom, pk=room_id)
-    room.mark_admin_seen()
-    return render(
-        request,
-        "admin/livechat/_messages.html",
-        {
-            "room": room,
-            "messages_thread": list(room.messages.all()),
-            "messages_poll_url": reverse(
-                "admin_livechat_messages", args=[room.pk]
-            ),
-        },
-    )
+    return _render_messages_partial(request, room)
 
 
 @staff_member_required

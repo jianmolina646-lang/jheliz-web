@@ -2444,3 +2444,280 @@ def auditlog_detail(request, pk: int):
         diffs=diffs,
     )
     return render(request, "admin/auditlog_detail.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Crear pedido rápido (registro express de venta ya pagada)
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def quick_order_create(request):
+    """Vista express para registrar una venta ya cerrada.
+
+    El admin viene acá cuando un cliente ya pagó por fuera (Yape directo,
+    efectivo, transferencia) y necesita registrar la venta + entregar el
+    stock en un solo paso. Reduce el flujo de "crear pedido > agregar item
+    > marcar pagado > entregar credenciales" a un único formulario.
+    """
+    from django.contrib.auth import get_user_model
+    from catalog.models import Plan, Product, StockItem
+    from orders.models import Order, OrderItem
+    from orders import emails as order_emails
+    from orders import telegram as order_telegram
+
+    User = get_user_model()
+
+    plans_qs = (
+        Plan.objects.filter(is_active=True, product__is_active=True)
+        .select_related("product")
+        .order_by("product__name", "duration_days")
+    )
+
+    if request.method == "POST":
+        # ---- Lectura del POST -------------------------------------------
+        email = (request.POST.get("email") or "").strip().lower()
+        full_name = (request.POST.get("full_name") or "").strip()
+        phone = (request.POST.get("phone") or "").strip()
+        plan_id = request.POST.get("plan_id") or ""
+        quantity_raw = request.POST.get("quantity") or "1"
+        payment_method = (request.POST.get("payment_method") or "manual").strip()
+        paid_at_raw = (request.POST.get("paid_at") or "").strip()
+        notes = (request.POST.get("notes") or "").strip()
+        auto_deliver = request.POST.get("auto_deliver") == "on"
+        manual_credentials = (request.POST.get("manual_credentials") or "").strip()
+        send_email = request.POST.get("send_email") == "on"
+
+        errors = []
+        if not email or "@" not in email:
+            errors.append("Email del cliente inválido o vacío.")
+        if not plan_id:
+            errors.append("Tenés que elegir un plan.")
+        try:
+            quantity = max(1, min(20, int(quantity_raw)))
+        except (TypeError, ValueError):
+            errors.append("Cantidad inválida.")
+            quantity = 1
+
+        plan = None
+        if plan_id:
+            plan = plans_qs.filter(pk=plan_id).first()
+            if plan is None:
+                errors.append("El plan elegido no existe o está inactivo.")
+
+        # paid_at: si el admin no la setea, usamos ahora.
+        paid_at = timezone.now()
+        if paid_at_raw:
+            try:
+                paid_at_naive = datetime.fromisoformat(paid_at_raw)
+                if timezone.is_naive(paid_at_naive):
+                    paid_at = timezone.make_aware(paid_at_naive)
+                else:
+                    paid_at = paid_at_naive
+            except ValueError:
+                errors.append("Fecha de pago inválida (usa AAAA-MM-DDTHH:MM).")
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+            return _quick_order_render(
+                request, plans_qs,
+                preset={
+                    "email": email,
+                    "full_name": full_name,
+                    "phone": phone,
+                    "plan_id": plan_id,
+                    "quantity": quantity_raw,
+                    "payment_method": payment_method,
+                    "paid_at": paid_at_raw,
+                    "notes": notes,
+                    "auto_deliver": auto_deliver,
+                    "manual_credentials": manual_credentials,
+                    "send_email": send_email,
+                },
+            )
+
+        # ---- Get or create cliente --------------------------------------
+        with transaction.atomic():
+            user = User.objects.filter(email__iexact=email).first()
+            created_user = False
+            if user is None:
+                # Username único: usamos el email truncado (Django permite
+                # username con `@`).
+                base_username = email[:150]
+                username = base_username
+                suffix = 1
+                while User.objects.filter(username=username).exists():
+                    suffix += 1
+                    username = f"{base_username[:140]}-{suffix}"
+                first_name = full_name.split(" ", 1)[0] if full_name else ""
+                last_name = full_name.split(" ", 1)[1] if " " in full_name else ""
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                )
+                # Password aleatorio (cliente lo resetea con "olvidé mi clave").
+                user.set_unusable_password()
+                user.save(update_fields=["password"])
+                created_user = True
+            else:
+                # Actualizamos teléfono si vino y el user no tenía.
+                if phone and not user.phone:
+                    user.phone = phone
+                    user.save(update_fields=["phone"])
+
+            # ---- Crear order ------------------------------------------------
+            unit_price = plan.price_for(user)
+            order = Order.objects.create(
+                user=user,
+                email=email,
+                phone=phone or user.phone,
+                channel=Order.Channel.MANUAL,
+                status=Order.Status.PAID,
+                payment_provider=payment_method,
+                paid_at=paid_at,
+                notes=notes,
+            )
+            item = OrderItem.objects.create(
+                order=order,
+                product=plan.product,
+                plan=plan,
+                product_name=plan.product.name,
+                plan_name=plan.name,
+                unit_price=unit_price,
+                quantity=quantity,
+            )
+            order.recompute_total()
+
+            # ---- Auto-entrega opcional --------------------------------------
+            delivered = False
+            if auto_deliver:
+                # El signal post_save de OrderItem ya pudo haber reservado
+                # un StockItem (status=RESERVED) automáticamente. Lo usamos
+                # si está disponible; si no, buscamos uno AVAILABLE.
+                item.refresh_from_db()
+                stock = None
+                if item.stock_item_id:
+                    candidate = (
+                        StockItem.objects.select_for_update()
+                        .filter(
+                            pk=item.stock_item_id,
+                            status__in=[
+                                StockItem.Status.AVAILABLE,
+                                StockItem.Status.RESERVED,
+                            ],
+                        )
+                        .first()
+                    )
+                    if candidate is not None:
+                        stock = candidate
+                if stock is None:
+                    stock = (
+                        StockItem.objects.select_for_update()
+                        .filter(
+                            product_id=plan.product_id,
+                            status=StockItem.Status.AVAILABLE,
+                        )
+                        .filter(
+                            Q(plan_id=plan.pk) | Q(plan__isnull=True)
+                        )
+                        .order_by("created_at")
+                        .first()
+                    )
+                now = timezone.now()
+                if stock is not None:
+                    stock.status = StockItem.Status.SOLD
+                    stock.sold_at = now
+                    stock.save(update_fields=["status", "sold_at"])
+                    item.stock_item = stock
+                    item.delivered_credentials = stock.credentials
+                    if plan.duration_days and not item.expires_at:
+                        item.expires_at = now + timedelta(days=plan.duration_days)
+                    item.save(update_fields=[
+                        "stock_item", "delivered_credentials", "expires_at",
+                    ])
+                    delivered = True
+                elif manual_credentials:
+                    # Prioridad 2: credenciales escritas a mano.
+                    item.delivered_credentials = manual_credentials
+                    if plan.duration_days and not item.expires_at:
+                        item.expires_at = now + timedelta(days=plan.duration_days)
+                    item.save(update_fields=["delivered_credentials", "expires_at"])
+                    delivered = True
+
+                if delivered:
+                    order.status = Order.Status.DELIVERED
+                    order.delivered_at = now
+                    order.save(update_fields=["status", "delivered_at"])
+
+        # ---- Notificaciones (fuera de la transacción) ---------------------
+        if delivered and send_email:
+            try:
+                order_emails.send_order_delivered(order)
+            except Exception:
+                # No bloqueamos: queda registrado en EmailLog si falla.
+                pass
+
+        try:
+            label = "creado" if not delivered else "creado + entregado"
+            order_telegram.notify_admin(
+                f"📝 Pedido manual {label}: #{order.short_uuid} · "
+                f"{plan.product.name} {plan.name} · S/ {order.total} · {email}"
+                + (" (cliente nuevo)" if created_user else "")
+            )
+        except Exception:
+            pass
+
+        if delivered:
+            messages.success(
+                request,
+                f"Pedido #{order.short_uuid} registrado y entregado. "
+                + ("Email enviado al cliente." if send_email else "")
+            )
+        elif auto_deliver and not delivered:
+            messages.warning(
+                request,
+                f"Pedido #{order.short_uuid} registrado, pero NO se entregó: "
+                "no hay stock disponible para ese plan ni cargaste credenciales "
+                "manuales. Entregalo desde el detalle del pedido."
+            )
+        else:
+            messages.success(
+                request,
+                f"Pedido #{order.short_uuid} registrado como pagado. "
+                "Entregalo cuando quieras desde el detalle."
+            )
+
+        # Después de crear, volvemos al detalle del pedido.
+        return redirect(
+            "admin:orders_order_change", object_id=order.pk
+        )
+
+    return _quick_order_render(request, plans_qs)
+
+
+def _quick_order_render(request, plans_qs, preset=None):
+    """Renderiza el formulario de pedido rápido."""
+    preset = preset or {}
+    # Agrupamos planes por producto para el select.
+    plans_by_product: dict[str, list] = {}
+    for plan in plans_qs:
+        plans_by_product.setdefault(plan.product.name, []).append(plan)
+
+    ctx = _admin_context(
+        request,
+        title="Crear pedido rápido",
+        plans_by_product=plans_by_product,
+        preset=preset,
+        payment_methods=[
+            ("manual", "Manual / efectivo"),
+            ("yape", "Yape"),
+            ("plin", "Plin"),
+            ("transferencia", "Transferencia bancaria"),
+            ("mercadopago", "Mercado Pago"),
+        ],
+        now_local=timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+    )
+    return render(request, "admin/orders/quick_create.html", ctx)
