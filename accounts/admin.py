@@ -21,7 +21,7 @@ from .admin_helpers import (
     time_ago,
     user_card_cell,
 )
-from .models import Customer, Distributor, Role, User, WalletTransaction
+from .models import Customer, Distributor, PushSubscription, Role, User, WalletTransaction
 
 
 JHELIZ_FIELDSETS_EXTRA = (
@@ -681,3 +681,15 @@ def _ticket_tone(status: str) -> str:
         "resolved": "success",
         "closed": "neutral",
     }.get(status, "neutral")
+
+
+@admin.register(PushSubscription)
+class PushSubscriptionAdmin(ModelAdmin):
+    list_display = ("__str__", "user", "is_enabled", "failed_count", "created_at", "last_used_at")
+    list_filter = ("is_enabled",)
+    search_fields = ("endpoint", "user__email", "user__username", "user_agent")
+    readonly_fields = (
+        "endpoint", "p256dh", "auth", "user_agent",
+        "created_at", "last_used_at", "last_error", "failed_count",
+    )
+    list_select_related = ("user",)

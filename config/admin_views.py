@@ -2447,6 +2447,63 @@ def auditlog_detail(request, pk: int):
 
 
 # ---------------------------------------------------------------------------
+# Notificaciones Web Push (PWA): broadcast desde el admin
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def push_broadcast_view(request):
+    """Form para mandar una notificación push a todos los suscritos.
+
+    Si VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY no están seteados en settings,
+    muestra un cartel guía explicando cómo generarlos.
+    """
+    from accounts.models import PushSubscription
+    from accounts import push as push_module
+
+    subs_qs = PushSubscription.objects.filter(is_enabled=True)
+    n_subs = subs_qs.count()
+    n_subs_total = PushSubscription.objects.count()
+    vapid_ok = push_module._vapid_configured()
+
+    if request.method == "POST" and vapid_ok:
+        title = (request.POST.get("title") or "").strip()
+        body = (request.POST.get("body") or "").strip()
+        url = (request.POST.get("url") or "/").strip()
+        icon = (request.POST.get("icon") or "").strip()
+        only_users = request.POST.get("only_users") == "on"
+        if not title or not body:
+            messages.error(request, "Título y mensaje son obligatorios.")
+        else:
+            target_qs = subs_qs.select_related("user")
+            if only_users:
+                target_qs = target_qs.filter(user__isnull=False)
+            sent, failed = push_module.broadcast(
+                target_qs, title=title, body=body, url=url, icon=icon,
+            )
+            if failed == 0:
+                messages.success(
+                    request,
+                    f"Notificación enviada a {sent} suscriptor{'es' if sent != 1 else ''}.",
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"Notificación: {sent} ok, {failed} fallidas (las fallidas se desactivan al 3er intento).",
+                )
+            return redirect("admin_push_broadcast")
+
+    ctx = _admin_context(
+        request,
+        title="Notificaciones push",
+        n_subs=n_subs,
+        n_subs_total=n_subs_total,
+        vapid_ok=vapid_ok,
+        recent_subs=list(subs_qs.select_related("user").order_by("-created_at")[:20]),
+    )
+    return render(request, "admin/push_broadcast.html", ctx)
+
+
+# ---------------------------------------------------------------------------
 # Dashboard avanzado (analítica profunda)
 # ---------------------------------------------------------------------------
 

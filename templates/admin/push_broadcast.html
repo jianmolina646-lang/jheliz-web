@@ -1,0 +1,156 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block extrastyle %}{{ block.super }}
+<style>
+  .pb-wrap { max-width: 920px; margin: 0 auto; padding: 1.5rem; color: #e5e7eb; }
+  .pb-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .pb-card h2 { color: #fff; margin: 0 0 .35rem; font-size: 1.05rem; font-weight: 700; }
+  .pb-stat { display: flex; gap: 2rem; flex-wrap: wrap; margin-top: .25rem; }
+  .pb-stat-item { font-size: .8rem; color: #a1a1aa; }
+  .pb-stat-item strong { color: #fff; font-size: 1.6rem; font-weight: 800; display: block; line-height: 1.1; }
+
+  .pb-form label { display: block; font-size: .8rem; font-weight: 600; color: #d4d4d8; margin: 1rem 0 .35rem; }
+  .pb-form input[type=text], .pb-form textarea, .pb-form input[type=url] {
+    width: 100%; box-sizing: border-box;
+    padding: .65rem .85rem;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    color: #fff; font-size: .9rem;
+  }
+  .pb-form textarea { min-height: 88px; resize: vertical; }
+  .pb-form input:focus, .pb-form textarea:focus {
+    outline: none; border-color: rgba(99,102,241,.6);
+    box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+  }
+  .pb-form .pb-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .pb-checkbox { display: flex; align-items: center; gap: .5rem; margin-top: 1rem; }
+  .pb-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff; border: 0; padding: .75rem 1.5rem; border-radius: 10px;
+    font-weight: 700; cursor: pointer; font-size: .9rem; margin-top: 1rem;
+  }
+  .pb-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .pb-warning {
+    background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.4);
+    border-radius: 12px; padding: 1rem 1.25rem; color: #fde68a;
+  }
+  .pb-warning code {
+    background: rgba(0,0,0,.4); padding: 2px 6px; border-radius: 4px; font-size: .75rem;
+    display: inline-block; margin: 2px 0;
+  }
+  .pb-recent-list { font-size: .8rem; }
+  .pb-recent-list li {
+    list-style: none; padding: .5rem 0; border-bottom: 1px dashed rgba(255,255,255,0.08);
+    color: #a1a1aa; display: flex; justify-content: space-between; gap: 1rem;
+  }
+  .pb-recent-list li:last-child { border-bottom: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pb-wrap">
+  <h1 style="color:#fff; margin:0 0 1.25rem; font-size:1.5rem; font-weight:800;">
+    🔔 Notificaciones push
+  </h1>
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="pb-card" style="border-color: rgba(99,102,241,.4); background: rgba(99,102,241,.08); color:#c7d2fe;">
+        {{ msg }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="pb-card">
+    <h2>Suscriptores</h2>
+    <div class="pb-stat">
+      <div class="pb-stat-item">
+        Activos<strong>{{ n_subs }}</strong>
+      </div>
+      <div class="pb-stat-item">
+        Total registrados<strong>{{ n_subs_total }}</strong>
+      </div>
+    </div>
+  </div>
+
+  {% if not vapid_ok %}
+    <div class="pb-warning">
+      <strong>VAPID no está configurado.</strong> Para enviar notificaciones tenés que setear las claves
+      <code>VAPID_PUBLIC_KEY</code> y <code>VAPID_PRIVATE_KEY</code> en tu <code>.env</code>.
+      <br><br>
+      Generalas con:
+      <pre style="background:rgba(0,0,0,.4); padding:.75rem; border-radius:8px; overflow:auto; font-size:.7rem; margin-top:.5rem;">python -c "from py_vapid import Vapid; v=Vapid(); v.generate_keys(); v.save_key('vapid_private.pem'); print('PUBLIC:', v.public_key.hex()); print('Pegá el contenido de vapid_private.pem en VAPID_PRIVATE_KEY')"</pre>
+    </div>
+  {% else %}
+    <div class="pb-card">
+      <h2>Enviar notificación</h2>
+      <p style="font-size:.8rem; color:#a1a1aa; margin:.25rem 0 0;">
+        Llega a todos los suscriptores activos. Usá esto para anuncios importantes,
+        promociones, etc.
+      </p>
+      <form method="post" class="pb-form">
+        {% csrf_token %}
+        <label for="pb-title">Título *</label>
+        <input id="pb-title" type="text" name="title" maxlength="80"
+               placeholder="Ej. ¡Black Friday: 30% en Netflix!" required>
+
+        <label for="pb-body">Mensaje *</label>
+        <textarea id="pb-body" name="body" maxlength="200"
+                  placeholder="Solo hoy, todos los planes premium con descuento. Tocá para aprovechar."
+                  required></textarea>
+
+        <div class="pb-row">
+          <div>
+            <label for="pb-url">URL al tocar</label>
+            <input id="pb-url" type="text" name="url" value="/" placeholder="/productos/">
+          </div>
+          <div>
+            <label for="pb-icon">Ícono (URL opcional)</label>
+            <input id="pb-icon" type="text" name="icon" placeholder="/static/img/icon-192.png">
+          </div>
+        </div>
+
+        <div class="pb-checkbox">
+          <input type="checkbox" id="pb-only-users" name="only_users">
+          <label for="pb-only-users" style="margin:0; font-weight:500;">
+            Solo a usuarios registrados (excluir suscripciones anónimas)
+          </label>
+        </div>
+
+        <button type="submit" class="pb-btn">Enviar a {{ n_subs }} suscriptor{{ n_subs|pluralize:"es" }}</button>
+      </form>
+    </div>
+  {% endif %}
+
+  {% if recent_subs %}
+    <div class="pb-card">
+      <h2>Últimas suscripciones</h2>
+      <ul class="pb-recent-list" style="margin:0; padding:0;">
+        {% for s in recent_subs %}
+          <li>
+            <span>
+              {% if s.user %}
+                <strong style="color:#fff;">{{ s.user.email|default:s.user.username }}</strong>
+              {% else %}
+                <em style="color:#71717a;">anónimo</em>
+              {% endif %}
+              {% if s.user_agent %}
+                <span style="color:#52525b; font-size:.7rem; margin-left:.5rem;">{{ s.user_agent|truncatechars:50 }}</span>
+              {% endif %}
+            </span>
+            <span style="color:#a1a1aa;">{{ s.created_at|date:"d M H:i" }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

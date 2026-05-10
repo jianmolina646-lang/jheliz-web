@@ -95,3 +95,49 @@ class WalletTransaction(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} {self.get_kind_display()} {self.amount}"
+
+
+class PushSubscription(models.Model):
+    """Suscripción Web Push registrada por un cliente desde su navegador.
+
+    El navegador registra el service worker y obtiene una subscription con
+    `endpoint` (URL del push service de Google/Mozilla/etc) + `p256dh` + `auth`
+    (claves para cifrar el payload). Esos datos se mandan al backend acá.
+    Después el admin puede mandar notificaciones broadcast a todos.
+    """
+
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE,
+        null=True, blank=True, related_name="push_subscriptions",
+        help_text="Usuario asociado (puede ser null si el cliente nunca se logueó).",
+    )
+    endpoint = models.URLField("Endpoint del push service", max_length=600, unique=True)
+    p256dh = models.CharField("Clave p256dh (Base64URL)", max_length=128)
+    auth = models.CharField("Clave auth (Base64URL)", max_length=64)
+    user_agent = models.CharField(
+        "User-Agent del navegador", max_length=300, blank=True,
+        help_text="Para distinguir Chrome desktop / Safari iOS / etc.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(
+        "Último error de envío", max_length=200, blank=True,
+        help_text="Si la última notificación falló, se guarda el error acá.",
+    )
+    failed_count = models.PositiveIntegerField(
+        "Veces fallidas seguidas", default=0,
+        help_text="Cuando llega a 3, se desactiva la subscripción.",
+    )
+    is_enabled = models.BooleanField("Activa", default=True)
+
+    class Meta:
+        verbose_name = "Subscripción push"
+        verbose_name_plural = "Subscripciones push"
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["is_enabled", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        who = self.user.email if self.user_id else "anónimo"
+        return f"PushSub {who} ({self.created_at:%Y-%m-%d})"

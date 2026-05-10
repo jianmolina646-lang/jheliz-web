@@ -33,6 +33,11 @@ urlpatterns = [
         name="admin_reports_charts",
     ),
     path(
+        "panel-jheliz-2026/push/broadcast/",
+        admin_views.push_broadcast_view,
+        name="admin_push_broadcast",
+    ),
+    path(
         "panel-jheliz-2026/dashboard/avanzado/",
         admin_views.advanced_dashboard_view,
         name="admin_advanced_dashboard",

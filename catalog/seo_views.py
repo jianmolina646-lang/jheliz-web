@@ -91,7 +91,7 @@ def manifest_json(request):
 
 
 _SERVICE_WORKER_JS = """// Jheliz PWA service worker
-const VERSION = 'jheliz-v3';
+const VERSION = 'jheliz-v4';
 const STATIC_CACHE = `static-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
 
@@ -166,6 +166,39 @@ self.addEventListener('fetch', (event) => {
       )
     );
   }
+});
+
+// --- Web Push notifications ---
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { title: 'Jheliz Store', body: event.data ? event.data.text() : '' };
+  }
+  const title = payload.title || 'Jheliz Store';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/static/img/icon-192.png',
+    badge: '/static/img/icon-192.png',
+    data: { url: payload.url || '/' },
+    tag: payload.tag || 'jheliz-default',
+    renotify: true,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) {
+        if (w.url.includes(targetUrl) && 'focus' in w) return w.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
 });
 """
 

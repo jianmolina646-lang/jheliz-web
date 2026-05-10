@@ -185,6 +185,22 @@ MERCADOPAGO_ACCESS_TOKEN = config("MERCADOPAGO_ACCESS_TOKEN", default="")
 MERCADOPAGO_PUBLIC_KEY = config("MERCADOPAGO_PUBLIC_KEY", default="")
 MERCADOPAGO_WEBHOOK_SECRET = config("MERCADOPAGO_WEBHOOK_SECRET", default="")
 
+# Web Push notifications (VAPID).
+# Para generar el par de claves:
+#   from py_vapid import Vapid
+#   v = Vapid()
+#   v.generate_keys()
+#   v.save_key("vapid_private.pem")
+#   v.save_public_key("vapid_public.pem")
+#   v.public_key  # Base64URL — esto va en VAPID_PUBLIC_KEY (lo lee el browser)
+# La privada va en VAPID_PRIVATE_KEY como PEM o como base64url de la EC raw.
+VAPID_PUBLIC_KEY = config("VAPID_PUBLIC_KEY", default="")
+VAPID_PRIVATE_KEY = config("VAPID_PRIVATE_KEY", default="")
+VAPID_CLAIM_EMAIL = config(
+    "VAPID_CLAIM_EMAIL",
+    default="mailto:soporte@ecormecejhelizstore.com",
+)
+
 # Contact
 WHATSAPP_NUMBER = config("WHATSAPP_NUMBER", default="+51999999999")
 TELEGRAM_USERNAME = config("TELEGRAM_USERNAME", default="jhelizbot")
