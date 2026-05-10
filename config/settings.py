@@ -66,6 +66,10 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # i18n: detecta el idioma del usuario (cookie / header / sesión).
+    "django.middleware.locale.LocaleMiddleware",
+    # multi-país: inyecta `request.country` con el dict del país activo.
+    "config.i18n_country.CountryMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -101,7 +105,9 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.i18n",
                 "catalog.context_processors.site_context",
+                "config.i18n_country.country_context",
             ],
         },
     },
@@ -131,15 +137,41 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Localization: Peru
+# Localization: Peru por default (multi-país habilitado).
 LANGUAGE_CODE = "es"
 TIME_ZONE = "America/Lima"
 USE_I18N = True
 USE_TZ = True
 
-# Currency (used across the app)
+# Idiomas soportados. El switcher del header expone exactamente estos.
+LANGUAGES = [
+    ("es", "Español"),
+    ("en", "English"),
+    ("pt", "Português"),
+]
+# Carpeta donde viven los .po/.mo de las traducciones.
+LOCALE_PATHS = [BASE_DIR / "locale"]
+
+# Currency (default cuando no se conoce el país del visitante).
 DEFAULT_CURRENCY = "PEN"
 DEFAULT_CURRENCY_SYMBOL = "S/"
+
+# Países soportados. Cada uno define su moneda, su flag emoji y su locale
+# preferido. El selector se renderiza en el footer; las páginas pueden
+# resolver `request.country` (vía middleware liviano) para decidir cosas
+# como el método de pago default o el formato de número telefónico.
+COUNTRIES = [
+    {"code": "PE", "name": "Perú", "flag": "🇵🇪", "currency": "PEN", "symbol": "S/", "locale": "es", "phone_cc": "+51"},
+    {"code": "CO", "name": "Colombia", "flag": "🇨🇴", "currency": "COP", "symbol": "$", "locale": "es", "phone_cc": "+57"},
+    {"code": "MX", "name": "México", "flag": "🇲🇽", "currency": "MXN", "symbol": "$", "locale": "es", "phone_cc": "+52"},
+    {"code": "AR", "name": "Argentina", "flag": "🇦🇷", "currency": "ARS", "symbol": "$", "locale": "es", "phone_cc": "+54"},
+    {"code": "CL", "name": "Chile", "flag": "🇨🇱", "currency": "CLP", "symbol": "$", "locale": "es", "phone_cc": "+56"},
+    {"code": "EC", "name": "Ecuador", "flag": "🇪🇨", "currency": "USD", "symbol": "$", "locale": "es", "phone_cc": "+593"},
+    {"code": "BO", "name": "Bolivia", "flag": "🇧🇴", "currency": "BOB", "symbol": "Bs.", "locale": "es", "phone_cc": "+591"},
+    {"code": "BR", "name": "Brasil", "flag": "🇧🇷", "currency": "BRL", "symbol": "R$", "locale": "pt", "phone_cc": "+55"},
+    {"code": "US", "name": "USA", "flag": "🇺🇸", "currency": "USD", "symbol": "$", "locale": "en", "phone_cc": "+1"},
+]
+DEFAULT_COUNTRY = "PE"
 
 # Static & media
 STATIC_URL = "/static/"

@@ -14,6 +14,7 @@ from catalog.seo_views import (
 )
 from catalog.sitemaps import SITEMAPS
 from config import admin_views
+from config import i18n_country
 from livechat import admin_views as livechat_admin_views
 from orders import media_views as orders_media_views
 from support import views as support_views
@@ -214,6 +215,9 @@ urlpatterns = [
     ),
     path("manifest.webmanifest", manifest_json, name="pwa-manifest"),
     path("sw.js", service_worker, name="pwa-service-worker"),
+    # i18n: cambio de idioma (django built-in) y de país (custom).
+    path("i18n/", include("django.conf.urls.i18n")),
+    path("i18n/setcountry/", i18n_country.set_country, name="set_country"),
     path(
         "sitemap.xml",
         sitemap_view,
