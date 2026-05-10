@@ -479,3 +479,282 @@
     .jh2-pill__dot { animation: none !important; }
     .jh2-btn--primary::after { display: none; }
 }
+
+/* ----------------------------------------------------------------- */
+/* Section: tabs, inputs, bento grid, mini-stats (PR3 catálogo/stock) */
+/* ----------------------------------------------------------------- */
+
+/* Tabs (sub-navigation dentro de un módulo, ej. Stock) */
+.jh2-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    background: rgba(15,23,42,.4);
+    border: 1px solid rgba(255,255,255,.04);
+    margin: 8px 0 0;
+}
+.jh2-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(226,232,240,.65);
+    text-decoration: none;
+    transition: background .2s ease, color .2s ease;
+}
+.jh2-tab:hover {
+    background: rgba(255,255,255,.04);
+    color: #f1f5f9;
+}
+.jh2-tab--active {
+    background: var(--jh2-grad-primary);
+    color: #ffffff;
+    box-shadow: 0 4px 12px -4px rgba(168,85,247,.5);
+}
+.jh2-tab--active:hover { color: #ffffff; }
+.jh2-tab__alt {
+    margin-left: auto;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    color: rgba(148,163,184,.65);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.jh2-tab__alt:hover { color: #f1f5f9; }
+
+/* Inputs/select uniformes para el sistema 2026 */
+.jh2-input {
+    appearance: none;
+    background: rgba(15,23,42,.7);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: #f1f5f9;
+    font-size: 13px;
+    line-height: 1.4;
+    min-width: 180px;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.jh2-input:focus {
+    outline: none;
+    border-color: rgba(168,85,247,.5);
+    box-shadow: 0 0 0 3px rgba(168,85,247,.15);
+    background: rgba(15,23,42,.85);
+}
+.jh2-input::placeholder { color: rgba(148,163,184,.5); }
+select.jh2-input {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%23cbd5e1'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+}
+
+/* Chip-radio (radio button con apariencia de chip) */
+.jh2-chip-radio { cursor: pointer; }
+.jh2-chip-radio input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.jh2-chip__count {
+    margin-left: 4px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.06);
+    font-size: 10.5px;
+    color: rgba(226,232,240,.6);
+}
+.jh2-chip--active .jh2-chip__count {
+    background: rgba(168,85,247,.25);
+    color: #fef3c7;
+}
+
+/* Bento grid (cards de productos en stock overview) */
+.jh2-bento-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+/* Mini-stats (3 columnas dentro de una card) */
+.jh2-mini-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.jh2-mini-stat {
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(15,23,42,.45);
+    border: 1px solid rgba(255,255,255,.04);
+    text-align: left;
+}
+.jh2-mini-stat__label {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: rgba(148,163,184,.6);
+    margin-bottom: 2px;
+}
+.jh2-mini-stat__value {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #f1f5f9;
+    font-variant-numeric: tabular-nums;
+}
+.jh2-mini-stat--success .jh2-mini-stat__value { color: #6ee7b7; }
+.jh2-mini-stat--info    .jh2-mini-stat__value { color: #93c5fd; }
+.jh2-mini-stat--danger  .jh2-mini-stat__value { color: #fca5a5; }
+.jh2-mini-stat--warning .jh2-mini-stat__value { color: #fcd34d; }
+
+/* Card hover lift */
+.jh2-card--hover {
+    transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+.jh2-card--hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(168,85,247,.25);
+    box-shadow: 0 0 0 1px rgba(168,85,247,.15), 0 16px 48px -16px rgba(168,85,247,.4);
+}
+
+/* Pagination footer */
+.jh2-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 4px 4px;
+}
+
+/* Alerts */
+.jh2-alert {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    border: 1px solid;
+}
+.jh2-alert--danger {
+    background: rgba(239,68,68,.12);
+    color: #fca5a5;
+    border-color: rgba(239,68,68,.3);
+}
+.jh2-alert--warning {
+    background: rgba(245,158,11,.12);
+    color: #fcd34d;
+    border-color: rgba(245,158,11,.3);
+}
+.jh2-alert--info {
+    background: rgba(59,130,246,.12);
+    color: #93c5fd;
+    border-color: rgba(59,130,246,.3);
+}
+.jh2-alert--success {
+    background: rgba(16,185,129,.12);
+    color: #6ee7b7;
+    border-color: rgba(16,185,129,.3);
+}
+
+/* Form fields */
+.jh2-field { display: flex; flex-direction: column; gap: 4px; }
+.jh2-field__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(226,232,240,.85);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+.jh2-field__required { color: #f472b6; margin-left: 2px; }
+.jh2-field__help {
+    font-size: 11.5px;
+    color: rgba(148,163,184,.6);
+    margin: 2px 0 0;
+}
+.jh2-field__error {
+    font-size: 11.5px;
+    color: #fca5a5;
+    margin: 2px 0 0;
+}
+/* Inputs dentro de un form Django no nuestros — los normalizamos */
+.jh2-card--padded form input[type="text"],
+.jh2-card--padded form input[type="email"],
+.jh2-card--padded form input[type="password"],
+.jh2-card--padded form input[type="number"],
+.jh2-card--padded form input[type="search"],
+.jh2-card--padded form input[type="url"],
+.jh2-card--padded form input[type="file"],
+.jh2-card--padded form select,
+.jh2-card--padded form textarea {
+    background: rgba(15,23,42,.7);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: #f1f5f9;
+    font-size: 13px;
+    width: 100%;
+    transition: border-color .2s ease, box-shadow .2s ease;
+}
+.jh2-card--padded form input:focus,
+.jh2-card--padded form select:focus,
+.jh2-card--padded form textarea:focus {
+    outline: none;
+    border-color: rgba(168,85,247,.5);
+    box-shadow: 0 0 0 3px rgba(168,85,247,.15);
+}
+
+/* Code block — monospace inside a glass surface */
+.jh2-codeblock {
+    background: rgba(2,6,23,.7);
+    border: 1px solid rgba(255,255,255,.05);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.55;
+    color: #e2e8f0;
+    overflow-x: auto;
+    margin: 0;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+}
+.jh2-kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(168,85,247,.18);
+    color: #ddd6fe;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 10.5px;
+}
+
+/* Botón danger (rojo discreto) */
+.jh2-btn--danger {
+    background: rgba(239,68,68,.12);
+    color: #fca5a5;
+    border: 1px solid rgba(239,68,68,.4);
+}
+.jh2-btn--danger:hover {
+    background: rgba(239,68,68,.22);
+    border-color: rgba(239,68,68,.6);
+}
+
+/* Cell wrap helper */
+.jh2-table__cell-wrap { white-space: pre-wrap; word-break: break-all; }
+
+/* Eyebrow del page-head (etiqueta superior) */
+.jh2-page-head__eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: rgba(196,181,253,.7);
+    margin-bottom: 4px;
+}
