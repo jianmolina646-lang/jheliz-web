@@ -1,5 +1,5 @@
 {% extends 'admin/base.html' %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}Chats en vivo | Jheliz{% endblock %}
 
@@ -7,8 +7,13 @@
   {% include "unfold/helpers/site_branding.html" %}
 {% endblock %}
 
+{% block extrahead %}{{ block.super }}
+  {# HTMX para cargar la conversación a la derecha sin recargar la página. #}
+  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+{% endblock %}
+
 {% block content %}
-<div style="display:flex;flex-direction:column;gap:14px;">
+<div class="jh2-livechat" data-show-closed="{% if show_closed %}1{% else %}0{% endif %}">
   <div class="jh2-page-head">
     <div>
       <div class="jh2-page-head__eyebrow">Soporte</div>
@@ -27,93 +32,167 @@
     </div>
   </div>
 
-  <section class="jh2-card jh2-card--flush">
-    {% if rooms_data %}
-    <div>
-      {% for item in rooms_data %}
-        {% with room=item.room %}
-        <a href="{% url 'admin_livechat_detail' room_id=room.pk %}"
-           class="jh2-room" style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06);text-decoration:none;color:inherit;transition:background .2s ease;"
-           onmouseover="this.style.background='rgba(244,114,182,.06)'" onmouseout="this.style.background='transparent'">
-          <div style="flex-shrink:0;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;background:linear-gradient(135deg,#a855f7,#ec4899);">
-            {{ room.display_name|slice:":1"|upper|default:"?" }}
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between gap-2">
-              <div class="font-semibold text-white truncate">
-                {{ room.display_name }}
-                {% if room.customer_email %}
-                  <span class="text-xs text-base-400 font-normal">· {{ room.customer_email }}</span>
-                {% endif %}
+  <section class="jh2-livechat__shell jh2-card">
+    {# ============================== Lista (izquierda) ============================ #}
+    <aside class="jh2-livechat__list">
+      {% if rooms_data %}
+        {% for item in rooms_data %}
+          {% with room=item.room %}
+          <a href="?room={{ room.pk }}{% if show_closed %}&amp;closed=1{% endif %}"
+             hx-get="{% url 'admin_livechat_room_pane' room_id=room.pk %}"
+             hx-target="#livechat-room-pane"
+             hx-swap="outerHTML"
+             hx-push-url="?room={{ room.pk }}{% if show_closed %}&amp;closed=1{% endif %}"
+             class="jh2-livechat__item {% if selected_room and selected_room.pk == room.pk %}is-active{% endif %}"
+             data-room-id="{{ room.pk }}">
+            <div class="jh2-livechat__item-avatar">
+              {{ room.display_name|slice:":1"|upper|default:"?" }}
+            </div>
+            <div class="jh2-livechat__item-body">
+              <div class="jh2-livechat__item-row">
+                <div class="jh2-livechat__item-name">
+                  {{ room.display_name }}
+                  {% if room.customer_email %}<span class="jh2-livechat__item-email">· {{ room.customer_email }}</span>{% endif %}
+                </div>
+                <div class="jh2-livechat__item-time">
+                  {% if room.last_message_at %}{{ room.last_message_at|timesince }}{% else %}—{% endif %}
+                </div>
               </div>
-              <div class="flex items-center gap-2 flex-shrink-0">
-                {% if item.admin_unread > 0 %}
-                  <span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:9999px;font-size:11px;font-weight:700;color:#fff;background:linear-gradient(135deg,#ec4899,#8b5cf6);">
-                    {{ item.admin_unread }}
-                  </span>
-                {% endif %}
-                {% if room.status == 'closed' %}
-                  {% include "admin/components/_pill.html" with text="Cerrada" variant="neutral" static=True %}
-                {% else %}
-                  {% include "admin/components/_pill.html" with text="Abierta" variant="success" %}
-                {% endif %}
-                <span class="text-[11px] text-base-400 whitespace-nowrap">
-                  {% if room.last_message_at %}
-                    {{ room.last_message_at|timesince }} atrás
+              <div class="jh2-livechat__item-row">
+                <div class="jh2-livechat__item-preview">
+                  {% if item.last_message %}
+                    {% if item.last_message.sender == 'admin' %}<span class="jh2-livechat__item-sender">vos:</span>{% endif %}
+                    {% if item.last_message.sender == 'system' %}<span class="jh2-livechat__item-sender">sistema:</span>{% endif %}
+                    {{ item.last_message.body|truncatechars:80 }}
                   {% else %}
-                    sin mensajes
+                    <em class="jh2-livechat__item-empty">sin mensajes aún</em>
                   {% endif %}
-                </span>
+                </div>
+                <div class="jh2-livechat__item-meta">
+                  {% if item.admin_unread > 0 %}
+                    <span class="jh2-livechat__unread">{{ item.admin_unread }}</span>
+                  {% endif %}
+                  {% if room.status == 'closed' %}
+                    <span class="jh2-livechat__pill jh2-livechat__pill--closed">cerrada</span>
+                  {% endif %}
+                </div>
               </div>
             </div>
-            <div class="text-sm text-base-300 mt-1 truncate">
-              {% if item.last_message %}
-                {% if item.last_message.sender == 'admin' %}
-                  <span class="text-base-400">vos:</span>
-                {% elif item.last_message.sender == 'system' %}
-                  <span class="text-base-400">sistema:</span>
-                {% endif %}
-                {{ item.last_message.body|truncatechars:120 }}
-              {% else %}
-                <em class="text-base-400">(sin mensajes aún)</em>
-              {% endif %}
-            </div>
-            <div class="text-[11px] text-base-500 mt-0.5">
-              {{ room.message_count }} mensaje{{ room.message_count|pluralize:"s" }} ·
-              iniciada {{ room.created_at|date:"d/m H:i" }}
-              {% if room.page_url %}· desde {{ room.page_url|truncatechars:50 }}{% endif %}
-            </div>
+          </a>
+          {% endwith %}
+        {% endfor %}
+      {% else %}
+        <div class="jh2-livechat__empty">
+          <div class="jh2-livechat__empty-icon">💬</div>
+          <div class="jh2-livechat__empty-title">No hay chats todavía</div>
+          <div class="jh2-livechat__empty-desc">Cuando un visitante use el chat de la web, aparecerá acá.</div>
+        </div>
+      {% endif %}
+    </aside>
+
+    {# ============================== Conversación (derecha) ====================== #}
+    <main class="jh2-livechat__main">
+      {% if selected_room %}
+        {% include "admin/livechat/_room_pane.html" %}
+      {% else %}
+        <div id="livechat-room-pane" class="jh2-livechat__placeholder">
+          <div class="jh2-livechat__placeholder-icon">🎧</div>
+          <div class="jh2-livechat__placeholder-title">Elegí una conversación</div>
+          <div class="jh2-livechat__placeholder-desc">
+            Click en cualquier chat de la izquierda para verlo y responder desde acá mismo,
+            sin abrir páginas nuevas.
           </div>
-        </a>
-        {% endwith %}
-      {% endfor %}
-    </div>
-    {% else %}
-      {% include "admin/components/_empty.html" with icon="chat" title="No hay chats todavía" desc="Cuando un visitante use el chat de la web, aparecerá acá." %}
-    {% endif %}
+        </div>
+      {% endif %}
+    </main>
   </section>
 </div>
 
 <script>
-  // Auto-refresh de la lista cada 8s para mostrar nuevos chats sin recargar manualmente.
   (function () {
-    var INTERVAL_MS = 8000;
+    // ----------------------------------------------------------------
+    // Helper: scroll del thread al fondo cuando entra un mensaje nuevo.
+    // ----------------------------------------------------------------
+    function scrollThreadToEnd() {
+      var s = document.getElementById('livechat-scroll');
+      if (s) { s.scrollTop = s.scrollHeight; }
+    }
+    scrollThreadToEnd();
+
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+      if (!evt.target) return;
+      // Polling de mensajes -> scroll al fondo
+      if (evt.target.id === 'livechat-thread') {
+        scrollThreadToEnd();
+      }
+      // Cambio de sala -> también
+      if (evt.target.id === 'livechat-room-pane') {
+        scrollThreadToEnd();
+        // Marca como activa la sala seleccionada en la lista.
+        var newRoomId = evt.target.getAttribute('data-room-id');
+        document.querySelectorAll('.jh2-livechat__item').forEach(function (el) {
+          if (el.getAttribute('data-room-id') === newRoomId) {
+            el.classList.add('is-active');
+          } else {
+            el.classList.remove('is-active');
+          }
+        });
+      }
+    });
+
+    // ----------------------------------------------------------------
+    // Ctrl+Enter (o Cmd+Enter en Mac) envía el form de reply activo.
+    // ----------------------------------------------------------------
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        var form = document.querySelector('.jh2-livechat__composer[hx-post]');
+        if (form) {
+          if (typeof htmx !== 'undefined') {
+            htmx.trigger(form, 'submit');
+          } else {
+            form.submit();
+          }
+        }
+      }
+    });
+
+    // ----------------------------------------------------------------
+    // Auto-refresh de la lista cada 8s (chats nuevos / unreads). Solo
+    // refrescamos la columna izquierda; el panel derecho ya hace polling
+    // de sus mensajes por su cuenta.
+    // ----------------------------------------------------------------
+    var REFRESH_MS = 8000;
     setInterval(function () {
-      // Solo refrescamos si la pestaña está activa.
       if (document.hidden) return;
-      fetch(window.location.href, { credentials: "same-origin" })
+      // Conservamos el ?room actual para no perder la sala seleccionada
+      // si la página llegara a recargarse.
+      fetch(window.location.href, { credentials: 'same-origin' })
         .then(function (r) { return r.text(); })
         .then(function (html) {
           var parser = new DOMParser();
-          var doc = parser.parseFromString(html, "text/html");
-          var newMain = doc.querySelector("#content, main, .flex.flex-col.gap-4");
-          var oldMain = document.querySelector("#content, main, .flex.flex-col.gap-4");
-          if (newMain && oldMain && newMain !== oldMain) {
-            // Reemplazar solo el contenido específico para no perder header.
+          var doc = parser.parseFromString(html, 'text/html');
+          var newList = doc.querySelector('.jh2-livechat__list');
+          var curList = document.querySelector('.jh2-livechat__list');
+          if (newList && curList && newList.innerHTML !== curList.innerHTML) {
+            curList.innerHTML = newList.innerHTML;
+            // Re-activa la sala actual
+            var openPane = document.getElementById('livechat-room-pane');
+            var openRoomId = openPane ? openPane.getAttribute('data-room-id') : null;
+            if (openRoomId) {
+              document.querySelectorAll('.jh2-livechat__item').forEach(function (el) {
+                if (el.getAttribute('data-room-id') === openRoomId) {
+                  el.classList.add('is-active');
+                }
+              });
+            }
+            // htmx necesita re-procesar los nuevos `hx-*` que acabamos de inyectar
+            if (typeof htmx !== 'undefined') {
+              htmx.process(curList);
+            }
           }
         })
-        .catch(function () { /* offline ok */ });
-    }, INTERVAL_MS);
+        .catch(function () { /* swallow */ });
+    }, REFRESH_MS);
   })();
 </script>
 {% endblock %}

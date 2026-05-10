@@ -186,6 +186,11 @@ urlpatterns = [
         name="admin_livechat_detail",
     ),
     path(
+        "panel-jheliz-2026/livechat/<int:room_id>/pane/",
+        livechat_admin_views.chat_room_partial,
+        name="admin_livechat_room_pane",
+    ),
+    path(
         "panel-jheliz-2026/livechat/<int:room_id>/reply/",
         livechat_admin_views.chat_reply,
         name="admin_livechat_reply",
