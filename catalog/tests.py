@@ -776,3 +776,36 @@ class ProductFaqTests(TestCase):
         body = resp.content.decode()
         self.assertIn("¿Cómo activo Office 365?", body)
         self.assertIn("¿La licencia es legal y permanente?", body)
+
+
+class ProductDetailRendersOutsideContentBlockTests(TestCase):
+    """Regression: el JS de tabs y la sección de productos relacionados
+    deben estar dentro de {% block content %} para que se rendericen."""
+
+    def setUp(self):
+        self.cat = Category.objects.create(
+            name="Streaming-Tabs", slug="streaming-tabs", emoji="📺",
+        )
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix Tabs", slug="netflix-tabs",
+            is_active=True, mode="perfil",
+        )
+        Plan.objects.create(
+            product=self.product, name="1 mes",
+            price_customer=Decimal("25.00"),
+        )
+
+    def test_tabs_js_is_rendered(self):
+        resp = self.client.get(
+            reverse("catalog:product", kwargs={"slug": self.product.slug})
+        )
+        body = resp.content.decode()
+        # El JS que activa los tabs debe estar en la página, si no los tabs
+        # "Garantía y soporte" y "Preguntas frecuentes" no abren su panel.
+        self.assertIn("querySelector('[data-pd-tabs]')", body)
+        # Los 3 tabs y sus paneles deben estar presentes.
+        self.assertIn('data-pd-tab="desc"', body)
+        self.assertIn('data-pd-tab="garantia"', body)
+        self.assertIn('data-pd-tab="faq"', body)
+        self.assertIn('data-pd-panel="garantia"', body)
+        self.assertIn('data-pd-panel="faq"', body)
