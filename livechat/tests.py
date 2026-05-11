@@ -360,7 +360,7 @@ class OnlineStatusTagTests(TestCase):
     def test_widget_renders_online_banner(self, mock_tz):
         mock_tz.localtime.return_value = datetime(2026, 1, 1, 14, 0)
         resp = self.client.get("/")
-        self.assertContains(resp, "Online · Te respondemos en minutos")
+        self.assertContains(resp, "Respondemos en menos de")
         self.assertContains(resp, 'data-status="online"')
 
     @patch("livechat.templatetags.livechat.timezone")
@@ -369,3 +369,24 @@ class OnlineStatusTagTests(TestCase):
         resp = self.client.get("/")
         self.assertContains(resp, "Fuera de horario")
         self.assertContains(resp, 'data-status="offline"')
+
+
+class ChatResponseTimeWidgetTests(TestCase):
+    """El widget de chat debe comunicar visiblemente el tiempo de
+    respuesta esperado (item 9 del review de confianza)."""
+
+    def test_widget_includes_response_time_pill_and_status(self):
+        with patch("livechat.templatetags.livechat.timezone") as tz:
+            now = datetime(2025, 1, 1, 14, 0)
+            tz.localtime.return_value = type("T", (), {"hour": now.hour, "minute": now.minute})()
+            resp = self.client.get(reverse("catalog:home"))
+        body = resp.content.decode()
+        # Pill flotante junto a la burbuja
+        self.assertIn('id="jhz-chat-tip"', body)
+        # Texto principal de compromiso de tiempo
+        self.assertIn("menos de", body)
+        self.assertIn("5 min", body)
+        # Horario de atención
+        self.assertIn("9:00 a 23:00", body)
+        # Burbuja con etiqueta aria mejorada
+        self.assertIn("respondemos en menos de 5 minutos", body)
