@@ -323,7 +323,153 @@
   100% { transform: scale(1); }
 }
 
-/* ---------- Checkout progress steps --------------------------------- */
+/* ---------- Checkout progress (modern, mobile-friendly) ------------- */
+.ck-progress {
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative;
+  list-style: none; padding: 0; margin: 0;
+  gap: 0;
+}
+.ck-progress::before {
+  content: ''; position: absolute;
+  left: 22px; right: 22px; top: 18px;
+  height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--line), var(--line));
+  z-index: 0;
+}
+.ck-progress__step {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  flex: 1 1 0; min-width: 0; max-width: 33%;
+  color: rgba(244,244,245,.55);
+  font-size: 12px; font-weight: 600; letter-spacing: .015em;
+  text-align: center;
+}
+.ck-progress__dot {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 9999px;
+  background: rgba(20,18,32,.92);
+  border: 1.5px solid var(--line);
+  transition: all 240ms cubic-bezier(.34,1.56,.64,1);
+}
+.ck-progress__num {
+  font-size: 13px; font-weight: 700;
+  color: rgba(244,244,245,.6);
+}
+.ck-progress__label {
+  font-size: 12px; line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ck-progress__step.is-active { color: #fff; }
+.ck-progress__step.is-active .ck-progress__dot {
+  background: linear-gradient(135deg, #ec4899, #a855f7);
+  border-color: rgba(236,72,153,.55);
+  box-shadow: 0 0 0 6px rgba(236,72,153,.16), 0 6px 18px -6px rgba(236,72,153,.55);
+  transform: scale(1.06);
+}
+.ck-progress__step.is-active .ck-progress__num { color: #fff; }
+.ck-progress__step.is-done { color: #34d399; }
+.ck-progress__step.is-done .ck-progress__dot {
+  background: rgba(16,185,129,.18);
+  border-color: rgba(16,185,129,.6);
+}
+.ck-progress__step.is-done .ck-progress__num { color: #34d399; }
+@media (max-width: 480px) {
+  .ck-progress__dot { width: 30px; height: 30px; }
+  .ck-progress::before { left: 18px; right: 18px; top: 15px; }
+  .ck-progress__label { font-size: 11px; }
+  .ck-progress__num { font-size: 12px; }
+}
+
+/* ---------- Empty cart state --------------------------------------- */
+.cart-empty { max-width: 64rem; margin: 0 auto; }
+.cart-empty__hero {
+  position: relative; overflow: hidden;
+  padding: 3rem 1.25rem 2.5rem;
+  border-radius: 24px;
+  background:
+    radial-gradient(60% 80% at 50% -10%, rgba(168,85,247,.20), transparent 70%),
+    radial-gradient(50% 60% at 50% 110%, rgba(236,72,153,.14), transparent 70%),
+    rgba(12,10,18,.55);
+  border: 1px solid rgba(168,85,247,.18);
+  text-align: center;
+}
+@media (min-width: 768px) {
+  .cart-empty__hero { padding: 4rem 2rem 3rem; }
+}
+.cart-empty__halo {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -55%);
+  width: 360px; height: 360px;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgba(236,72,153,.18), transparent 70%);
+  pointer-events: none;
+  animation: cartEmptyPulse 6s ease-in-out infinite;
+}
+@keyframes cartEmptyPulse {
+  0%, 100% { opacity: .65; transform: translate(-50%, -55%) scale(1); }
+  50%      { opacity: 1;   transform: translate(-50%, -55%) scale(1.08); }
+}
+.cart-empty__icon {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 96px; height: 96px; border-radius: 28px;
+  margin: 0 auto;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(236,72,153,.28), rgba(168,85,247,.22));
+  border: 1px solid rgba(236,72,153,.4);
+  box-shadow:
+    0 18px 40px -10px rgba(236,72,153,.45),
+    inset 0 1px 0 rgba(255,255,255,.15);
+}
+.cart-empty__icon svg { width: 54px; height: 54px; }
+.cart-empty__title {
+  position: relative;
+  font-family: 'Geist','Inter',system-ui,sans-serif;
+  font-size: 1.75rem; line-height: 1.15;
+  font-weight: 800; letter-spacing: -.01em;
+  color: #fff;
+  margin-top: 1.25rem;
+}
+@media (min-width: 768px) {
+  .cart-empty__title { font-size: 2.25rem; }
+}
+.cart-empty__sub {
+  position: relative;
+  margin: .65rem auto 0;
+  max-width: 36rem;
+  font-size: .95rem;
+  color: rgba(244,244,245,.7);
+}
+.cart-empty__cta {
+  position: relative;
+  margin-top: 1.75rem;
+  display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center;
+}
+.cart-empty__trust {
+  position: relative;
+  list-style: none; padding: 0;
+  margin: 2rem auto 0;
+  display: flex; flex-wrap: wrap; gap: .5rem .75rem;
+  justify-content: center;
+  font-size: 12px;
+}
+.cart-empty__trust li {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .35rem .75rem; border-radius: 9999px;
+  color: rgba(244,244,245,.8); font-weight: 600;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.cart-empty__trust svg { width: 14px; height: 14px; color: rgba(245,158,11,.85); }
+.cart-empty__trust li:nth-child(1) svg { color: #34d399; }
+.cart-empty__trust li:nth-child(2) svg { color: #fbbf24; }
+.cart-empty__trust li:nth-child(3) svg { color: #ec4899; }
+.cart-empty__suggested { margin-top: 2.25rem; }
+
+/* Legacy: mantener .ck-steps por compatibilidad si otra plantilla aún lo usa. */
 .ck-steps {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 }
