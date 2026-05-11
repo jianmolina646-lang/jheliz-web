@@ -722,3 +722,57 @@ class RecentPurchasesApiTests(TestCase):
         data = resp.json()
         # Solo el pedido pagado (1 item), no el pending.
         self.assertEqual(len(data["items"]), 1)
+
+
+class ProductFaqTests(TestCase):
+    """La página de detalle de producto debe mostrar el bloque de FAQs
+    dinámicas + emitir el FAQPage JSON-LD para SEO."""
+
+    def setUp(self):
+        self.cat = Category.objects.create(
+            name="Streaming-FAQ", slug="streaming-faq", emoji="📺",
+        )
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix FAQ", slug="netflix-faq",
+            is_active=True, mode="perfil", delivery_is_instant=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes",
+            price_customer=Decimal("25.00"),
+        )
+
+    def test_faq_section_renders_on_product_detail(self):
+        resp = self.client.get(
+            reverse("catalog:product", kwargs={"slug": self.product.slug})
+        )
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        # La sección destacada
+        self.assertIn("Preguntas frecuentes", body)
+        self.assertIn("¿Tenés dudas sobre Netflix FAQ?", body)
+        # Pregunta base de entrega
+        self.assertIn("¿Cuánto demora la entrega de Netflix FAQ?", body)
+        # Pregunta del modo perfil
+        self.assertIn("¿Netflix FAQ funciona en mi Smart TV?", body)
+
+    def test_faq_jsonld_is_emitted_for_seo(self):
+        resp = self.client.get(
+            reverse("catalog:product", kwargs={"slug": self.product.slug})
+        )
+        body = resp.content.decode()
+        self.assertIn('"@type": "FAQPage"', body)
+        self.assertIn('"@type": "Question"', body)
+
+    def test_faq_for_licencia_product(self):
+        """Un producto en modo licencia muestra preguntas distintas."""
+        prod = Product.objects.create(
+            category=self.cat, name="Office 365", slug="office-365-faq",
+            is_active=True, mode="licencia",
+        )
+        Plan.objects.create(product=prod, name="1 año", price_customer=Decimal("50.00"))
+        resp = self.client.get(
+            reverse("catalog:product", kwargs={"slug": prod.slug})
+        )
+        body = resp.content.decode()
+        self.assertIn("¿Cómo activo Office 365?", body)
+        self.assertIn("¿La licencia es legal y permanente?", body)

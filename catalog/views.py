@@ -332,6 +332,153 @@ def category_detail(request, slug: str):
     )
 
 
+def _product_faqs(product):
+    """Genera la lista de preguntas frecuentes para mostrar debajo de un
+    producto. Combina FAQs base, FAQs específicas por modo (perfil vs licencia)
+    y por categoría (streaming, software, gaming, etc).
+
+    El resultado es una lista de dicts {q, a} apta para renderizar en el
+    template y también para emitir un FAQPage JSON-LD para SEO.
+    """
+    from .models import ProductMode
+
+    name = product.name
+    cat_slug = (product.category.slug or "").lower() if product.category_id else ""
+    cat_name = (product.category.name or "").lower() if product.category_id else ""
+    is_streaming = "stream" in cat_slug or "stream" in cat_name or any(
+        k in cat_slug or k in cat_name for k in ("netflix", "disney", "hbo", "prime", "spotify")
+    )
+    is_software = any(k in cat_slug for k in ("software", "licencia", "office", "windows"))
+    is_gaming = any(k in cat_slug or k in cat_name for k in ("gaming", "juego", "game", "xbox", "playstation"))
+    is_perfil = product.mode == ProductMode.PERFIL
+    is_licencia = product.mode == ProductMode.LICENCIA
+
+    faqs = []
+
+    # ---- Entrega ----
+    if product.delivery_is_instant:
+        faqs.append({
+            "q": f"¿Cuánto demora la entrega de {name}?",
+            "a": (
+                "La entrega es <strong>inmediata</strong>: apenas confirmamos tu pago "
+                "te llegan las credenciales por correo y aparecen en tu panel de cliente. "
+                "Suele tardar menos de 2 minutos."
+            ),
+        })
+    else:
+        faqs.append({
+            "q": f"¿Cuánto demora la entrega de {name}?",
+            "a": (
+                "Después de confirmar tu pago, creamos tu perfil con los datos que nos "
+                "pediste (nombre + PIN) y te enviamos las credenciales por correo. "
+                "Normalmente lo tienes listo en menos de 15 minutos en horario de atención."
+            ),
+        })
+
+    # ---- Pago ----
+    faqs.append({
+        "q": "¿Qué métodos de pago aceptan?",
+        "a": (
+            "Aceptamos <strong>Yape, Plin, Mercado Pago, Visa, Mastercard y "
+            "American Express</strong>. En el checkout elegís el que prefieras y "
+            "el pago se confirma automático."
+        ),
+    })
+
+    # ---- Modo perfil (Netflix-like) ----
+    if is_perfil or is_streaming:
+        faqs.append({
+            "q": f"¿{name} funciona en mi Smart TV?",
+            "a": (
+                "Sí. La cuenta funciona en Smart TV, móvil, PC y tablet. Si la "
+                "plataforma te pide un código de activación para autorizar un nuevo "
+                "dispositivo, escríbenos por WhatsApp o pedilo en "
+                "<a href=\"/codigos/pedir/\" class=\"text-jheliz-400 hover:text-jheliz-300\">"
+                "Pedir código</a> y te lo damos al instante."
+            ),
+        })
+        faqs.append({
+            "q": "¿Y si Netflix/Disney me pide cambiar la contraseña?",
+            "a": (
+                "<strong>No la cambies.</strong> Si la plataforma te pide cambiar "
+                "contraseña, escríbenos enseguida — eso suele ser un código de "
+                "verificación que podés pedirnos por chat o WhatsApp y te lo damos al "
+                "toque. Si la cuenta efectivamente se cayó, te reemplazamos sin preguntas."
+            ),
+        })
+        faqs.append({
+            "q": "¿Puedo elegir mi perfil con mi propio nombre y PIN?",
+            "a": (
+                "Sí. En el checkout te pedimos el nombre del perfil y el PIN que "
+                "querés. Te dejamos creado el perfil con tus datos para que entres "
+                "directo, sin tener que configurar nada."
+            ),
+        })
+
+    # ---- Modo licencia (Office/Windows/Adobe) ----
+    if is_licencia or is_software:
+        faqs.append({
+            "q": f"¿Cómo activo {name}?",
+            "a": (
+                "Te enviamos la <strong>clave de licencia + instrucciones paso a paso</strong> "
+                "para activarla en tu computadora. Si tenés dudas en la activación, "
+                "te ayudamos por WhatsApp en menos de 5 minutos."
+            ),
+        })
+        faqs.append({
+            "q": "¿La licencia es legal y permanente?",
+            "a": (
+                "Sí. Vendemos licencias oficiales del fabricante. Una vez activada "
+                "queda permanente en tu equipo (salvo planes de suscripción, donde "
+                "te avisamos cuándo renovar)."
+            ),
+        })
+
+    # ---- Gaming ----
+    if is_gaming:
+        faqs.append({
+            "q": "¿En qué región funciona el código?",
+            "a": (
+                "El código viene con la región especificada en cada plan. Si tu "
+                "consola está configurada en otra región, te ayudamos a cambiarla "
+                "antes de canjear — escribinos por WhatsApp si tenés dudas."
+            ),
+        })
+
+    # ---- Garantía ----
+    faqs.append({
+        "q": "¿Y si la cuenta deja de funcionar?",
+        "a": (
+            "Te <strong>reemplazamos el acceso sin preguntas</strong> mientras la "
+            "suscripción esté activa. Escríbenos por WhatsApp o abrí un ticket desde "
+            "tu panel y en minutos te entregamos otra cuenta sin costo."
+        ),
+    })
+
+    # ---- Devoluciones ----
+    faqs.append({
+        "q": "¿Hacen devoluciones?",
+        "a": (
+            "Sí. Si la entrega demora más de lo prometido o el producto no funciona "
+            "y no podemos repararlo, te devolvemos el 100 % del dinero dentro de "
+            "las primeras 24 horas."
+        ),
+    })
+
+    # ---- Confianza ----
+    faqs.append({
+        "q": "¿Son una tienda registrada en Perú?",
+        "a": (
+            "Sí. Somos una tienda peruana con más de <strong>5 000 entregas "
+            "confirmadas</strong>, 4.9/5 promedio en reseñas y soporte 24/7 por "
+            "WhatsApp, Telegram y chat en vivo. Tenemos libro de reclamaciones "
+            "virtual disponible en el footer."
+        ),
+    })
+
+    return faqs
+
+
 def product_detail(request, slug: str):
     product = get_object_or_404(
         Product.objects.select_related("category").prefetch_related("plans"),
@@ -380,6 +527,23 @@ def product_detail(request, slug: str):
         )
         related_products = related_products + cross_cat
 
+    faqs = _product_faqs(product)
+    # FAQPage JSON-LD para que Google indexe las preguntas y aparezcan
+    # como rich result en los resultados de búsqueda.
+    from django.utils.html import strip_tags
+    faq_schema = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": f["q"],
+                "acceptedAnswer": {"@type": "Answer", "text": strip_tags(f["a"])},
+            }
+            for f in faqs
+        ],
+    }, ensure_ascii=False)
+
     return render(
         request,
         "catalog/product_detail.html",
@@ -392,6 +556,8 @@ def product_detail(request, slug: str):
             "avg_rating": round(avg_rating, 1),
             "rating_breakdown": rating_breakdown,
             "related_products": related_products,
+            "product_faqs": faqs,
+            "product_faqs_schema": faq_schema,
         },
     )
 
