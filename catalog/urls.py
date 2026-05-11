@@ -40,4 +40,5 @@ urlpatterns = [
     path("estado/", seo_views.status_page, name="status"),
     path("resena/gracias/", views.review_thanks, name="review_thanks"),
     path("resena/<str:token>/", views.submit_review, name="review_submit"),
+    path("api/compras-recientes/", views.recent_purchases_api, name="recent_purchases_api"),
 ]
