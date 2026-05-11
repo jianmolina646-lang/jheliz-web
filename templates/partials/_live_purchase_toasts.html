@@ -1,0 +1,250 @@
+{# Widget de toasts flotantes de prueba social. #}
+{# Cada 9-15 s muestra una notificación tipo: #}
+{#   "Sebastián de Lima compró Netflix Premium · hace 3 min · ✓ Verificado" #}
+{# Sale de izquierda-abajo, se queda 5s, se va. Pausa con respeto a usuarios #}
+{# con reduce-motion o que la cierran. Persiste el cierre durante 24h. #}
+<div id="lpt-host" class="lpt-host" aria-live="polite" aria-atomic="true"></div>
+
+<style>
+  .lpt-host {
+    position: fixed;
+    left: max(12px, env(safe-area-inset-left));
+    bottom: max(80px, env(safe-area-inset-bottom));
+    z-index: 65;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: min(360px, calc(100vw - 24px));
+  }
+  @media (min-width: 768px) {
+    .lpt-host { bottom: 24px; }
+  }
+
+  .lpt-toast {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px 11px 11px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(20, 18, 32, 0.96), rgba(15, 12, 24, 0.92));
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow:
+      0 18px 40px -16px rgba(236, 72, 153, 0.35),
+      0 6px 18px -8px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(14px) saturate(140%);
+    color: #e4e4e7;
+    font-size: 0.82rem;
+    line-height: 1.3;
+    transform: translateX(-110%);
+    opacity: 0;
+    transition: transform .45s cubic-bezier(.2, .9, .25, 1.1), opacity .35s ease;
+  }
+  .lpt-toast.is-in { transform: translateX(0); opacity: 1; }
+  .lpt-toast.is-out { transform: translateX(-110%); opacity: 0; }
+
+  .lpt-toast__avatar {
+    width: 36px; height: 36px; border-radius: 11px;
+    flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #ec4899, #a855f7);
+    color: #fff;
+    font-family: 'Geist', system-ui, sans-serif;
+    font-size: 1.05rem;
+    font-weight: 800;
+    box-shadow: 0 6px 14px -4px rgba(236, 72, 153, .55), inset 0 1px 0 rgba(255, 255, 255, .25);
+  }
+  .lpt-toast__body { min-width: 0; flex: 1; }
+  .lpt-toast__row1 {
+    display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .55rem;
+    font-weight: 500;
+  }
+  .lpt-toast__name {
+    color: #fafafa;
+    font-weight: 700;
+    font-family: 'Geist', system-ui, sans-serif;
+  }
+  .lpt-toast__city { color: #a1a1aa; font-size: .72rem; }
+  .lpt-toast__product {
+    color: #f9a8d4;
+    font-weight: 700;
+  }
+  .lpt-toast__row2 {
+    display: flex; align-items: center; gap: .45rem;
+    font-size: .68rem;
+    color: #71717a;
+    margin-top: 3px;
+  }
+  .lpt-toast__when { display: inline-flex; align-items: center; gap: .25rem; }
+  .lpt-toast__when::before {
+    content: ''; width: 5px; height: 5px; border-radius: 999px;
+    background: #10b981; box-shadow: 0 0 0 0 rgba(16, 185, 129, .55);
+    animation: lptPulse 1.6s infinite ease-out;
+  }
+  @keyframes lptPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, .55); }
+    70%  { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  }
+  .lpt-toast__verified {
+    display: inline-flex; align-items: center; gap: .2rem;
+    color: #6ee7b7; font-weight: 700;
+    border-left: 1px solid rgba(255, 255, 255, .08);
+    padding-left: .45rem;
+  }
+  .lpt-toast__verified svg { width: 11px; height: 11px; }
+
+  .lpt-toast__close {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 18px; height: 18px;
+    border-radius: 999px;
+    border: 0;
+    background: rgba(255, 255, 255, .06);
+    color: #a1a1aa;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: background .15s ease, color .15s ease;
+  }
+  .lpt-toast__close:hover { background: rgba(255, 255, 255, .14); color: #fff; }
+
+  .lpt-toast { position: relative; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lpt-toast { transition: opacity .2s linear; transform: none; }
+    .lpt-toast.is-out { transform: none; }
+  }
+</style>
+
+<script>
+(function () {
+  const HOST_ID = 'lpt-host';
+  const ENDPOINT = "{% url 'catalog:recent_purchases_api' %}";
+  const DISMISS_KEY = 'lpt_dismissed_until';
+  const FIRST_DELAY = 7000;        // 7 s antes del primer toast
+  const BETWEEN_MIN = 9000;        // 9 s mínimo entre toasts
+  const BETWEEN_MAX = 16000;       // 16 s máximo entre toasts
+  const VISIBLE_MS = 5400;         // 5.4 s visible
+  const DISMISS_HOURS = 24;        // si el usuario cierra, no molestamos 24h
+
+  // Evitar duplicar el host (en HTMX swaps por ejemplo)
+  const existing = document.getElementById(HOST_ID);
+  if (!existing) return;
+
+  // Si el usuario cerró en las últimas 24h, no mostramos nada.
+  try {
+    const until = parseInt(localStorage.getItem(DISMISS_KEY) || '0', 10);
+    if (until && until > Date.now()) return;
+  } catch (e) { /* ignore */ }
+
+  // No molestar en panel admin ni en checkout/dashboard del cliente.
+  const path = window.location.pathname;
+  const BLOCKED = ['/panel-jheliz', '/admin', '/carrito', '/mi-cuenta', '/distribuidor/panel'];
+  if (BLOCKED.some((p) => path.startsWith(p))) return;
+
+  let items = [];
+  let idx = 0;
+  let stopped = false;
+
+  function timeAgo(iso) {
+    if (!iso) return 'recién';
+    const then = new Date(iso).getTime();
+    if (isNaN(then)) return 'recién';
+    const diff = Math.max(0, Date.now() - then);
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return 'hace unos segundos';
+    if (min < 60) return `hace ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `hace ${h} h`;
+    const d = Math.floor(h / 24);
+    return `hace ${d} d`;
+  }
+
+  function pickAvatar(name) {
+    return (name || '?').trim().charAt(0).toUpperCase() || '?';
+  }
+
+  function buildToast(item) {
+    const toast = document.createElement('div');
+    toast.className = 'lpt-toast';
+    toast.setAttribute('role', 'status');
+    toast.innerHTML = `
+      <div class="lpt-toast__avatar" aria-hidden="true">${pickAvatar(item.name)}</div>
+      <div class="lpt-toast__body">
+        <div class="lpt-toast__row1">
+          <span class="lpt-toast__name"></span>
+          <span class="lpt-toast__city"></span>
+          <span>compró</span>
+          <span class="lpt-toast__product"></span>
+        </div>
+        <div class="lpt-toast__row2">
+          <span class="lpt-toast__when"></span>
+          <span class="lpt-toast__verified">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+            Verificado
+          </span>
+        </div>
+      </div>
+      <button type="button" class="lpt-toast__close" aria-label="Cerrar notificación">×</button>
+    `;
+    toast.querySelector('.lpt-toast__name').textContent = item.name || 'Cliente';
+    toast.querySelector('.lpt-toast__city').textContent = item.city ? `de ${item.city}` : '';
+    toast.querySelector('.lpt-toast__product').textContent = `${item.emoji || '🎬'} ${item.product || ''}`;
+    toast.querySelector('.lpt-toast__when').textContent = timeAgo(item.when_iso);
+    toast.querySelector('.lpt-toast__close').addEventListener('click', function () {
+      stopped = true;
+      try {
+        const until = Date.now() + DISMISS_HOURS * 3600 * 1000;
+        localStorage.setItem(DISMISS_KEY, String(until));
+      } catch (e) { /* ignore */ }
+      removeToast(toast);
+    });
+    return toast;
+  }
+
+  function removeToast(toast) {
+    if (!toast || !toast.parentNode) return;
+    toast.classList.add('is-out');
+    setTimeout(function () {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 500);
+  }
+
+  function showNext() {
+    if (stopped || !items.length) return;
+    if (document.hidden) {
+      setTimeout(showNext, 5000);
+      return;
+    }
+    const item = items[idx % items.length];
+    idx++;
+    const host = document.getElementById(HOST_ID);
+    if (!host) return;
+    const toast = buildToast(item);
+    host.appendChild(toast);
+    requestAnimationFrame(function () { toast.classList.add('is-in'); });
+    setTimeout(function () { removeToast(toast); }, VISIBLE_MS);
+    const next = BETWEEN_MIN + Math.floor(Math.random() * (BETWEEN_MAX - BETWEEN_MIN));
+    setTimeout(showNext, next);
+  }
+
+  function start() {
+    setTimeout(showNext, FIRST_DELAY);
+  }
+
+  fetch(ENDPOINT, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      if (!data || !Array.isArray(data.items) || !data.items.length) return;
+      // Shuffle ligero para que no siempre arranque por el más reciente.
+      items = data.items.slice();
+      items.sort(function () { return Math.random() - 0.5; });
+      start();
+    })
+    .catch(function () { /* silencio */ });
+})();
+</script>

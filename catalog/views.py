@@ -92,10 +92,28 @@ def _featured_reviews(limit: int = 6):
     return with_photo
 
 
-def _recent_purchases(limit: int = 8):
+# Ciudades del Perú para enriquecer el ticker de prueba social cuando
+# el pedido no trae ciudad asociada. Se asignan deterministamente por id.
+_PE_CITIES = [
+    "Lima", "Arequipa", "Trujillo", "Chiclayo", "Piura", "Cusco",
+    "Iquitos", "Huancayo", "Tacna", "Chimbote", "Pucallpa", "Cajamarca",
+    "Ica", "Juliaca", "Ayacucho", "Huánuco", "Tarapoto", "Puno",
+    "Tumbes", "Sullana", "Huaraz", "Moquegua", "Cerro de Pasco", "Abancay",
+]
+
+
+def _city_for(seed: int) -> str:
+    if not seed:
+        return _PE_CITIES[0]
+    return _PE_CITIES[seed % len(_PE_CITIES)]
+
+
+def _recent_purchases(limit: int = 8, with_city: bool = False):
     """Mini-ticker of latest purchases for social proof.
 
     Returns paid orders with the customer's first name + city masked.
+    Cuando ``with_city`` es True se incluye una ciudad peruana derivada
+    de forma determinista del id del pedido.
     """
     from orders.models import Order
 
@@ -117,14 +135,50 @@ def _recent_purchases(limit: int = 8):
         if not name:
             name = "Cliente"
         masked = name.split()[0].title()
-        out.append({
+        item = {
             "name": masked,
             "product": first_item.plan.product.name,
             "when": order.created_at,
-        })
-        if len(out) >= limit:
+        }
+        if with_city:
+            item["city"] = _city_for(order.id)
+            item["emoji"] = (
+                getattr(first_item.plan.product.category, "emoji", None) or "🎬"
+            )
+            # ISO 8601 con tz para que el JS calcule "hace X min" del lado cliente.
+            item["when_iso"] = order.created_at.isoformat()
+        if len(out) < limit:
+            out.append(item)
+        else:
             break
     return out
+
+
+def recent_purchases_api(request):
+    """Devuelve los últimos pedidos pagados como JSON para el widget de toasts
+    flotantes de prueba social. Cache 60s para que el endpoint pueda servir
+    miles de hits sin tocar la DB.
+    """
+    cache_key = "jh_recent_purchases_api"
+    payload = cache.get(cache_key)
+    if payload is None:
+        items = _recent_purchases(limit=12, with_city=True)
+        payload = {
+            "items": [
+                {
+                    "name": it["name"],
+                    "city": it.get("city", ""),
+                    "product": it["product"],
+                    "emoji": it.get("emoji", "🎬"),
+                    "when_iso": it.get("when_iso") or it["when"].isoformat(),
+                }
+                for it in items
+            ],
+        }
+        cache.set(cache_key, payload, 60)
+    resp = JsonResponse(payload)
+    patch_response_headers(resp, cache_timeout=60)
+    return resp
 
 
 def _audience_filter(user):

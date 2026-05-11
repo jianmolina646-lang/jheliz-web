@@ -660,3 +660,65 @@ class BackInStockAlertTests(TestCase):
         # Ya estaba notified, no se vuelve a tocar.
         alert = BackInStockAlert.objects.get(email="already@test.com")
         self.assertEqual(alert.status, BackInStockAlert.Status.NOTIFIED)
+
+
+class RecentPurchasesApiTests(TestCase):
+    """El endpoint /api/compras-recientes/ devuelve los últimos pedidos
+    pagados/entregados con ciudad y emoji. Se usa para el widget de toasts
+    de prueba social en el frontend."""
+
+    def setUp(self):
+        from orders.models import Order, OrderItem
+        from django.core.cache import cache
+        cache.clear()
+        self.User = get_user_model()
+        self.cat = Category.objects.create(
+            name="StreamingRecent", slug="streaming-recent", emoji="📺",
+        )
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix Premium", slug="netflix-recent", is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", price_customer=Decimal("25.00"),
+        )
+        self.user = self.User.objects.create_user(
+            username="seba", email="seba@test.pe", first_name="Sebastián",
+        )
+        self.order = Order.objects.create(
+            user=self.user, total=Decimal("25.00"), status=Order.Status.PAID,
+        )
+        OrderItem.objects.create(
+            order=self.order, product=self.product, plan=self.plan, quantity=1,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=Decimal("25.00"),
+        )
+
+    def test_returns_json_with_paid_order(self):
+        resp = self.client.get(reverse("catalog:recent_purchases_api"))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("items", data)
+        self.assertGreaterEqual(len(data["items"]), 1)
+        item = data["items"][0]
+        self.assertEqual(item["name"], "Sebastián")
+        self.assertEqual(item["product"], "Netflix Premium")
+        self.assertEqual(item["emoji"], "📺")
+        self.assertTrue(item["city"])  # ciudad peruana asignada por id
+        self.assertIn("when_iso", item)
+
+    def test_excludes_unpaid_orders(self):
+        from orders.models import Order, OrderItem
+        order = Order.objects.create(
+            user=self.user, total=Decimal("25.00"), status=Order.Status.PENDING,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan, quantity=1,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=Decimal("25.00"),
+        )
+        from django.core.cache import cache
+        cache.clear()
+        resp = self.client.get(reverse("catalog:recent_purchases_api"))
+        data = resp.json()
+        # Solo el pedido pagado (1 item), no el pending.
+        self.assertEqual(len(data["items"]), 1)
