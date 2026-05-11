@@ -191,6 +191,24 @@ def cart_view(request):
     combo_discount = cart.combo_discount_for(request.user)
     combo_pct = cart.combo_tier_percent()
     distinct_products = cart.distinct_product_count()
+    # Si el carrito está vacío, sugerimos los 4 destacados para que el cliente
+    # no se quede en una página muerta.
+    suggested = []
+    if cart.is_empty():
+        from catalog.models import Product
+        suggested = list(
+            Product.objects.filter(is_active=True, is_featured=True)
+            .select_related("category")
+            .order_by("-id")[:4]
+        )
+        if len(suggested) < 4:
+            extra = (
+                Product.objects.filter(is_active=True)
+                .exclude(id__in=[p.id for p in suggested])
+                .select_related("category")
+                .order_by("-id")[: 4 - len(suggested)]
+            )
+            suggested.extend(list(extra))
     return render(request, "orders/cart.html", {
         "cart": cart,
         "lines": lines,
@@ -202,6 +220,7 @@ def cart_view(request):
         "total": subtotal - discount - combo_discount,
         "coupon": coupon,
         "coupon_error": coupon_error,
+        "suggested_products": suggested,
     })
 
 

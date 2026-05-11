@@ -5,13 +5,20 @@
 
 {% block content %}
 <div class="mb-6" data-reveal>
-  <div class="ck-steps mb-5">
-    <span class="ck-step is-done"><span class="ck-step__num">✓</span> Carrito</span>
-    <span class="ck-sep"></span>
-    <span class="ck-step is-active"><span class="ck-step__num">2</span> Datos &amp; pago</span>
-    <span class="ck-sep"></span>
-    <span class="ck-step"><span class="ck-step__num">3</span> Confirmación</span>
-  </div>
+  <ol class="ck-progress mb-6" aria-label="Pasos del checkout">
+    <li class="ck-progress__step is-done">
+      <span class="ck-progress__dot"><span class="ck-progress__num">✓</span></span>
+      <span class="ck-progress__label">Carrito</span>
+    </li>
+    <li class="ck-progress__step is-active" aria-current="step">
+      <span class="ck-progress__dot"><span class="ck-progress__num">2</span></span>
+      <span class="ck-progress__label">Datos &amp; pago</span>
+    </li>
+    <li class="ck-progress__step">
+      <span class="ck-progress__dot"><span class="ck-progress__num">3</span></span>
+      <span class="ck-progress__label">Confirmación</span>
+    </li>
+  </ol>
   <h1 class="font-display text-3xl md:text-4xl font-bold tracking-tight">Finalizar compra</h1>
   <p class="text-zinc-400 mt-2 max-w-2xl">Revisa tu pedido, elige cómo pagar y completa tus datos.</p>
 </div>
