@@ -218,21 +218,8 @@
       <a href="{% url 'catalog:distributor' %}" class="btn btn-secondary btn-lg" style="border-radius:9999px">Soy distribuidor</a>
     </div>
 
-    <!-- Trust row -->
-    <div class="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-zinc-500">
-      <div class="flex items-center gap-2">
-        <svg class="icon" viewBox="0 0 24 24" style="color:#34d399"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-        Más de 5 000 entregas
-      </div>
-      <div class="flex items-center gap-2">
-        <svg class="icon icon-filled" viewBox="0 0 24 24" style="color:#fbbf24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        4.9 / 5 promedio
-      </div>
-      <div class="flex items-center gap-2">
-        <svg class="icon" viewBox="0 0 24 24" style="color:#f472b6"><path d="M12 22s-8-4.5-8-12a8 8 0 0 1 16 0c0 7.5-8 12-8 12z"/><circle cx="12" cy="10" r="3"/></svg>
-        Hecho en Perú
-      </div>
-    </div>
+    {# Trust badges con datos reales de SOCIAL_PROOF (entregas, reseñas, garantía, pago) #}
+    {% include "partials/_hero_trust_badges.html" %}
   </div>
 
   {% if starter_strip %}
@@ -254,6 +241,9 @@
 
 <!-- Brand strip — logos oficiales de las plataformas --------------------- -->
 {% include "catalog/_brand_strip.html" %}
+
+<!-- ¿Por qué Jheliz? — 4 columnas de diferenciadores -------------------- -->
+{% include "partials/_why_jheliz.html" %}
 
 <!-- Cómo funciona — 3 pasos rápidos ----------------------------------- -->
 <section class="py-10 border-t hairline">

@@ -152,6 +152,43 @@
   @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 
   /* Tabs */
+  .pd-warranty {
+    display: flex; align-items: center; gap: .85rem;
+    padding: .85rem 1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(16,185,129,.25);
+    background: linear-gradient(135deg, rgba(16,185,129,.06), rgba(5,150,105,.02));
+    text-decoration: none;
+    transition: border-color .15s ease, background .15s ease, transform .15s ease;
+  }
+  .pd-warranty:hover {
+    border-color: rgba(16,185,129,.5);
+    background: linear-gradient(135deg, rgba(16,185,129,.1), rgba(5,150,105,.04));
+    transform: translateY(-1px);
+  }
+  .pd-warranty__icon {
+    width: 2.4rem; height: 2.4rem; flex-shrink: 0;
+    border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(16,185,129,.14); color: #6ee7b7;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.07);
+  }
+  .pd-warranty__icon svg { width: 22px; height: 22px; }
+  .pd-warranty__body { flex: 1; min-width: 0; }
+  .pd-warranty__title {
+    display: block; font-family: 'Geist', system-ui, sans-serif;
+    font-weight: 700; font-size: .92rem; color: #d1fae5; letter-spacing: -.01em;
+  }
+  .pd-warranty__sub {
+    display: block; margin-top: 2px;
+    font-size: .76rem; color: #a1a1aa; line-height: 1.35;
+  }
+  .pd-warranty__more svg {
+    width: 16px; height: 16px; color: #6ee7b7; flex-shrink: 0;
+    transition: transform .15s ease;
+  }
+  .pd-warranty:hover .pd-warranty__more svg { transform: translateX(2px); }
+
   .pd-tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); }
   .pd-tab {
     padding: 0.65rem 1rem; font-size: 0.85rem; font-weight: 600; color: #a1a1aa;
@@ -334,6 +371,26 @@
       {% if product.short_description %}
         <p class="mt-6 text-zinc-200 leading-relaxed">{{ product.short_description }}</p>
       {% endif %}
+
+    {# Garantía 30 días — caja prominente con escudo. Refuerza confianza
+       inmediatamente debajo del precio/descripción del producto. #}
+    <a href="{% url 'catalog:warranty' %}" class="pd-warranty mt-5">
+      <span class="pd-warranty__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s-8-4.5-8-12V5l8-3 8 3v5c0 7.5-8 12-8 12z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+      </span>
+      <span class="pd-warranty__body">
+        <span class="pd-warranty__title">Garantía total 30 días</span>
+        <span class="pd-warranty__sub">Si tu cuenta falla, te la cambiamos sin preguntas. Cubierto por nuestra política.</span>
+      </span>
+      <span class="pd-warranty__more" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </span>
+    </a>
 
     <!-- Share row -->
     <div class="mt-5 flex flex-wrap items-center gap-2">

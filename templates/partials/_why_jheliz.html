@@ -1,0 +1,115 @@
+{# Sección "¿Por qué Jheliz?" con 4 columnas de diferenciadores. Refuerza
+   confianza explicando los 4 pilares (entrega, garantía, pago, soporte). #}
+<section class="py-12 border-t hairline" aria-label="¿Por qué Jheliz?">
+  <div class="text-center mb-10" data-reveal>
+    <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">¿Por qué Jheliz?</p>
+    <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight mt-2">
+      4 razones por las que <span class="hero-italic text-zinc-400">miles confían</span> en nosotros
+    </h2>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4" data-reveal-stagger>
+    <!-- Entrega rápida -->
+    <div class="why-card" data-reveal>
+      <div class="why-card__icon why-card__icon--lightning">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+      </div>
+      <h3 class="why-card__title">Entrega en 2 min</h3>
+      <p class="why-card__body">Recibís las credenciales en tu correo apenas confirmamos el pago.</p>
+    </div>
+
+    <!-- Garantía -->
+    <div class="why-card" data-reveal>
+      <div class="why-card__icon why-card__icon--shield">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 22s-8-4.5-8-12V5l8-3 8 3v5c0 7.5-8 12-8 12z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+      </div>
+      <h3 class="why-card__title">Garantía 30 días</h3>
+      <p class="why-card__body">Si tu cuenta falla, te la cambiamos sin preguntas durante el primer mes.</p>
+    </div>
+
+    <!-- Pago seguro -->
+    <div class="why-card" data-reveal>
+      <div class="why-card__icon why-card__icon--lock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <h3 class="why-card__title">Pago 100% seguro</h3>
+      <p class="why-card__body">Mercado Pago oficial y Yape con QR. Tus datos nunca pasan por nosotros.</p>
+    </div>
+
+    <!-- Soporte -->
+    <div class="why-card" data-reveal>
+      <div class="why-card__icon why-card__icon--chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <h3 class="why-card__title">Soporte 24/7</h3>
+      <p class="why-card__body">Te respondemos por chat, WhatsApp o email. Personas reales, no bots.</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .why-card {
+    position: relative;
+    padding: 1.25rem 1rem;
+    border-radius: 16px;
+    border: 1px solid var(--line, rgba(255,255,255,.08));
+    background: rgba(255,255,255,.02);
+    text-align: left;
+    transition: transform .18s ease, border-color .18s ease, background .18s ease;
+  }
+  .why-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(236,72,153,.35);
+    background: rgba(236,72,153,.04);
+    box-shadow: 0 14px 40px -16px rgba(236,72,153,.25);
+  }
+  .why-card__icon {
+    width: 2.5rem; height: 2.5rem;
+    border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-bottom: .75rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .why-card__icon svg { width: 22px; height: 22px; }
+  .why-card__icon--lightning {
+    background: linear-gradient(135deg, rgba(251,191,36,.18), rgba(245,158,11,.08));
+    color: #fcd34d;
+  }
+  .why-card__icon--shield {
+    background: linear-gradient(135deg, rgba(16,185,129,.18), rgba(5,150,105,.08));
+    color: #6ee7b7;
+  }
+  .why-card__icon--lock {
+    background: linear-gradient(135deg, rgba(99,102,241,.18), rgba(79,70,229,.08));
+    color: #a5b4fc;
+  }
+  .why-card__icon--chat {
+    background: linear-gradient(135deg, rgba(236,72,153,.18), rgba(168,85,247,.08));
+    color: #f9a8d4;
+  }
+  .why-card__title {
+    font-family: 'Geist', system-ui, sans-serif;
+    font-size: .95rem; font-weight: 700;
+    color: #fafafa; letter-spacing: -.01em;
+  }
+  .why-card__body {
+    margin-top: .35rem;
+    font-size: .78rem; line-height: 1.45;
+    color: #a1a1aa;
+  }
+  @media (min-width: 768px) {
+    .why-card { padding: 1.5rem 1.25rem; }
+    .why-card__title { font-size: 1.05rem; }
+    .why-card__body { font-size: .85rem; }
+  }
+</style>
