@@ -27,6 +27,8 @@ from .models import Role
 def signup(request):
     if request.user.is_authenticated:
         return redirect("accounts:dashboard")
+    requested_role = (request.GET.get("role") or "").lower().strip()
+    is_distri_mode = requested_role == Role.DISTRIBUIDOR
     if request.method == "POST":
         form = SignupForm(request.POST)
         if form.is_valid():
@@ -42,9 +44,19 @@ def signup(request):
                     "Mientras tanto ver\u00e1s los precios de cliente.",
                 )
             return redirect("accounts:dashboard")
+        # POST con error: si el usuario marcó distribuidor, mantenemos el panel
+        if (form.data.get("role") or "").lower() == Role.DISTRIBUIDOR:
+            is_distri_mode = True
     else:
-        form = SignupForm()
-    return render(request, "accounts/signup.html", {"form": form})
+        initial = {}
+        if is_distri_mode:
+            initial["role"] = Role.DISTRIBUIDOR
+        form = SignupForm(initial=initial)
+    return render(
+        request,
+        "accounts/signup.html",
+        {"form": form, "is_distri_mode": is_distri_mode},
+    )
 
 
 class JhelizLoginView(LoginView):

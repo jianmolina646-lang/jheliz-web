@@ -690,3 +690,53 @@ class PushBroadcastUnconfiguredTests(TestCase):
         resp = self.client.get(reverse("admin_push_broadcast"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "VAPID no est")
+
+
+class SignupPageRedesignTests(TestCase):
+    """Lock in the modern signup page (split layout, distri mode toggle)."""
+
+    def test_signup_renders_modern_hero_panel(self):
+        resp = self.client.get(reverse("accounts:signup"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        # New 2026 design markers
+        self.assertIn("su-hero", body)
+        self.assertIn("su-card", body)
+        self.assertIn("su-roles", body)
+        # Default mode = cliente: shows cliente-flavoured hero copy
+        self.assertIn("Crear cuenta", body)
+
+    def test_signup_distri_mode_via_query_param(self):
+        resp = self.client.get(reverse("accounts:signup") + "?role=distribuidor")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        # Distri-specific hero copy
+        self.assertIn("Programa de distribuidores", body)
+        self.assertIn("Hasta 60%", body)
+        self.assertIn("Enviar postulaci", body)  # button label
+        # Distri role pre-selected (the distribuidor radio carries `checked`)
+        import re as _re
+        m = _re.search(
+            r'<input[^>]*name="role"[^>]*value="distribuidor"[^>]*>', body
+        )
+        self.assertIsNotNone(m, "distribuidor radio not found")
+        self.assertIn("checked", m.group(0))
+
+    def test_signup_distri_post_creates_pending_distributor(self):
+        resp = self.client.post(
+            reverse("accounts:signup") + "?role=distribuidor",
+            {
+                "username": "newdistri",
+                "email": "newdistri@example.com",
+                "phone": "+51999000111",
+                "telegram_username": "",
+                "role": Role.DISTRIBUIDOR,
+                "password1": "Sup3rSecret!",
+                "password2": "Sup3rSecret!",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        u = User.objects.get(username="newdistri")
+        self.assertEqual(u.role, Role.DISTRIBUIDOR)
+        # not approved yet
+        self.assertFalse(getattr(u, "distributor_approved", False))

@@ -1,35 +1,419 @@
 {% extends "base.html" %}
 {% load widget_tweaks %}
-{% block title %}Registro — {{ SITE_NAME }}{% endblock %}
+{% block title %}{% if is_distri_mode %}Registro distribuidor{% else %}Crear cuenta{% endif %} — {{ SITE_NAME }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Signup 2026 ─────────────────────────────────────────── */
+  .su-wrap { position: relative; }
+  .su-wrap::before {
+    content: ''; position: absolute; inset: -10% -10% auto -10%; height: 60%;
+    background:
+      radial-gradient(45% 55% at 25% 20%, rgba(236,72,153,.18), transparent 65%),
+      radial-gradient(35% 45% at 80% 30%, rgba(168,85,247,.14), transparent 65%);
+    z-index: -1; pointer-events: none; filter: blur(20px);
+  }
+  .su-grid {
+    display: grid; gap: 1.75rem;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  @media (min-width: 1024px) {
+    .su-grid { grid-template-columns: 1.05fr 1fr; gap: 2.5rem; }
+  }
+
+  /* Hero / benefits panel */
+  .su-hero {
+    position: relative; overflow: hidden;
+    border-radius: 24px;
+    padding: 1.75rem; padding-top: 2rem;
+    background:
+      radial-gradient(120% 80% at 0% 0%, rgba(236,72,153,.18), transparent 55%),
+      radial-gradient(120% 80% at 100% 100%, rgba(168,85,247,.16), transparent 55%),
+      linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.012));
+    border: 1px solid rgba(236,72,153,.22);
+  }
+  @media (min-width: 1024px) { .su-hero { padding: 2.25rem; } }
+  .su-hero::after {
+    content: ''; position: absolute; right: -90px; top: -90px;
+    width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(236,72,153,.35), transparent 70%);
+    pointer-events: none; animation: suHaloPulse 7s ease-in-out infinite;
+  }
+  @keyframes suHaloPulse {
+    0%,100% { transform: scale(1); opacity: .9; }
+    50%     { transform: scale(1.08); opacity: .65; }
+  }
+  .su-eyebrow {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .35rem .7rem; border-radius: 9999px;
+    font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: #f9a8d4; background: rgba(236,72,153,.08);
+    border: 1px solid rgba(236,72,153,.28);
+  }
+  .su-eyebrow .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #f472b6; box-shadow: 0 0 0 4px rgba(244,114,182,.18);
+    animation: suDot 1.6s ease-in-out infinite;
+  }
+  @keyframes suDot { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+  .su-title {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: clamp(1.65rem, 3.4vw, 2.25rem);
+    line-height: 1.06; letter-spacing: -0.035em; font-weight: 800;
+    margin-top: 1rem;
+  }
+  .su-sub { color: var(--text-mute); font-size: .95rem; margin-top: .65rem; line-height: 1.55; }
+
+  /* Benefit list */
+  .su-benefits { display: grid; gap: .65rem; margin-top: 1.5rem; }
+  .su-benefit {
+    display: flex; gap: .85rem; align-items: flex-start;
+    padding: .85rem; border-radius: 14px;
+    background: rgba(255,255,255,.025);
+    border: 1px solid var(--line);
+  }
+  .su-benefit__ic {
+    width: 38px; height: 38px; border-radius: 11px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(236,72,153,.18), rgba(168,85,247,.14));
+    color: #f9a8d4; border: 1px solid rgba(236,72,153,.28);
+  }
+  .su-benefit__ic .icon { width: 18px; height: 18px; stroke-width: 1.7; }
+  .su-benefit__t { font-weight: 700; font-size: .92rem; color: var(--text); }
+  .su-benefit__d { color: var(--text-mute); font-size: .82rem; margin-top: .15rem; line-height: 1.45; }
+
+  /* Steps */
+  .su-steps { margin-top: 1.5rem; display: grid; gap: .55rem; }
+  .su-step {
+    display: flex; gap: .75rem; align-items: center;
+    padding: .55rem .25rem;
+  }
+  .su-step__n {
+    width: 28px; height: 28px; border-radius: 9px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: .82rem; color: #fff;
+    background: linear-gradient(135deg, #ec4899, #a855f7);
+    box-shadow: 0 6px 16px -8px rgba(236,72,153,.6);
+    flex: none;
+  }
+  .su-step__t { font-size: .9rem; color: var(--text); }
+  .su-step__t b { color: #fff; }
+
+  /* Trust strip below hero */
+  .su-trust {
+    display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem;
+  }
+  .su-trust .chip { font-size: .72rem; }
+
+  /* Form card */
+  .su-card {
+    border-radius: 24px; padding: 1.75rem;
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.012));
+    border: 1px solid var(--line);
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,.5);
+  }
+  @media (min-width: 1024px) { .su-card { padding: 2.25rem; } }
+  .su-card h2 {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em;
+  }
+
+  /* Role segmented selector */
+  .su-roles {
+    display: grid; grid-template-columns: 1fr 1fr; gap: .55rem;
+    padding: .35rem; border-radius: 14px;
+    background: rgba(255,255,255,.025);
+    border: 1px solid var(--line);
+  }
+  .su-role {
+    position: relative; cursor: pointer; user-select: none;
+    border-radius: 11px;
+    padding: .85rem .9rem;
+    transition: background 180ms ease, border-color 180ms ease, transform 120ms ease;
+    border: 1px solid transparent;
+    display: flex; align-items: center; gap: .65rem;
+  }
+  .su-role:hover { background: rgba(255,255,255,.025); }
+  .su-role input[type="radio"] {
+    position: absolute; opacity: 0; pointer-events: none;
+  }
+  .su-role__ic {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.04); color: var(--text-mute);
+    border: 1px solid var(--line);
+    flex: none;
+    transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+  }
+  .su-role__ic .icon { width: 18px; height: 18px; stroke-width: 1.8; }
+  .su-role__t { font-weight: 700; font-size: .92rem; color: var(--text); }
+  .su-role__d { color: var(--text-mute); font-size: .76rem; margin-top: .1rem; line-height: 1.3; }
+  .su-role:has(input:checked) {
+    background: linear-gradient(135deg, rgba(236,72,153,.16), rgba(168,85,247,.10));
+    border-color: rgba(236,72,153,.45);
+    box-shadow: 0 8px 22px -12px rgba(236,72,153,.5);
+  }
+  .su-role:has(input:checked) .su-role__ic {
+    background: linear-gradient(135deg, #ec4899, #a855f7); color: #fff; border-color: transparent;
+    box-shadow: 0 4px 14px -6px rgba(236,72,153,.6);
+  }
+  .su-role:has(input:checked) .su-role__t { color: #fff; }
+
+  /* Form rows */
+  .su-form { display: grid; gap: .9rem; margin-top: 1.25rem; }
+  .su-row { display: grid; gap: .35rem; }
+  .su-label {
+    font-size: .72rem; font-weight: 600; color: var(--text-mute);
+    text-transform: uppercase; letter-spacing: .04em;
+    display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  }
+  .su-label .opt {
+    text-transform: none; letter-spacing: 0; font-weight: 500;
+    color: var(--text-dim); font-size: .7rem;
+  }
+  .su-row .field { padding: .8rem .9rem; font-size: .92rem; }
+  .su-help { font-size: .72rem; color: var(--text-dim); margin-top: .25rem; }
+  .su-err { font-size: .75rem; color: #fca5a5; margin-top: .25rem; }
+
+  /* Two-up fields on wider screens */
+  @media (min-width: 640px) {
+    .su-form .su-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+  }
+
+  /* Submit + footer */
+  .su-cta { margin-top: .35rem; }
+  .su-meta {
+    display: flex; flex-wrap: wrap; gap: .5rem .85rem; margin-top: 1rem;
+    font-size: .8rem; color: var(--text-mute);
+  }
+  .su-meta a { color: #f9a8d4; }
+  .su-meta a:hover { color: #f472b6; }
+  .su-divider {
+    height: 1px; background: var(--line); margin: 1.25rem 0 .5rem;
+  }
+  .su-foot-trust {
+    display: flex; flex-wrap: wrap; gap: .35rem .55rem;
+    margin-top: 1rem; font-size: .72rem; color: var(--text-dim);
+  }
+  .su-foot-trust .pill {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .25rem .55rem; border-radius: 9999px;
+    background: rgba(255,255,255,.025);
+    border: 1px solid var(--line);
+  }
+  .su-foot-trust .pill .icon { width: 12px; height: 12px; stroke-width: 2; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-xl mx-auto surface rounded-2xl p-8 md:p-10 mt-4">
-  <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight" style="letter-spacing:-0.04em">Crear cuenta</h1>
-  <p class="text-zinc-400 text-sm mt-1.5">¿Ya tienes cuenta? <a class="text-jheliz-400 hover:text-jheliz-300 font-medium" href="{% url 'accounts:login' %}">Ingresar</a>.</p>
-  <form method="post" class="mt-6 space-y-4">
-    {% csrf_token %}
-    {% for field in form %}
-      <div>
-        <label class="block text-xs font-medium text-zinc-400 mb-1.5">{{ field.label }}</label>
-        {% if field.name == 'role' %}
-          <div class="grid grid-cols-2 gap-3 mt-1">
-            {% for radio in field %}
-              <label class="flex items-center gap-2.5 rounded-xl border hairline bg-white/[0.02] px-4 py-3 cursor-pointer hover:border-zinc-600 transition has-[:checked]:border-jheliz-500 has-[:checked]:bg-jheliz-500/[0.06]">
+<div class="su-wrap max-w-6xl mx-auto py-2 md:py-6">
+  <div class="su-grid">
+
+    {# ── Left: hero / benefits ───────────────────────────────── #}
+    <aside class="su-hero" aria-hidden="false">
+      {% if is_distri_mode %}
+        <span class="su-eyebrow"><span class="dot"></span>Programa de distribuidores</span>
+        <h1 class="su-title">Revende cuentas <span class="text-grad">sin invertir stock</span> y gana hasta <span class="text-grad">60%</span> por venta.</h1>
+        <p class="su-sub">Aprobamos tu solicitud en <b>menos de 24 h</b>. Recibís precio mayorista, entrega automática y garantía 30 días para tus clientes.</p>
+
+        <ul class="su-benefits">
+          <li class="su-benefit">
+            <span class="su-benefit__ic"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12l3-3 4 4 8-8 3 3"/><path d="M3 21h18"/></svg></span>
+            <div>
+              <div class="su-benefit__t">Hasta 60% de descuento</div>
+              <div class="su-benefit__d">Precios mayoristas en 100% del catálogo apenas te aprueben.</div>
+            </div>
+          </li>
+          <li class="su-benefit">
+            <span class="su-benefit__ic"><svg class="icon" viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 11-13h-7l1-7Z"/></svg></span>
+            <div>
+              <div class="su-benefit__t">Entrega automática</div>
+              <div class="su-benefit__d">El sistema entrega credenciales al toque, sin que vos toques nada.</div>
+            </div>
+          </li>
+          <li class="su-benefit">
+            <span class="su-benefit__ic"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8.5 8 9 4.6-.5 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div>
+              <div class="su-benefit__t">Garantía 30 días</div>
+              <div class="su-benefit__d">Si la cuenta falla por algo nuestro, la reemplazamos sin discutir.</div>
+            </div>
+          </li>
+          <li class="su-benefit">
+            <span class="su-benefit__ic"><svg class="icon" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v9Z"/></svg></span>
+            <div>
+              <div class="su-benefit__t">Soporte prioritario</div>
+              <div class="su-benefit__d">Línea privada por WhatsApp / Telegram con respuesta en &lt; 5 min.</div>
+            </div>
+          </li>
+        </ul>
+
+        <div class="su-steps" aria-label="Qué pasa después">
+          <div class="su-step"><span class="su-step__n">1</span><span class="su-step__t"><b>Te registras gratis.</b> 1 minuto, sin compromiso.</span></div>
+          <div class="su-step"><span class="su-step__n">2</span><span class="su-step__t"><b>Aprobamos tu cuenta</b> en menos de 24 h hábiles.</span></div>
+          <div class="su-step"><span class="su-step__n">3</span><span class="su-step__t"><b>Ves precios mayoristas</b> y empezás a vender.</span></div>
+        </div>
+
+        <div class="su-trust">
+          <span class="chip chip-pink">+5.000 clientes felices</span>
+          <span class="chip">⭐ 4.9 / 5</span>
+          <span class="chip">🇵🇪 Empresa peruana</span>
+          <span class="chip">🛡️ Pago 100% seguro</span>
+        </div>
+      {% else %}
+        <span class="su-eyebrow"><span class="dot"></span>Tu cuenta Jheliz</span>
+        <h1 class="su-title">Comprá tus cuentas premium <span class="text-grad">en 1 minuto</span> y recibilas al toque.</h1>
+        <p class="su-sub">Crear tu cuenta es gratis y te da entrega automática, historial de pedidos, garantía 30 días y soporte por WhatsApp.</p>
+
+        <ul class="su-benefits">
+          <li class="su-benefit">
+            <span class="su-benefit__ic"><svg class="icon" viewBox="0 0 24 24"><path d="M13 2 3 14h7l-1 8 11-13h-7l1-7Z"/></svg></span>
+            <div>
+              <div class="su-benefit__t">Entrega en menos de 5 min</div>
+              <div class="su-benefit__d">Recibís usuario y contraseña apenas confirmamos tu pago.</div>
+            </div>
+          </li>
+          <li class="su-benefit">
+            <span class="su-benefit__ic"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8.5 8 9 4.6-.5 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <div>
+              <div class="su-benefit__t">Garantía 30 días</div>
+              <div class="su-benefit__d">Si la cuenta falla por algo nuestro, te la reemplazamos al instante.</div>
+            </div>
+          </li>
+          <li class="su-benefit">
+            <span class="su-benefit__ic"><svg class="icon" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V6a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v9Z"/></svg></span>
+            <div>
+              <div class="su-benefit__t">Soporte 9:00 a 23:00</div>
+              <div class="su-benefit__d">Te respondemos en menos de 5 minutos por WhatsApp y chat web.</div>
+            </div>
+          </li>
+        </ul>
+
+        <div class="su-trust">
+          <span class="chip chip-pink">+5.000 clientes felices</span>
+          <span class="chip">⭐ 4.9 / 5</span>
+          <span class="chip">🛡️ Pago 100% seguro</span>
+          <span class="chip">🔒 Conexión SSL</span>
+        </div>
+      {% endif %}
+    </aside>
+
+    {# ── Right: form ─────────────────────────────────────────── #}
+    <section class="su-card" aria-labelledby="su-form-title">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 id="su-form-title">{% if is_distri_mode %}Postular como distribuidor{% else %}Crear cuenta{% endif %}</h2>
+          <p class="text-sm text-zinc-400 mt-1">¿Ya tienes cuenta? <a class="text-jheliz-400 hover:text-jheliz-300 font-semibold" href="{% url 'accounts:login' %}">Ingresar</a></p>
+        </div>
+        <span class="chip chip-pink hidden sm:inline-flex">
+          <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px;stroke-width:2"><path d="M12 3 4 6v6c0 4.5 3.4 8.5 8 9 4.6-.5 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+          Datos cifrados
+        </span>
+      </div>
+
+      <form method="post" class="su-form" novalidate>
+        {% csrf_token %}
+
+        {# Role selector — segmented #}
+        {% with role_field=form.role %}
+        <div class="su-row">
+          <div class="su-label">¿Cómo te registras?</div>
+          <div class="su-roles" role="radiogroup" aria-label="Tipo de cuenta">
+            {% for radio in role_field %}
+              <label class="su-role">
                 {{ radio.tag }}
-                <span class="text-sm font-medium text-zinc-200">{{ radio.choice_label }}</span>
+                <span class="su-role__ic">
+                  {% if 'distribuidor' in radio.choice_value %}
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M3 7h13l3 4h2v6h-3"/><path d="M3 17V7"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+                  {% else %}
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg>
+                  {% endif %}
+                </span>
+                <span>
+                  <span class="su-role__t">
+                    {% if 'distribuidor' in radio.choice_value %}Distribuidor{% else %}Cliente{% endif %}
+                  </span>
+                  <span class="su-role__d">
+                    {% if 'distribuidor' in radio.choice_value %}Quiero revender{% else %}Compro para mí{% endif %}
+                  </span>
+                </span>
               </label>
             {% endfor %}
           </div>
-        {% else %}
-          {{ field|add_class:"field" }}
+          {% if role_field.errors %}<p class="su-err">{{ role_field.errors.0 }}</p>{% endif %}
+        </div>
+        {% endwith %}
+
+        <div class="su-grid-2">
+          <div class="su-row">
+            <label class="su-label" for="{{ form.username.id_for_label }}">Usuario</label>
+            {{ form.username|add_class:"field"|attr:"autocomplete:username"|attr:"placeholder:tu_usuario" }}
+            {% if form.username.help_text %}<p class="su-help">{{ form.username.help_text|safe }}</p>{% endif %}
+            {% if form.username.errors %}<p class="su-err">{{ form.username.errors.0 }}</p>{% endif %}
+          </div>
+          <div class="su-row">
+            <label class="su-label" for="{{ form.email.id_for_label }}">Correo</label>
+            {{ form.email|add_class:"field"|attr:"autocomplete:email"|attr:"placeholder:tu@correo.com" }}
+            {% if form.email.errors %}<p class="su-err">{{ form.email.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+
+        <div class="su-grid-2">
+          <div class="su-row">
+            <label class="su-label" for="{{ form.phone.id_for_label }}">
+              WhatsApp <span class="opt">{% if is_distri_mode %}— recomendado{% else %}— opcional{% endif %}</span>
+            </label>
+            {{ form.phone|add_class:"field"|attr:"autocomplete:tel"|attr:"placeholder:+51 9XX XXX XXX"|attr:"inputmode:tel" }}
+            {% if form.phone.errors %}<p class="su-err">{{ form.phone.errors.0 }}</p>{% endif %}
+          </div>
+          <div class="su-row">
+            <label class="su-label" for="{{ form.telegram_username.id_for_label }}">
+              Telegram <span class="opt">— opcional</span>
+            </label>
+            {{ form.telegram_username|add_class:"field"|attr:"placeholder:@tu_usuario" }}
+            {% if form.telegram_username.errors %}<p class="su-err">{{ form.telegram_username.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+
+        <div class="su-grid-2">
+          <div class="su-row">
+            <label class="su-label" for="{{ form.password1.id_for_label }}">Contraseña</label>
+            {{ form.password1|add_class:"field"|attr:"autocomplete:new-password"|attr:"placeholder:Mínimo 8 caracteres" }}
+            {% if form.password1.help_text %}<p class="su-help">{{ form.password1.help_text|safe }}</p>{% endif %}
+            {% if form.password1.errors %}<p class="su-err">{{ form.password1.errors.0 }}</p>{% endif %}
+          </div>
+          <div class="su-row">
+            <label class="su-label" for="{{ form.password2.id_for_label }}">Repetir contraseña</label>
+            {{ form.password2|add_class:"field"|attr:"autocomplete:new-password"|attr:"placeholder:Repetí tu contraseña" }}
+            {% if form.password2.errors %}<p class="su-err">{{ form.password2.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+
+        {% if form.non_field_errors %}
+          <div class="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {{ form.non_field_errors.0 }}
+          </div>
         {% endif %}
-        {% if field.help_text %}<p class="text-xs text-zinc-500 mt-1">{{ field.help_text }}</p>{% endif %}
-        {% if field.errors %}<p class="text-xs text-red-400 mt-1.5">{{ field.errors.0 }}</p>{% endif %}
-      </div>
-    {% endfor %}
-    <button type="submit" class="btn btn-primary btn-lg btn-block mt-2">
-      Crear cuenta
-      <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-    </button>
-  </form>
+
+        <button type="submit" class="btn btn-primary btn-lg btn-block su-cta">
+          {% if is_distri_mode %}Enviar postulación{% else %}Crear cuenta gratis{% endif %}
+          <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </button>
+
+        <p class="su-meta">
+          Al continuar aceptás los <a href="{% url 'catalog:terms' %}">términos</a>
+          y la <a href="{% url 'catalog:privacy' %}">política de privacidad</a>.
+        </p>
+
+        <div class="su-divider"></div>
+        <div class="su-foot-trust" aria-label="Confianza">
+          <span class="pill"><svg class="icon" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> SSL cifrado</span>
+          <span class="pill"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8.5 8 9 4.6-.5 8-4.5 8-9V6l-8-3Z"/></svg> Garantía 30 días</span>
+          <span class="pill"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg> Empresa peruana</span>
+          <span class="pill"><svg class="icon" viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18"/></svg> +5.000 clientes</span>
+        </div>
+      </form>
+    </section>
+  </div>
 </div>
 {% endblock %}
