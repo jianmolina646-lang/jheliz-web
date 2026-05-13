@@ -3,107 +3,258 @@
 
 {% block content_title %}<h1>Reportes financieros</h1>{% endblock %}
 
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .jh-rep-kpi {
+        position: relative;
+        overflow: hidden;
+        border-radius: 14px;
+        padding: 18px 18px 16px;
+        display: flex; flex-direction: column; gap: 6px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+        transition: transform .15s ease, border-color .15s ease;
+    }
+    .jh-rep-kpi:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.20); }
+    .jh-rep-kpi__icon {
+        position: absolute; top: 12px; right: 14px;
+        font-size: 28px; opacity: 0.18;
+    }
+    .jh-rep-kpi__label {
+        font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em;
+        text-transform: uppercase; color: rgba(226,232,240,.65);
+    }
+    .jh-rep-kpi__value {
+        font-size: 28px; font-weight: 700; color: #f8fafc; line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+    }
+    .jh-rep-kpi__sub {
+        font-size: 12px; color: rgba(226,232,240,.55);
+        display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .jh-rep-kpi__delta {
+        display: inline-flex; align-items: center; gap: 3px;
+        font-size: 11.5px; font-weight: 700;
+        padding: 2px 8px; border-radius: 999px;
+        font-variant-numeric: tabular-nums;
+    }
+    .jh-rep-kpi__delta--success { background: rgba(34,197,94,.18);  color: #86efac; }
+    .jh-rep-kpi__delta--danger  { background: rgba(239,68,68,.18);  color: #fca5a5; }
+    .jh-rep-kpi__delta--neutral { background: rgba(148,163,184,.15); color: #cbd5e1; }
+
+    .jh-rep-kpi--today  { border-left: 3px solid #60a5fa; }
+    .jh-rep-kpi--week   { border-left: 3px solid #34d399; }
+    .jh-rep-kpi--month  { border-left: 3px solid #fb923c; }
+    .jh-rep-kpi--year   { border-left: 3px solid #facc15; }
+
+    .jh-rep-card {
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(255,255,255,0.08);
+        padding: 18px;
+    }
+    .jh-rep-card__title {
+        font-size: 13px; font-weight: 700; color: #f8fafc;
+        margin-bottom: 12px;
+        display: flex; align-items: center; gap: 8px;
+    }
+    .jh-rep-card__sub {
+        font-size: 11px; color: rgba(226,232,240,.5); font-weight: 500;
+        margin-left: auto;
+    }
+
+    /* Sparkline chart */
+    .jh-rep-spark {
+        width: 100%; height: 90px;
+        display: block;
+    }
+    .jh-rep-spark__bar {
+        fill: rgba(96,165,250,.35);
+        transition: fill .12s ease;
+    }
+    .jh-rep-spark__bar:hover { fill: rgba(96,165,250,.85); }
+    .jh-rep-spark__bar--zero { fill: rgba(148,163,184,.10); }
+
+    /* Top products bars */
+    .jh-rep-row {
+        display: grid;
+        grid-template-columns: 28px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+    .jh-rep-row:last-child { border-bottom: none; }
+    .jh-rep-row__icon {
+        font-size: 18px; width: 28px; text-align: center;
+    }
+    .jh-rep-row__main {
+        display: flex; flex-direction: column; gap: 4px; min-width: 0;
+    }
+    .jh-rep-row__name {
+        color: #f1f5f9; font-size: 13px; font-weight: 600;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .jh-rep-row__bar-wrap {
+        position: relative;
+        height: 6px; border-radius: 999px;
+        background: rgba(148,163,184,.10);
+        overflow: hidden;
+    }
+    .jh-rep-row__bar {
+        position: absolute; top: 0; bottom: 0; left: 0;
+        background: linear-gradient(90deg, #60a5fa, #34d399);
+        border-radius: 999px;
+    }
+    .jh-rep-row__bar--violet { background: linear-gradient(90deg, #a78bfa, #f472b6); }
+    .jh-rep-row__bar--green  { background: linear-gradient(90deg, #34d399, #6ee7b7); }
+    .jh-rep-row__bar--blue   { background: linear-gradient(90deg, #60a5fa, #818cf8); }
+    .jh-rep-row__bar--neutral{ background: linear-gradient(90deg, #64748b, #94a3b8); }
+    .jh-rep-row__amt {
+        font-variant-numeric: tabular-nums; font-weight: 700;
+        font-size: 13px; color: #f8fafc;
+        text-align: right; white-space: nowrap;
+    }
+    .jh-rep-row__amt-sub {
+        font-size: 11px; color: rgba(226,232,240,.55); font-weight: 500;
+    }
+
+    .jh-rep-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 12px; border-radius: 8px; font-size: 12.5px;
+        font-weight: 600; text-decoration: none;
+        transition: background .12s, border-color .12s;
+    }
+    .jh-rep-btn--primary {
+        background: rgba(96,165,250,.18); color: #bfdbfe;
+        border: 1px solid rgba(96,165,250,.35);
+    }
+    .jh-rep-btn--primary:hover { background: rgba(96,165,250,.30); }
+    .jh-rep-btn--ghost {
+        background: transparent; color: #cbd5e1;
+        border: 1px solid rgba(255,255,255,.12);
+    }
+    .jh-rep-btn--ghost:hover { background: rgba(255,255,255,.06); }
+
+    .jh-rep-grid-2 {
+        display: grid; grid-template-columns: 1fr; gap: 14px;
+    }
+    @media (min-width: 900px) {
+        .jh-rep-grid-2 { grid-template-columns: 1fr 1fr; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-5">
 
     <p class="text-sm text-gray-500 dark:text-gray-400">
         Solo se contabilizan pedidos en estado Pagado / En preparación / Entregado.
         El total se calcula sobre el campo <code>paid_at</code>.
     </p>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {% with stats_list=today_stats|default_if_none:"" %}
-        <div class="rounded-xl border border-blue-500 bg-blue-500/20 p-4">
-            <div class="text-xs uppercase tracking-wide text-white/80">Hoy</div>
-            <div class="text-3xl font-bold text-white mt-1">{{ currency_symbol }} {{ today_stats.revenue|floatformat:2 }}</div>
-            <div class="text-xs text-white/80 mt-1">{{ today_stats.count }} pedido{{ today_stats.count|pluralize }}</div>
+    {# ── KPI cards con delta vs período anterior ───────────────────────────── #}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {% for k in kpi_cards %}
+        <div class="jh-rep-kpi jh-rep-kpi--{{ k.slug }}">
+            <div class="jh-rep-kpi__icon">{{ k.emoji }}</div>
+            <div class="jh-rep-kpi__label">{{ k.label }}</div>
+            <div class="jh-rep-kpi__value">{{ currency_symbol }} {{ k.stats.revenue|floatformat:2 }}</div>
+            <div class="jh-rep-kpi__sub">
+                <span>{{ k.stats.count }} pedido{{ k.stats.count|pluralize }}</span>
+                {% if k.stats.avg_ticket %}<span>· Ticket prom. {{ currency_symbol }} {{ k.stats.avg_ticket|floatformat:2 }}</span>{% endif %}
+                <span class="jh-rep-kpi__delta jh-rep-kpi__delta--{{ k.stats.delta_tone }}">
+                    {{ k.stats.delta_arrow }} {{ k.stats.delta_pct|floatformat:1 }}%
+                </span>
+            </div>
         </div>
-        <div class="rounded-xl border border-green-500 bg-green-500/20 p-4">
-            <div class="text-xs uppercase tracking-wide text-white/80">Últimos 7 días</div>
-            <div class="text-3xl font-bold text-white mt-1">{{ currency_symbol }} {{ week_stats.revenue|floatformat:2 }}</div>
-            <div class="text-xs text-white/80 mt-1">{{ week_stats.count }} pedido{{ week_stats.count|pluralize }}</div>
-        </div>
-        <div class="rounded-xl border border-orange-500 bg-orange-500/20 p-4">
-            <div class="text-xs uppercase tracking-wide text-white/80">Últimos 30 días</div>
-            <div class="text-3xl font-bold text-white mt-1">{{ currency_symbol }} {{ month_stats.revenue|floatformat:2 }}</div>
-            <div class="text-xs text-white/80 mt-1">{{ month_stats.count }} pedido{{ month_stats.count|pluralize }}</div>
-        </div>
-        <div class="rounded-xl border border-yellow-500 bg-yellow-500/20 p-4">
-            <div class="text-xs uppercase tracking-wide text-white/80">Últimos 365 días</div>
-            <div class="text-3xl font-bold text-white mt-1">{{ currency_symbol }} {{ year_stats.revenue|floatformat:2 }}</div>
-            <div class="text-xs text-white/80 mt-1">{{ year_stats.count }} pedido{{ year_stats.count|pluralize }}</div>
-        </div>
-        {% endwith %}
+        {% endfor %}
     </div>
 
+    {# ── Botones de export + recarga ────────────────────────────────────────── #}
     <div class="flex flex-wrap gap-2">
-        <a href="?" class="px-3 py-2 rounded-md bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium">
-            Recargar
-        </a>
-        <a href="{% url 'admin_reports_export_csv' %}?days=7" class="px-3 py-2 rounded-md border border-primary-500 text-primary-200 hover:bg-primary-500/20 text-sm font-medium">
-            ⬇️ CSV últimos 7 días
-        </a>
-        <a href="{% url 'admin_reports_export_csv' %}?days=30" class="px-3 py-2 rounded-md border border-primary-500 text-primary-200 hover:bg-primary-500/20 text-sm font-medium">
-            ⬇️ CSV últimos 30 días
-        </a>
-        <a href="{% url 'admin_reports_export_csv' %}?days=90" class="px-3 py-2 rounded-md border border-primary-500 text-primary-200 hover:bg-primary-500/20 text-sm font-medium">
-            ⬇️ CSV últimos 90 días
-        </a>
-        <a href="{% url 'admin_reports_export_csv' %}?days=365" class="px-3 py-2 rounded-md border border-primary-500 text-primary-200 hover:bg-primary-500/20 text-sm font-medium">
-            ⬇️ CSV anual
-        </a>
+        <a href="?" class="jh-rep-btn jh-rep-btn--primary">↻ Recargar</a>
+        <a href="{% url 'admin_reports_export_csv' %}?days=7"   class="jh-rep-btn jh-rep-btn--ghost">⬇ CSV últimos 7 días</a>
+        <a href="{% url 'admin_reports_export_csv' %}?days=30"  class="jh-rep-btn jh-rep-btn--ghost">⬇ CSV últimos 30 días</a>
+        <a href="{% url 'admin_reports_export_csv' %}?days=90"  class="jh-rep-btn jh-rep-btn--ghost">⬇ CSV últimos 90 días</a>
+        <a href="{% url 'admin_reports_export_csv' %}?days=365" class="jh-rep-btn jh-rep-btn--ghost">⬇ CSV anual</a>
     </div>
 
-    <section class="rounded-xl border border-gray-700 bg-gray-800/40 p-5">
-        <h2 class="text-base font-bold text-white mb-3">Top 10 productos (últimos 30 días)</h2>
-        {% if top_products %}
-        <table class="w-full text-sm">
-            <thead class="text-left text-xs uppercase text-gray-400 border-b border-gray-700">
-                <tr>
-                    <th class="py-2">Producto</th>
-                    <th class="py-2">Unidades</th>
-                    <th class="py-2 text-right">Revenue</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in top_products %}
-                <tr class="border-b border-gray-800/60">
-                    <td class="py-2 text-gray-100">{{ p.product_name }}</td>
-                    <td class="py-2 text-gray-300">{{ p.units }}</td>
-                    <td class="py-2 text-right font-mono text-white">{{ currency_symbol }} {{ p.revenue|floatformat:2 }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="text-gray-400 text-sm">Aún no hay ventas registradas en el período.</p>
-        {% endif %}
+    {# ── Sparkline de revenue diario (30 días) ─────────────────────────────── #}
+    <section class="jh-rep-card">
+        <div class="jh-rep-card__title">
+            <span>📈 Revenue diario</span>
+            <span class="jh-rep-card__sub">Últimos 30 días</span>
+        </div>
+        <svg class="jh-rep-spark" viewBox="0 0 300 90" preserveAspectRatio="none">
+            {% for d in daily_series %}
+            <rect
+                class="jh-rep-spark__bar{% if d.revenue == 0 %} jh-rep-spark__bar--zero{% endif %}"
+                x="{{ d.x }}" width="9"
+                y="{{ d.y }}" height="{{ d.h }}"
+            >
+                <title>{{ d.day|date:"d M" }}: {{ currency_symbol }} {{ d.revenue|floatformat:2 }} · {{ d.count }} pedido{{ d.count|pluralize }}</title>
+            </rect>
+            {% endfor %}
+        </svg>
     </section>
 
-    <section class="rounded-xl border border-gray-700 bg-gray-800/40 p-5">
-        <h2 class="text-base font-bold text-white mb-3">Ingresos por método de pago (últimos 30 días)</h2>
-        {% if by_method %}
-        <table class="w-full text-sm">
-            <thead class="text-left text-xs uppercase text-gray-400 border-b border-gray-700">
-                <tr>
-                    <th class="py-2">Método</th>
-                    <th class="py-2">Pedidos</th>
-                    <th class="py-2 text-right">Revenue</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for m in by_method %}
-                <tr class="border-b border-gray-800/60">
-                    <td class="py-2 text-gray-100">{{ m.payment_provider|default:"—" }}</td>
-                    <td class="py-2 text-gray-300">{{ m.count }}</td>
-                    <td class="py-2 text-right font-mono text-white">{{ currency_symbol }} {{ m.revenue|floatformat:2 }}</td>
-                </tr>
+    <div class="jh-rep-grid-2">
+        {# ── Top productos (últimos 30 días) ───────────────────────────────── #}
+        <section class="jh-rep-card">
+            <div class="jh-rep-card__title">
+                <span>🏆 Top 10 productos</span>
+                <span class="jh-rep-card__sub">Últimos 30 días</span>
+            </div>
+            {% if top_products %}
+                {% for p in top_products %}
+                <div class="jh-rep-row">
+                    <div class="jh-rep-row__icon">{{ p.icon }}</div>
+                    <div class="jh-rep-row__main">
+                        <div class="jh-rep-row__name">{{ p.product_name }}</div>
+                        <div class="jh-rep-row__bar-wrap">
+                            <div class="jh-rep-row__bar jh-rep-row__bar--blue" style="width: {{ p.pct|floatformat:1 }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="jh-rep-row__amt">{{ currency_symbol }} {{ p.revenue|floatformat:2 }}</div>
+                        <div class="jh-rep-row__amt-sub">{{ p.units }} u · {{ p.pct|floatformat:0 }}%</div>
+                    </div>
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="text-gray-400 text-sm">Sin datos en el período.</p>
-        {% endif %}
-    </section>
+            {% else %}
+                <p class="text-gray-400 text-sm">Aún no hay ventas registradas en el período.</p>
+            {% endif %}
+        </section>
+
+        {# ── Ingresos por método de pago ───────────────────────────────────── #}
+        <section class="jh-rep-card">
+            <div class="jh-rep-card__title">
+                <span>💳 Ingresos por método</span>
+                <span class="jh-rep-card__sub">Últimos 30 días</span>
+            </div>
+            {% if by_method %}
+                {% for m in by_method %}
+                <div class="jh-rep-row">
+                    <div class="jh-rep-row__icon">{{ m.icon }}</div>
+                    <div class="jh-rep-row__main">
+                        <div class="jh-rep-row__name">{{ m.label }}</div>
+                        <div class="jh-rep-row__bar-wrap">
+                            <div class="jh-rep-row__bar jh-rep-row__bar--{% if m.tone == 'violet' %}violet{% elif m.tone == 'success' %}green{% elif m.tone == 'info' %}blue{% else %}neutral{% endif %}" style="width: {{ m.pct|floatformat:1 }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="jh-rep-row__amt">{{ currency_symbol }} {{ m.revenue|floatformat:2 }}</div>
+                        <div class="jh-rep-row__amt-sub">{{ m.count }} pedido{{ m.count|pluralize }} · {{ m.pct|floatformat:0 }}%</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-gray-400 text-sm">Sin datos en el período.</p>
+            {% endif %}
+        </section>
+    </div>
 </div>
 {% endblock %}
+</content>
