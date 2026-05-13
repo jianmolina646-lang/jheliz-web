@@ -3,6 +3,7 @@ from django.contrib import admin, messages
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils.html import escape, format_html
+from django.utils.safestring import SafeString
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action as unfold_action, display
 
@@ -111,9 +112,8 @@ class DistributorPlanAdmin(ModelAdmin):
 @admin.register(Product)
 class ProductAdmin(ModelAdmin):
     list_display = (
-        "product_preview", "category", "mode", "display_active",
-        "is_featured", "telegram_audience", "delivery_is_instant",
-        "available_stock_count",
+        "product_preview", "mode_badge", "available_stock_count",
+        "display_active", "featured_badge", "telegram_badge", "delivery_badge",
     )
     list_filter = ("category", "mode", "is_active", "is_featured", "telegram_audience")
     search_fields = ("name", "short_description")
@@ -319,9 +319,55 @@ class ProductAdmin(ModelAdmin):
     def display_active(self, obj: Product) -> bool:
         return obj.is_active
 
-    def available_stock_count(self, obj: Product) -> int:
-        return obj.available_stock
-    available_stock_count.short_description = "Stock disp."
+    def available_stock_count(self, obj: Product) -> SafeString:
+        n = obj.available_stock
+        if n == 0:
+            tone = "danger"
+        elif n < 3:
+            tone = "warning"
+        else:
+            tone = "success"
+        return chip(str(n), tone=tone, icon="inventory_2")
+    available_stock_count.short_description = "Stock"
+
+    @display(description="Modo", ordering="mode")
+    def mode_badge(self, obj: Product) -> SafeString:
+        """Pill compacta con ícono según el modo de venta del producto."""
+        mapping = {
+            "perfil": ("success", "person", "Por perfil"),
+            "completa": ("violet", "vpn_key", "Completa"),
+            "licencia": ("warning", "card_membership", "Licencia"),
+        }
+        tone, icon, label = mapping.get(
+            obj.mode, ("neutral", "category", obj.get_mode_display() or "—"),
+        )
+        return chip(label, tone=tone, icon=icon)
+
+    @display(description="Destacado", ordering="is_featured")
+    def featured_badge(self, obj: Product) -> SafeString:
+        if obj.is_featured:
+            return chip("Sí", tone="warning", icon="star")
+        return chip("No", tone="neutral", icon="star_outline")
+
+    @display(description="Telegram", ordering="telegram_audience")
+    def telegram_badge(self, obj: Product) -> SafeString:
+        mapping = {
+            "both":        ("violet",  "public",      "Ambos"),
+            "customer":    ("success", "shopping_bag","Clientes"),
+            "distributor": ("info",    "storefront",  "Distri"),
+            "none":        ("neutral", "block",       "No publicar"),
+        }
+        tone, icon, label = mapping.get(
+            obj.telegram_audience,
+            ("neutral", "help", obj.get_telegram_audience_display() or "—"),
+        )
+        return chip(label, tone=tone, icon=icon)
+
+    @display(description="Entrega", ordering="delivery_is_instant")
+    def delivery_badge(self, obj: Product) -> SafeString:
+        if obj.delivery_is_instant:
+            return chip("Inmediata", tone="success", icon="bolt")
+        return chip("Manual", tone="neutral", icon="pan_tool")
 
 
 _INPUT_CLS = (
