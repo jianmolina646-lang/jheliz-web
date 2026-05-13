@@ -37,6 +37,7 @@ class CheckoutForm(forms.Form):
     PAYMENT_METHODS = (
         ("mercadopago", "Mercado Pago"),
         ("yape", "Yape QR"),
+        ("wallet", "Saldo wallet"),
     )
 
     full_name = forms.CharField(
