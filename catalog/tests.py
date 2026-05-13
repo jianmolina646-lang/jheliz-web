@@ -848,3 +848,147 @@ class AdminPWAEndpointsTests(TestCase):
         resp = self.client.get(url)
         # Misma view que el reset público (200 con el formulario).
         self.assertEqual(resp.status_code, 200)
+
+
+class DistributorPortalNewPagesTests(TestCase):
+    """Pruebas de las 3 páginas nuevas del portal del distribuidor:
+    cuentas, calendario y soporte."""
+
+    def setUp(self):
+        from orders.models import Order, OrderItem
+        User = get_user_model()
+        self.client = Client()
+        self.distri = User.objects.create_user(
+            username="distri_portal",
+            password="ClavePortal.123!",
+            email="portal@example.com",
+            role="distribuidor",
+            distributor_approved=True,
+        )
+        self.cliente = User.objects.create_user(
+            username="cli_portal",
+            password="ClaveCliente.123!",
+            email="cli_portal@example.com",
+            role="cliente",
+        )
+        self.cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
+        self.prod = Product.objects.create(
+            category=self.cat, name="Netflix", slug="netflix", is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.prod, name="1 mes", duration_days=30,
+            price_customer=Decimal("20.00"), price_distributor=Decimal("12.00"),
+            available_for_distributor=True, order=1,
+        )
+        from orders.models import Order as _Order
+        self.order = Order.objects.create(
+            user=self.distri,
+            email="portal@example.com",
+            total=Decimal("12.00"),
+            status=_Order.Status.DELIVERED,
+        )
+        self.item = OrderItem.objects.create(
+            order=self.order,
+            product=self.prod, plan=self.plan,
+            product_name=self.prod.name, plan_name=self.plan.name,
+            unit_price=Decimal("12.00"), quantity=1,
+            delivered_credentials="correo: x@y.com\nclave: 1234",
+            expires_at=timezone.now() + timedelta(days=3),
+        )
+
+    # ---------------------- cuentas ----------------------
+    def test_accounts_requires_login(self):
+        resp = self.client.get(reverse("catalog:distributor_accounts"))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_accounts_redirects_for_non_distributor(self):
+        self.client.force_login(self.cliente)
+        resp = self.client.get(reverse("catalog:distributor_accounts"))
+        self.assertRedirects(resp, reverse("catalog:distributor"))
+
+    def test_accounts_renders_for_distributor(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_accounts"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Netflix")
+        # Credenciales parseadas mostradas
+        self.assertContains(resp, "x@y.com")
+
+    def test_accounts_search_filter(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_accounts") + "?q=Netflix")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Netflix")
+
+    # ---------------------- calendar ---------------------
+    def test_calendar_requires_login(self):
+        resp = self.client.get(reverse("catalog:distributor_calendar"))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_calendar_renders_for_distributor(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_calendar"))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_calendar_handles_custom_month(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_calendar") + "?month=2026-12")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_calendar_ignores_invalid_month_param(self):
+        # No debe romper con basura en ?month
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_calendar") + "?month=invalid")
+        self.assertEqual(resp.status_code, 200)
+
+    # ---------------------- support ----------------------
+    def test_support_requires_login(self):
+        resp = self.client.get(reverse("catalog:distributor_support"))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_support_renders_for_distributor(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_support"))
+        self.assertEqual(resp.status_code, 200)
+        # 3 motivos rápidos
+        self.assertContains(resp, "Suscripción caída")
+        self.assertContains(resp, "Error de contraseña")
+
+
+class SupportTipoPresetTests(TestCase):
+    """El formulario de ticket público acepta ?tipo=caida|password|codigo
+    para mostrar un hint contextual y prellenar el asunto. Usado por los
+    botones del distributor_support."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="tipopreset", password="Clave.123!", email="t@p.com",
+        )
+
+    def test_no_tipo_no_hint(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("support:create"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "Ayudanos a resolver rápido")
+
+    def test_tipo_caida_shows_hint_and_prefills_subject(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("support:create") + "?tipo=caida")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Ayudanos a resolver rápido")
+        # Asunto pre-llenado
+        self.assertContains(resp, "Suscripción caída")
+
+    def test_tipo_password_shows_hint(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("support:create") + "?tipo=password")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Error de contraseña")
+
+    def test_invalid_tipo_no_hint(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("support:create") + "?tipo=invalid")
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "Ayudanos a resolver rápido")

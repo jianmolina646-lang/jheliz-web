@@ -20,6 +20,9 @@ urlpatterns = [
     path("distribuidor/", views.distributor_landing, name="distributor"),
     path("distribuidor/panel/", views.distributor_panel, name="distributor_panel"),
     path("distribuidor/catalogo/", views.distributor_catalog, name="distributor_catalog"),
+    path("distribuidor/cuentas/", views.distributor_accounts, name="distributor_accounts"),
+    path("distribuidor/soporte/", views.distributor_support, name="distributor_support"),
+    path("distribuidor/calendario/", views.distributor_calendar, name="distributor_calendar"),
     path(
         "distribuidor/items/<int:item_id>/cliente/",
         views.distributor_edit_customer,

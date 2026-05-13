@@ -800,6 +800,15 @@ def distributor_panel(request):
         .order_by("expires_at")[:30]
     )
 
+    # Items que vencen mañana (ventana T-1) — para el banner destacado del panel.
+    tomorrow_start = now + timedelta(hours=12)
+    tomorrow_end = now + timedelta(days=1, hours=12)
+    expiring_tomorrow = list(
+        base_items_qs
+        .filter(expires_at__isnull=False, expires_at__gte=tomorrow_start, expires_at__lt=tomorrow_end)
+        .order_by("expires_at")[:10]
+    )
+
     # Top productos comprados (cantidad acumulada)
     top_products = (
         base_items_qs.values("product__name", "product__icon")
@@ -821,6 +830,7 @@ def distributor_panel(request):
         "spend_year": spend_year,
         "savings_month": savings_month,
         "expiring_items": expiring_items,
+        "expiring_tomorrow": expiring_tomorrow,
         "top_products": top_products,
         "items_ledger": items_ledger,
         "items_total": base_items_qs.count(),
@@ -828,6 +838,267 @@ def distributor_panel(request):
         "now": now,
     }
     return render(request, "catalog/distributor_panel.html", ctx)
+
+
+@login_required
+def distributor_calendar(request):
+    """Calendario mensual con vencimientos y agenda de los próximos 14 días."""
+    redirect_response = _ensure_distributor(request)
+    if redirect_response is not None:
+        return redirect_response
+
+    import calendar as _calendar
+    from datetime import date, timedelta
+    from orders.models import OrderItem, Order
+
+    today = timezone.localdate()
+    # Soporta ?month=YYYY-MM
+    raw_month = (request.GET.get("month") or "").strip()
+    try:
+        if raw_month:
+            yy, mm = raw_month.split("-")
+            current = date(int(yy), int(mm), 1)
+        else:
+            current = today.replace(day=1)
+    except (ValueError, TypeError):
+        current = today.replace(day=1)
+
+    # mes previo / siguiente
+    if current.month == 1:
+        prev_month = date(current.year - 1, 12, 1)
+    else:
+        prev_month = date(current.year, current.month - 1, 1)
+    if current.month == 12:
+        next_month = date(current.year + 1, 1, 1)
+    else:
+        next_month = date(current.year, current.month + 1, 1)
+
+    cal = _calendar.Calendar(firstweekday=0)  # lunes
+    weeks_dates = cal.monthdatescalendar(current.year, current.month)
+
+    # Cuentas que vencen dentro del mes ± 2 días
+    month_start = date(current.year, current.month, 1)
+    last_day = _calendar.monthrange(current.year, current.month)[1]
+    month_end = date(current.year, current.month, last_day)
+    range_start = month_start - timedelta(days=2)
+    range_end = month_end + timedelta(days=2)
+
+    items_qs = (
+        OrderItem.objects
+        .filter(
+            order__user=request.user,
+            order__status=Order.Status.DELIVERED,
+            expires_at__isnull=False,
+            expires_at__date__gte=range_start,
+            expires_at__date__lte=range_end,
+        )
+        .select_related("order", "product", "plan")
+        .order_by("expires_at")
+    )
+
+    # Indexar por fecha
+    by_date = {}
+    for it in items_qs:
+        d = timezone.localtime(it.expires_at).date()
+        by_date.setdefault(d, []).append(it)
+
+    # Construir matriz de semanas con metadata
+    weeks = []
+    for week in weeks_dates:
+        row = []
+        for d in week:
+            items = by_date.get(d, [])
+            row.append({
+                "date": d,
+                "in_month": d.month == current.month,
+                "is_today": d == today,
+                "is_past": d < today,
+                "items": items,
+                "count": len(items),
+            })
+        weeks.append(row)
+
+    # Próximos 14 días en lista (agenda)
+    agenda_items = list(
+        OrderItem.objects
+        .filter(
+            order__user=request.user,
+            order__status=Order.Status.DELIVERED,
+            expires_at__isnull=False,
+            expires_at__date__gte=today,
+            expires_at__date__lte=today + timedelta(days=14),
+        )
+        .select_related("order", "product", "plan")
+        .order_by("expires_at")[:30]
+    )
+
+    # Total del mes mostrado
+    month_total = items_qs.filter(
+        expires_at__date__gte=month_start, expires_at__date__lte=month_end
+    ).count()
+
+    return render(request, "catalog/distributor_calendar.html", {
+        "current": current,
+        "weeks": weeks,
+        "prev_month": prev_month,
+        "next_month": next_month,
+        "today": today,
+        "agenda_items": agenda_items,
+        "month_total": month_total,
+    })
+
+
+@login_required
+def distributor_support(request):
+    """Centro de soporte interno del distribuidor: 3 motivos rápidos + historial."""
+    redirect_response = _ensure_distributor(request)
+    if redirect_response is not None:
+        return redirect_response
+
+    from support.models import Ticket, CodeRequest
+
+    tickets = list(
+        Ticket.objects.filter(user=request.user)
+        .order_by("-updated_at")[:15]
+    )
+    code_requests = list(
+        CodeRequest.objects.filter(audience=CodeRequest.Audience.DISTRIBUTOR)
+        .filter(account_email__iexact=(request.user.email or "_no_email_"))
+        .order_by("-created_at")[:5]
+    )
+
+    open_count = Ticket.objects.filter(
+        user=request.user,
+        status__in=[
+            Ticket.Status.OPEN,
+            Ticket.Status.PENDING_ADMIN,
+            Ticket.Status.PENDING_USER,
+        ],
+    ).count()
+
+    return render(request, "catalog/distributor_support.html", {
+        "tickets": tickets,
+        "code_requests": code_requests,
+        "open_count": open_count,
+    })
+
+
+@login_required
+def distributor_accounts(request):
+    """Mis cuentas activas: listado completo con credenciales 1-click, búsqueda y filtros."""
+    redirect_response = _ensure_distributor(request)
+    if redirect_response is not None:
+        return redirect_response
+
+    from datetime import timedelta
+    from orders.models import OrderItem, Order
+    from orders.credentials import parse_profile_pin
+
+    now = timezone.now()
+    qs = (
+        OrderItem.objects.filter(order__user=request.user, order__status=Order.Status.DELIVERED)
+        .select_related("order", "product", "plan")
+        .order_by("expires_at", "-order__created_at")
+    )
+
+    status_filter = (request.GET.get("status") or "all").strip()
+    search_q = (request.GET.get("q") or "").strip()
+    platform_filter = (request.GET.get("platform") or "").strip()
+
+    if status_filter == "active":
+        qs = qs.filter(expires_at__gt=now)
+    elif status_filter == "expiring":
+        qs = qs.filter(expires_at__gt=now, expires_at__lte=now + timedelta(days=7))
+    elif status_filter == "expired":
+        qs = qs.filter(expires_at__lte=now)
+    elif status_filter == "broken":
+        qs = qs.filter(reported_broken_at__isnull=False)
+
+    if platform_filter:
+        qs = qs.filter(product__slug=platform_filter)
+
+    if search_q:
+        from django.db.models import Q
+        qs = qs.filter(
+            Q(product_name__icontains=search_q)
+            | Q(plan_name__icontains=search_q)
+            | Q(final_customer_name__icontains=search_q)
+            | Q(final_customer_whatsapp__icontains=search_q)
+            | Q(requested_profile_name__icontains=search_q)
+        )
+
+    # Plataformas para el filtro (de los items del distribuidor)
+    platforms = (
+        OrderItem.objects.filter(order__user=request.user, order__status=Order.Status.DELIVERED)
+        .values("product__slug", "product__name", "product__icon")
+        .distinct()
+        .order_by("product__name")
+    )
+
+    # Construir items con credenciales parseadas para mostrar prolijo en cards.
+    items = []
+    for it in qs[:200]:
+        creds_raw = it.delivered_credentials or ""
+        profile, pin = parse_profile_pin(creds_raw)
+        # parse email/password
+        email_val = ""
+        password_val = ""
+        for ln in creds_raw.splitlines():
+            low = ln.lower().strip()
+            if not email_val and (
+                low.startswith("correo") or low.startswith("email")
+                or low.startswith("usuario") or low.startswith("user")
+            ):
+                if ":" in ln:
+                    email_val = ln.split(":", 1)[1].strip()
+                elif "=" in ln:
+                    email_val = ln.split("=", 1)[1].strip()
+            elif not password_val and (
+                low.startswith("contraseña") or low.startswith("contrasena")
+                or low.startswith("password") or low.startswith("pass")
+                or low.startswith("clave")
+            ):
+                if ":" in ln:
+                    password_val = ln.split(":", 1)[1].strip()
+                elif "=" in ln:
+                    password_val = ln.split("=", 1)[1].strip()
+        days_left = None
+        if it.expires_at:
+            delta = (it.expires_at - now).days
+            days_left = delta
+        items.append({
+            "obj": it,
+            "email": email_val,
+            "password": password_val,
+            "profile": profile or it.requested_profile_name,
+            "pin": pin or it.requested_pin,
+            "raw": creds_raw,
+            "days_left": days_left,
+        })
+
+    # Conteos para los chips
+    base_counts_qs = OrderItem.objects.filter(
+        order__user=request.user, order__status=Order.Status.DELIVERED
+    )
+    counts = {
+        "all": base_counts_qs.count(),
+        "active": base_counts_qs.filter(expires_at__gt=now).count(),
+        "expiring": base_counts_qs.filter(
+            expires_at__gt=now, expires_at__lte=now + timedelta(days=7)
+        ).count(),
+        "expired": base_counts_qs.filter(expires_at__lte=now).count(),
+        "broken": base_counts_qs.filter(reported_broken_at__isnull=False).count(),
+    }
+
+    return render(request, "catalog/distributor_accounts.html", {
+        "items": items,
+        "counts": counts,
+        "platforms": platforms,
+        "status_filter": status_filter,
+        "platform_filter": platform_filter,
+        "search_q": search_q,
+        "now": now,
+    })
 
 
 @login_required
