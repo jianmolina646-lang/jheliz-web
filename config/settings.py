@@ -208,12 +208,17 @@ EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.conso
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Jheliz <no-reply@ecormecejhelizstore.com>")
 SUPPORT_ADMIN_EMAIL = config("SUPPORT_ADMIN_EMAIL", default="")
 
-# SMTP (opcional, para enviar correos reales en prod)
+# SMTP (opcional, para enviar correos reales en prod).
+# Muchos VPS bloquean SMTP saliente; si es tu caso, usá BrevoEmailBackend (HTTP).
 EMAIL_HOST = config("EMAIL_HOST", default="")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+
+# Brevo (ex-Sendinblue) — backend HTTP, ver orders.brevo_backend.
+# Activar con: EMAIL_BACKEND=orders.brevo_backend.BrevoEmailBackend
+BREVO_API_KEY = config("BREVO_API_KEY", default="")
 
 # Password reset: token de 24h en lugar del default de 3 días.
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
