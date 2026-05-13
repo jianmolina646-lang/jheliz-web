@@ -22,10 +22,10 @@
   </div>
 
   <div class="jh2-stat-grid">
-    {% include "admin/components/_stat.html" with label="Plataformas" value=kpis.platforms icon="apps" variant="neutral" %}
-    {% include "admin/components/_stat.html" with label="Disponibles" value=kpis.available icon="check_circle" variant="success" %}
-    {% include "admin/components/_stat.html" with label="Vendidas" value=kpis.sold icon="local_shipping" variant="info" %}
-    {% include "admin/components/_stat.html" with label="Caídas" value=kpis.defective icon="warning" variant="warning" %}
+    {% include "admin/components/_stat.html" with label="Plataformas" value=kpis.platforms|stringformat:"d" icon="apps" variant="neutral" %}
+    {% include "admin/components/_stat.html" with label="Disponibles" value=kpis.available|stringformat:"d" icon="check_circle" variant="success" %}
+    {% include "admin/components/_stat.html" with label="Vendidas" value=kpis.sold|stringformat:"d" icon="local_shipping" variant="info" %}
+    {% include "admin/components/_stat.html" with label="Caídas" value=kpis.defective|stringformat:"d" icon="warning" variant="warning" %}
   </div>
 
   {# Buscador cross-plataforma — pegás un correo y te dice si ya está #}
