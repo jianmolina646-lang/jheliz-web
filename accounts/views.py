@@ -258,3 +258,102 @@ def push_config(request):
         "public_key": _vapid_public_key_for_browser(),
         "configured": bool(_vapid_public_key_for_browser()),
     })
+
+
+# ---------------------------------------------------------------------------
+# Wallet (distribuidor)
+# ---------------------------------------------------------------------------
+
+from decimal import Decimal as _Decimal
+
+from .forms import WalletRechargeForm
+from .models import WalletRecharge, WalletTransaction
+
+
+def _is_distributor(user) -> bool:
+    """Permite que también clientes vean su wallet si tienen saldo o movimientos."""
+    if not user.is_authenticated:
+        return False
+    return getattr(user, "is_distributor", False) or user.wallet_transactions.exists() or (user.wallet_balance or 0) > 0
+
+
+@login_required
+def wallet(request):
+    """Pantalla principal del wallet: saldo, movimientos y solicitudes."""
+    user = request.user
+    transactions = (
+        WalletTransaction.objects.filter(user=user)
+        .order_by("-created_at")[:30]
+    )
+    recharges = (
+        WalletRecharge.objects.filter(user=user)
+        .order_by("-created_at")[:10]
+    )
+
+    # Resumen de movimientos para el header (recargas y compras del mes en curso).
+    from datetime import timedelta
+    from django.utils import timezone
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    monthly_tx = WalletTransaction.objects.filter(user=user, created_at__gte=month_start)
+    total_in = sum(
+        (t.amount for t in monthly_tx if t.kind in {WalletTransaction.Kind.RECARGA, WalletTransaction.Kind.REEMBOLSO}),
+        _Decimal("0"),
+    )
+    total_out = sum(
+        (t.amount for t in monthly_tx if t.kind == WalletTransaction.Kind.COMPRA),
+        _Decimal("0"),
+    )
+    pending_recharge = WalletRecharge.objects.filter(user=user, status=WalletRecharge.Status.PENDING).first()
+
+    return render(request, "accounts/wallet.html", {
+        "balance": user.wallet_balance or _Decimal("0"),
+        "transactions": transactions,
+        "recharges": recharges,
+        "total_in_month": total_in,
+        "total_out_month": total_out,
+        "pending_recharge": pending_recharge,
+        "presets": WalletRechargeForm.AMOUNT_PRESETS,
+    })
+
+
+@login_required
+def wallet_recharge(request):
+    """Form para crear una solicitud de recarga."""
+    user = request.user
+    if request.method == "POST":
+        form = WalletRechargeForm(request.POST, request.FILES)
+        if form.is_valid():
+            recharge = form.save(commit=False)
+            recharge.user = user
+            recharge.save()
+            messages.success(
+                request,
+                f"Solicitud enviada: S/ {recharge.amount:,.2f}. Te avisaremos cuando se acredite.",
+            )
+            try:
+                from orders import telegram as _telegram  # type: ignore
+                if hasattr(_telegram, "notify_admin_about_wallet_recharge"):
+                    _telegram.notify_admin_about_wallet_recharge(recharge)
+            except Exception:
+                pass
+            return redirect("accounts:wallet")
+    else:
+        form = WalletRechargeForm()
+    return render(request, "accounts/wallet_recharge.html", {
+        "form": form,
+        "presets": WalletRechargeForm.AMOUNT_PRESETS,
+    })
+
+
+@login_required
+def wallet_history(request):
+    """Lista completa de movimientos paginada."""
+    from django.core.paginator import Paginator
+    qs = WalletTransaction.objects.filter(user=request.user).order_by("-created_at")
+    paginator = Paginator(qs, 30)
+    page = paginator.get_page(request.GET.get("page"))
+    return render(request, "accounts/wallet_history.html", {
+        "page": page,
+        "balance": request.user.wallet_balance or _Decimal("0"),
+    })

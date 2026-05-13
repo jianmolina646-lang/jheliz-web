@@ -740,3 +740,122 @@ class SignupPageRedesignTests(TestCase):
         self.assertEqual(u.role, Role.DISTRIBUIDOR)
         # not approved yet
         self.assertFalse(getattr(u, "distributor_approved", False))
+
+
+class WalletServiceTests(TestCase):
+    """Pruebas del servicio del wallet (deposit/charge/refund + recargas)."""
+
+    def setUp(self):
+        from accounts.models import Role
+        self.user = User.objects.create_user(
+            username="distri", email="distri@example.com", password="pwd12345",
+            role=Role.DISTRIBUIDOR, distributor_approved=True,
+        )
+
+    def test_deposit_credits_balance_and_creates_tx(self):
+        from accounts import wallet
+        tx = wallet.deposit(self.user, Decimal("50.00"), reference="test deposit")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("50.00"))
+        self.assertEqual(tx.kind, "recarga")
+        self.assertEqual(tx.balance_after, Decimal("50.00"))
+
+    def test_charge_debits_balance(self):
+        from accounts import wallet
+        wallet.deposit(self.user, Decimal("100.00"))
+        class FakeOrder:
+            pk = 1
+            short_uuid = "deadbeef"
+        tx = wallet.charge_for_order(self.user, Decimal("30.00"), FakeOrder())
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("70.00"))
+        self.assertEqual(tx.kind, "compra")
+        self.assertEqual(tx.balance_after, Decimal("70.00"))
+
+    def test_charge_fails_when_insufficient(self):
+        from accounts import wallet
+        wallet.deposit(self.user, Decimal("10.00"))
+        class FakeOrder:
+            pk = 1
+            short_uuid = "deadbeef"
+        with self.assertRaises(wallet.InsufficientFundsError):
+            wallet.charge_for_order(self.user, Decimal("50.00"), FakeOrder())
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("10.00"))
+
+    def test_approve_recharge_credits_and_links_tx(self):
+        from accounts import wallet
+        from accounts.models import WalletRecharge
+        rec = WalletRecharge.objects.create(
+            user=self.user, amount=Decimal("25.00"), method=WalletRecharge.Method.YAPE,
+        )
+        result = wallet.approve_recharge(rec)
+        self.assertTrue(result.ok)
+        rec.refresh_from_db()
+        self.user.refresh_from_db()
+        self.assertEqual(rec.status, WalletRecharge.Status.APPROVED)
+        self.assertEqual(self.user.wallet_balance, Decimal("25.00"))
+        self.assertIsNotNone(rec.transaction)
+        self.assertEqual(rec.transaction.kind, "recarga")
+
+    def test_reject_recharge_does_not_credit(self):
+        from accounts import wallet
+        from accounts.models import WalletRecharge
+        rec = WalletRecharge.objects.create(
+            user=self.user, amount=Decimal("25.00"), method=WalletRecharge.Method.YAPE,
+        )
+        result = wallet.reject_recharge(rec, "Comprobante no coincide.")
+        self.assertTrue(result.ok)
+        rec.refresh_from_db()
+        self.user.refresh_from_db()
+        self.assertEqual(rec.status, WalletRecharge.Status.REJECTED)
+        self.assertEqual(rec.rejection_reason, "Comprobante no coincide.")
+        self.assertEqual(self.user.wallet_balance, Decimal("0.00"))
+
+    def test_double_approve_fails(self):
+        from accounts import wallet
+        from accounts.models import WalletRecharge
+        rec = WalletRecharge.objects.create(
+            user=self.user, amount=Decimal("10.00"),
+        )
+        wallet.approve_recharge(rec)
+        result = wallet.approve_recharge(rec)  # segundo intento
+        self.assertFalse(result.ok)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("10.00"))
+
+
+class WalletViewsTests(TestCase):
+    """Pruebas de las vistas web del wallet."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="distri2", email="distri2@example.com", password="pwd12345",
+        )
+        self.client.force_login(self.user)
+
+    def test_wallet_page_renders(self):
+        from accounts import wallet
+        wallet.deposit(self.user, Decimal("100.00"), reference="seed")
+        resp = self.client.get(reverse("accounts:wallet"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        # En es-PE intcomma puede formatear "100.00" como "100,00".
+        self.assertTrue(("100.00" in body) or ("100,00" in body), "Saldo no encontrado en respuesta")
+
+    def test_recharge_create_creates_pending(self):
+        from accounts.models import WalletRecharge
+        resp = self.client.post(reverse("accounts:wallet_recharge"), {
+            "amount": "50",
+            "method": "yape",
+            "user_note": "test",
+        })
+        self.assertIn(resp.status_code, (200, 302))
+        self.assertEqual(WalletRecharge.objects.filter(user=self.user).count(), 1)
+        rec = WalletRecharge.objects.get(user=self.user)
+        self.assertEqual(rec.status, WalletRecharge.Status.PENDING)
+        self.assertEqual(rec.amount, Decimal("50.00"))
+
+    def test_history_page_renders(self):
+        resp = self.client.get(reverse("accounts:wallet_history"))
+        self.assertEqual(resp.status_code, 200)

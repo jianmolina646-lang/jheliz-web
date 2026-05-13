@@ -21,7 +21,7 @@ from .admin_helpers import (
     time_ago,
     user_card_cell,
 )
-from .models import Customer, Distributor, PushSubscription, Role, User, WalletTransaction
+from .models import Customer, Distributor, PushSubscription, Role, User, WalletRecharge, WalletTransaction
 
 
 JHELIZ_FIELDSETS_EXTRA = (
@@ -693,3 +693,110 @@ class PushSubscriptionAdmin(ModelAdmin):
         "created_at", "last_used_at", "last_error", "failed_count",
     )
     list_select_related = ("user",)
+
+
+@admin.register(WalletRecharge)
+class WalletRechargeAdmin(ModelAdmin):
+    list_display = (
+        "id", "user_cell", "amount_cell", "method_chip", "status_chip",
+        "created_relative", "decided_relative",
+    )
+    list_filter = ("status", "method", "created_at")
+    search_fields = ("user__username", "user__email", "user__phone")
+    autocomplete_fields = ("user", "decided_by", "transaction")
+    readonly_fields = (
+        "created_at", "decided_at", "decided_by", "transaction",
+    )
+    list_select_related = ("user", "decided_by")
+    actions = ("approve_selected", "reject_selected")
+
+    fieldsets = (
+        ("Solicitud", {
+            "fields": ("user", "amount", "method", "payment_proof", "user_note"),
+        }),
+        ("Decision admin", {
+            "fields": ("status", "admin_note", "rejection_reason", "decided_at", "decided_by", "transaction"),
+        }),
+    )
+
+    @display(description="Usuario", ordering="user__email")
+    def user_cell(self, obj):
+        return user_card_cell(obj.user, sub=obj.user.email or obj.user.username)
+
+    @display(description="Monto", ordering="amount")
+    def amount_cell(self, obj):
+        return format_html(
+            '<span class="jh-amount jh-amount--pos">S/ {}</span>',
+            f"{obj.amount:,.2f}",
+        )
+
+    @display(description="Método", ordering="method")
+    def method_chip(self, obj):
+        icon_map = {
+            "yape": "phone_iphone",
+            "plin": "phone_iphone",
+            "transfer": "account_balance",
+            "mp": "credit_card",
+            "other": "more_horiz",
+        }
+        return chip(obj.get_method_display(), tone="info", icon=icon_map.get(obj.method, "payments"))
+
+    @display(description="Estado", ordering="status")
+    def status_chip(self, obj):
+        tones = {
+            "pending":  ("warning", "schedule"),
+            "approved": ("success", "check_circle"),
+            "rejected": ("danger",  "cancel"),
+        }
+        tone, icon = tones.get(obj.status, ("neutral", "help"))
+        return chip(obj.get_status_display(), tone=tone, icon=icon)
+
+    @display(description="Solicitada", ordering="-created_at")
+    def created_relative(self, obj):
+        return time_ago(obj.created_at)
+
+    @display(description="Decidida", ordering="-decided_at")
+    def decided_relative(self, obj):
+        return time_ago(obj.decided_at) if obj.decided_at else "—"
+
+    @admin.action(description="✅ Aprobar y acreditar saldo")
+    def approve_selected(self, request, queryset):
+        from .wallet import approve_recharge
+        ok = err = 0
+        for rec in queryset.filter(status=WalletRecharge.Status.PENDING):
+            result = approve_recharge(rec, by_user=request.user)
+            if result.ok:
+                ok += 1
+            else:
+                err += 1
+        if ok:
+            self.message_user(request, f"Aprobadas: {ok}.", level="success")
+        if err:
+            self.message_user(request, f"Fallaron: {err}.", level="warning")
+
+    @admin.action(description="❌ Rechazar (sin acreditar)")
+    def reject_selected(self, request, queryset):
+        from .wallet import reject_recharge
+        count = 0
+        for rec in queryset.filter(status=WalletRecharge.Status.PENDING):
+            reject_recharge(rec, reason="Rechazada desde acciones masivas del admin.", by_user=request.user)
+            count += 1
+        self.message_user(request, f"Rechazadas: {count}.", level="info")
+
+    def save_model(self, request, obj, form, change):
+        """Si cambian el status manualmente desde el form, dispará las acciones correctas."""
+        if change and obj.pk:
+            from .wallet import approve_recharge, reject_recharge
+            prev = WalletRecharge.objects.filter(pk=obj.pk).first()
+            if prev and prev.status == WalletRecharge.Status.PENDING:
+                if obj.status == WalletRecharge.Status.APPROVED:
+                    obj.save()  # Persistir cambios del form primero
+                    result = approve_recharge(obj, by_user=request.user)
+                    if not result.ok:
+                        self.message_user(request, result.message, level="warning")
+                    return
+                if obj.status == WalletRecharge.Status.REJECTED:
+                    obj.save()
+                    reject_recharge(obj, reason=obj.rejection_reason or "Rechazada por admin.", by_user=request.user)
+                    return
+        super().save_model(request, obj, form, change)

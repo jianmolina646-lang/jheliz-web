@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Recargar wallet — {{ SITE_NAME }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .form-card {
+    border-radius: 1.5rem;
+    background: radial-gradient(120% 90% at 0% 0%, rgba(236, 72, 153, .12), transparent 55%),
+                radial-gradient(110% 90% at 100% 100%, rgba(139, 92, 246, .12), transparent 55%),
+                rgba(255,255,255,.025);
+    border: 1px solid rgba(236, 72, 153, .25);
+    padding: 1.75rem;
+  }
+  .preset-pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: .55rem 1.05rem; border-radius: 9999px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    font-weight: 700; color: #e5e7eb;
+    cursor: pointer; transition: all .15s;
+  }
+  .preset-pill:hover { border-color: rgba(236,72,153,.55); color: #f9a8d4; transform: translateY(-1px); }
+  .preset-pill.is-active {
+    background: linear-gradient(135deg, rgba(236,72,153,.25), rgba(139,92,246,.2));
+    border-color: rgba(236,72,153,.6);
+    color: white;
+    box-shadow: 0 8px 24px -6px rgba(236,72,153,.45);
+  }
+  .method-card {
+    display: flex; align-items: center; gap: .8rem;
+    padding: .9rem 1rem; border-radius: 1rem;
+    border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.03);
+    cursor: pointer; transition: all .15s;
+  }
+  .method-card:hover { border-color: rgba(236,72,153,.45); transform: translateY(-1px); }
+  .method-card input { position: absolute; opacity: 0; pointer-events: none; }
+  .method-card.is-checked { border-color: rgba(236,72,153,.7); background: linear-gradient(135deg, rgba(236,72,153,.12), rgba(139,92,246,.08)); }
+  .step-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg,#ec4899,#8b5cf6);
+    color: white; font-weight: 800; font-size: 12px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="max-w-3xl mx-auto">
+  <div class="flex items-center justify-between mb-5">
+    <div>
+      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-pink-300">Recargar wallet</p>
+      <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight mt-1" style="letter-spacing:-0.03em">
+        Suma saldo a tu <span style="background:linear-gradient(135deg,#ec4899,#d946ef,#8b5cf6);-webkit-background-clip:text;background-clip:text;color:transparent">wallet</span>
+      </h1>
+      <p class="text-sm text-zinc-400 mt-1">Saldo actual: <strong class="text-white">{{ CURRENCY_SYMBOL }} {{ user.wallet_balance|floatformat:2|intcomma }}</strong></p>
+    </div>
+    <a href="{% url 'accounts:wallet' %}" class="text-sm text-zinc-400 hover:text-white">← Volver</a>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="form-card" id="rechargeForm">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="rounded-xl px-4 py-3 mb-4 text-sm" style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#fca5a5">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <!-- 1. Monto -->
+    <div class="mb-6">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="step-num">1</span>
+        <h2 class="font-display text-lg font-bold">¿Cuánto querés recargar?</h2>
+      </div>
+      <div class="flex flex-wrap gap-2 mb-3">
+        {% for p in presets %}
+          <button type="button" class="preset-pill" data-amount="{{ p }}">S/ {{ p }}</button>
+        {% endfor %}
+      </div>
+      <label class="block">
+        <span class="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Monto exacto (S/)</span>
+        {{ form.amount }}
+        {% if form.amount.errors %}<div class="text-xs text-red-300 mt-1">{{ form.amount.errors|join:", " }}</div>{% endif %}
+      </label>
+    </div>
+
+    <!-- 2. Método -->
+    <div class="mb-6">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="step-num">2</span>
+        <h2 class="font-display text-lg font-bold">¿Cómo vas a pagar?</h2>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3" id="methodGrid">
+        {% for value, label in form.fields.method.choices %}
+          <label class="method-card relative">
+            <input type="radio" name="method" value="{{ value }}" {% if forloop.first %}checked{% endif %}>
+            {% if value == 'yape' %}
+              <span class="pay-brand pay-brand--yape" aria-hidden="true">
+                <svg viewBox="0 0 64 64" width="40" height="40">
+                  <defs>
+                    <linearGradient id="yape-bg" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="#7d2cdb"/>
+                      <stop offset="100%" stop-color="#5b16a8"/>
+                    </linearGradient>
+                  </defs>
+                  <rect x="0" y="0" width="64" height="64" rx="16" fill="url(#yape-bg)"/>
+                  <text x="50%" y="56%" font-family="'Poppins','Inter',sans-serif" font-weight="800"
+                        font-size="22" fill="#fff" text-anchor="middle" letter-spacing="-0.5">yape</text>
+                  <circle cx="50" cy="16" r="3.2" fill="#fff"/>
+                </svg>
+              </span>
+            {% elif value == 'mp' %}
+              <span class="pay-brand pay-brand--mp" aria-hidden="true">
+                <svg viewBox="0 0 64 64" width="40" height="40">
+                  <defs>
+                    <linearGradient id="mp-bg" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stop-color="#00b1ea"/>
+                      <stop offset="100%" stop-color="#009ee3"/>
+                    </linearGradient>
+                  </defs>
+                  <rect x="0" y="0" width="64" height="64" rx="16" fill="url(#mp-bg)"/>
+                  <path d="M14 36 C 22 24, 32 24, 38 32 C 44 40, 52 40, 56 32"
+                        stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>
+                  <circle cx="14" cy="36" r="3" fill="#fff"/>
+                  <circle cx="56" cy="32" r="3" fill="#fff"/>
+                </svg>
+              </span>
+            {% else %}
+              <div class="text-2xl">💳</div>
+            {% endif %}
+            <div class="flex-1">
+              <div class="font-semibold">{{ label }}</div>
+              <div class="text-xs text-zinc-500">
+                {% if value == 'yape' %}Escanea QR y sube comprobante
+                {% elif value == 'mp' %}Tarjeta · Yape · PagoEfectivo
+                {% else %}Comprobante necesario{% endif %}
+              </div>
+            </div>
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- 3. Comprobante -->
+    <div class="mb-6">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="step-num">3</span>
+        <h2 class="font-display text-lg font-bold">Comprobante (foto)</h2>
+      </div>
+      <div class="rounded-xl p-4 border border-dashed border-white/15 bg-white/[.02]">
+        {{ form.payment_proof }}
+        {% if form.payment_proof.errors %}<div class="text-xs text-red-300 mt-1">{{ form.payment_proof.errors|join:", " }}</div>{% endif %}
+        <p class="text-xs text-zinc-500 mt-2">Subí la captura donde se vea el monto y el destinatario. Aceleramos la aprobación así.</p>
+      </div>
+    </div>
+
+    <!-- 4. Nota -->
+    <div class="mb-6">
+      <label class="block">
+        <span class="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1 block">Nota opcional</span>
+        {{ form.user_note }}
+        {% if form.user_note.errors %}<div class="text-xs text-red-300 mt-1">{{ form.user_note.errors|join:", " }}</div>{% endif %}
+      </label>
+    </div>
+
+    <div class="flex flex-wrap gap-3 items-center justify-between">
+      <p class="text-xs text-zinc-500 max-w-md">Tu solicitud queda <strong class="text-amber-300">pendiente</strong> hasta que un admin confirme el pago. Suele tomar &lt; 15 minutos en horario de atención.</p>
+      <button type="submit"
+              class="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-sm font-bold text-white"
+              style="background:linear-gradient(135deg,#ec4899,#d946ef,#8b5cf6); box-shadow:0 18px 40px -10px rgba(236,72,153,.6)">
+        🚀 Enviar solicitud
+      </button>
+    </div>
+  </form>
+</section>
+
+<script>
+(function(){
+  var amountInput = document.querySelector('#id_amount');
+  document.querySelectorAll('.preset-pill').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.preset-pill').forEach(function(b){ b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      if (amountInput) {
+        amountInput.value = btn.dataset.amount;
+        amountInput.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+    });
+  });
+  function refreshMethodChecked() {
+    document.querySelectorAll('#methodGrid .method-card').forEach(function(c){
+      var input = c.querySelector('input[type=radio]');
+      c.classList.toggle('is-checked', !!(input && input.checked));
+    });
+  }
+  document.querySelectorAll('#methodGrid input[type=radio]').forEach(function(r){
+    r.addEventListener('change', refreshMethodChecked);
+  });
+  refreshMethodChecked();
+})();
+</script>
+{% endblock %}
