@@ -308,62 +308,283 @@
     </div>
   {% endif %}
 
-  {# Tabs de estado #}
-  <div class="jh2-toolbar">
-    <span class="jh2-toolbar__label">Estado</span>
-    {% for opt in status_options %}
-      <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
-         class="jh2-chip {% if status == opt.value %}jh2-chip--active{% endif %}">
-        {{ opt.label }}
-        <span class="jh2-chip__count">{{ opt.count }}</span>
-      </a>
-    {% endfor %}
+  {# ── Barra de filtros (Estado + Modo unificados) ───────────────── #}
+  <style>
+    .jh-cc-filters {
+      display: grid; gap: 12px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(15,23,42,.55);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .jh-cc-filters__row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .jh-cc-filters__label {
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: rgba(148,163,184,.72);
+      width: 52px; flex-shrink: 0;
+    }
+    .jh-cc-fchip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 11px; border-radius: 10px;
+      font-size: 12.5px; font-weight: 600;
+      color: rgba(203,213,225,.85);
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.07);
+      text-decoration: none;
+      transition: background .15s, border-color .15s, color .15s, transform .15s;
+    }
+    .jh-cc-fchip:hover { background: rgba(255,255,255,.07); transform: translateY(-1px); color: #fff; }
+    .jh-cc-fchip__icon { font-size: 14px; opacity: .85; }
+    .jh-cc-fchip__count {
+      padding: 1px 7px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; line-height: 1.4;
+      background: rgba(148,163,184,.15);
+      color: rgba(226,232,240,.85);
+      font-variant-numeric: tabular-nums;
+    }
+    /* tono según semáforo - non-active */
+    .jh-cc-fchip--success { color:#86efac; border-color: rgba(52,211,153,.20); }
+    .jh-cc-fchip--success .jh-cc-fchip__count { background: rgba(52,211,153,.18); color:#a7f3d0; }
+    .jh-cc-fchip--info    { color:#93c5fd; border-color: rgba(96,165,250,.20); }
+    .jh-cc-fchip--info .jh-cc-fchip__count { background: rgba(96,165,250,.18); color:#bfdbfe; }
+    .jh-cc-fchip--warning { color:#fcd34d; border-color: rgba(251,191,36,.22); }
+    .jh-cc-fchip--warning .jh-cc-fchip__count { background: rgba(251,191,36,.18); color:#fde68a; }
+    .jh-cc-fchip--danger  { color:#fca5a5; border-color: rgba(239,68,68,.22); }
+    .jh-cc-fchip--danger .jh-cc-fchip__count { background: rgba(239,68,68,.18); color:#fecaca; }
+    .jh-cc-fchip--purple  { color:#c4b5fd; border-color: rgba(167,139,250,.22); }
+    .jh-cc-fchip--purple .jh-cc-fchip__count { background: rgba(167,139,250,.18); color:#ddd6fe; }
+    /* active state */
+    .jh-cc-fchip--active {
+      background: linear-gradient(135deg, rgba(167,139,250,.22), rgba(236,72,153,.18));
+      border-color: rgba(167,139,250,.55);
+      color: #fff;
+      box-shadow: 0 4px 14px -4px rgba(167,139,250,.35);
+    }
+    .jh-cc-fchip--active .jh-cc-fchip__count { background: rgba(255,255,255,.18); color: #fff; }
+  </style>
+  <div class="jh-cc-filters">
+    <div class="jh-cc-filters__row">
+      <span class="jh-cc-filters__label">Estado</span>
+      {% for opt in status_options %}
+        {# tonos según value: all=neutral, available=success, sold=info, reserved=purple, defective=danger, disabled=neutral #}
+        {% if opt.value == 'available' %}{% with tone='success' icon='check_circle' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip jh-cc-fchip--{{ tone }} {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% elif opt.value == 'sold' %}{% with tone='info' icon='local_shipping' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip jh-cc-fchip--{{ tone }} {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% elif opt.value == 'reserved' %}{% with tone='purple' icon='schedule' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip jh-cc-fchip--{{ tone }} {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% elif opt.value == 'defective' %}{% with tone='danger' icon='warning' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip jh-cc-fchip--{{ tone }} {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% elif opt.value == 'disabled' %}{% with icon='block' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% else %}{% with icon='list_alt' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="jh-cc-filters__row" style="border-top:1px dashed rgba(255,255,255,.06);padding-top:12px;">
+      <span class="jh-cc-filters__label">Modo</span>
+      {% for opt in mode_options %}
+        <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if status and status != 'all' %}status={{ status }}&{% endif %}mode={{ opt.value }}"
+           class="jh-cc-fchip {% if opt.value == 'profile' %}jh-cc-fchip--success{% elif opt.value == 'full' %}jh-cc-fchip--purple{% elif opt.value == 'license' %}jh-cc-fchip--warning{% endif %} {% if mode == opt.value or mode == '' and opt.value == 'all' %}jh-cc-fchip--active{% endif %}">
+          <span class="material-symbols-outlined jh-cc-fchip__icon">{{ opt.icon }}</span>
+          {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+        </a>
+      {% endfor %}
+    </div>
   </div>
 
-  {# Tabs de modo de venta (Por perfil / Cuenta completa / Licencia) #}
-  <div class="jh2-toolbar">
-    <span class="jh2-toolbar__label">Modo</span>
-    {% for opt in mode_options %}
-      <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if status and status != 'all' %}status={{ status }}&{% endif %}mode={{ opt.value }}"
-         class="jh2-chip {% if mode == opt.value or mode == '' and opt.value == 'all' %}jh2-chip--active{% endif %}">
-        <span class="material-symbols-outlined" style="font-size:14px;">{{ opt.icon }}</span>
-        {{ opt.label }}
-        <span class="jh2-chip__count">{{ opt.count }}</span>
-      </a>
-    {% endfor %}
-  </div>
+  {# ── Plataformas (acordeón por producto) ───────────────────────── #}
+  <style>
+    .jh-cc-plat {
+      padding: 16px 18px;
+      border-radius: 16px;
+      background: linear-gradient(160deg, rgba(255,255,255,.035), rgba(255,255,255,.01));
+      border: 1px solid rgba(255,255,255,.07);
+      transition: border-color .15s;
+    }
+    .jh-cc-plat[open] { border-color: rgba(167,139,250,.20); }
+    .jh-cc-plat__sum {
+      display: flex; align-items: center; gap: 14px;
+      cursor: pointer; list-style: none;
+    }
+    .jh-cc-plat__sum::-webkit-details-marker { display: none; }
+    .jh-cc-plat__chev {
+      width: 32px; height: 32px; flex-shrink: 0;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(167,139,250,.10);
+      color: #c4b5fd;
+      transition: transform .2s ease, background .15s;
+    }
+    .jh-cc-plat__chev .material-symbols-outlined { font-size: 22px; }
+    .jh-cc-plat[open] .jh-cc-plat__chev { transform: rotate(180deg); background: rgba(167,139,250,.18); }
+    .jh-cc-plat__avatar {
+      width: 36px; height: 36px; flex-shrink: 0;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 800; color: white;
+      background: linear-gradient(135deg, var(--av-a, #a78bfa), var(--av-b, #ec4899));
+      box-shadow: 0 6px 18px -8px rgba(0,0,0,.45);
+    }
+    .jh-cc-plat__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .jh-cc-plat__title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .jh-cc-plat__name {
+      font-size: 15px; font-weight: 700; color: #f1f5f9;
+      letter-spacing: -.005em;
+    }
+    .jh-cc-plat__meta { font-size: 12px; color: rgba(148,163,184,.78); }
+    .jh-cc-plat__right {
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      flex-wrap: wrap; justify-content: flex-end;
+    }
+    .jh-cc-plat__stat {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 9px; border-radius: 8px;
+      font-size: 11.5px; font-weight: 700;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.06);
+      color: rgba(203,213,225,.85);
+      font-variant-numeric: tabular-nums;
+    }
+    .jh-cc-plat__stat--success { color:#86efac; background: rgba(52,211,153,.10); border-color: rgba(52,211,153,.22); }
+    .jh-cc-plat__stat--info    { color:#93c5fd; background: rgba(96,165,250,.10); border-color: rgba(96,165,250,.22); }
+    .jh-cc-plat__stat--danger  { color:#fca5a5; background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.22); }
+    .jh-cc-plat__stat .material-symbols-outlined { font-size: 13px; }
+    .jh-cc-plat__add {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 12px; border-radius: 10px;
+      font-size: 12.5px; font-weight: 700;
+      background: linear-gradient(135deg, #a78bfa, #ec4899);
+      color: #fff; border: 0; cursor: pointer;
+      box-shadow: 0 6px 14px -6px rgba(236,72,153,.55);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .jh-cc-plat__add:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -8px rgba(236,72,153,.65); }
+    .jh-cc-plat__add .material-symbols-outlined { font-size: 14px; }
+    .jh-cc-plat__mode-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 9px; border-radius: 999px;
+      font-size: 10.5px; font-weight: 700; line-height: 1.6;
+      letter-spacing: .03em;
+    }
+    .jh-cc-plat__mode-badge .material-symbols-outlined { font-size: 12px; }
 
-  {# Plataformas (acordeón por producto) #}
+    /* ── Tabla pulida ────────────────────────────────────────────── */
+    .jh-cc-plat .jh2-table th {
+      font-size: 10.5px; letter-spacing: .10em; text-transform: uppercase;
+      font-weight: 700; color: rgba(148,163,184,.65);
+      padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .jh-cc-plat .jh2-table td {
+      padding: 12px; vertical-align: top;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .jh-cc-plat .jh2-table tbody tr:last-child td { border-bottom: 0; }
+    .jh-cc-plat .jh2-table tbody tr { transition: background .12s; }
+    .jh-cc-plat .jh2-table tbody tr:hover { background: rgba(167,139,250,.04); }
+
+    /* ── Acciones inline ─────────────────────────────────────────── */
+    .jh-cc-actions { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+    .jh-cc-actions form { display: inline-flex; }
+    .jh-cc-act {
+      width: 30px; height: 30px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.07);
+      color: rgba(203,213,225,.85);
+      cursor: pointer; text-decoration: none;
+      transition: background .15s, color .15s, border-color .15s, transform .15s;
+    }
+    .jh-cc-act:hover { transform: translateY(-1px); }
+    .jh-cc-act .material-symbols-outlined { font-size: 16px; }
+    .jh-cc-act--success { color:#86efac; background: rgba(52,211,153,.10); border-color: rgba(52,211,153,.22); }
+    .jh-cc-act--success:hover { background: rgba(52,211,153,.20); color: #d1fae5; }
+    .jh-cc-act--info    { color:#93c5fd; background: rgba(96,165,250,.10); border-color: rgba(96,165,250,.22); }
+    .jh-cc-act--info:hover { background: rgba(96,165,250,.20); color: #dbeafe; }
+    .jh-cc-act--danger  { color:#fca5a5; background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.22); }
+    .jh-cc-act--danger:hover { background: rgba(239,68,68,.20); color: #fecaca; }
+  </style>
   {% if groups %}
     {% for g in groups %}
-    <details class="jh2-card jh2-card--padded" {% if forloop.counter <= 3 or g.total <= 12 %}open{% endif %}>
-      <summary style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;">
-        <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
-          <span class="material-symbols-outlined" style="font-size:22px;color:#a78bfa;">expand_more</span>
-          <div style="min-width:0;">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <div class="jh2-table__strong" style="font-size:15px;">{{ g.product.name }}</div>
-              {% if g.mode_meta %}
-                <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;line-height:1.6;background:{{ g.mode_meta.bg }};border:1px solid {{ g.mode_meta.border }};color:{{ g.mode_meta.color }};">
-                  <span class="material-symbols-outlined" style="font-size:12px;">{{ g.mode_meta.icon }}</span>
-                  {{ g.mode_label }}
-                </span>
-              {% endif %}
-            </div>
-            <div class="jh2-table__muted" style="font-size:12.5px;">
-              {{ g.total }} cuenta{{ g.total|pluralize:"s" }} cargada{{ g.total|pluralize:"s" }}
-            </div>
+    <details class="jh-cc-plat" {% if forloop.counter <= 3 or g.total <= 12 %}open{% endif %}>
+      <summary class="jh-cc-plat__sum">
+        <span class="jh-cc-plat__chev">
+          <span class="material-symbols-outlined">expand_more</span>
+        </span>
+        {% with first_char=g.product.name|slice:":1"|upper %}
+        <span class="jh-cc-plat__avatar"
+              style="--av-a:{% if first_char == 'A' %}#fb7185{% elif first_char == 'C' %}#f97316{% elif first_char == 'H' %}#8b5cf6{% elif first_char == 'N' %}#dc2626{% elif first_char == 'P' %}#0ea5e9{% elif first_char == 'D' %}#3b82f6{% else %}#a78bfa{% endif %};
+                     --av-b:{% if first_char == 'A' %}#ec4899{% elif first_char == 'C' %}#ea580c{% elif first_char == 'H' %}#6366f1{% elif first_char == 'N' %}#991b1b{% elif first_char == 'P' %}#0284c7{% elif first_char == 'D' %}#1d4ed8{% else %}#ec4899{% endif %};">
+          {{ first_char }}
+        </span>
+        {% endwith %}
+        <div class="jh-cc-plat__body">
+          <div class="jh-cc-plat__title-row">
+            <span class="jh-cc-plat__name">{{ g.product.name }}</span>
+            {% if g.mode_meta %}
+              <span class="jh-cc-plat__mode-badge"
+                    style="background:{{ g.mode_meta.bg }};border:1px solid {{ g.mode_meta.border }};color:{{ g.mode_meta.color }};">
+                <span class="material-symbols-outlined">{{ g.mode_meta.icon }}</span>
+                {{ g.mode_label }}
+              </span>
+            {% endif %}
+          </div>
+          <div class="jh-cc-plat__meta">
+            {{ g.total }} cuenta{{ g.total|pluralize:"s" }} cargada{{ g.total|pluralize:"s" }}
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-          {% if g.available %}{% include "admin/components/_pill.html" with text=g.available|stringformat:"s"|add:" disp." variant="success" %}{% endif %}
-          {% if g.sold %}{% include "admin/components/_pill.html" with text=g.sold|stringformat:"s"|add:" vend." variant="info" static=True %}{% endif %}
-          {% if g.defective %}{% include "admin/components/_pill.html" with text=g.defective|stringformat:"s"|add:" caídas" variant="danger" %}{% endif %}
+        <div class="jh-cc-plat__right">
+          {% if g.available %}
+            <span class="jh-cc-plat__stat jh-cc-plat__stat--success">
+              <span class="material-symbols-outlined">check_circle</span>
+              {{ g.available }} disp.
+            </span>
+          {% endif %}
+          {% if g.sold %}
+            <span class="jh-cc-plat__stat jh-cc-plat__stat--info">
+              <span class="material-symbols-outlined">local_shipping</span>
+              {{ g.sold }} vend.
+            </span>
+          {% endif %}
+          {% if g.defective %}
+            <span class="jh-cc-plat__stat jh-cc-plat__stat--danger">
+              <span class="material-symbols-outlined">warning</span>
+              {{ g.defective }} caídas
+            </span>
+          {% endif %}
           <button type="button"
-                  class="quick-add-btn jh2-btn jh2-btn--primary jh2-btn--sm"
+                  class="quick-add-btn jh-cc-plat__add"
                   data-product-id="{{ g.product.pk }}"
                   data-product-name="{{ g.product.name|escapejs }}">
-            <span class="material-symbols-outlined" style="font-size:14px;">add</span>
+            <span class="material-symbols-outlined">add</span>
             Agregar
           </button>
         </div>
@@ -461,14 +682,14 @@
                 {% if item.sold_at %}<div style="color:#93c5fd;">✓ {{ item.sold_at|date:"d/m/y" }}</div>{% endif %}
               </td>
               <td class="jh2-table__right">
-                <div class="jh2-actions" style="gap:4px;">
+                <div class="jh-cc-actions">
                   {% if item.status != 'available' %}
                     <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="jh2-inline-form">
                       {% csrf_token %}
                       <input type="hidden" name="action" value="mark_available">
                       <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                      <button type="submit" class="jh2-btn jh2-btn--success jh2-btn--sm" title="Marcar disponible">
-                        <span class="material-symbols-outlined" style="font-size:14px;">check</span>
+                      <button type="submit" class="jh-cc-act jh-cc-act--success" title="Marcar disponible">
+                        <span class="material-symbols-outlined">check</span>
                       </button>
                     </form>
                   {% endif %}
@@ -477,9 +698,8 @@
                       {% csrf_token %}
                       <input type="hidden" name="action" value="mark_sold">
                       <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                      <button type="submit" class="jh2-btn jh2-btn--ghost jh2-btn--sm" title="Marcar como vendida (uso manual fuera del checkout)"
-                              style="color:#93c5fd;border-color:rgba(59,130,246,.35);">
-                        <span class="material-symbols-outlined" style="font-size:14px;">local_shipping</span>
+                      <button type="submit" class="jh-cc-act jh-cc-act--info" title="Marcar como vendida (uso manual fuera del checkout)">
+                        <span class="material-symbols-outlined">local_shipping</span>
                       </button>
                     </form>
                   {% endif %}
@@ -488,14 +708,14 @@
                       {% csrf_token %}
                       <input type="hidden" name="action" value="mark_defective">
                       <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                      <button type="submit" class="jh2-btn jh2-btn--danger jh2-btn--sm" title="Marcar caída">
-                        <span class="material-symbols-outlined" style="font-size:14px;">warning</span>
+                      <button type="submit" class="jh-cc-act jh-cc-act--danger" title="Marcar caída">
+                        <span class="material-symbols-outlined">warning</span>
                       </button>
                     </form>
                   {% endif %}
                   <a href="{% url 'admin:catalog_stockitem_change' item.pk %}"
-                     class="jh2-btn jh2-btn--ghost jh2-btn--sm" title="Ver / editar detalle">
-                    <span class="material-symbols-outlined" style="font-size:14px;">edit</span>
+                     class="jh-cc-act" title="Ver / editar detalle">
+                    <span class="material-symbols-outlined">edit</span>
                   </a>
                 </div>
               </td>
