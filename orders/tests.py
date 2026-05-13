@@ -2936,3 +2936,95 @@ class QuickOrderCreateTests(TestCase):
         # Re-render con error (200, no redirect).
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Email del cliente inválido")
+
+
+class BrevoEmailBackendTests(TestCase):
+    """Verifica que el backend HTTP de Brevo arma el JSON correctamente."""
+
+    def _msg(self, *, content_html: bool = True):
+        from django.core.mail import EmailMessage
+        msg = EmailMessage(
+            subject="Asunto de prueba",
+            body="<p>Hola</p>" if content_html else "Hola plano",
+            from_email="Jheliz <ecomercejheliz@gmail.com>",
+            to=["dest@example.com", "Otro <dos@example.com>"],
+            cc=["cc@example.com"],
+            reply_to=["responder@example.com"],
+        )
+        if content_html:
+            msg.content_subtype = "html"
+        return msg
+
+    def test_build_payload_html(self):
+        from orders.brevo_backend import BrevoEmailBackend
+        payload = BrevoEmailBackend(api_key="x").\
+            _build_payload(self._msg(content_html=True))
+        self.assertEqual(
+            payload["sender"],
+            {"email": "ecomercejheliz@gmail.com", "name": "Jheliz"},
+        )
+        self.assertEqual(payload["to"], [
+            {"email": "dest@example.com"},
+            {"email": "dos@example.com", "name": "Otro"},
+        ])
+        self.assertEqual(payload["cc"], [{"email": "cc@example.com"}])
+        self.assertEqual(payload["replyTo"], {"email": "responder@example.com"})
+        self.assertEqual(payload["subject"], "Asunto de prueba")
+        self.assertIn("htmlContent", payload)
+        self.assertNotIn("textContent", payload)
+
+    def test_build_payload_plain(self):
+        from orders.brevo_backend import BrevoEmailBackend
+        payload = BrevoEmailBackend(api_key="x").\
+            _build_payload(self._msg(content_html=False))
+        self.assertIn("textContent", payload)
+        self.assertNotIn("htmlContent", payload)
+
+    def test_send_messages_posts_to_brevo(self):
+        from unittest.mock import MagicMock, patch
+        from orders.brevo_backend import BrevoEmailBackend, BREVO_ENDPOINT
+
+        backend = BrevoEmailBackend(api_key="xkeysib-fake")
+        msg = self._msg(content_html=True)
+
+        fake_resp = MagicMock(status_code=201, text='{"messageId":"a"}')
+        with patch("orders.brevo_backend.requests.Session") as Session:
+            session_inst = Session.return_value
+            session_inst.post.return_value = fake_resp
+            sent = backend.send_messages([msg])
+
+        self.assertEqual(sent, 1)
+        session_inst.post.assert_called_once()
+        args, kwargs = session_inst.post.call_args
+        self.assertEqual(args[0], BREVO_ENDPOINT)
+        self.assertEqual(kwargs["json"]["sender"]["email"],
+                         "ecomercejheliz@gmail.com")
+
+    def test_missing_api_key_raises(self):
+        from orders.brevo_backend import BrevoEmailBackend
+        from django.core.mail import EmailMessage
+        backend = BrevoEmailBackend(api_key="", fail_silently=False)
+        msg = EmailMessage(
+            subject="x", body="y", from_email="a@b.com", to=["c@d.com"],
+        )
+        with self.assertRaises(RuntimeError):
+            backend.send_messages([msg])
+
+    def test_missing_api_key_fail_silently(self):
+        from orders.brevo_backend import BrevoEmailBackend
+        from django.core.mail import EmailMessage
+        backend = BrevoEmailBackend(api_key="", fail_silently=True)
+        msg = EmailMessage(
+            subject="x", body="y", from_email="a@b.com", to=["c@d.com"],
+        )
+        self.assertEqual(backend.send_messages([msg]), 0)
+
+    def test_api_error_returns_zero_when_fail_silently(self):
+        from unittest.mock import MagicMock, patch
+        from orders.brevo_backend import BrevoEmailBackend
+        backend = BrevoEmailBackend(api_key="x", fail_silently=True)
+        fake_resp = MagicMock(status_code=400, text="bad")
+        with patch("orders.brevo_backend.requests.Session") as Session:
+            Session.return_value.post.return_value = fake_resp
+            sent = backend.send_messages([self._msg()])
+        self.assertEqual(sent, 0)
