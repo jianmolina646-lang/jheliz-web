@@ -10,7 +10,7 @@
 {% block content %}
 <div class="flex flex-col gap-5">
 
-  <div class="jh2-page-head">
+  <div class="jh2-page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
     <div>
       <div class="jh2-page-head__eyebrow">Inventario</div>
       <h1 class="jh2-page-head__title">📚 Control de cuentas</h1>
@@ -18,6 +18,14 @@
         Tu cuaderno de cuentas, organizado por plataforma. Mirá de un vistazo
         cuántas quedan disponibles y cuáles ya vendiste para no equivocarte.
       </p>
+    </div>
+    <div style="flex-shrink:0;">
+      <button type="button" id="bulk-replace-open"
+              class="jh2-btn jh2-btn--ghost"
+              style="border-color:rgba(167,139,250,.45);color:#c4b5fd;">
+        <span class="material-symbols-outlined" style="font-size:18px;">sync_alt</span>
+        Reemplazar credenciales en masa
+      </button>
     </div>
   </div>
 
@@ -348,6 +356,73 @@ correo3@gmail.com,password3,Perfil1</pre>
   </div>
 </div>
 
+{# Modal Bulk-Replace — reemplazar credenciales en masa. #}
+<div id="bulk-replace-modal"
+     class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+     style="backdrop-filter: blur(4px);">
+  <div class="bg-base-900 border border-base-700 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col"
+       style="max-height: 90vh;">
+    <form method="post" action="{% url 'admin_stock_bulk_replace_credentials' %}"
+          class="flex flex-col h-full overflow-hidden">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'admin_cuentas_dashboard' %}">
+
+      <div class="flex items-center justify-between px-5 py-4 border-b border-base-700">
+        <div>
+          <div class="text-xs uppercase tracking-wide text-base-400">Reemplazo masivo</div>
+          <div class="text-lg font-semibold text-white">🔄 Cambiar correo + contraseña en lote</div>
+        </div>
+        <button type="button" id="br-close"
+                class="text-base-400 hover:text-white text-2xl leading-none">×</button>
+      </div>
+
+      <div class="px-5 py-4 space-y-3 overflow-y-auto">
+        <div class="text-xs text-base-300 bg-base-950 border border-base-800 rounded-lg p-3 leading-relaxed">
+          Pegá las credenciales nuevas que te pasó el proveedor — una por línea.
+          El sistema busca el <b>correo actual</b> y reemplaza email + contraseña
+          en todas las cuentas que coincidan (perfil y PIN se mantienen).
+          <br><br>
+          <b>Formatos aceptados</b> (auto-detecta cada línea):
+          <pre class="text-[11px] text-base-200 mt-1 overflow-x-auto"># Si solo cambia la contraseña:
+correo@gmail.com:nueva_password
+
+# Si cambia correo Y contraseña (cualquier formato):
+correo_viejo@gmail.com|correo_nuevo@gmail.com|nueva_password
+correo_viejo@gmail.com,correo_nuevo@gmail.com,nueva_password
+correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
+          <div style="margin-top:8px;color:#93c5fd;">
+            ℹ️ Si la cuenta ya fue entregada a un cliente, también se sincroniza
+            su pedido (delivered_credentials) y se guarda snapshot para rollback.
+          </div>
+          <div style="margin-top:6px;color:#fbbf24;">
+            ⚠️ Las líneas que no podamos parsear y los emails que no estén
+            cargados se reportan al final como aviso.
+          </div>
+        </div>
+
+        <textarea name="pasted" required rows="10"
+                  placeholder="Pegá acá las credenciales nuevas — una cuenta por línea"
+                  class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm font-mono p-3
+                         focus:border-primary-500 focus:outline-none resize-none"></textarea>
+
+        <div id="br-counter" class="text-xs text-base-400">0 reemplazos detectados</div>
+      </div>
+
+      <div class="flex justify-end gap-2 px-5 py-3 border-t border-base-700 bg-base-900">
+        <button type="button" id="br-cancel"
+                class="px-4 py-2 rounded-md border border-base-700 hover:bg-base-800 text-base-200 text-sm">
+          Cancelar
+        </button>
+        <button type="submit"
+                class="px-4 py-2 rounded-md font-semibold text-sm text-white"
+                style="background:rgba(167,139,250,.85);">
+          🔄 Aplicar reemplazos
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 (function() {
   const modal = document.getElementById('quick-add-modal');
@@ -397,6 +472,41 @@ correo3@gmail.com,password3,Perfil1</pre>
     }
     counter.textContent = n + ' cuenta' + (n === 1 ? '' : 's') + ' detectada' + (n === 1 ? '' : 's');
     counter.className = n > 0 ? 'text-xs text-emerald-300' : 'text-xs text-base-400';
+  });
+})();
+
+(function() {
+  // Modal de reemplazo masivo de credenciales.
+  const modal = document.getElementById('bulk-replace-modal');
+  const openBtn = document.getElementById('bulk-replace-open');
+  if (!modal || !openBtn) return;
+  const closeBtn = document.getElementById('br-close');
+  const cancelBtn = document.getElementById('br-cancel');
+  const counter = document.getElementById('br-counter');
+  const textarea = modal.querySelector('textarea[name="pasted"]');
+
+  function openModal() {
+    textarea.value = '';
+    counter.textContent = '0 reemplazos detectados';
+    counter.className = 'text-xs text-base-400';
+    modal.classList.remove('hidden');
+    setTimeout(() => textarea.focus(), 50);
+  }
+  function closeModal() { modal.classList.add('hidden'); }
+
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+  });
+
+  textarea.addEventListener('input', function() {
+    const lines = this.value.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith('#'));
+    const n = lines.length;
+    counter.textContent = n + ' reemplazo' + (n === 1 ? '' : 's') + ' detectado' + (n === 1 ? '' : 's');
+    counter.className = n > 0 ? 'text-xs text-violet-300' : 'text-xs text-base-400';
   });
 })();
 </script>

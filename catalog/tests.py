@@ -992,3 +992,110 @@ class SupportTipoPresetTests(TestCase):
         resp = self.client.get(reverse("support:create") + "?tipo=invalid")
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, "Ayudanos a resolver rápido")
+
+
+class BulkReplaceCredentialsTests(TestCase):
+    """Verifica el reemplazo masivo de credenciales en Control de cuentas."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="bulkstaff",
+            email="bulk@example.com",
+            password="pwd1234!",
+            is_staff=True,
+        )
+        self.cat = Category.objects.create(name="Streaming-bulk", slug="streaming-bulk")
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix Bulk", slug="netflix-bulk", is_active=True,
+        )
+        # 3 cuentas con credenciales bien formadas
+        self.it_a = StockItem.objects.create(
+            product=self.product,
+            credentials="Correo: aa@gmail.com\nContraseña: passA\nPerfil: 1\nPIN: 1111",
+        )
+        self.it_b = StockItem.objects.create(
+            product=self.product,
+            credentials="Correo: bb@gmail.com\nContraseña: passB\nPerfil: 2\nPIN: 2222",
+        )
+        self.it_c = StockItem.objects.create(
+            product=self.product,
+            credentials="Correo: cc@gmail.com\nContraseña: passC",
+        )
+
+    def test_parser_handles_all_formats(self):
+        from config.admin_views import _parse_bulk_replace_line
+
+        cases = [
+            ("x@gmail.com:newpass", ("x@gmail.com", "", "newpass")),
+            ("OLD@gmail.com|new@gmail.com|p1", ("old@gmail.com", "new@gmail.com", "p1")),
+            ("old@gmail.com,new@gmail.com,p2", ("old@gmail.com", "new@gmail.com", "p2")),
+            ("old@gmail.com -> new@gmail.com:p3", ("old@gmail.com", "new@gmail.com", "p3")),
+            ("# comentario", None),
+            ("", None),
+            ("solo_texto_sin_email", None),
+            ("noemail:pass", None),
+        ]
+        for raw, expected in cases:
+            self.assertEqual(_parse_bulk_replace_line(raw), expected, msg=f"input={raw!r}")
+
+    def test_password_only_update(self):
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_stock_bulk_replace_credentials"),
+            {"pasted": "aa@gmail.com:nuevaPassA"},
+            follow=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.it_a.refresh_from_db()
+        self.assertIn("nuevaPassA", self.it_a.credentials)
+        self.assertIn("aa@gmail.com", self.it_a.credentials)
+        # Perfil y PIN se mantienen
+        self.assertIn("Perfil: 1", self.it_a.credentials)
+        self.assertIn("PIN: 1111", self.it_a.credentials)
+        # Las otras no se tocan
+        self.it_b.refresh_from_db()
+        self.assertIn("passB", self.it_b.credentials)
+
+    def test_email_and_password_update(self):
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_stock_bulk_replace_credentials"),
+            {"pasted": "bb@gmail.com|bbnew@gmail.com|nuevaPassB"},
+            follow=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.it_b.refresh_from_db()
+        self.assertIn("bbnew@gmail.com", self.it_b.credentials)
+        self.assertNotIn("bb@gmail.com\n", self.it_b.credentials)  # no debería quedar el viejo
+        self.assertIn("nuevaPassB", self.it_b.credentials)
+        # Perfil/PIN preservados
+        self.assertIn("Perfil: 2", self.it_b.credentials)
+        self.assertIn("PIN: 2222", self.it_b.credentials)
+
+    def test_email_not_found_reported(self):
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_stock_bulk_replace_credentials"),
+            {"pasted": "fantasma@gmail.com:nope"},
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        msgs = [str(m) for m in resp.context["messages"]]
+        self.assertTrue(any("fantasma@gmail.com" in m for m in msgs))
+
+    def test_requires_staff(self):
+        # Usuario no-staff debe ser bloqueado
+        User = get_user_model()
+        u = User.objects.create_user(
+            username="nopuede", email="np@example.com", password="x"
+        )
+        self.client.force_login(u)
+        resp = self.client.post(
+            reverse("admin_stock_bulk_replace_credentials"),
+            {"pasted": "aa@gmail.com:newp"},
+        )
+        self.assertNotEqual(resp.status_code, 200)
+        # No debería haber cambiado nada
+        self.it_a.refresh_from_db()
+        self.assertIn("passA", self.it_a.credentials)
