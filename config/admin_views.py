@@ -2067,7 +2067,7 @@ def _inbox_collect_items():
             "kind": "review",
             "label": "Reseña pendiente",
             "reason": (r.comment or "Sin comentario.")[:140],
-            "ref": f"{r.product.name if r.product else '—'} — {r.author or 'anónimo'}",
+            "ref": f"{r.product.name if r.product else '—'} — {r.author_name or 'anónimo'}",
             "link": reverse(
                 "admin:catalog_productreview_change", args=[r.pk]
             ),
