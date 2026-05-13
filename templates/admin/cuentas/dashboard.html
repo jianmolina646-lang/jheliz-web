@@ -22,10 +22,10 @@
   </div>
 
   <div class="jh2-stat-grid">
-    {% include "admin/components/_stat.html" with label="Plataformas" value=kpis.platforms icon="apps" variant="neutral" %}
-    {% include "admin/components/_stat.html" with label="Disponibles" value=kpis.available icon="check_circle" variant="success" %}
-    {% include "admin/components/_stat.html" with label="Vendidas" value=kpis.sold icon="local_shipping" variant="info" %}
-    {% include "admin/components/_stat.html" with label="Caídas" value=kpis.defective icon="warning" variant="warning" %}
+    {% include "admin/components/_stat.html" with label="Plataformas" value=kpis.platforms|stringformat:"d" icon="apps" variant="neutral" %}
+    {% include "admin/components/_stat.html" with label="Disponibles" value=kpis.available|stringformat:"d" icon="check_circle" variant="success" %}
+    {% include "admin/components/_stat.html" with label="Vendidas" value=kpis.sold|stringformat:"d" icon="local_shipping" variant="info" %}
+    {% include "admin/components/_stat.html" with label="Caídas" value=kpis.defective|stringformat:"d" icon="warning" variant="warning" %}
   </div>
 
   {# Buscador cross-plataforma — pegás un correo y te dice si ya está #}
@@ -36,11 +36,12 @@
            class="jh2-input"
            style="flex:1;min-width:260px;">
     {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    {% if mode and mode != 'all' %}<input type="hidden" name="mode" value="{{ mode }}">{% endif %}
     <button type="submit" class="jh2-btn jh2-btn--primary">
       <span class="material-symbols-outlined" style="font-size:16px;">search</span>
       Buscar
     </button>
-    {% if q or status != 'all' %}
+    {% if q or status != 'all' or mode != 'all' %}
       <a href="{% url 'admin_cuentas_dashboard' %}" class="jh2-chip">
         <span class="material-symbols-outlined" style="font-size:14px;">close</span>
         Limpiar
@@ -79,8 +80,21 @@
   <div class="jh2-toolbar">
     <span class="jh2-toolbar__label">Estado</span>
     {% for opt in status_options %}
-      <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}status={{ opt.value }}"
+      <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
          class="jh2-chip {% if status == opt.value %}jh2-chip--active{% endif %}">
+        {{ opt.label }}
+        <span class="jh2-chip__count">{{ opt.count }}</span>
+      </a>
+    {% endfor %}
+  </div>
+
+  {# Tabs de modo de venta (Por perfil / Cuenta completa / Licencia) #}
+  <div class="jh2-toolbar">
+    <span class="jh2-toolbar__label">Modo</span>
+    {% for opt in mode_options %}
+      <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if status and status != 'all' %}status={{ status }}&{% endif %}mode={{ opt.value }}"
+         class="jh2-chip {% if mode == opt.value or mode == '' and opt.value == 'all' %}jh2-chip--active{% endif %}">
+        <span class="material-symbols-outlined" style="font-size:14px;">{{ opt.icon }}</span>
         {{ opt.label }}
         <span class="jh2-chip__count">{{ opt.count }}</span>
       </a>
@@ -95,7 +109,15 @@
         <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
           <span class="material-symbols-outlined" style="font-size:22px;color:#a78bfa;">expand_more</span>
           <div style="min-width:0;">
-            <div class="jh2-table__strong" style="font-size:15px;">{{ g.product.name }}</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <div class="jh2-table__strong" style="font-size:15px;">{{ g.product.name }}</div>
+              {% if g.mode_meta %}
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;line-height:1.6;background:{{ g.mode_meta.bg }};border:1px solid {{ g.mode_meta.border }};color:{{ g.mode_meta.color }};">
+                  <span class="material-symbols-outlined" style="font-size:12px;">{{ g.mode_meta.icon }}</span>
+                  {{ g.mode_label }}
+                </span>
+              {% endif %}
+            </div>
             <div class="jh2-table__muted" style="font-size:12.5px;">
               {{ g.total }} cuenta{{ g.total|pluralize:"s" }} cargada{{ g.total|pluralize:"s" }}
             </div>
