@@ -746,12 +746,15 @@ def notifications_count(request):
 # Renovaciones pendientes (#nuevo) — items próximos a vencer + 1-click renew
 # ---------------------------------------------------------------------------
 
+# Cada entrada: (label, start_offset, end_offset, icon, tone)
+# ``tone`` se usa en el chip del filtro (semafórico):
+#   danger=rojo, warning=naranja, info=azul, success=verde, neutral=gris.
 _RENEWAL_WINDOWS = {
-    "expired": ("Vencidos", -180, 0),
-    "today": ("Vencen hoy", 0, 1),
-    "3d": ("Próx. 3 días", 0, 4),
-    "7d": ("Próx. 7 días", 0, 8),
-    "30d": ("Próx. 30 días", 0, 31),
+    "expired": ("Vencidos",       -180, 0,  "error",            "danger"),
+    "today":   ("Vencen hoy",     0,    1,  "today",            "warning"),
+    "3d":      ("Próx. 3 días",   0,    4,  "alarm",            "warning"),
+    "7d":      ("Próx. 7 días",   0,    8,  "calendar_today",   "info"),
+    "30d":     ("Próx. 30 días",  0,    31, "event_repeat",     "success"),
 }
 
 
@@ -763,23 +766,45 @@ def renewals_view(request):
     window_key = request.GET.get("w", "7d")
     if window_key not in _RENEWAL_WINDOWS:
         window_key = "7d"
-    label, start_offset, end_offset = _RENEWAL_WINDOWS[window_key]
+    label, start_offset, end_offset, _icon, _tone = _RENEWAL_WINDOWS[window_key]
 
     now = timezone.now()
-    start = now + timedelta(days=start_offset) if start_offset < 0 else now
-    end = now + timedelta(days=end_offset)
+    paid_statuses = (
+        Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+    )
+
+    def _window_qs(s_off: int, e_off: int):
+        s = now + timedelta(days=s_off) if s_off < 0 else now
+        e = now + timedelta(days=e_off)
+        return OrderItem.objects.filter(
+            expires_at__isnull=False,
+            expires_at__gte=s,
+            expires_at__lt=e,
+            order__status__in=paid_statuses,
+        )
+
+    # Conteos por ventana para mostrar en los chips de filtro.
+    window_counts = {
+        key: _window_qs(s_off, e_off).count()
+        for key, (_lbl, s_off, e_off, _ic, _to) in _RENEWAL_WINDOWS.items()
+    }
+
+    # Estructura "rica" para el template — más fácil de iterar con todos
+    # los metadatos del chip (label, count, ícono, tono, key).
+    windows_rich = [
+        {
+            "key": key,
+            "label": lbl,
+            "icon": ic,
+            "tone": to,
+            "count": window_counts.get(key, 0),
+            "active": (window_key == key),
+        }
+        for key, (lbl, _s, _e, ic, to) in _RENEWAL_WINDOWS.items()
+    ]
 
     qs = (
-        OrderItem.objects.filter(
-            expires_at__isnull=False,
-            expires_at__gte=start,
-            expires_at__lt=end,
-            order__status__in=(
-                Order.Status.PAID,
-                Order.Status.PREPARING,
-                Order.Status.DELIVERED,
-            ),
-        )
+        _window_qs(start_offset, end_offset)
         .select_related("order", "order__user", "product", "plan")
         .order_by("expires_at")
     )
@@ -787,6 +812,22 @@ def renewals_view(request):
     items = []
     for it in qs[:200]:
         days_left = (it.expires_at - now).days if it.expires_at else None
+        # Tono semafórico para el chip "Días" (alineado con el de filtros).
+        if days_left is None:
+            d_tone, d_icon = "neutral", "schedule"
+        elif days_left < 0:
+            d_tone, d_icon = "danger", "error"
+        elif days_left == 0:
+            d_tone, d_icon = "danger", "today"
+        elif days_left <= 1:
+            d_tone, d_icon = "warning", "alarm"
+        elif days_left <= 3:
+            d_tone, d_icon = "warning", "schedule"
+        elif days_left <= 7:
+            d_tone, d_icon = "info", "calendar_today"
+        else:
+            d_tone, d_icon = "success", "event_available"
+
         items.append({
             "id": it.pk,
             "order_id": it.order_id,
@@ -797,6 +838,8 @@ def renewals_view(request):
             "plan_name": it.plan_name,
             "expires_at": it.expires_at,
             "days_left": days_left,
+            "days_tone": d_tone,
+            "days_icon": d_icon,
             "reminder_3d": bool(it.expiry_reminder_3d_sent_at),
             "reminder_1d": bool(it.expiry_reminder_1d_sent_at),
             "order_change_url": reverse("admin:orders_order_change", args=[it.order_id]),
@@ -811,6 +854,9 @@ def renewals_view(request):
         window_key=window_key,
         window_label=label,
         windows=_RENEWAL_WINDOWS,
+        windows_rich=windows_rich,
+        window_counts=window_counts,
+        total_items=sum(window_counts.values()),
     )
     return render(request, "admin/renewals.html", ctx)
 
