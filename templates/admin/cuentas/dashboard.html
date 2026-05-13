@@ -165,6 +165,14 @@
                 {% else %}
                   <div class="jh2-table__muted">—</div>
                 {% endif %}
+                {# Cliente: nombre de perfil + PIN que SOLICITÓ el cliente al pagar (no el slot) #}
+                {% if item.buyer_profile or item.buyer_pin %}
+                  <div class="jh2-table__mono" style="font-size:11px;margin-top:4px;padding-top:4px;border-top:1px dashed rgba(148,163,184,.18);">
+                    <span style="color:#94a3b8;">Pidió:</span>
+                    {% if item.buyer_profile %}<span style="color:#fde68a;">"{{ item.buyer_profile }}"</span>{% endif %}
+                    {% if item.buyer_pin %}<span style="color:#fde68a;"> · PIN {{ item.buyer_pin }}</span>{% endif %}
+                  </div>
+                {% endif %}
               </td>
               <td>
                 {% if item.status == 'available' %}
@@ -177,6 +185,42 @@
                   {% include "admin/components/_pill.html" with text="Caída" variant="danger" %}
                 {% else %}
                   {% include "admin/components/_pill.html" with text="Deshabilitada" variant="neutral" static=True %}
+                {% endif %}
+
+                {# Info del comprador (cuando la cuenta NO está disponible) #}
+                {% if item.buyer_email or item.sale_date or item.buyer_resale_name %}
+                  <div style="margin-top:6px;font-size:11px;line-height:1.45;display:flex;flex-direction:column;gap:2px;max-width:30ch;">
+                    {% if item.buyer_email %}
+                      <div style="color:#cbd5e1;display:flex;align-items:center;gap:4px;min-width:0;">
+                        <span class="material-symbols-outlined" style="font-size:12px;color:#94a3b8;">person</span>
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.buyer_email }}</span>
+                      </div>
+                    {% endif %}
+                    {% if item.buyer_phone %}
+                      <div style="color:#94a3b8;display:flex;align-items:center;gap:4px;">
+                        <span class="material-symbols-outlined" style="font-size:12px;">phone</span>
+                        {{ item.buyer_phone }}
+                      </div>
+                    {% endif %}
+                    {% if item.sale_date %}
+                      <div style="color:#93c5fd;display:flex;align-items:center;gap:4px;">
+                        <span class="material-symbols-outlined" style="font-size:12px;">event</span>
+                        Vendida {{ item.sale_date|date:"d/m/y H:i" }}
+                      </div>
+                    {% endif %}
+                    {% if item.buyer_resale_name %}
+                      <div style="color:#fbbf24;display:flex;align-items:center;gap:4px;font-size:10.5px;">
+                        <span class="material-symbols-outlined" style="font-size:11px;">forward</span>
+                        Revendida a: {{ item.buyer_resale_name }}
+                        {% if item.buyer_resale_whatsapp %} · {{ item.buyer_resale_whatsapp }}{% endif %}
+                      </div>
+                    {% endif %}
+                    {% if item.order_uuid %}
+                      <div class="jh2-table__muted" style="font-size:10.5px;font-family:ui-monospace,monospace;">
+                        #{{ item.order_uuid }}
+                      </div>
+                    {% endif %}
+                  </div>
                 {% endif %}
               </td>
               <td><div class="jh2-table__strong" style="font-size:12px;">{{ item.label|default:"—" }}</div></td>

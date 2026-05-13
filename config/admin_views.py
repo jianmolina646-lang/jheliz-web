@@ -1154,7 +1154,27 @@ def cuentas_dashboard(request):
     valid_statuses = {s for s, _ in StockItem.Status.choices}
     valid_modes = {m for m, _ in ProductMode.choices}
 
-    qs = StockItem.objects.select_related("product", "plan").order_by("-created_at")
+    from django.db.models import Prefetch
+    from orders.models import OrderItem
+
+    # Pre-cargamos OrderItem para mostrar comprador / fecha de venta / perfil
+    # solicitado por item — sin generar N+1 queries.
+    sold_items_qs = (
+        OrderItem.objects.select_related("order")
+        .only(
+            "id", "stock_item_id", "requested_profile_name", "requested_pin",
+            "final_customer_name", "final_customer_whatsapp",
+            "order__id", "order__uuid", "order__email", "order__phone",
+            "order__paid_at", "order__created_at",
+        )
+        .order_by("-order__paid_at", "-order__created_at")
+    )
+
+    qs = (
+        StockItem.objects.select_related("product", "plan")
+        .prefetch_related(Prefetch("order_items", queryset=sold_items_qs))
+        .order_by("-created_at")
+    )
     if status_filter in valid_statuses:
         qs = qs.filter(status=status_filter)
     if mode_filter in valid_modes:
@@ -1178,6 +1198,28 @@ def cuentas_dashboard(request):
         it.profile_text = profile
         it.pin_text = pin
         it.email_lc = _extract_primary_email(account)
+
+        # Comprador (OrderItem más reciente asociado). Solo poblamos si la
+        # cuenta NO está disponible — el caso interesante para el admin.
+        it.buyer_email = ""
+        it.buyer_phone = ""
+        it.buyer_profile = ""
+        it.buyer_pin = ""
+        it.buyer_resale_name = ""
+        it.buyer_resale_whatsapp = ""
+        it.sale_date = None
+        it.order_uuid = ""
+        if it.status in (StockItem.Status.SOLD, StockItem.Status.RESERVED):
+            oi = next(iter(it.order_items.all()), None)
+            if oi:
+                it.buyer_email = oi.order.email or ""
+                it.buyer_phone = oi.order.phone or ""
+                it.buyer_profile = oi.requested_profile_name or ""
+                it.buyer_pin = oi.requested_pin or ""
+                it.buyer_resale_name = oi.final_customer_name or ""
+                it.buyer_resale_whatsapp = oi.final_customer_whatsapp or ""
+                it.sale_date = oi.order.paid_at or oi.order.created_at
+                it.order_uuid = str(oi.order.uuid)[:8]
 
     # Metadata por modo (para badges + filtros). Orden estable: perfil → completa → licencia.
     mode_meta = {
