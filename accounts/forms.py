@@ -6,7 +6,7 @@ from django.contrib.auth.forms import (
     UserCreationForm,
 )
 
-from .models import Role, User
+from .models import Role, User, WalletRecharge
 
 
 class StyledMixin:
@@ -104,3 +104,43 @@ class ProfileForm(StyledMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._style_fields()
+
+
+class WalletRechargeForm(StyledMixin, forms.ModelForm):
+    """Solicitud de recarga: monto + método + comprobante + nota opcional."""
+
+    AMOUNT_PRESETS = (10, 20, 50, 100, 200, 500)
+
+    class Meta:
+        model = WalletRecharge
+        fields = ("amount", "method", "payment_proof", "user_note")
+        labels = {
+            "amount": "Monto a recargar (S/)",
+            "method": "Método de pago",
+            "payment_proof": "Captura del comprobante",
+            "user_note": "Nota (opcional)",
+        }
+        widgets = {
+            "user_note": forms.Textarea(attrs={"rows": 3, "placeholder": "Ej: pagué a las 14:30 desde Yape"}),
+            "payment_proof": forms.ClearableFileInput(attrs={"accept": "image/*"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._style_fields()
+        self.fields["amount"].widget.attrs.update({"min": "5", "step": "1"})
+        # Solo aceptamos Yape y Mercado Pago para recargas (los métodos
+        # con menor fricción en el flujo de aprobación). El modelo conserva
+        # los demás valores por compatibilidad histórica.
+        self.fields["method"].choices = [
+            (WalletRecharge.Method.YAPE, "Yape"),
+            (WalletRecharge.Method.MERCADOPAGO, "Mercado Pago"),
+        ]
+
+    def clean_amount(self):
+        amount = self.cleaned_data["amount"]
+        if amount is None or amount < 5:
+            raise forms.ValidationError("El monto mínimo de recarga es S/ 5.")
+        if amount > 5000:
+            raise forms.ValidationError("Monto demasiado alto. Avisanos por WhatsApp para recargas mayores a S/ 5,000.")
+        return amount

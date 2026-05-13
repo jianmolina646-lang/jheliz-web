@@ -35,4 +35,8 @@ urlpatterns = [
     path("push/config/", views.push_config, name="push_config"),
     path("push/subscribe/", views.push_subscribe, name="push_subscribe"),
     path("push/unsubscribe/", views.push_unsubscribe, name="push_unsubscribe"),
+    # Wallet (saldo de distribuidor)
+    path("wallet/", views.wallet, name="wallet"),
+    path("wallet/recargar/", views.wallet_recharge, name="wallet_recharge"),
+    path("wallet/movimientos/", views.wallet_history, name="wallet_history"),
 ]

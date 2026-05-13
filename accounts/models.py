@@ -97,6 +97,85 @@ class WalletTransaction(models.Model):
         return f"{self.user} {self.get_kind_display()} {self.amount}"
 
 
+class WalletRecharge(models.Model):
+    """Solicitud de recarga de saldo al wallet del distribuidor.
+
+    El distribuidor crea la solicitud con un monto y un comprobante
+    (captura de Yape, transferencia, etc.). El admin la aprueba o
+    rechaza desde el panel; al aprobar se crea una WalletTransaction
+    de tipo "recarga" y se acredita el saldo automáticamente.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pendiente"
+        APPROVED = "approved", "Aprobada"
+        REJECTED = "rejected", "Rechazada"
+
+    class Method(models.TextChoices):
+        YAPE = "yape", "Yape"
+        PLIN = "plin", "Plin"
+        TRANSFER = "transfer", "Transferencia / depósito"
+        MERCADOPAGO = "mp", "Mercado Pago"
+        OTHER = "other", "Otro"
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="wallet_recharges",
+    )
+    amount = models.DecimalField(
+        "Monto", max_digits=10, decimal_places=2,
+        help_text="Monto a recargar (S/).",
+    )
+    method = models.CharField(
+        "Método", max_length=20, choices=Method.choices, default=Method.YAPE,
+    )
+    status = models.CharField(
+        "Estado", max_length=20, choices=Status.choices, default=Status.PENDING,
+    )
+    payment_proof = models.ImageField(
+        "Comprobante", upload_to="wallet/recharges/", blank=True,
+        help_text="Captura del comprobante de pago.",
+    )
+    user_note = models.TextField(
+        "Nota del distribuidor", blank=True,
+        help_text="Comentario opcional para el admin.",
+    )
+    admin_note = models.TextField(
+        "Nota interna", blank=True,
+        help_text="Notas privadas del admin.",
+    )
+    rejection_reason = models.TextField(
+        "Motivo de rechazo", blank=True,
+        help_text="Mensaje que ve el distribuidor cuando se rechaza.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decided_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="wallet_recharges_decided",
+    )
+    transaction = models.ForeignKey(
+        "accounts.WalletTransaction", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="recharge_origin",
+        help_text="Movimiento creado cuando se aprobó.",
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Solicitud de recarga"
+        verbose_name_plural = "Solicitudes de recarga"
+        indexes = [
+            models.Index(fields=["status", "-created_at"], name="wrecharge_status_idx"),
+            models.Index(fields=["user", "-created_at"], name="wrecharge_user_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Recarga #{self.pk} {self.user} S/ {self.amount} ({self.get_status_display()})"
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == self.Status.PENDING
+
+
 class PushSubscription(models.Model):
     """Suscripción Web Push registrada por un cliente desde su navegador.
 
