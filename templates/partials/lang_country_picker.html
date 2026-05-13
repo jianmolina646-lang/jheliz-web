@@ -1,12 +1,13 @@
 {% load i18n %}
-{# Selectores de idioma + país (footer del sitio público).
+{% comment %}
+  Selectores de idioma + país (footer del sitio público).
 
-   - El cambio de idioma usa la vista built-in de Django (`set_language`)
-     que persiste en cookie `django_language`.
-   - El cambio de país usa `set_country` (custom) que persiste en cookie
-     `jheliz_country`. La moneda y el método de pago default se derivan
-     del país elegido.
-#}
+  - El cambio de idioma usa la vista built-in de Django (`set_language`)
+    que persiste en cookie `django_language`.
+  - El cambio de país usa `set_country` (custom) que persiste en cookie
+    `jheliz_country`. La moneda y el método de pago default se derivan
+    del país elegido.
+{% endcomment %}
 <div class="border-t hairline">
   <div class="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500">
     <div class="flex items-center gap-2">

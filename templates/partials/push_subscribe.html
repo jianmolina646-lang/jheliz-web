@@ -1,9 +1,10 @@
-{# Botón de suscripción a notificaciones push del navegador.
+{% comment %}
+  Botón de suscripción a notificaciones push del navegador.
 
-   Renderiza un toggle "Activar notificaciones" que registra el service
-   worker (si no está) + obtiene la subscription via push manager + la manda
-   a /cuenta/push/subscribe/.
-#}
+  Renderiza un toggle "Activar notificaciones" que registra el service
+  worker (si no está) + obtiene la subscription via push manager + la manda
+  a /cuenta/push/subscribe/.
+{% endcomment %}
 <div id="push-subscribe-card"
      class="rounded-2xl p-4 sm:p-5 mb-4 hidden"
      style="background: rgba(255,255,255,0.04); border: 1px solid rgba(99,102,241,0.4);">

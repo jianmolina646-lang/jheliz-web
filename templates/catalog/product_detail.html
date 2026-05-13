@@ -429,8 +429,10 @@
 
       <div class="pd-tabpanel" data-pd-panel="faq">
         <div class="space-y-3">
-          {# FAQ dinámica por producto. La sección destacada de abajo es lo
-             que ve cualquier cliente; este tab queda como alias rápido. #}
+          {% comment %}
+            FAQ dinámica por producto. La sección destacada de abajo es lo
+            que ve cualquier cliente; este tab queda como alias rápido.
+          {% endcomment %}
           {% for f in product_faqs %}
           <details class="faq-item">
             <summary>{{ f.q }}</summary>
