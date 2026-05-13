@@ -1143,18 +1143,22 @@ def cuentas_dashboard(request):
     el Excel / bloc de notas del usuario: ver de un vistazo cuántas cuentas
     quedan disponibles y cuáles ya están vendidas por plataforma.
     """
-    from catalog.models import Product, StockItem
+    from catalog.models import Product, ProductMode, StockItem
     from orders.credentials import split_account_extras
 
     q = (request.GET.get("q") or "").strip().lower()
     status_filter = (request.GET.get("status") or "all").strip()
+    mode_filter = (request.GET.get("mode") or "all").strip()
     show_only = (request.GET.get("only") or "").strip()  # "active" = oculta deshabilitadas
 
     valid_statuses = {s for s, _ in StockItem.Status.choices}
+    valid_modes = {m for m, _ in ProductMode.choices}
 
     qs = StockItem.objects.select_related("product", "plan").order_by("-created_at")
     if status_filter in valid_statuses:
         qs = qs.filter(status=status_filter)
+    if mode_filter in valid_modes:
+        qs = qs.filter(product__mode=mode_filter)
 
     # Búsqueda cross-plataforma: si pegás un correo te muestra dónde está.
     matched_email = ""
@@ -1175,15 +1179,48 @@ def cuentas_dashboard(request):
         it.pin_text = pin
         it.email_lc = _extract_primary_email(account)
 
+    # Metadata por modo (para badges + filtros). Orden estable: perfil → completa → licencia.
+    mode_meta = {
+        ProductMode.PERFIL: {
+            "label": "Por perfil",
+            "color": "#34d399",
+            "bg": "rgba(52,211,153,.12)",
+            "border": "rgba(52,211,153,.32)",
+            "icon": "person",
+        },
+        ProductMode.COMPLETA: {
+            "label": "Cuenta completa",
+            "color": "#c4b5fd",
+            "bg": "rgba(167,139,250,.16)",
+            "border": "rgba(167,139,250,.36)",
+            "icon": "vpn_key",
+        },
+        ProductMode.LICENCIA: {
+            "label": "Licencia / código",
+            "color": "#fbbf24",
+            "bg": "rgba(251,191,36,.14)",
+            "border": "rgba(251,191,36,.34)",
+            "icon": "vpn_lock",
+        },
+    }
+    mode_order = {ProductMode.PERFIL: 0, ProductMode.COMPLETA: 1, ProductMode.LICENCIA: 2}
+
+    def _mode_for(product) -> str:
+        return getattr(product, "mode", "") or ProductMode.PERFIL
+
     # Agrupar por producto. Productos sin items y sin filtro aplicado los
     # mostramos también con sección vacía (para que el usuario sepa que la
     # plataforma existe y pueda agregar cuentas).
     products_with_items: dict[int, dict] = {}
     for it in items:
+        product_mode = _mode_for(it.product)
         slot = products_with_items.setdefault(
             it.product_id,
             {
                 "product": it.product,
+                "mode": product_mode,
+                "mode_label": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL])["label"],
+                "mode_meta": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL]),
                 "items": [],
                 "available": 0, "sold": 0, "reserved": 0,
                 "defective": 0, "disabled": 0, "total": 0,
@@ -1193,28 +1230,54 @@ def cuentas_dashboard(request):
         slot[it.status] = slot.get(it.status, 0) + 1
         slot["total"] += 1
 
-    # Si no hay filtros, agregar productos sin stock también (sección vacía).
-    if not q and status_filter == "all":
-        active_products = Product.objects.filter(is_active=True).only("id", "name")
+    # Si no hay filtros (q/status/mode), agregar productos sin stock también.
+    if not q and status_filter == "all" and mode_filter == "all":
+        active_products = Product.objects.filter(is_active=True).only("id", "name", "mode")
         for p in active_products:
             if p.pk not in products_with_items:
+                product_mode = _mode_for(p)
                 products_with_items[p.pk] = {
                     "product": p,
+                    "mode": product_mode,
+                    "mode_label": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL])["label"],
+                    "mode_meta": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL]),
                     "items": [],
                     "available": 0, "sold": 0, "reserved": 0,
                     "defective": 0, "disabled": 0, "total": 0,
                 }
+    elif mode_filter in valid_modes:
+        # Si filtran por modo y NO hay q/status, mostrar también plataformas
+        # de ese modo aunque no tengan stock cargado.
+        if not q and status_filter == "all":
+            active_products = Product.objects.filter(is_active=True, mode=mode_filter).only("id", "name", "mode")
+            for p in active_products:
+                if p.pk not in products_with_items:
+                    product_mode = _mode_for(p)
+                    products_with_items[p.pk] = {
+                        "product": p,
+                        "mode": product_mode,
+                        "mode_label": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL])["label"],
+                        "mode_meta": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL]),
+                        "items": [],
+                        "available": 0, "sold": 0, "reserved": 0,
+                        "defective": 0, "disabled": 0, "total": 0,
+                    }
 
-    # Ordenar: primero las plataformas con cuentas disponibles (orden alfabético).
+    # Ordenar:
+    #   1) primero plataformas con disponibles
+    #   2) luego agrupar por modo (perfil → completa → licencia)
+    #   3) alfabético por nombre dentro de cada modo
     groups = sorted(
         products_with_items.values(),
         key=lambda g: (
             0 if g["available"] > 0 else (1 if g["total"] > 0 else 2),
+            mode_order.get(g["mode"], 99),
             g["product"].name.lower(),
         ),
     )
 
-    # KPIs globales (todas las plataformas).
+    # KPIs globales (todas las plataformas) — independientes del filtro de modo,
+    # así el usuario siempre ve el total real.
     all_counts = (
         StockItem.objects.values("status")
         .annotate(c=Count("id"))
@@ -1239,6 +1302,34 @@ def cuentas_dashboard(request):
         {"value": "disabled", "label": "Deshabilitadas", "count": kpis["disabled"]},
     ]
 
+    # Contar plataformas activas por modo para los chips del filtro.
+    mode_platform_counts = {m: 0 for m in valid_modes}
+    for p in Product.objects.filter(is_active=True).values_list("mode", flat=True):
+        if p in mode_platform_counts:
+            mode_platform_counts[p] += 1
+    total_active_platforms = sum(mode_platform_counts.values())
+    mode_options = [
+        {"value": "all", "label": "Todos", "count": total_active_platforms, "icon": "apps"},
+        {
+            "value": ProductMode.PERFIL,
+            "label": "Por perfil",
+            "count": mode_platform_counts.get(ProductMode.PERFIL, 0),
+            "icon": "person",
+        },
+        {
+            "value": ProductMode.COMPLETA,
+            "label": "Cuenta completa",
+            "count": mode_platform_counts.get(ProductMode.COMPLETA, 0),
+            "icon": "vpn_key",
+        },
+        {
+            "value": ProductMode.LICENCIA,
+            "label": "Licencia",
+            "count": mode_platform_counts.get(ProductMode.LICENCIA, 0),
+            "icon": "vpn_lock",
+        },
+    ]
+
     ctx = _admin_context(
         request,
         title="Control de cuentas",
@@ -1246,6 +1337,8 @@ def cuentas_dashboard(request):
         kpis=kpis,
         status_options=status_options,
         status=status_filter,
+        mode_options=mode_options,
+        mode=mode_filter,
         q=q,
         matched_email=matched_email,
         show_only=show_only,
