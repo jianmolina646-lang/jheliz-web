@@ -1879,16 +1879,35 @@ fieldset.module h2::before {
 }
 
 /* ---------- Material Symbols ligatures (fix p/ Chrome/Edge/Safari) -----
- * Unfold solo declara `-moz-font-feature-settings:"liga"` (prefijo Firefox),
- * lo que deja sin ligaduras en Chrome/Edge/Safari/etc. Resultado: en lugar
- * del ícono, se renderiza el TEXTO del nombre del icon (ej "pending_actions").
- * Esto reactiva ligaduras en todos los browsers modernos. */
+ * Hay tres problemas que rompen las ligaduras del webfont:
+ *   1. Unfold solo declara `-moz-font-feature-settings:"liga"` (prefijo
+ *      Firefox), por lo que Chrome/Edge/Safari no reciben la regla.
+ *   2. Mas arriba en este mismo archivo se setea
+ *      `font-feature-settings: "cv02","cv03","cv04","cv11"` en body para
+ *      activar las alternativas estilisticas de Inter. Esa property se
+ *      HEREDA en cascada a todos los descendientes; aunque
+ *      `.material-symbols-outlined` (specificity 0,1,0) gana sobre `body`
+ *      (0,0,2), si la regla del .material-symbols-outlined NO se aplica
+ *      por algun layer/order del CSS de Unfold, el span termina usando
+ *      las features de Inter — que NO incluyen "liga" — y entonces la
+ *      ligatura nunca se substituye y se ve el texto crudo.
+ *   3. unfold/css/styles.css se carga DESPUES de UNFOLD["STYLES"] en
+ *      skeleton.html, por lo que en caso de empate de specificity Unfold
+ *      gana en source order.
+ *
+ * Solucion: declarar la regla con `!important` para vencer cualquier
+ * declaracion subsecuente, prefijos cross-browser, y FORZAR la
+ * font-family (la hereda de Unfold, pero por las dudas la redeclaramos
+ * por si algun selector intermedio la borra). */
 .material-symbols-outlined,
+span.material-symbols-outlined,
 .material-icons,
 .material-symbols-rounded,
 .material-symbols-sharp {
-    -webkit-font-feature-settings: 'liga';
-    font-feature-settings: 'liga';
-    font-variant-ligatures: contextual;
+    font-family: "Material Symbols Outlined", "Material Icons" !important;
+    -webkit-font-feature-settings: "liga" !important;
+    font-feature-settings: "liga" !important;
+    font-variant-ligatures: contextual !important;
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
