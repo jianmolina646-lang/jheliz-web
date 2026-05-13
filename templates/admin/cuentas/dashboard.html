@@ -1,0 +1,337 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-5">
+
+  <div class="jh2-page-head">
+    <div>
+      <div class="jh2-page-head__eyebrow">Inventario</div>
+      <h1 class="jh2-page-head__title">📚 Control de cuentas</h1>
+      <p class="jh2-page-head__subtitle">
+        Tu cuaderno de cuentas, organizado por plataforma. Mirá de un vistazo
+        cuántas quedan disponibles y cuáles ya vendiste para no equivocarte.
+      </p>
+    </div>
+  </div>
+
+  <div class="jh2-stat-grid">
+    {% include "admin/components/_stat.html" with label="Plataformas" value=kpis.platforms icon="apps" variant="neutral" %}
+    {% include "admin/components/_stat.html" with label="Disponibles" value=kpis.available icon="check_circle" variant="success" %}
+    {% include "admin/components/_stat.html" with label="Vendidas" value=kpis.sold icon="local_shipping" variant="info" %}
+    {% include "admin/components/_stat.html" with label="Caídas" value=kpis.defective icon="warning" variant="warning" %}
+  </div>
+
+  {# Buscador cross-plataforma — pegás un correo y te dice si ya está #}
+  <form method="get" action="{% url 'admin_cuentas_dashboard' %}" class="jh2-toolbar">
+    <span class="jh2-toolbar__label">🔎 Buscar correo</span>
+    <input type="search" name="q" value="{{ q|default:'' }}"
+           placeholder="Pegá un correo o palabra clave para chequear si ya está cargado…"
+           class="jh2-input"
+           style="flex:1;min-width:260px;">
+    {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    <button type="submit" class="jh2-btn jh2-btn--primary">
+      <span class="material-symbols-outlined" style="font-size:16px;">search</span>
+      Buscar
+    </button>
+    {% if q or status != 'all' %}
+      <a href="{% url 'admin_cuentas_dashboard' %}" class="jh2-chip">
+        <span class="material-symbols-outlined" style="font-size:14px;">close</span>
+        Limpiar
+      </a>
+    {% endif %}
+  </form>
+
+  {% if q %}
+    <div class="jh2-card jh2-card--padded">
+      <div style="display:flex;align-items:center;gap:10px;">
+        {% if total_results %}
+          <span class="material-symbols-outlined" style="font-size:20px;color:#34d399;">check_circle</span>
+          <div>
+            <div class="jh2-table__strong">
+              {{ total_results }} cuenta{{ total_results|pluralize:"s" }} coincide{{ total_results|pluralize:"n" }} con "<code>{{ q }}</code>"
+            </div>
+            <div class="jh2-table__muted">
+              Mirá abajo en qué plataforma{{ groups|pluralize:",s" }} está.
+              {% if matched_email %}<b style="color:#fb923c;">⚠️ Si este correo ya aparece como Vendida, NO lo vuelvas a cargar.</b>{% endif %}
+            </div>
+          </div>
+        {% else %}
+          <span class="material-symbols-outlined" style="font-size:20px;color:#94a3b8;">search_off</span>
+          <div>
+            <div class="jh2-table__strong">No hay coincidencias para "<code>{{ q }}</code>".</div>
+            <div class="jh2-table__muted">
+              {% if matched_email %}✅ Este correo NO está cargado todavía — podés agregarlo sin riesgo de duplicado.{% endif %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  {# Tabs de estado #}
+  <div class="jh2-toolbar">
+    <span class="jh2-toolbar__label">Estado</span>
+    {% for opt in status_options %}
+      <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}status={{ opt.value }}"
+         class="jh2-chip {% if status == opt.value %}jh2-chip--active{% endif %}">
+        {{ opt.label }}
+        <span class="jh2-chip__count">{{ opt.count }}</span>
+      </a>
+    {% endfor %}
+  </div>
+
+  {# Plataformas (acordeón por producto) #}
+  {% if groups %}
+    {% for g in groups %}
+    <details class="jh2-card jh2-card--padded" {% if forloop.counter <= 3 or g.total <= 12 %}open{% endif %}>
+      <summary style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
+          <span class="material-symbols-outlined" style="font-size:22px;color:#a78bfa;">expand_more</span>
+          <div style="min-width:0;">
+            <div class="jh2-table__strong" style="font-size:15px;">{{ g.product.name }}</div>
+            <div class="jh2-table__muted" style="font-size:12.5px;">
+              {{ g.total }} cuenta{{ g.total|pluralize:"s" }} cargada{{ g.total|pluralize:"s" }}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          {% if g.available %}{% include "admin/components/_pill.html" with text=g.available|stringformat:"s"|add:" disp." variant="success" %}{% endif %}
+          {% if g.sold %}{% include "admin/components/_pill.html" with text=g.sold|stringformat:"s"|add:" vend." variant="info" static=True %}{% endif %}
+          {% if g.defective %}{% include "admin/components/_pill.html" with text=g.defective|stringformat:"s"|add:" caídas" variant="danger" %}{% endif %}
+          <button type="button"
+                  class="quick-add-btn jh2-btn jh2-btn--primary jh2-btn--sm"
+                  data-product-id="{{ g.product.pk }}"
+                  data-product-name="{{ g.product.name|escapejs }}">
+            <span class="material-symbols-outlined" style="font-size:14px;">add</span>
+            Agregar
+          </button>
+        </div>
+      </summary>
+
+      {% if g.items %}
+      <div class="jh2-table-wrap" style="margin-top:14px;">
+        <table class="jh2-table">
+          <thead>
+            <tr>
+              <th>Cuenta</th>
+              <th>Perfil / PIN</th>
+              <th>Estado</th>
+              <th>Etiqueta</th>
+              <th>Cargada</th>
+              <th class="jh2-table__right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in g.items %}
+            <tr {% if matched_email and matched_email in item.account_text|lower %}style="background:rgba(251,146,60,0.06);"{% endif %}>
+              <td>
+                <div class="jh2-table__mono jh2-table__cell-wrap" style="max-width:38ch;font-size:12.5px;">{{ item.account_text|default:item.credentials|truncatechars:120 }}</div>
+              </td>
+              <td>
+                {% if item.profile_text or item.pin_text %}
+                  <div class="jh2-table__mono" style="font-size:12px;">
+                    {% if item.profile_text %}<span style="color:#cbd5e1;">{{ item.profile_text }}</span>{% endif %}
+                    {% if item.pin_text %}<span style="color:#94a3b8;"> · PIN {{ item.pin_text }}</span>{% endif %}
+                  </div>
+                {% else %}
+                  <div class="jh2-table__muted">—</div>
+                {% endif %}
+              </td>
+              <td>
+                {% if item.status == 'available' %}
+                  {% include "admin/components/_pill.html" with text="Disponible" variant="success" %}
+                {% elif item.status == 'sold' %}
+                  {% include "admin/components/_pill.html" with text="Vendida" variant="info" static=True %}
+                {% elif item.status == 'reserved' %}
+                  {% include "admin/components/_pill.html" with text="Reservada" variant="neutral" static=True %}
+                {% elif item.status == 'defective' %}
+                  {% include "admin/components/_pill.html" with text="Caída" variant="danger" %}
+                {% else %}
+                  {% include "admin/components/_pill.html" with text="Deshabilitada" variant="neutral" static=True %}
+                {% endif %}
+              </td>
+              <td><div class="jh2-table__strong" style="font-size:12px;">{{ item.label|default:"—" }}</div></td>
+              <td class="jh2-table__muted" style="font-size:11.5px;">
+                <div>{{ item.created_at|date:"d/m/y" }}</div>
+                {% if item.sold_at %}<div style="color:#93c5fd;">✓ {{ item.sold_at|date:"d/m/y" }}</div>{% endif %}
+              </td>
+              <td class="jh2-table__right">
+                <div class="jh2-actions" style="gap:4px;">
+                  {% if item.status != 'available' %}
+                    <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="jh2-inline-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="mark_available">
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="jh2-btn jh2-btn--success jh2-btn--sm" title="Marcar disponible">
+                        <span class="material-symbols-outlined" style="font-size:14px;">check</span>
+                      </button>
+                    </form>
+                  {% endif %}
+                  {% if item.status == 'available' %}
+                    <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="jh2-inline-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="mark_sold">
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="jh2-btn jh2-btn--ghost jh2-btn--sm" title="Marcar como vendida (uso manual fuera del checkout)"
+                              style="color:#93c5fd;border-color:rgba(59,130,246,.35);">
+                        <span class="material-symbols-outlined" style="font-size:14px;">local_shipping</span>
+                      </button>
+                    </form>
+                  {% endif %}
+                  {% if item.status != 'defective' %}
+                    <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="jh2-inline-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="mark_defective">
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="jh2-btn jh2-btn--danger jh2-btn--sm" title="Marcar caída">
+                        <span class="material-symbols-outlined" style="font-size:14px;">warning</span>
+                      </button>
+                    </form>
+                  {% endif %}
+                  <a href="{% url 'admin:catalog_stockitem_change' item.pk %}"
+                     class="jh2-btn jh2-btn--ghost jh2-btn--sm" title="Ver / editar detalle">
+                    <span class="material-symbols-outlined" style="font-size:14px;">edit</span>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <div style="margin-top:12px;text-align:center;padding:24px 12px;color:#94a3b8;font-size:13px;">
+          Esta plataforma no tiene cuentas cargadas todavía.
+          <button type="button"
+                  class="quick-add-btn jh2-btn jh2-btn--primary jh2-btn--sm"
+                  style="margin-top:8px;"
+                  data-product-id="{{ g.product.pk }}"
+                  data-product-name="{{ g.product.name|escapejs }}">
+            <span class="material-symbols-outlined" style="font-size:14px;">add</span>
+            Agregar la primera
+          </button>
+        </div>
+      {% endif %}
+    </details>
+    {% endfor %}
+  {% else %}
+    {% include "admin/components/_empty.html" with icon="inbox" title="Sin cuentas" desc="No hay cuentas cargadas todavía. Andá a un producto y agregalas." %}
+  {% endif %}
+
+</div>
+
+{# Modal Quick-Add — mismo backend que stock_overview. #}
+<div id="quick-add-modal"
+     class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+     style="backdrop-filter: blur(4px);">
+  <div class="bg-base-900 border border-base-700 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col"
+       style="max-height: 90vh;">
+    <form method="post" action="{% url 'admin_stock_quick_add' %}"
+          class="flex flex-col h-full overflow-hidden">
+      {% csrf_token %}
+      <input type="hidden" name="product_id" id="qa-product-id">
+      <input type="hidden" name="redirect_to" value="{% url 'admin_cuentas_dashboard' %}">
+
+      <div class="flex items-center justify-between px-5 py-4 border-b border-base-700">
+        <div>
+          <div class="text-xs uppercase tracking-wide text-base-400">Agregar cuentas a</div>
+          <div id="qa-product-name" class="text-lg font-semibold text-white"></div>
+        </div>
+        <button type="button" id="qa-close"
+                class="text-base-400 hover:text-white text-2xl leading-none">×</button>
+      </div>
+
+      <div class="px-5 py-4 space-y-3 overflow-y-auto">
+        <div class="text-xs text-base-300 bg-base-950 border border-base-800 rounded-lg p-3 leading-relaxed">
+          Pegá tus cuentas, una por línea. Formatos válidos:
+          <pre class="text-[11px] text-base-200 mt-2 overflow-x-auto">correo1@gmail.com|password1
+correo2@gmail.com:password2
+correo3@gmail.com,password3,Perfil1</pre>
+          Separadores: <code class="text-primary-300">|</code>, <code class="text-primary-300">,</code>, <code class="text-primary-300">;</code>, <code class="text-primary-300">:</code>, tab o espacios.
+          <div style="margin-top:8px;color:#fbbf24;">
+            ⚠️ Los correos que ya existan en esta plataforma se omiten automáticamente.
+          </div>
+        </div>
+
+        <textarea name="pasted" required rows="10"
+                  placeholder="Pegá acá tus cuentas — una por línea"
+                  class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm font-mono p-3
+                         focus:border-primary-500 focus:outline-none resize-none"></textarea>
+
+        <div id="qa-counter" class="text-xs text-base-400">0 cuentas detectadas</div>
+      </div>
+
+      <div class="flex justify-end gap-2 px-5 py-3 border-t border-base-700 bg-base-900">
+        <button type="button" id="qa-cancel"
+                class="px-4 py-2 rounded-md border border-base-700 hover:bg-base-800 text-base-200 text-sm">
+          Cancelar
+        </button>
+        <button type="submit"
+                class="px-4 py-2 rounded-md bg-primary-500 hover:bg-primary-400 text-white font-semibold text-sm">
+          Agregar cuentas
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  const modal = document.getElementById('quick-add-modal');
+  if (!modal) return;
+  const productIdInput = document.getElementById('qa-product-id');
+  const productNameLabel = document.getElementById('qa-product-name');
+  const textarea = modal.querySelector('textarea[name="pasted"]');
+  const counter = document.getElementById('qa-counter');
+
+  function openModal(productId, productName) {
+    productIdInput.value = productId;
+    productNameLabel.textContent = productName;
+    textarea.value = '';
+    counter.textContent = '0 cuentas detectadas';
+    counter.className = 'text-xs text-base-400';
+    modal.classList.remove('hidden');
+    setTimeout(() => textarea.focus(), 50);
+  }
+  function closeModal() { modal.classList.add('hidden'); }
+
+  document.querySelectorAll('.quick-add-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      openModal(this.dataset.productId, this.dataset.productName);
+    });
+  });
+  document.getElementById('qa-close').addEventListener('click', closeModal);
+  document.getElementById('qa-cancel').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+  });
+
+  textarea.addEventListener('input', function() {
+    const text = this.value.trim();
+    if (!text) {
+      counter.textContent = '0 cuentas detectadas';
+      counter.className = 'text-xs text-base-400';
+      return;
+    }
+    const lines = text.split(/\r?\n/);
+    const hasBlankBlocks = lines.some((l, i) => !l.trim() && i > 0 && i < lines.length - 1);
+    let n;
+    if (hasBlankBlocks) {
+      n = text.split(/\n\s*\n/).filter(b => b.trim()).length;
+    } else {
+      n = lines.filter(l => l.trim()).length;
+    }
+    counter.textContent = n + ' cuenta' + (n === 1 ? '' : 's') + ' detectada' + (n === 1 ? '' : 's');
+    counter.className = n > 0 ? 'text-xs text-emerald-300' : 'text-xs text-base-400';
+  });
+})();
+</script>
+{% endblock %}
