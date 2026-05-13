@@ -4,10 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#07060b">
-  {# Evita que Google Translate (extensiones / Chrome auto-translate) reescriba la UI:
-     rompe los strings de productos, precios formateados y atributos data-*. Tenemos
-     i18n nativo (django.conf.urls.i18n) — si el usuario quiere otro idioma usa el
-     selector del header, no la traducción automática del browser. #}
+  {% comment %}
+    Evita que Google Translate (extensiones / Chrome auto-translate) reescriba la UI:
+    rompe los strings de productos, precios formateados y atributos data-*. Tenemos
+    i18n nativo (django.conf.urls.i18n) — si el usuario quiere otro idioma usa el
+    selector del header, no la traducción automática del browser.
+  {% endcomment %}
   <meta name="google" content="notranslate">
   <meta http-equiv="Content-Language" content="es">
   <title>{% block title %}Netflix, Disney+ y Office en Perú ✦ desde S/ 7 — {{ SITE_NAME }}{% endblock %}</title>
