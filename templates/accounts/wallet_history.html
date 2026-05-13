@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Historial de saldo — {{ SITE_NAME }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .tx-row { display:flex; align-items:center; gap:.9rem; padding:.9rem 1rem; border-bottom:1px solid rgba(255,255,255,.05); }
+  .tx-row:last-child { border-bottom:none; }
+  .tx-icon { width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .tx-icon-in { background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(5,150,105,.15)); color:#6ee7b7; }
+  .tx-icon-out { background:linear-gradient(135deg,rgba(236,72,153,.18),rgba(168,85,247,.18)); color:#f9a8d4; }
+  .tx-icon-refund { background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(99,102,241,.18)); color:#7dd3fc; }
+  .tx-icon-adjust { background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(139,92,246,.18)); color:#d8b4fe; }
+  .tx-amount-pos { color:#6ee7b7; font-weight:700; }
+  .tx-amount-neg { color:#fda4af; font-weight:700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="max-w-4xl mx-auto">
+  <div class="flex items-center justify-between mb-5">
+    <div>
+      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-pink-300">Wallet · historial</p>
+      <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight mt-1" style="letter-spacing:-0.03em">Todos mis movimientos</h1>
+      <p class="text-sm text-zinc-400 mt-1">Saldo actual: <strong class="text-white">{{ CURRENCY_SYMBOL }} {{ balance|floatformat:2|intcomma }}</strong></p>
+    </div>
+    <a href="{% url 'accounts:wallet' %}" class="text-sm text-zinc-400 hover:text-white">← Wallet</a>
+  </div>
+
+  <div class="rounded-2xl overflow-hidden" style="background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08)">
+    {% for t in page %}
+      <div class="tx-row">
+        {% if t.kind == 'recarga' %}<div class="tx-icon tx-icon-in">⬇</div>
+        {% elif t.kind == 'compra' %}<div class="tx-icon tx-icon-out">🛒</div>
+        {% elif t.kind == 'reembolso' %}<div class="tx-icon tx-icon-refund">↩</div>
+        {% else %}<div class="tx-icon tx-icon-adjust">⚙</div>{% endif %}
+        <div class="flex-1 min-w-0">
+          <div class="font-medium text-white truncate">{{ t.get_kind_display }}</div>
+          <div class="text-xs text-zinc-500 truncate">{{ t.reference|default:"—" }} · {{ t.created_at|date:"d/m/Y H:i" }} ({{ t.created_at|naturaltime }})</div>
+        </div>
+        <div class="text-right whitespace-nowrap">
+          {% if t.kind == 'recarga' or t.kind == 'reembolso' %}
+            <div class="tx-amount-pos">+ {{ CURRENCY_SYMBOL }} {{ t.amount|floatformat:2|intcomma }}</div>
+          {% elif t.kind == 'compra' %}
+            <div class="tx-amount-neg">− {{ CURRENCY_SYMBOL }} {{ t.amount|floatformat:2|intcomma }}</div>
+          {% else %}
+            <div class="tx-amount-pos">{{ CURRENCY_SYMBOL }} {{ t.amount|floatformat:2|intcomma }}</div>
+          {% endif %}
+          <div class="text-[10.5px] text-zinc-500 mt-0.5">Saldo: S/ {{ t.balance_after|floatformat:2|intcomma }}</div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="p-8 text-center text-zinc-500">No tenés movimientos todavía.</div>
+    {% endfor %}
+  </div>
+
+  {% if page.has_other_pages %}
+    <div class="mt-4 flex items-center justify-center gap-2">
+      {% if page.has_previous %}<a class="px-3 py-1.5 rounded-lg border border-white/10 text-sm" href="?page={{ page.previous_page_number }}">← Anterior</a>{% endif %}
+      <span class="text-xs text-zinc-500">Página {{ page.number }} de {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="px-3 py-1.5 rounded-lg border border-white/10 text-sm" href="?page={{ page.next_page_number }}">Siguiente →</a>{% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
