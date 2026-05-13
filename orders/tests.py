@@ -3136,3 +3136,183 @@ class CheckoutWalletPaymentTests(TestCase):
         # 302 al login o al checkout — pero NUNCA un pedido creado vía wallet.
         from orders.models import Order
         self.assertFalse(Order.objects.filter(payment_provider="wallet").exists())
+
+
+class GuestCheckoutAutoUserTests(TestCase):
+    """Compradores anónimos: auto-creación de User cliente al hacer checkout."""
+
+    def setUp(self):
+        cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
+        self.product = Product.objects.create(
+            name="Netflix Premium", slug="netflix-premium-guest", category=cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), price_distributor=Decimal("12.00"),
+        )
+
+    def _add_to_cart(self):
+        session = self.client.session
+        from orders.cart import CART_SESSION_KEY
+        session[CART_SESSION_KEY] = [{
+            "plan_id": self.plan.pk,
+            "quantity": 1,
+            "profile_name": "",
+            "pin": "",
+            "notes": "",
+        }]
+        session.save()
+
+    def _post_checkout(self, email="guest@example.com", full_name="Juan Pérez", phone="+51999111222"):
+        # Usamos mercadopago: aunque no esté configurado en tests, la vista
+        # igual crea el Order y muestra un warning (no rebota antes como yape).
+        return self.client.post(
+            reverse("orders:checkout"),
+            {
+                "full_name": full_name,
+                "email": email,
+                "phone": phone,
+                "payment_method": "mercadopago",
+                "accept_terms": "on",
+            },
+        )
+
+    def test_guest_checkout_creates_cliente_user(self):
+        from accounts.models import Role
+        User = get_user_model()
+        self._add_to_cart()
+        resp = self._post_checkout(email="newbuyer@example.com", full_name="Roger Prime")
+        self.assertEqual(resp.status_code, 302)
+
+        order = Order.objects.filter(email__iexact="newbuyer@example.com").latest("created_at")
+        self.assertIsNotNone(order.user)
+        self.assertEqual(order.user.email, "newbuyer@example.com")
+        self.assertEqual(order.user.role, Role.CLIENTE)
+        self.assertFalse(order.user.has_usable_password())
+        self.assertEqual(order.user.first_name, "Roger")
+        self.assertEqual(order.user.last_name, "Prime")
+        self.assertEqual(order.user.phone, "+51999111222")
+        # Aparece en la sección "Clientes" del admin (proxy filtra role=cliente).
+        from accounts.models import Customer
+        self.assertTrue(Customer.objects.filter(pk=order.user.pk).exists())
+
+    def test_guest_checkout_reuses_existing_user_by_email(self):
+        User = get_user_model()
+        existing = User.objects.create_user(
+            username="oldbuyer", email="repeat@example.com", password="pwd12345",
+        )
+        self._add_to_cart()
+        resp = self._post_checkout(email="repeat@example.com", full_name="Repeat Buyer")
+        self.assertEqual(resp.status_code, 302)
+
+        order = Order.objects.filter(email__iexact="repeat@example.com").latest("created_at")
+        self.assertEqual(order.user_id, existing.pk)
+        # Email casing no debe duplicar.
+        self.assertEqual(User.objects.filter(email__iexact="repeat@example.com").count(), 1)
+
+    def test_guest_checkout_reuse_is_case_insensitive(self):
+        User = get_user_model()
+        User.objects.create_user(
+            username="cased", email="Mixed@Example.com", password="pwd12345",
+        )
+        self._add_to_cart()
+        resp = self._post_checkout(email="mixed@example.com")
+        self.assertEqual(resp.status_code, 302)
+        # No se creó un User duplicado con casing distinto.
+        self.assertEqual(User.objects.filter(email__iexact="mixed@example.com").count(), 1)
+
+    def test_username_collision_appends_suffix(self):
+        """Dos compradores con local-part igual pero dominio distinto no chocan."""
+        User = get_user_model()
+        self._add_to_cart()
+        self._post_checkout(email="john@gmail.com", full_name="John One")
+        self._add_to_cart()
+        self._post_checkout(email="john@yahoo.com", full_name="John Two")
+        usernames = list(
+            User.objects.filter(email__in=["john@gmail.com", "john@yahoo.com"])
+            .order_by("id").values_list("username", flat=True)
+        )
+        self.assertEqual(len(usernames), 2)
+        # Primer username = "john", segundo = "john.2".
+        self.assertEqual(usernames[0], "john")
+        self.assertEqual(usernames[1], "john.2")
+
+    def test_authenticated_checkout_unchanged(self):
+        """Si el comprador está logueado, no se auto-crea otro User."""
+        from accounts.models import Role
+        User = get_user_model()
+        u = User.objects.create_user(
+            username="loggedbuyer", email="logged@example.com", password="pwd12345",
+            role=Role.CLIENTE,
+        )
+        self.client.force_login(u)
+        self._add_to_cart()
+        resp = self._post_checkout(email="logged@example.com", full_name="Logged Buyer")
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.filter(email__iexact="logged@example.com").latest("created_at")
+        self.assertEqual(order.user_id, u.pk)
+        # No se creó un User adicional.
+        self.assertEqual(User.objects.filter(email__iexact="logged@example.com").count(), 1)
+
+
+class BackfillGuestUsersCommandTests(TestCase):
+    """`python manage.py backfill_guest_users` vincula pedidos guest viejos."""
+
+    def setUp(self):
+        cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
+        product = Product.objects.create(
+            name="Netflix Premium", slug="netflix-premium-backfill", category=cat,
+        )
+        Plan.objects.create(
+            product=product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), price_distributor=Decimal("12.00"),
+        )
+        # Pedidos legacy guest (user=None).
+        self.o1 = Order.objects.create(
+            email="legacy1@example.com", total=Decimal("8.00"), phone="+51999000001",
+            notes="Nombre comprador: Cliente Uno",
+        )
+        self.o2 = Order.objects.create(
+            email="legacy2@example.com", total=Decimal("12.00"),
+            notes="Nombre comprador: Cliente Dos",
+        )
+        # Pedido sin email — el comando lo debe ignorar.
+        self.o3 = Order.objects.create(email="", total=Decimal("5.00"))
+
+    def test_backfill_creates_and_links_users(self):
+        from accounts.models import Role
+        User = get_user_model()
+        call_command("backfill_guest_users", stdout=StringIO())
+
+        self.o1.refresh_from_db()
+        self.o2.refresh_from_db()
+        self.o3.refresh_from_db()
+        self.assertIsNotNone(self.o1.user)
+        self.assertEqual(self.o1.user.email, "legacy1@example.com")
+        self.assertEqual(self.o1.user.role, Role.CLIENTE)
+        self.assertEqual(self.o1.user.first_name, "Cliente")
+        self.assertEqual(self.o1.user.last_name, "Uno")
+        self.assertIsNotNone(self.o2.user)
+        # Sin email no se vincula.
+        self.assertIsNone(self.o3.user)
+        # Roles correctos.
+        self.assertEqual(
+            User.objects.filter(role=Role.CLIENTE).count(), 2,
+        )
+
+    def test_backfill_dry_run_writes_nothing(self):
+        out = StringIO()
+        call_command("backfill_guest_users", "--dry-run", stdout=out)
+        self.o1.refresh_from_db()
+        self.o2.refresh_from_db()
+        self.assertIsNone(self.o1.user)
+        self.assertIsNone(self.o2.user)
+        self.assertIn("[dry-run]", out.getvalue())
+
+    def test_backfill_is_idempotent(self):
+        User = get_user_model()
+        call_command("backfill_guest_users", stdout=StringIO())
+        count_after_first = User.objects.count()
+        # Segunda ejecución no debe crear más Users (todos los Orders ya tienen user).
+        call_command("backfill_guest_users", stdout=StringIO())
+        self.assertEqual(User.objects.count(), count_after_first)

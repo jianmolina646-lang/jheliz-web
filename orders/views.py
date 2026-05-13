@@ -512,7 +512,25 @@ def telegram_webhook(request, secret: str):
 
 
 def _create_order_from_cart(request, cart: Cart, contact: dict) -> Order:
-    user = request.user if request.user.is_authenticated else None
+    if request.user.is_authenticated:
+        user = request.user
+    else:
+        # Auto-creamos (o reutilizamos) un User cliente para que el comprador
+        # aparezca en "Zona de clientes" del admin. El User queda sin password
+        # utilizable hasta que reclame la cuenta vía reseteo de contraseña.
+        # Ver accounts/guest_signup.py.
+        from accounts.guest_signup import get_or_create_guest_user
+        try:
+            user = get_or_create_guest_user(
+                email=contact["email"],
+                full_name=contact.get("full_name", ""),
+                phone=contact.get("phone", ""),
+            )
+        except Exception:
+            logger.exception(
+                "No se pudo auto-crear User invitado; pedido queda sin user."
+            )
+            user = None
     with transaction.atomic():
         order = Order.objects.create(
             user=user,
