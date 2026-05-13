@@ -509,10 +509,9 @@ class StockImportForm(forms.Form):
 @admin.register(StockItem)
 class StockItemAdmin(ModelAdmin):
     list_display = (
-        "product", "plan", "status_badge", "status", "label",
-        "created_at", "sold_at", "provider_expires_at",
+        "stock_product_cell", "status_badge", "stock_label_chip",
+        "stock_created_chip", "stock_sold_chip", "stock_expires_chip",
     )
-    list_editable = ("status", "label")
     list_filter = ("status", "product", "plan", "provider_expires_at")
     search_fields = ("product__name", "label", "credentials")
     autocomplete_fields = ("product", "plan")
@@ -523,6 +522,142 @@ class StockItemAdmin(ModelAdmin):
     readonly_fields = ("created_at",)
     change_list_template = "admin/catalog/stock_changelist.html"
     actions = ("action_mark_defective", "action_mark_available", "action_duplicate")
+
+    @display(description="Producto / Plan", ordering="product__name")
+    def stock_product_cell(self, obj: StockItem) -> SafeString:
+        product = obj.product
+        emoji = (
+            product.icon
+            or (product.category.emoji if product.category_id else "")
+            or "\U0001F3AC"
+        )
+        plan_label = obj.plan.name if obj.plan_id else "Sin plan"
+        if product.image:
+            return format_html(
+                '<div class="jh-product-cell">'
+                '<img class="jh-product-cell__img" src="{}" alt="" loading="lazy" />'
+                '<div class="jh-product-cell__txt">'
+                '<div class="jh-product-cell__name">{}</div>'
+                '<div class="jh-product-cell__sub">{}</div>'
+                '</div></div>',
+                product.image.url, product.name, plan_label,
+            )
+        return format_html(
+            '<div class="jh-product-cell">'
+            '<span class="jh-product-cell__emoji">{}</span>'
+            '<div class="jh-product-cell__txt">'
+            '<div class="jh-product-cell__name">{}</div>'
+            '<div class="jh-product-cell__sub">{}</div>'
+            '</div></div>',
+            emoji, product.name, plan_label,
+        )
+
+    @display(description="Etiqueta interna")
+    def stock_label_chip(self, obj: StockItem) -> SafeString:
+        if not obj.label:
+            return format_html(
+                '<span style="color:rgba(148,163,184,.45);font-size:11px;">—</span>'
+            )
+        return chip(obj.label, tone="violet", icon="sell")
+
+    @staticmethod
+    def _relative_dt(dt) -> str:
+        """Devuelve un string corto tipo 'hace 5h' / 'ayer' / '08/05'."""
+        if dt is None:
+            return ""
+        from django.utils import timezone
+        now = timezone.now()
+        delta = now - dt
+        seconds = delta.total_seconds()
+        if seconds < 0:
+            # futuro
+            future = -seconds
+            if future < 60:
+                return "en seg"
+            if future < 3600:
+                return f"en {int(future // 60)}m"
+            if future < 86400:
+                return f"en {int(future // 3600)}h"
+            days = int(future // 86400)
+            return f"en {days}d"
+        if seconds < 60:
+            return "ahora"
+        if seconds < 3600:
+            return f"hace {int(seconds // 60)}m"
+        if seconds < 86400:
+            return f"hace {int(seconds // 3600)}h"
+        days = int(seconds // 86400)
+        if days == 1:
+            return "ayer"
+        if days < 7:
+            return f"hace {days}d"
+        return dt.strftime("%d/%m/%y")
+
+    @display(description="Cargada", ordering="created_at")
+    def stock_created_chip(self, obj: StockItem) -> SafeString:
+        if not obj.created_at:
+            return format_html(
+                '<span style="color:rgba(148,163,184,.45);font-size:11px;">—</span>'
+            )
+        rel = self._relative_dt(obj.created_at)
+        abs_fmt = obj.created_at.strftime("%d/%m/%y %H:%M")
+        return format_html(
+            '<span class="jh-time-chip" title="{}">'
+            '<span class="material-symbols-outlined" '
+            'style="font-size:13px;vertical-align:-2px;opacity:.7;">schedule</span>'
+            ' {}</span>',
+            abs_fmt, rel,
+        )
+
+    @display(description="Vendida", ordering="sold_at")
+    def stock_sold_chip(self, obj: StockItem) -> SafeString:
+        if not obj.sold_at:
+            return format_html(
+                '<span style="color:rgba(148,163,184,.45);font-size:11px;">—</span>'
+            )
+        rel = self._relative_dt(obj.sold_at)
+        abs_fmt = obj.sold_at.strftime("%d/%m/%y %H:%M")
+        return format_html(
+            '<span class="jh-time-chip jh-time-chip--info" title="{}">'
+            '<span class="material-symbols-outlined" '
+            'style="font-size:13px;vertical-align:-2px;">local_shipping</span>'
+            ' {}</span>',
+            abs_fmt, rel,
+        )
+
+    @display(description="Vence (proveedor)", ordering="provider_expires_at")
+    def stock_expires_chip(self, obj: StockItem) -> SafeString:
+        if not obj.provider_expires_at:
+            return format_html(
+                '<span style="color:rgba(148,163,184,.45);font-size:11px;">—</span>'
+            )
+        from django.utils import timezone
+        now = timezone.now()
+        dt = obj.provider_expires_at
+        delta_seconds = (dt - now).total_seconds()
+        days = delta_seconds / 86400
+        abs_fmt = dt.strftime("%d/%m/%y")
+        if delta_seconds < 0:
+            tone = "danger"
+            icon = "event_busy"
+            label = f"Vencido {self._relative_dt(dt)}"
+        elif days <= 3:
+            tone = "danger"
+            icon = "warning"
+            label = f"En {int(days)}d ({abs_fmt})" if days >= 1 else "Hoy"
+        elif days <= 7:
+            tone = "warning"
+            icon = "schedule"
+            label = f"En {int(days)}d ({abs_fmt})"
+        elif days <= 30:
+            tone = "info"
+            icon = "event"
+            label = f"En {int(days)}d ({abs_fmt})"
+        else:
+            tone = "success"
+            icon = "event_available"
+            label = abs_fmt
+        return chip(label, tone=tone, icon=icon)
 
     def get_urls(self):
         urls = super().get_urls()
