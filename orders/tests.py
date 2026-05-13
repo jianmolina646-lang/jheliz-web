@@ -3028,3 +3028,111 @@ class BrevoEmailBackendTests(TestCase):
             Session.return_value.post.return_value = fake_resp
             sent = backend.send_messages([self._msg()])
         self.assertEqual(sent, 0)
+
+
+class CheckoutWalletPaymentTests(TestCase):
+    """Tests para el método de pago 'wallet' en /checkout/."""
+
+    def setUp(self):
+        from accounts.models import Role
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="distri-wallet", email="dw@example.com", password="pwd12345",
+            role=Role.DISTRIBUIDOR, distributor_approved=True,
+        )
+        self.client.force_login(self.user)
+        cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
+        self.product = Product.objects.create(
+            name="Netflix Premium", slug="netflix-premium-w", category=cat
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), price_distributor=Decimal("12.00"),
+        )
+
+    def _add_to_cart(self):
+        # Inyecta una linea directo a la sesion (mas estable que pasar por el form).
+        session = self.client.session
+        from orders.cart import CART_SESSION_KEY
+        session[CART_SESSION_KEY] = [{
+            "plan_id": self.plan.pk,
+            "quantity": 1,
+            "profile_name": "",
+            "pin": "",
+            "notes": "",
+        }]
+        session.save()
+
+    def test_wallet_option_shown_when_user_has_balance(self):
+        from accounts import wallet
+        from django.urls import reverse
+        wallet.deposit(self.user, Decimal("100.00"), reference="test")
+        self._add_to_cart()
+        resp = self.client.get(reverse("orders:checkout"))
+        self.assertEqual(resp.status_code, 200)
+        # El context expone el saldo
+        self.assertTrue(resp.context["wallet_available"])
+        self.assertEqual(resp.context["wallet_balance"], Decimal("100.00"))
+        self.assertTrue(resp.context["wallet_enough"])
+
+    def test_wallet_option_hidden_when_no_balance(self):
+        # Sin recarga previa el saldo es 0.
+        self._add_to_cart()
+        resp = self.client.get(reverse("orders:checkout"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.context["wallet_available"])
+
+    def _checkout_post_data(self, **overrides):
+        data = {
+            "full_name": "Distri Test",
+            "email": "dw@example.com",
+            "phone": "+51999000111",
+            "payment_method": "wallet",
+            "accept_terms": "on",
+        }
+        data.update(overrides)
+        return data
+
+    def test_wallet_pay_creates_paid_order_and_debits_balance(self):
+        from accounts import wallet
+        from orders.models import Order
+        wallet.deposit(self.user, Decimal("50.00"), reference="seed")
+        self._add_to_cart()
+        resp = self.client.post(reverse("orders:checkout"), self._checkout_post_data())
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.filter(email__iexact="dw@example.com").latest("created_at")
+        self.assertEqual(order.payment_provider, "wallet")
+        self.assertEqual(order.status, Order.Status.PAID)
+        self.assertIsNotNone(order.paid_at)
+        # Saldo descontado
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("50.00") - order.total)
+
+    def test_wallet_pay_rejected_when_insufficient(self):
+        from accounts import wallet
+        from orders.models import Order
+        wallet.deposit(self.user, Decimal("5.00"), reference="seed-low")
+        self._add_to_cart()
+        # plan 1 mes vale 15 → 5 saldo insuficiente
+        resp = self.client.post(reverse("orders:checkout"), self._checkout_post_data(), follow=False)
+        # Redirige a /checkout/ con mensaje de error.
+        self.assertEqual(resp.status_code, 302)
+        # No se creó el pedido
+        self.assertFalse(Order.objects.filter(email__iexact="dw@example.com", payment_provider="wallet").exists())
+        # Saldo no cambió
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("5.00"))
+
+    def test_wallet_pay_blocked_for_anonymous(self):
+        self.client.logout()
+        self._add_to_cart()
+        # POST anónimo con method=wallet redirige al login (la opción ni siquiera
+        # debería aparecer en el form, pero alguien podría forzar el POST).
+        resp = self.client.post(
+            reverse("orders:checkout"),
+            self._checkout_post_data(full_name="Anon Test", email="anon@example.com"),
+            follow=False,
+        )
+        # 302 al login o al checkout — pero NUNCA un pedido creado vía wallet.
+        from orders.models import Order
+        self.assertFalse(Order.objects.filter(payment_provider="wallet").exists())
