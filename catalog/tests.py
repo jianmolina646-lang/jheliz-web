@@ -809,3 +809,42 @@ class ProductDetailRendersOutsideContentBlockTests(TestCase):
         self.assertIn('data-pd-tab="faq"', body)
         self.assertIn('data-pd-panel="garantia"', body)
         self.assertIn('data-pd-panel="faq"', body)
+
+
+class AdminPWAEndpointsTests(TestCase):
+    """Verifica que el panel admin tiene su propio manifest + service worker
+    para poder instalarse como PWA."""
+
+    def test_admin_manifest_returns_json(self):
+        resp = self.client.get("/panel-jheliz-2026/manifest.webmanifest")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/json", resp["Content-Type"])
+        import json as _json
+        data = _json.loads(resp.content)
+        self.assertEqual(data["short_name"], "Jheliz Admin")
+        self.assertEqual(data["scope"], "/panel-jheliz-2026/")
+        self.assertEqual(data["display"], "standalone")
+        # Debe declarar al menos 1 icono.
+        self.assertGreaterEqual(len(data["icons"]), 1)
+
+    def test_admin_service_worker_is_javascript(self):
+        resp = self.client.get("/panel-jheliz-2026/sw.js")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("javascript", resp["Content-Type"])
+        # Scope dedicado al admin.
+        self.assertEqual(resp["Service-Worker-Allowed"], "/panel-jheliz-2026/")
+        # Network-only para no servir datos viejos del admin.
+        body = resp.content.decode()
+        self.assertIn("self.addEventListener('install'", body)
+        self.assertIn("self.addEventListener('fetch'", body)
+
+    def test_admin_password_reset_url_exists(self):
+        # El template templates/admin/login.html referencia este url-name;
+        # antes no estaba registrado y el "¿Olvidaste tu contraseña?" del
+        # login quedaba como link muerto.
+        from django.urls import reverse
+        url = reverse("admin_password_reset")
+        self.assertEqual(url, "/panel-jheliz-2026/password_reset/")
+        resp = self.client.get(url)
+        # Misma view que el reset público (200 con el formulario).
+        self.assertEqual(resp.status_code, 200)
