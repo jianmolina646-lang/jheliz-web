@@ -1877,3 +1877,18 @@ fieldset.module h2::before {
     #changelist-filter { margin-left: 0; padding: 12px !important; }
     .submit-row input[type="submit"] { padding: 8px 14px !important; }
 }
+
+/* ---------- Material Symbols ligatures (fix p/ Chrome/Edge/Safari) -----
+ * Unfold solo declara `-moz-font-feature-settings:"liga"` (prefijo Firefox),
+ * lo que deja sin ligaduras en Chrome/Edge/Safari/etc. Resultado: en lugar
+ * del ícono, se renderiza el TEXTO del nombre del icon (ej "pending_actions").
+ * Esto reactiva ligaduras en todos los browsers modernos. */
+.material-symbols-outlined,
+.material-icons,
+.material-symbols-rounded,
+.material-symbols-sharp {
+    -webkit-font-feature-settings: 'liga';
+    font-feature-settings: 'liga';
+    font-variant-ligatures: contextual;
+    -webkit-font-smoothing: antialiased;
+}
