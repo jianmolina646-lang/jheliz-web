@@ -7,6 +7,7 @@ from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import escape, format_html
+from django.utils.safestring import mark_safe
 from import_export import resources
 from import_export.admin import ExportMixin
 from import_export.fields import Field
@@ -929,10 +930,9 @@ class PaymentSettingsAdmin(ModelAdmin):
 @admin.register(OrderItem)
 class OrderItemAdmin(ModelAdmin):
     list_display = (
-        "order", "product_name", "plan_name",
-        "requested_profile_name", "requested_pin",
-        "final_customer_name", "broken_badge",
-        "unit_price", "quantity", "expires_at",
+        "order_chip", "product_cell", "plan_chip",
+        "requested_profile_cell", "final_customer_cell",
+        "unit_total_chip", "broken_chip", "expires_chip",
     )
     list_filter = ("product__category", "product", "reported_broken_at")
     search_fields = (
@@ -941,11 +941,132 @@ class OrderItemAdmin(ModelAdmin):
         "final_customer_name", "final_customer_whatsapp",
     )
 
-    @admin.display(description="¿Caída?")
-    def broken_badge(self, obj):
+    _ORDER_STATUS_TONES = {
+        "pending":   ("warning", "schedule"),
+        "verifying": ("info",    "hourglass_empty"),
+        "paid":      ("info",    "task_alt"),
+        "preparing": ("info",    "build"),
+        "delivered": ("success", "check_circle"),
+        "canceled":  ("neutral", "cancel"),
+        "failed":    ("danger",  "error"),
+        "refunded":  ("violet",  "currency_exchange"),
+    }
+
+    @display(description="Pedido", ordering="order__id")
+    def order_chip(self, obj):
+        order = obj.order
+        tone, icon = self._ORDER_STATUS_TONES.get(
+            order.status, ("neutral", "receipt_long"),
+        )
+        status_chip = chip(order.get_status_display(), tone=tone, icon=icon)
+        return format_html(
+            '<div style="display:flex;flex-direction:column;gap:4px">'
+            '<a href="{}" style="color:#cbd5e1;font-weight:600;text-decoration:none;font-size:12.5px">'
+            '#{}</a>{}'
+            '</div>',
+            reverse("admin:orders_order_change", args=[order.pk]),
+            order.pk,
+            status_chip,
+        )
+
+    @display(description="Producto", ordering="product__name")
+    def product_cell(self, obj):
+        product = obj.product
+        emoji = "\U0001F3AC"
+        category_name = ""
+        if product:
+            emoji = (
+                product.icon
+                or (product.category.emoji if product.category_id else "")
+                or "\U0001F3AC"
+            )
+            category_name = product.category.name if product.category_id else ""
+        return format_html(
+            '<div class="jh-product-cell">'
+            '<span class="jh-product-cell__emoji">{}</span>'
+            '<div class="jh-product-cell__txt">'
+            '<div class="jh-product-cell__name">{}</div>'
+            '<div class="jh-product-cell__sub">{}</div>'
+            '</div></div>',
+            emoji, obj.product_name, category_name,
+        )
+
+    @display(description="Plan", ordering="plan_name")
+    def plan_chip(self, obj):
+        return chip(obj.plan_name or "—", tone="info", icon="schedule")
+
+    @display(description="Perfil solicitado")
+    def requested_profile_cell(self, obj):
+        name = (obj.requested_profile_name or "").strip()
+        pin = (obj.requested_pin or "").strip()
+        if not name and not pin:
+            return format_html('<span style="color:#64748b">—</span>')
+        chips_html = []
+        if name:
+            chips_html.append(chip(name, tone="info", icon="person"))
+        if pin:
+            chips_html.append(chip(f"PIN {pin}", tone="violet", icon="pin"))
+        inner = mark_safe("".join(chips_html))
+        return format_html(
+            '<div style="display:flex;flex-direction:column;gap:4px">{}</div>',
+            inner,
+        )
+
+    @display(description="Cliente final (revendido)")
+    def final_customer_cell(self, obj):
+        name = (obj.final_customer_name or "").strip()
+        wa = (obj.final_customer_whatsapp or "").strip()
+        if not name and not wa:
+            return format_html('<span style="color:#64748b">—</span>')
+        parts = []
+        if name:
+            parts.append(chip(name, tone="success", icon="person_pin"))
+        if wa:
+            parts.append(chip(wa, tone="success", icon="call"))
+        inner = mark_safe("".join(parts))
+        return format_html(
+            '<div style="display:flex;flex-direction:column;gap:4px">{}</div>',
+            inner,
+        )
+
+    @display(description="Total", ordering="unit_price")
+    def unit_total_chip(self, obj):
+        from decimal import Decimal
+        total = (obj.unit_price or Decimal("0")) * (obj.quantity or 1)
+        total_chip = chip(f"S/ {total:.2f}", tone="success", icon="payments")
+        qty_chip = chip(f"x{obj.quantity or 1}", tone="neutral", icon="shopping_cart")
+        return format_html(
+            '<div style="display:flex;flex-direction:column;gap:4px">{}{}</div>',
+            total_chip, qty_chip,
+        )
+
+    @display(description="¿Caída?", ordering="reported_broken_at")
+    def broken_chip(self, obj):
         if obj.reported_broken_at:
-            return "🚨 Sí"
-        return ""
+            return chip("Sí", tone="danger", icon="warning")
+        return chip("OK", tone="success", icon="check_circle")
+
+    @display(description="Vence", ordering="expires_at")
+    def expires_chip(self, obj):
+        if not obj.expires_at:
+            return format_html('<span style="color:#64748b">—</span>')
+        now = timezone.now()
+        delta = obj.expires_at - now
+        days = int(delta.total_seconds() // 86400)
+        if days < 0:
+            tone, icon = "danger", "event_busy"
+            label = f"Vencido hace {abs(days)}d"
+        elif days <= 3:
+            tone, icon = "warning", "event_upcoming"
+            label = f"En {days}d" if days != 0 else "Hoy"
+        elif days <= 7:
+            tone, icon = "info", "event_available"
+            label = f"En {days}d"
+        else:
+            tone, icon = "success", "event_available"
+            label = f"En {days}d"
+        return chip(label, tone=tone, icon=icon)
+
     autocomplete_fields = ("order", "product", "plan", "stock_item")
     actions = ("action_replace_account", "action_rollback_replacement")
 
