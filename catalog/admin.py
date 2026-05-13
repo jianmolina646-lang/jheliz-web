@@ -43,19 +43,111 @@ class PlanInline(TabularInline):
     )
 
 
+class _PlanDisplayMixin:
+    """Helpers comunes para los 3 admins de Plan: render con chips.
+
+    Da una experiencia uniforme al listar planes (general, cliente,
+    distribuidor): la celda del producto trae ícono/imagen, la duración
+    y el precio se muestran como chips compactos con tonos semafóricos,
+    y el estado activo se muestra como pill ("Activo" / "Inactivo").
+    """
+
+    @display(description="Producto", ordering="product__name")
+    def plan_product_cell(self, obj) -> SafeString:
+        product = obj.product
+        emoji = (
+            product.icon
+            or (product.category.emoji if product.category_id else "")
+            or "\U0001F3AC"
+        )
+        sub = f"{product.category.name if product.category_id else ''} · {obj.name}"
+        if product.image:
+            return format_html(
+                '<div class="jh-product-cell">'
+                '<img class="jh-product-cell__img" src="{}" alt="" loading="lazy" />'
+                '<div class="jh-product-cell__txt">'
+                '<div class="jh-product-cell__name">{}</div>'
+                '<div class="jh-product-cell__sub">{}</div>'
+                '</div></div>',
+                product.image.url, product.name, sub,
+            )
+        return format_html(
+            '<div class="jh-product-cell">'
+            '<span class="jh-product-cell__emoji">{}</span>'
+            '<div class="jh-product-cell__txt">'
+            '<div class="jh-product-cell__name">{}</div>'
+            '<div class="jh-product-cell__sub">{}</div>'
+            '</div></div>',
+            emoji, product.name, sub,
+        )
+
+    @display(description="Duración", ordering="duration_days")
+    def plan_duration_chip(self, obj) -> SafeString:
+        if not obj.duration_days:
+            return chip("Perpetua", tone="violet", icon="all_inclusive")
+        d = obj.duration_days
+        if d >= 365:
+            label = f"{d // 365} año{'s' if d // 365 != 1 else ''}"
+        elif d >= 30:
+            months = d // 30
+            label = f"{months} mes{'es' if months != 1 else ''}"
+        else:
+            label = f"{d} día{'s' if d != 1 else ''}"
+        return chip(label, tone="info", icon="schedule")
+
+    @display(description="Precio cliente", ordering="price_customer")
+    def plan_price_customer_chip(self, obj) -> SafeString:
+        from decimal import Decimal
+        if obj.price_customer is None or obj.price_customer <= Decimal("0"):
+            return chip("Sin precio", tone="neutral", icon="block")
+        return chip(f"S/ {obj.price_customer:.2f}", tone="success", icon="payments")
+
+    @display(description="Precio distri", ordering="price_distributor")
+    def plan_price_distributor_chip(self, obj) -> SafeString:
+        from decimal import Decimal
+        if obj.price_distributor is None or obj.price_distributor <= Decimal("0"):
+            return chip("Sin precio", tone="neutral", icon="block")
+        return chip(f"S/ {obj.price_distributor:.2f}", tone="violet", icon="storefront")
+
+    @display(description="Stock", ordering="-id")
+    def plan_stock_chip(self, obj) -> SafeString:
+        stock = obj.available_stock
+        threshold = obj.low_stock_threshold or 3
+        if stock == 0:
+            tone, icon = "danger", "remove_shopping_cart"
+        elif stock <= threshold:
+            tone, icon = "warning", "warning"
+        else:
+            tone, icon = "success", "inventory_2"
+        return chip(str(stock), tone=tone, icon=icon)
+
+    @display(description="Estado", ordering="is_active")
+    def plan_active_chip(self, obj) -> SafeString:
+        if obj.is_active:
+            return chip("Activo", tone="success", icon="check_circle")
+        return chip("Inactivo", tone="neutral", icon="pause_circle")
+
+
 @admin.register(Plan)
-class PlanAdmin(ModelAdmin):
+class PlanAdmin(_PlanDisplayMixin, ModelAdmin):
     """Listado completo (cliente + distribuidor)."""
-    list_display = ("product", "name", "duration_days", "price_customer", "price_distributor", "is_active")
+    list_display = (
+        "plan_product_cell", "plan_duration_chip",
+        "plan_price_customer_chip", "plan_price_distributor_chip",
+        "plan_stock_chip", "plan_active_chip",
+    )
     list_filter = ("is_active", "available_for_customer", "available_for_distributor")
     search_fields = ("product__name", "name")
     autocomplete_fields = ("product",)
 
 
 @admin.register(CustomerPlan)
-class CustomerPlanAdmin(ModelAdmin):
+class CustomerPlanAdmin(_PlanDisplayMixin, ModelAdmin):
     """Vista enfocada en cliente final: solo se ve y edita el precio cliente."""
-    list_display = ("product", "name", "duration_days", "price_customer", "available_stock_short", "is_active")
+    list_display = (
+        "plan_product_cell", "plan_duration_chip",
+        "plan_price_customer_chip", "plan_stock_chip", "plan_active_chip",
+    )
     list_filter = ("is_active", "product__category")
     search_fields = ("product__name", "name")
     autocomplete_fields = ("product",)
@@ -76,15 +168,14 @@ class CustomerPlanAdmin(ModelAdmin):
         obj.available_for_customer = True
         super().save_model(request, obj, form, change)
 
-    @display(description="Stock", ordering="-id")
-    def available_stock_short(self, obj):
-        return obj.available_stock
-
 
 @admin.register(DistributorPlan)
-class DistributorPlanAdmin(ModelAdmin):
+class DistributorPlanAdmin(_PlanDisplayMixin, ModelAdmin):
     """Vista mayorista: solo se ve y edita el precio distribuidor."""
-    list_display = ("product", "name", "duration_days", "price_distributor", "available_stock_short", "is_active")
+    list_display = (
+        "plan_product_cell", "plan_duration_chip",
+        "plan_price_distributor_chip", "plan_stock_chip", "plan_active_chip",
+    )
     list_filter = ("is_active", "product__category")
     search_fields = ("product__name", "name")
     autocomplete_fields = ("product",)
@@ -103,10 +194,6 @@ class DistributorPlanAdmin(ModelAdmin):
     def save_model(self, request, obj, form, change):
         obj.available_for_distributor = True
         super().save_model(request, obj, form, change)
-
-    @display(description="Stock", ordering="-id")
-    def available_stock_short(self, obj):
-        return obj.available_stock
 
 
 @admin.register(Product)

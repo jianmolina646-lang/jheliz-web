@@ -1178,3 +1178,75 @@ class ProductAdminChangelistDesignTests(TestCase):
         # Entrega como chip
         self.assertContains(resp, "Inmediata")
         self.assertContains(resp, "Manual")
+
+
+class PlanAdminChangelistDesignTests(TestCase):
+    """Verifica el rediseño de los listados de planes (cliente/distri/general)."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staffplans", password="x",
+            is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="Streaming-plans", slug="streaming-plans")
+        product = Product.objects.create(
+            category=cat, name="Netflix Plans Test", slug="nflx-plans-test",
+            is_active=True,
+        )
+        Plan.objects.create(
+            product=product, name="1 mes",
+            duration_days=30,
+            price_customer=Decimal("35.00"),
+            price_distributor=Decimal("0.00"),
+            available_for_customer=True,
+            available_for_distributor=False,
+            is_active=True, low_stock_threshold=3,
+        )
+        Plan.objects.create(
+            product=product, name="Perpetua",
+            duration_days=0,
+            price_customer=Decimal("0.00"),
+            price_distributor=Decimal("55.00"),
+            available_for_customer=False,
+            available_for_distributor=True,
+            is_active=False, low_stock_threshold=3,
+        )
+
+    def test_customer_plan_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get("/panel-jheliz-2026/catalog/customerplan/")
+        self.assertEqual(resp.status_code, 200)
+        # Producto con celda combinada
+        self.assertContains(resp, "Netflix Plans Test")
+        # Duración chip
+        self.assertContains(resp, "1 mes")
+        # Precio chip cliente
+        self.assertContains(resp, "S/ 35.00")
+        # Estado activo
+        self.assertContains(resp, "Activo")
+        # Chip class debe aparecer
+        self.assertContains(resp, "jh-chip")
+
+    def test_distributor_plan_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get("/panel-jheliz-2026/catalog/distributorplan/")
+        self.assertEqual(resp.status_code, 200)
+        # Solo se ve el plan distri (Perpetua)
+        self.assertContains(resp, "Perpetua")
+        # Precio chip distri
+        self.assertContains(resp, "S/ 55.00")
+        # Inactivo
+        self.assertContains(resp, "Inactivo")
+
+    def test_general_plan_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get("/panel-jheliz-2026/catalog/plan/")
+        self.assertEqual(resp.status_code, 200)
+        # Ambos planes deben aparecer (cliente + distri)
+        self.assertContains(resp, "Netflix Plans Test")
+        self.assertContains(resp, "1 mes")
+        self.assertContains(resp, "Perpetua")
+        # Chips de precios ambos
+        self.assertContains(resp, "S/ 35.00")
+        self.assertContains(resp, "S/ 55.00")
