@@ -50,6 +50,18 @@
        style="background:rgba(168,85,247,.12); border-color:rgba(168,85,247,.45); color:#d8b4fe">
       📬 Pedir código
     </a>
+    <a href="{% url 'catalog:distributor_accounts' %}" class="btn btn-secondary"
+       style="background:rgba(236,72,153,.12); border-color:rgba(236,72,153,.45); color:#fbcfe8">
+      🔑 Mis cuentas
+    </a>
+    <a href="{% url 'catalog:distributor_support' %}" class="btn btn-secondary"
+       style="background:rgba(251,191,36,.12); border-color:rgba(251,191,36,.45); color:#fde68a">
+      🛟 Soporte
+    </a>
+    <a href="{% url 'catalog:distributor_calendar' %}" class="btn btn-secondary"
+       style="background:rgba(139,92,246,.12); border-color:rgba(139,92,246,.45); color:#c4b5fd">
+      📅 Calendario
+    </a>
     <div class="surface rounded-xl px-4 py-2.5">
       <div class="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">Saldo</div>
       <div class="font-display text-lg font-bold text-white">{{ CURRENCY_SYMBOL }} {{ user.wallet_balance|floatformat:2|intcomma }}</div>
@@ -71,6 +83,52 @@
       <div class="text-sky-300 text-sm font-semibold whitespace-nowrap">Abrir →</div>
     </div>
   </a>
+</section>
+{% endif %}
+
+{% if expiring_tomorrow %}
+<!-- Alerta T-1: cuentas que vencen mañana ------------------------------- -->
+<section class="mt-5 rounded-2xl p-5 relative overflow-hidden"
+         style="background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(245,158,11,.10));border:1px solid rgba(251,191,36,.5);box-shadow:0 20px 40px -20px rgba(251,191,36,.45)">
+  <div class="flex items-start gap-3">
+    <div class="text-3xl">🚨</div>
+    <div class="flex-1 min-w-0">
+      <div class="flex flex-wrap items-center gap-2 mb-1">
+        <span class="inline-flex items-center gap-1 text-[10.5px] font-bold uppercase tracking-[.12em] px-2.5 py-1 rounded-full"
+              style="background:rgba(251,191,36,.22);border:1px solid rgba(251,191,36,.5);color:#fde68a">⏰ Alerta T-1</span>
+        <span class="text-xs text-amber-200/80 font-semibold">{{ expiring_tomorrow|length }} cuenta{{ expiring_tomorrow|length|pluralize:",s" }} vence{{ expiring_tomorrow|length|pluralize:",n" }} en menos de 24 h</span>
+      </div>
+      <h2 class="font-display text-lg md:text-xl font-extrabold tracking-tight text-white">Avísale a tus clientes ahora o renueva en 1 click.</h2>
+      <div class="mt-3 space-y-2">
+        {% for item in expiring_tomorrow %}
+          <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg"
+               style="background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.05)">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-base">{{ item.product.icon|default:"🎬" }}</span>
+              <div class="min-w-0">
+                <div class="font-semibold truncate text-white">{{ item.product_name }} <span class="text-zinc-400 font-normal">· {{ item.plan_name }}</span></div>
+                <div class="text-xs text-zinc-500 truncate">
+                  Vence {{ item.expires_at|date:"d/m/Y H:i" }}
+                  {% if item.final_customer_name %} · Cliente: {{ item.final_customer_name }}{% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              {% if item.final_customer_whatsapp %}
+                <a href="https://wa.me/{{ item.final_customer_whatsapp|cut:'+' }}?text=Hola{% if item.final_customer_name %}%20{{ item.final_customer_name|urlencode }}{% endif %}!%20Tu%20cuenta%20de%20{{ item.product_name|urlencode }}%20vence%20ma%C3%B1ana%2C%20%C2%BFla%20renuevas%3F"
+                   target="_blank" rel="noopener"
+                   class="text-xs px-2.5 py-1 rounded-md font-semibold"
+                   style="background:rgba(37,211,102,.16);border:1px solid rgba(37,211,102,.45);color:#86efac">💬 Avisar</a>
+              {% endif %}
+              <a href="{% url 'orders:renew_item' item_id=item.id %}"
+                 class="text-xs px-2.5 py-1 rounded-md font-bold text-white"
+                 style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">💳 Renovar</a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
 </section>
 {% endif %}
 
