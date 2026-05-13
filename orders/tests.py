@@ -3324,3 +3324,72 @@ class BackfillGuestUsersCommandTests(TestCase):
         # Segunda ejecución no debe crear más Users (todos los Orders ya tienen user).
         call_command("backfill_guest_users", stdout=StringIO())
         self.assertEqual(User.objects.count(), count_after_first)
+
+
+class OrderItemAdminChangelistDesignTests(TestCase):
+    """Verifica el rediseño con chips de /panel-jheliz-2026/orders/orderitem/."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staffoitems", password="x",
+            is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="OI-cat", slug="oi-cat")
+        product = Product.objects.create(
+            category=cat, name="Netflix OI", slug="netflix-oi", is_active=True,
+        )
+        plan = Plan.objects.create(
+            product=product, name="1 mes", duration_days=30,
+            price_customer=Decimal("8.00"),
+        )
+        order = Order.objects.create(
+            email="cliente@example.com", phone="+51999111222",
+            total=Decimal("8.00"), status=Order.Status.DELIVERED,
+        )
+        OrderItem.objects.create(
+            order=order, product=product, plan=plan,
+            product_name=product.name, plan_name=plan.name,
+            unit_price=Decimal("8.00"), quantity=1,
+            requested_profile_name="Jostin", requested_pin="0519",
+        )
+        # Item con datos de "cliente final revendido"
+        order2 = Order.objects.create(
+            email="distri@example.com", phone="+51999333444",
+            total=Decimal("8.00"), status=Order.Status.PENDING,
+        )
+        OrderItem.objects.create(
+            order=order2, product=product, plan=plan,
+            product_name=product.name, plan_name=plan.name,
+            unit_price=Decimal("8.00"), quantity=2,
+            requested_profile_name="Anderson", requested_pin="4596",
+            final_customer_name="Juan Cliente Final",
+            final_customer_whatsapp="+51988111222",
+        )
+
+    def test_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get("/panel-jheliz-2026/orders/orderitem/")
+        self.assertEqual(resp.status_code, 200)
+        # Producto + categoría
+        self.assertContains(resp, "Netflix OI")
+        self.assertContains(resp, "OI-cat")
+        # Perfil + PIN como chips
+        self.assertContains(resp, "Jostin")
+        self.assertContains(resp, "PIN 0519")
+        self.assertContains(resp, "Anderson")
+        self.assertContains(resp, "PIN 4596")
+        # Cliente final revendido como chip
+        self.assertContains(resp, "Juan Cliente Final")
+        self.assertContains(resp, "+51988111222")
+        # Estado del pedido como chip
+        self.assertContains(resp, "Entregado")
+        self.assertContains(resp, "Pendiente de pago")
+        # Total + cantidad chips
+        self.assertContains(resp, "S/ 8.00")
+        self.assertContains(resp, "S/ 16.00")  # 8 * 2 del segundo item
+        self.assertContains(resp, "x2")
+        # Plan chip
+        self.assertContains(resp, "1 mes")
+        # CSS de chips
+        self.assertContains(resp, "jh-chip")
