@@ -4,7 +4,7 @@ from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils.html import escape, format_html
 from unfold.admin import ModelAdmin, TabularInline
-from unfold.decorators import display
+from unfold.decorators import action as unfold_action, display
 
 from accounts.admin_helpers import chip
 from .models import (
@@ -132,6 +132,87 @@ class ProductAdmin(ModelAdmin):
         "action_activate", "action_deactivate",
         "action_mark_featured", "action_unmark_featured",
     )
+    # Botones que aparecen arriba del formulario de edición de un producto.
+    # Ofrecen postear ese producto puntual a Telegram con un solo toque.
+    actions_detail = (
+        "detail_publish_to_customers",
+        "detail_publish_to_distributors",
+        "detail_publish_to_both",
+    )
+
+    def _publish_single(self, request, object_id, audience, label):
+        """Publica UN producto puntual al canal indicado y vuelve al admin."""
+        from orders import telegram
+
+        product = self.get_object(request, object_id)
+        if product is None:
+            self.message_user(request, "Producto no encontrado.", level=messages.ERROR)
+            return redirect(reverse("admin:catalog_product_changelist"))
+
+        if not telegram.is_configured():
+            self.message_user(
+                request,
+                "TELEGRAM_BOT_TOKEN no configurado — no se publicó nada.",
+                level=messages.WARNING,
+            )
+            return redirect(
+                reverse("admin:catalog_product_change", args=[object_id]),
+            )
+
+        if not telegram.channel_is_configured(audience):
+            self.message_user(
+                request,
+                f"Canal '{label}' sin configurar en .env — no se publicó nada.",
+                level=messages.WARNING,
+            )
+            return redirect(
+                reverse("admin:catalog_product_change", args=[object_id]),
+            )
+
+        res = telegram.announce_product(product, kind="new", audience=audience)
+        if res and res.get("ok"):
+            self.message_user(
+                request,
+                f"📢 Publicado en Telegram → canal {label} ({product.name}).",
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                f"❌ No se pudo publicar en canal {label}: {res}",
+                level=messages.ERROR,
+            )
+        return redirect(reverse("admin:catalog_product_change", args=[object_id]))
+
+    @unfold_action(
+        description="📢 Publicar en Telegram · 🛍 Clientes",
+        url_path="publish-telegram-customer",
+    )
+    def detail_publish_to_customers(self, request, object_id):
+        from orders import telegram
+        return self._publish_single(
+            request, object_id, telegram.AUDIENCE_CUSTOMER, "clientes",
+        )
+
+    @unfold_action(
+        description="📢 Publicar en Telegram · 🏪 Distribuidores",
+        url_path="publish-telegram-distrib",
+    )
+    def detail_publish_to_distributors(self, request, object_id):
+        from orders import telegram
+        return self._publish_single(
+            request, object_id, telegram.AUDIENCE_DISTRIB, "distribuidores",
+        )
+
+    @unfold_action(
+        description="📢 Publicar en Telegram · 🌐 Ambos canales",
+        url_path="publish-telegram-both",
+    )
+    def detail_publish_to_both(self, request, object_id):
+        from orders import telegram
+        return self._publish_single(
+            request, object_id, telegram.AUDIENCE_ALL, "ambos canales",
+        )
 
     @admin.action(description="✓ Activar (visible en tienda)")
     def action_activate(self, request, queryset):

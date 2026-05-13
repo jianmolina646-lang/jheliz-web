@@ -22,25 +22,35 @@ _CACHE_KEY = "livechat:tg_notified:{room_id}"
 _ADMIN_BASE = "https://ecormecejhelizstore.com/panel-jheliz-2026"
 
 
+_DIVIDER = "━━━━━━━━━━━━━━━━━━"
+
+
 def _build_text(room: ChatRoom, message: ChatMessage) -> str:
     who = room.display_name or "Cliente"
     email = room.customer_email or "(sin correo)"
     body = (message.body or "").strip()
     if len(body) > 400:
         body = body[:397] + "…"
+    parts = [
+        "💬 <b>CHAT EN VIVO</b>",
+        "",
+        f"👤 <b>{html.escape(who)}</b>",
+        f"     <i>{html.escape(email)}</i>",
+        "",
+        _DIVIDER,
+        "",
+    ]
+    if body:
+        parts.append(f"<blockquote>{html.escape(body)}</blockquote>")
     if message.image:
-        body = (body + "\n\n📷 (con imagen adjunta)").strip()
-    return (
-        f"<b>💬 Chat nuevo de {html.escape(who)}</b>\n"
-        f"<i>{html.escape(email)}</i>\n\n"
-        f"{html.escape(body)}"
-    )
+        parts.append("📷 <i>Con imagen adjunta</i>")
+    return "\n".join(parts)
 
 
 def _build_buttons(room: ChatRoom) -> list[list[dict]]:
     return [[
         {
-            "text": "Abrir chat",
+            "text": "💬 Responder en el panel",
             "url": f"{_ADMIN_BASE}/livechat/{room.pk}/",
         },
     ]]

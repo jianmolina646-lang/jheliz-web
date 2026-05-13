@@ -2310,7 +2310,8 @@ class TelegramAdminCommandsTests(TestCase):
 
     def test_daily_summary_text_runs(self):
         text = _telegram.daily_summary_text()
-        self.assertIn("Resumen diario", text)
+        # El header puede estar en mayúsculas ("RESUMEN DIARIO") o no.
+        self.assertIn("resumen diario", text.lower())
 
 
 @_override_settings(
@@ -2341,6 +2342,10 @@ class TelegramYapeCallbackTests(TestCase):
     TELEGRAM_BOT_TOKEN="dummy-token",
     TELEGRAM_ADMIN_CHAT_ID="999",
     TELEGRAM_CHANNEL_ID="@jhelizservicetv",
+    # Estos tests verifican el legacy auto-anuncio en la signal de Product.
+    # En producción la publicación es 100% manual (TELEGRAM_AUTO_PUBLISH=False),
+    # pero acá lo forzamos para mantener la cobertura.
+    TELEGRAM_AUTO_PUBLISH=True,
 )
 class TelegramChannelTests(TestCase):
     def setUp(self):
@@ -2483,6 +2488,9 @@ class PlanAvailableStockTests(TestCase):
     TELEGRAM_ADMIN_CHAT_ID="999",
     TELEGRAM_CHANNEL_ID="@distrib_chan",
     TELEGRAM_CUSTOMER_CHANNEL_ID="@cust_chan",
+    # Igual que en TelegramChannelTests, forzamos el auto-anuncio aquí
+    # para verificar el comportamiento de la signal (en producción es manual).
+    TELEGRAM_AUTO_PUBLISH=True,
 )
 class TelegramMultiChannelTests(TestCase):
     def setUp(self):
