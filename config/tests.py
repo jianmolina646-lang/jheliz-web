@@ -577,3 +577,78 @@ class ReportsViewDesignTests(TestCase):
         self.assertIn("Yape", body)
         # La barra del método yape lleva la clase violet.
         self.assertIn("jh-rep-row__bar--violet", body)
+
+
+class RenewalsViewDesignTests(TestCase):
+    """Verifica que `/panel-jheliz-2026/renewals/` renderiza con chips,
+    conteo por ventana y empty state cuando no hay items."""
+
+    def setUp(self) -> None:
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="rentester", password="x", is_staff=True, is_superuser=True,
+        )
+        self.client.force_login(self.admin)
+
+    def test_renewals_empty_renders_celebration_empty_state(self):
+        """Sin items y sin pendientes: empty state 'No hay nada por renovar'."""
+        resp = self.client.get(reverse("admin_renewals"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        # Tabs/chips con conteo.
+        self.assertIn("jh-ren-tab", body)
+        self.assertIn("jh-ren-tab__count", body)
+        # 5 filtros visibles con sus labels.
+        for label in ("Vencidos", "Vencen hoy", "Próx. 3 días", "Próx. 7 días", "Próx. 30 días"):
+            self.assertIn(label, body)
+        # Empty state happy path.
+        self.assertIn("jh2-empty", body)
+        self.assertIn("No hay nada por renovar", body)
+
+    def test_renewals_with_item_renders_chips(self):
+        """Con un item por vencer: aparecen chips de cliente, plan y días."""
+        from datetime import timedelta
+        from django.utils import timezone
+        from catalog.models import Category, Plan, Product
+        from orders.models import Order, OrderItem
+
+        cat, _ = Category.objects.get_or_create(
+            slug="ren-test-cat", defaults={"name": "Cat renewals test"},
+        )
+        prod = Product.objects.create(
+            name="Netflix Premium",
+            slug="netflix-ren-test",
+            category=cat,
+        )
+        plan = Plan.objects.create(
+            product=prod, name="1 mes",
+            duration_days=30, price_customer=Decimal("15.00"),
+        )
+        order = Order.objects.create(
+            email="cliente@example.com",
+            phone="51999111222",
+            total=Decimal("15.00"),
+            status=Order.Status.DELIVERED,
+            paid_at=timezone.now() - timedelta(days=20),
+            payment_provider="yape",
+        )
+        OrderItem.objects.create(
+            order=order, product=prod, plan=plan,
+            product_name=prod.name, plan_name=plan.name,
+            unit_price=Decimal("15.00"), quantity=1,
+            expires_at=timezone.now() + timedelta(days=5),  # cae en 7d
+        )
+
+        resp = self.client.get(reverse("admin_renewals") + "?w=7d")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        # Item visible.
+        self.assertIn("cliente@example.com", body)
+        self.assertIn("Netflix Premium", body)
+        # Chip de días con tono info (entre 4 y 7 días).
+        self.assertIn("jh-ren-chip--info", body)
+        # Botón de renovar y de WhatsApp.
+        self.assertIn("jh-ren-btn--renew", body)
+        self.assertIn("jh-ren-btn--wa", body)
+        # El chip de filtro "Próx. 7 días" muestra count=1 (cabe en ventana).
+        self.assertIn('jh-ren-tab--has-items', body)
