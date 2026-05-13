@@ -322,6 +322,11 @@ UNFOLD = {
         lambda request: _hashed_static("admin/toasts.js"),
         lambda request: _hashed_static("admin/keyboard_shortcuts.js"),
         lambda request: _hashed_static("admin/notifications_bell.js"),
+        # PWA: inyecta <link rel="manifest"> + theme-color, registra el service
+        # worker dedicado (/panel-jheliz-2026/sw.js) y muestra un banner
+        # "Instalar app" para que el admin se pueda guardar en el cel como
+        # app independiente.
+        lambda request: _hashed_static("admin/pwa_install.js"),
     ],
     "COLORS": {
         "primary": {

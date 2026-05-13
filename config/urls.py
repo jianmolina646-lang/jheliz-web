@@ -5,12 +5,15 @@ from django.contrib.sitemaps.views import sitemap as sitemap_view
 from django.urls import include, path, re_path
 from django.views.static import serve as static_serve
 
+from accounts import views as accounts_views
 from blog.sitemaps import BlogPostSitemap
 from catalog.seo_views import (
     google_site_verification,
+    manifest_admin_json,
     manifest_json,
     robots_txt,
     service_worker,
+    service_worker_admin,
 )
 from catalog.sitemaps import SITEMAPS
 from config import admin_views
@@ -209,6 +212,27 @@ urlpatterns = [
         "panel-jheliz-2026/livechat/<int:room_id>/reopen/",
         livechat_admin_views.chat_reopen,
         name="admin_livechat_reopen",
+    ),
+    # PWA del admin: deben ir ANTES de admin.site.urls porque django.contrib.admin
+    # captura cualquier path debajo de /panel-jheliz-2026/.
+    #
+    # Reset de contraseña del admin: alias al flujo público (misma view, mismo template).
+    # El template templates/admin/login.html referencia el url-name `admin_password_reset`
+    # para mostrar el link "¿Olvidaste tu contraseña?".
+    path(
+        "panel-jheliz-2026/password_reset/",
+        accounts_views.JhelizPasswordResetView.as_view(),
+        name="admin_password_reset",
+    ),
+    path(
+        "panel-jheliz-2026/manifest.webmanifest",
+        manifest_admin_json,
+        name="pwa-admin-manifest",
+    ),
+    path(
+        "panel-jheliz-2026/sw.js",
+        service_worker_admin,
+        name="pwa-admin-service-worker",
     ),
     path("panel-jheliz-2026/", admin.site.urls),
     # SEO / PWA endpoints (root-level)

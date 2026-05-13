@@ -211,6 +211,116 @@ def service_worker(request):
     return response
 
 
+# ---------------------------------------------------------------------------
+# Admin PWA
+#
+# El panel admin (/panel-jheliz-2026/) tiene su propio manifest y service worker
+# para que el operador pueda instalarlo como app independiente en celular /
+# escritorio. Scope dedicado para que no se mezcle con el SW del sitio público.
+# ---------------------------------------------------------------------------
+
+_ADMIN_SERVICE_WORKER_JS = """// Jheliz Admin PWA service worker
+// Scope: /panel-jheliz-2026/. Network-only para todas las requests dentro
+// del admin (queremos siempre datos frescos: pedidos, tickets, stock).
+const VERSION = 'jheliz-admin-v1';
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+// Network-only: pasamos todas las requests directo a la red.
+self.addEventListener('fetch', (event) => {
+  // No interceptamos nada — el browser maneja la request normal.
+});
+
+// --- Web Push (admin notifications) ---
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { title: 'Jheliz Admin', body: event.data ? event.data.text() : '' };
+  }
+  const title = payload.title || 'Jheliz Admin';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/static/img/icon-192.png',
+    badge: '/static/img/icon-192.png',
+    data: { url: payload.url || '/panel-jheliz-2026/' },
+    tag: payload.tag || 'jheliz-admin',
+    renotify: true,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/panel-jheliz-2026/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) {
+        if (w.url.includes(targetUrl) && 'focus' in w) return w.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+"""
+
+
+@cache_control(public=True, max_age=86400)
+def manifest_admin_json(request):
+    """PWA manifest del panel admin — instalable como app independiente."""
+    icon192 = request.build_absolute_uri("/static/img/icon-192.png")
+    icon512 = request.build_absolute_uri("/static/img/icon-512.png")
+    admin_root = "/panel-jheliz-2026/"
+    return JsonResponse({
+        "id": admin_root + "?source=pwa",
+        "name": "Jheliz Admin",
+        "short_name": "Jheliz Admin",
+        "description": "Panel de administraci\u00f3n de Jheliz Store.",
+        "start_url": admin_root + "?source=pwa",
+        "scope": admin_root,
+        "display": "standalone",
+        "background_color": "#0a0a0f",
+        "theme_color": "#ec4899",
+        "orientation": "portrait",
+        "lang": "es-PE",
+        "icons": [
+            {"src": icon192, "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": icon512, "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": icon512, "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+        "categories": ["business", "productivity"],
+        "shortcuts": [
+            {
+                "name": "Pedidos",
+                "short_name": "Pedidos",
+                "url": admin_root + "orders/order/",
+                "icons": [{"src": icon192, "sizes": "192x192"}],
+            },
+            {
+                "name": "Tickets",
+                "short_name": "Tickets",
+                "url": admin_root + "support/ticket/",
+                "icons": [{"src": icon192, "sizes": "192x192"}],
+            },
+        ],
+    })
+
+
+@cache_control(public=True, max_age=3600)
+def service_worker_admin(request):
+    """Service worker dedicado al admin (scope /panel-jheliz-2026/)."""
+    response = HttpResponse(_ADMIN_SERVICE_WORKER_JS, content_type="application/javascript")
+    response["Service-Worker-Allowed"] = "/panel-jheliz-2026/"
+    return response
+
+
 def faq(request):
     """Frequently asked questions — also rendered as schema.org FAQPage."""
     items = [
