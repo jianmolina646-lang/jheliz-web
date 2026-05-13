@@ -148,6 +148,11 @@ urlpatterns = [
         name="admin_stock_quick_action",
     ),
     path(
+        "panel-jheliz-2026/control-cuentas/",
+        admin_views.cuentas_dashboard,
+        name="admin_cuentas_dashboard",
+    ),
+    path(
         "panel-jheliz-2026/customers/",
         admin_views.customer_index,
         name="admin_customer_index",

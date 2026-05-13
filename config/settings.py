@@ -417,6 +417,11 @@ UNFOLD = {
                         "link": "/panel-jheliz-2026/stock/",
                     },
                     {
+                        "title": "Control de cuentas",
+                        "icon": "manage_accounts",
+                        "link": "/panel-jheliz-2026/control-cuentas/",
+                    },
+                    {
                         "title": "Stock (todos)",
                         "icon": "list_alt",
                         "link": "/panel-jheliz-2026/catalog/stockitem/",

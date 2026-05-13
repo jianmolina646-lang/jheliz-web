@@ -980,15 +980,46 @@ def stock_quick_add(request):
     product_id = request.POST.get("product_id")
     plan_id = request.POST.get("plan_id") or None
     pasted = (request.POST.get("pasted") or "").strip()
+    # ``redirect_to`` permite que el modal viva en /cuentas/ y vuelva ahí
+    # en vez de tirar siempre al overview clásico.
+    fallback_url = request.POST.get("redirect_to") or reverse("admin_stock_overview")
 
     if not product_id or not pasted:
         messages.error(request, "Falta el producto o las credenciales pegadas.")
-        return redirect("admin_stock_overview")
+        return redirect(fallback_url)
 
     product = get_object_or_404(Product, pk=product_id)
     plan = None
     if plan_id:
         plan = get_object_or_404(Plan, pk=plan_id, product=product)
+
+    # Cross-platform duplicate check ANTES de procesar: avisa si alguno
+    # de los correos ya está cargado en OTRO producto (vendido o no).
+    # Esto es lo que pidió el usuario: "no subir correos que ya están
+    # vendidos".
+    import re as _re
+    new_emails = {
+        m.lower() for m in _re.findall(
+            r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", pasted
+        )
+    }
+    cross_hits = []
+    if new_emails:
+        # Pre-filtramos por icontains en SQL para no traer todo el stock.
+        q_or = Q()
+        for em in new_emails:
+            q_or |= Q(credentials__icontains=em)
+        candidates = (
+            StockItem.objects.exclude(product=product)
+            .filter(q_or)
+            .select_related("product")
+        )
+        for item in candidates:
+            text_lc = (item.credentials or "").lower()
+            for em in new_emails:
+                if em in text_lc:
+                    cross_hits.append((em, item.product.name, item.get_status_display()))
+                    break
 
     admin_obj = StockItemAdmin(StockItem, admin_site)
     try:
@@ -997,17 +1028,17 @@ def stock_quick_add(request):
         )
     except Exception as exc:  # pragma: no cover - defensive
         messages.error(request, f"Error procesando: {exc}")
-        return redirect("admin_stock_overview")
+        return redirect(fallback_url)
 
     if created:
         msg = f"Se agregaron {created} cuenta(s) a {product.name}."
         if skipped:
-            msg += f" Se omitieron {skipped} duplicado(s)."
+            msg += f" Se omitieron {skipped} duplicado(s) dentro de {product.name}."
         messages.success(request, msg)
     elif skipped:
         messages.warning(
             request,
-            f"Todas las cuentas pegadas ({skipped}) ya existían en el stock. "
+            f"Todas las cuentas pegadas ({skipped}) ya existían en {product.name}. "
             "No se creó nada nuevo.",
         )
     else:
@@ -1015,7 +1046,26 @@ def stock_quick_add(request):
             request,
             "No se detectó ninguna cuenta válida. Revisa el formato.",
         )
-    return redirect("admin_stock_overview")
+
+    if cross_hits:
+        # De-dup y armado de mensaje en una línea por correo conflictivo.
+        seen = set()
+        unique = []
+        for em, pname, status in cross_hits:
+            key = (em, pname)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append((em, pname, status))
+        lines = "; ".join(f"{em} ya está en {pname} ({status})" for em, pname, status in unique[:5])
+        suffix = "" if len(unique) <= 5 else f" (+{len(unique) - 5} más)"
+        messages.warning(
+            request,
+            "⚠️ Detectamos cuentas que ya existen en OTRAS plataformas: "
+            + lines + suffix + ". Revisalas — si se trata de un re-uso intencional, ignorá este aviso.",
+        )
+
+    return redirect(fallback_url)
 
 
 @staff_member_required
@@ -1036,6 +1086,17 @@ def stock_quick_action(request, item_id: int):
         item.status = StockItem.Status.AVAILABLE
         item.save(update_fields=["status"])
         messages.success(request, f"Stock #{item.pk} marcado como disponible.")
+    elif action == "mark_sold":
+        # Marca manual: para casos en que se vendió fuera del checkout
+        # automático (ej. venta directa por WhatsApp) y querés que quede
+        # registrado para no re-cargar el mismo correo.
+        item.status = StockItem.Status.SOLD
+        update_fields = ["status"]
+        if not item.sold_at:
+            item.sold_at = timezone.now()
+            update_fields.append("sold_at")
+        item.save(update_fields=update_fields)
+        messages.success(request, f"Stock #{item.pk} marcado como vendida.")
     elif action == "duplicate":
         clone = StockItem.objects.create(
             product=item.product,
@@ -1049,6 +1110,148 @@ def stock_quick_action(request, item_id: int):
         messages.error(request, f"Acción desconocida: {action}")
 
     return redirect(next_url)
+
+
+# ---------------------------------------------------------------------------
+# Control de cuentas — vista agrupada por plataforma (sustituye al Excel/bloc)
+# ---------------------------------------------------------------------------
+
+def _extract_primary_email(text: str) -> str:
+    """Devuelve el primer email (lowercase) encontrado en el texto, o ''."""
+    import re
+    if not text:
+        return ""
+    matches = re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text)
+    return matches[0].lower() if matches else ""
+
+
+def _strip_password_from_account_line(text: str) -> str:
+    """Devuelve solo la línea con el correo (no expone contraseña en la vista).
+
+    Si el texto tiene formato ``Correo: x@y.com\\nContraseña: secreto``,
+    devuelve solo ``x@y.com``. Si es ``x@y.com:secreto`` también filtra.
+    """
+    email = _extract_primary_email(text or "")
+    return email or (text or "").splitlines()[0][:80]
+
+
+@staff_member_required
+def cuentas_dashboard(request):
+    """Control de cuentas: muestra TODAS las cuentas agrupadas por plataforma.
+
+    Es la sección "📚 Control de cuentas" del sidebar. Pensada para reemplazar
+    el Excel / bloc de notas del usuario: ver de un vistazo cuántas cuentas
+    quedan disponibles y cuáles ya están vendidas por plataforma.
+    """
+    from catalog.models import Product, StockItem
+    from orders.credentials import split_account_extras
+
+    q = (request.GET.get("q") or "").strip().lower()
+    status_filter = (request.GET.get("status") or "all").strip()
+    show_only = (request.GET.get("only") or "").strip()  # "active" = oculta deshabilitadas
+
+    valid_statuses = {s for s, _ in StockItem.Status.choices}
+
+    qs = StockItem.objects.select_related("product", "plan").order_by("-created_at")
+    if status_filter in valid_statuses:
+        qs = qs.filter(status=status_filter)
+
+    # Búsqueda cross-plataforma: si pegás un correo te muestra dónde está.
+    matched_email = ""
+    if q:
+        qs = qs.filter(credentials__icontains=q)
+        # Detectar si q "parece" un email para resaltarlo en el header.
+        if "@" in q:
+            matched_email = q
+
+    # Cargamos todo (no hay millones de cuentas — es una tienda).
+    items = list(qs[:5000])
+
+    # Decoramos con cuenta/perfil/pin parseados.
+    for it in items:
+        account, profile, pin = split_account_extras(it.credentials or "")
+        it.account_text = account
+        it.profile_text = profile
+        it.pin_text = pin
+        it.email_lc = _extract_primary_email(account)
+
+    # Agrupar por producto. Productos sin items y sin filtro aplicado los
+    # mostramos también con sección vacía (para que el usuario sepa que la
+    # plataforma existe y pueda agregar cuentas).
+    products_with_items: dict[int, dict] = {}
+    for it in items:
+        slot = products_with_items.setdefault(
+            it.product_id,
+            {
+                "product": it.product,
+                "items": [],
+                "available": 0, "sold": 0, "reserved": 0,
+                "defective": 0, "disabled": 0, "total": 0,
+            },
+        )
+        slot["items"].append(it)
+        slot[it.status] = slot.get(it.status, 0) + 1
+        slot["total"] += 1
+
+    # Si no hay filtros, agregar productos sin stock también (sección vacía).
+    if not q and status_filter == "all":
+        active_products = Product.objects.filter(is_active=True).only("id", "name")
+        for p in active_products:
+            if p.pk not in products_with_items:
+                products_with_items[p.pk] = {
+                    "product": p,
+                    "items": [],
+                    "available": 0, "sold": 0, "reserved": 0,
+                    "defective": 0, "disabled": 0, "total": 0,
+                }
+
+    # Ordenar: primero las plataformas con cuentas disponibles (orden alfabético).
+    groups = sorted(
+        products_with_items.values(),
+        key=lambda g: (
+            0 if g["available"] > 0 else (1 if g["total"] > 0 else 2),
+            g["product"].name.lower(),
+        ),
+    )
+
+    # KPIs globales (todas las plataformas).
+    all_counts = (
+        StockItem.objects.values("status")
+        .annotate(c=Count("id"))
+    )
+    counts_by_status = {row["status"]: row["c"] for row in all_counts}
+    kpis = {
+        "available": counts_by_status.get("available", 0),
+        "sold": counts_by_status.get("sold", 0),
+        "defective": counts_by_status.get("defective", 0),
+        "reserved": counts_by_status.get("reserved", 0),
+        "disabled": counts_by_status.get("disabled", 0),
+        "total": sum(counts_by_status.values()),
+        "platforms": len(products_with_items),
+    }
+
+    status_options = [
+        {"value": "all", "label": "Todas", "count": kpis["total"]},
+        {"value": "available", "label": "Disponibles", "count": kpis["available"]},
+        {"value": "sold", "label": "Vendidas", "count": kpis["sold"]},
+        {"value": "reserved", "label": "Reservadas", "count": kpis["reserved"]},
+        {"value": "defective", "label": "Caídas", "count": kpis["defective"]},
+        {"value": "disabled", "label": "Deshabilitadas", "count": kpis["disabled"]},
+    ]
+
+    ctx = _admin_context(
+        request,
+        title="Control de cuentas",
+        groups=groups,
+        kpis=kpis,
+        status_options=status_options,
+        status=status_filter,
+        q=q,
+        matched_email=matched_email,
+        show_only=show_only,
+        total_results=len(items),
+    )
+    return render(request, "admin/cuentas/dashboard.html", ctx)
 
 
 # ---------------------------------------------------------------------------
