@@ -1099,3 +1099,39 @@ class BulkReplaceCredentialsTests(TestCase):
         # No debería haber cambiado nada
         self.it_a.refresh_from_db()
         self.assertIn("passA", self.it_a.credentials)
+
+
+class AdminInboxViewTests(TestCase):
+    """Smoke test del feed unificado de bandeja del admin.
+
+    Cubre regresión: usar el campo correcto ``ProductReview.author_name``
+    (no ``author``). Crear una review pendiente fuerza la rama que antes
+    crasheaba con AttributeError y rompía toda la bandeja.
+    """
+
+    def setUp(self):
+        from catalog.models import ProductReview
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staffinbox", password="x", is_staff=True, is_superuser=True,
+        )
+        self.cat = Category.objects.create(name="Streaming-inbox", slug="streaming-inbox")
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix Inbox", slug="netflix-inbox", is_active=True,
+        )
+        # Una review pendiente fuerza el render del item "review pendiente".
+        ProductReview.objects.create(
+            product=self.product,
+            author_name="Cliente Test",
+            email="c@example.com",
+            rating=5,
+            comment="Andaba todo perfecto",
+            status=ProductReview.Status.PENDING,
+        )
+
+    def test_inbox_view_renders_with_pending_review(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_inbox"))
+        self.assertEqual(resp.status_code, 200)
+        # El nombre del autor debe aparecer en el feed (campo author_name).
+        self.assertContains(resp, "Cliente Test")
