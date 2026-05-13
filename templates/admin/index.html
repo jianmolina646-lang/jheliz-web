@@ -28,8 +28,12 @@
     <!-- Hello banner -->
     <section class="relative overflow-hidden rounded-xl border border-primary-500/30 bg-gradient-to-br from-primary-500/15 via-primary-600/10 to-violet-500/15 p-6">
         <div class="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-primary-500/20 blur-3xl pointer-events-none"></div>
-        <div class="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
+        {# El header se apila verticalmente hasta xl (>=1280px). Antes era #}
+        {# sm:flex-row + shrink-0 en los botones, lo que provocaba que en  #}
+        {# pantallas medianas (laptops 1366px con sidebar) la fila de 7    #}
+        {# botones se desbordara y "Notificaciones push" quedara cortado.  #}
+        <div class="relative flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+            <div class="min-w-0">
                 <h1 class="text-2xl sm:text-3xl font-bold text-white">
                     {{ dashboard_greeting }}{% if dashboard_user_first_name %}, <span class="text-primary-300">{{ dashboard_user_first_name|capfirst }}</span>{% endif %} 👋
                 </h1>
@@ -44,7 +48,10 @@
                     </a>{% endif %}.
                 </p>
             </div>
-            <div class="flex flex-wrap gap-2 shrink-0">
+            {# w-full + flex-wrap garantiza que los 7 botones envuelvan a 2 #}
+            {# filas si no entran (en vez de overflow horizontal cortando  #}
+            {# el ultimo). Sin shrink-0 para permitir el wrap.             #}
+            <div class="flex flex-wrap gap-2 w-full xl:w-auto">
                 <a href="/panel-jheliz-2026/stock/" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-xs font-medium transition">
                     <span class="material-symbols-outlined" style="font-size:16px;">inventory_2</span>
                     Stock
