@@ -497,3 +497,83 @@ class AdminDesignSystem2026Tests(TestCase):
         self.assertIn("Cuando llegue uno aparece acá.", out)
         self.assertIn('href="/x/"', out)
         self.assertIn(">Crear<", out)
+
+
+class ReportsViewDesignTests(TestCase):
+    """Verifica que la vista /panel-jheliz-2026/reports/ renderiza el nuevo
+    diseño basado en chips, KPIs con delta y sparkline.
+    """
+
+    def setUp(self) -> None:
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="reptester", password="x", is_staff=True, is_superuser=True,
+        )
+        self.client.force_login(self.admin)
+
+    def test_reports_view_renders_new_design_with_no_data(self):
+        """Sin ventas: la página renderiza OK con los placeholders."""
+        resp = self.client.get(reverse("admin_reports"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        # 4 tarjetas KPI con el chip de delta.
+        self.assertIn("jh-rep-kpi", body)
+        self.assertIn("jh-rep-kpi--today", body)
+        self.assertIn("jh-rep-kpi--week", body)
+        self.assertIn("jh-rep-kpi--month", body)
+        self.assertIn("jh-rep-kpi--year", body)
+        # Sparkline siempre presente (con 30 barras incluso si todas son 0).
+        self.assertIn("jh-rep-spark", body)
+        # Secciones de las dos tablas redesigned.
+        self.assertIn("Top 10 productos", body)
+        self.assertIn("Ingresos por método", body)
+        # Botones de export.
+        self.assertIn("CSV últimos 7 días", body)
+
+    def test_reports_view_renders_chips_with_real_data(self):
+        """Con un pedido pagado: se ve el ícono del método y la barra del producto."""
+        from datetime import timedelta
+        from django.utils import timezone
+        from catalog.models import Category, Plan, Product
+        from orders.models import Order, OrderItem
+
+        cat, _ = Category.objects.get_or_create(
+            slug="streaming-rep-test",
+            defaults={"name": "Streaming Reports Test"},
+        )
+        prod = Product.objects.create(
+            name="Netflix Premium",
+            slug="netflix-premium-rep-test",
+            category=cat,
+        )
+        plan = Plan.objects.create(
+            product=prod, name="1 mes",
+            duration_days=30, price_customer=Decimal("15.00"),
+        )
+        order = Order.objects.create(
+            email="cliente@example.com",
+            phone="+51999111222",
+            total=Decimal("15.00"),
+            status=Order.Status.PAID,
+            paid_at=timezone.now() - timedelta(hours=2),
+            payment_provider="yape",
+        )
+        OrderItem.objects.create(
+            order=order,
+            product=prod,
+            plan=plan,
+            product_name=prod.name,
+            unit_price=Decimal("15.00"),
+            quantity=1,
+        )
+
+        resp = self.client.get(reverse("admin_reports"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        # El producto aparece en top productos con barra.
+        self.assertIn("Netflix Premium", body)
+        self.assertIn("jh-rep-row__bar", body)
+        # El método yape aparece con su label visible.
+        self.assertIn("Yape", body)
+        # La barra del método yape lleva la clase violet.
+        self.assertIn("jh-rep-row__bar--violet", body)
