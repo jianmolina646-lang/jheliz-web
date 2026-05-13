@@ -8,54 +8,278 @@
 {% endblock %}
 
 {% block content %}
+<style>
+  /* ── Hero moderno (control de cuentas) ──────────────────────────── */
+  .jh-cc-hero {
+    position: relative; overflow: hidden;
+    border-radius: 20px;
+    padding: 24px 28px;
+    background:
+      radial-gradient(ellipse 70% 60% at 100% 0%, rgba(167,139,250,.18), transparent 60%),
+      radial-gradient(ellipse 80% 70% at 0% 100%, rgba(96,165,250,.10), transparent 60%),
+      linear-gradient(135deg, rgba(15,23,42,.85), rgba(2,6,23,.85));
+    border: 1px solid rgba(167,139,250,.20);
+    display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+  }
+  .jh-cc-hero__icon {
+    flex-shrink: 0;
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #a78bfa, #ec4899);
+    color: white;
+    box-shadow: 0 12px 32px -10px rgba(167,139,250,.55);
+  }
+  .jh-cc-hero__icon .material-symbols-outlined { font-size: 30px; }
+  .jh-cc-hero__body { flex: 1 1 280px; min-width: 0; }
+  .jh-cc-hero__eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    background: rgba(167,139,250,.16); color: #ddd6fe;
+    border: 1px solid rgba(167,139,250,.30);
+    margin-bottom: 8px;
+  }
+  .jh-cc-hero__title {
+    margin: 0;
+    font-size: 26px; font-weight: 800;
+    letter-spacing: -.02em; color: #fff;
+    line-height: 1.15;
+  }
+  .jh-cc-hero__subtitle {
+    margin: 6px 0 0;
+    font-size: 13.5px; line-height: 1.55;
+    color: rgba(203,213,225,.72);
+    max-width: 65ch;
+  }
+  .jh-cc-hero__cta {
+    flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 16px; border-radius: 12px;
+    font-size: 13px; font-weight: 600;
+    background: rgba(167,139,250,.16);
+    color: #ddd6fe;
+    border: 1px solid rgba(167,139,250,.40);
+    cursor: pointer;
+    transition: background .15s ease, transform .15s ease;
+  }
+  .jh-cc-hero__cta:hover { background: rgba(167,139,250,.30); transform: translateY(-1px); }
+  .jh-cc-hero__cta .material-symbols-outlined { font-size: 18px; }
+
+  /* ── KPI cards modernos ─────────────────────────────────────────── */
+  .jh-cc-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .jh-cc-kpi {
+    position: relative; overflow: hidden;
+    padding: 18px 18px 16px;
+    border-radius: 16px;
+    background: linear-gradient(160deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+    border: 1px solid rgba(255,255,255,.08);
+    transition: transform .18s ease, border-color .18s ease;
+  }
+  .jh-cc-kpi:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.16); }
+  .jh-cc-kpi__watermark {
+    position: absolute; top: -20px; right: -20px;
+    width: 130px; height: 130px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: .07;
+    pointer-events: none;
+  }
+  .jh-cc-kpi__watermark .material-symbols-outlined { font-size: 110px; line-height: 1; }
+  .jh-cc-kpi__label {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: .10em; text-transform: uppercase;
+    color: rgba(148,163,184,.85);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .jh-cc-kpi__label-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .jh-cc-kpi__value {
+    margin: 8px 0 12px;
+    font-size: 38px; font-weight: 800;
+    color: #fff; line-height: 1;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .jh-cc-kpi__bar-wrap {
+    width: 100%; height: 5px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.06);
+    overflow: hidden;
+  }
+  .jh-cc-kpi__bar { height: 100%; border-radius: 999px; transition: width .4s ease; }
+  .jh-cc-kpi__meta {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 8px;
+    font-size: 11.5px; color: rgba(203,213,225,.65);
+  }
+  .jh-cc-kpi__pct {
+    font-weight: 700; font-variant-numeric: tabular-nums;
+    padding: 2px 7px; border-radius: 999px;
+    background: rgba(255,255,255,.06);
+  }
+
+  /* Variantes de tono */
+  .jh-cc-kpi--platforms .jh-cc-kpi__label-dot,
+  .jh-cc-kpi--platforms .jh-cc-kpi__bar { background: linear-gradient(90deg, #a78bfa, #6366f1); }
+  .jh-cc-kpi--platforms .jh-cc-kpi__watermark { color: #a78bfa; }
+  .jh-cc-kpi--available .jh-cc-kpi__label-dot,
+  .jh-cc-kpi--available .jh-cc-kpi__bar { background: linear-gradient(90deg, #34d399, #10b981); }
+  .jh-cc-kpi--available .jh-cc-kpi__watermark { color: #10b981; }
+  .jh-cc-kpi--sold .jh-cc-kpi__label-dot,
+  .jh-cc-kpi--sold .jh-cc-kpi__bar { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+  .jh-cc-kpi--sold .jh-cc-kpi__watermark { color: #3b82f6; }
+  .jh-cc-kpi--defective .jh-cc-kpi__label-dot,
+  .jh-cc-kpi--defective .jh-cc-kpi__bar { background: linear-gradient(90deg, #fb923c, #ef4444); }
+  .jh-cc-kpi--defective .jh-cc-kpi__watermark { color: #f97316; }
+</style>
+
 <div class="flex flex-col gap-5">
 
-  <div class="jh2-page-head" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-    <div>
-      <div class="jh2-page-head__eyebrow">Inventario</div>
-      <h1 class="jh2-page-head__title">📚 Control de cuentas</h1>
-      <p class="jh2-page-head__subtitle">
+  {# ── Hero moderno ──────────────────────────────────────────────── #}
+  <div class="jh-cc-hero">
+    <div class="jh-cc-hero__icon">
+      <span class="material-symbols-outlined">inventory_2</span>
+    </div>
+    <div class="jh-cc-hero__body">
+      <div class="jh-cc-hero__eyebrow">
+        <span class="material-symbols-outlined" style="font-size:13px;">layers</span>
+        Inventario
+      </div>
+      <h1 class="jh-cc-hero__title">Control de cuentas</h1>
+      <p class="jh-cc-hero__subtitle">
         Tu cuaderno de cuentas, organizado por plataforma. Mirá de un vistazo
         cuántas quedan disponibles y cuáles ya vendiste para no equivocarte.
       </p>
     </div>
-    <div style="flex-shrink:0;">
-      <button type="button" id="bulk-replace-open"
-              class="jh2-btn jh2-btn--ghost"
-              style="border-color:rgba(167,139,250,.45);color:#c4b5fd;">
-        <span class="material-symbols-outlined" style="font-size:18px;">sync_alt</span>
-        Reemplazar credenciales en masa
-      </button>
-    </div>
+    <button type="button" id="bulk-replace-open" class="jh-cc-hero__cta">
+      <span class="material-symbols-outlined">sync_alt</span>
+      Reemplazar credenciales en masa
+    </button>
   </div>
 
-  <div class="jh2-stat-grid">
-    {% include "admin/components/_stat.html" with label="Plataformas" value=kpis.platforms|stringformat:"d" icon="apps" variant="neutral" %}
-    {% include "admin/components/_stat.html" with label="Disponibles" value=kpis.available|stringformat:"d" icon="check_circle" variant="success" %}
-    {% include "admin/components/_stat.html" with label="Vendidas" value=kpis.sold|stringformat:"d" icon="local_shipping" variant="info" %}
-    {% include "admin/components/_stat.html" with label="Caídas" value=kpis.defective|stringformat:"d" icon="warning" variant="warning" %}
+  {# ── KPI cards modernos ────────────────────────────────────────── #}
+  {% with total_stock=kpis.total %}
+  {% with av_pct=kpis.available|default:0 sld_pct=kpis.sold|default:0 def_pct=kpis.defective|default:0 %}
+  <div class="jh-cc-kpi-grid">
+
+    <div class="jh-cc-kpi jh-cc-kpi--platforms">
+      <div class="jh-cc-kpi__watermark"><span class="material-symbols-outlined">apps</span></div>
+      <div class="jh-cc-kpi__label"><span class="jh-cc-kpi__label-dot"></span>Plataformas</div>
+      <div class="jh-cc-kpi__value">{{ kpis.platforms }}</div>
+      <div class="jh-cc-kpi__bar-wrap"><div class="jh-cc-kpi__bar" style="width:100%"></div></div>
+      <div class="jh-cc-kpi__meta">
+        <span>Activas en catálogo</span>
+      </div>
+    </div>
+
+    <div class="jh-cc-kpi jh-cc-kpi--available">
+      <div class="jh-cc-kpi__watermark"><span class="material-symbols-outlined">check_circle</span></div>
+      <div class="jh-cc-kpi__label"><span class="jh-cc-kpi__label-dot"></span>Disponibles</div>
+      <div class="jh-cc-kpi__value">{{ kpis.available }}</div>
+      <div class="jh-cc-kpi__bar-wrap">
+        <div class="jh-cc-kpi__bar" style="width: {% if total_stock %}{% widthratio kpis.available total_stock 100 %}{% else %}0{% endif %}%"></div>
+      </div>
+      <div class="jh-cc-kpi__meta">
+        <span>Listas para vender</span>
+        <span class="jh-cc-kpi__pct">{% if total_stock %}{% widthratio kpis.available total_stock 100 %}{% else %}0{% endif %}%</span>
+      </div>
+    </div>
+
+    <div class="jh-cc-kpi jh-cc-kpi--sold">
+      <div class="jh-cc-kpi__watermark"><span class="material-symbols-outlined">local_shipping</span></div>
+      <div class="jh-cc-kpi__label"><span class="jh-cc-kpi__label-dot"></span>Vendidas</div>
+      <div class="jh-cc-kpi__value">{{ kpis.sold }}</div>
+      <div class="jh-cc-kpi__bar-wrap">
+        <div class="jh-cc-kpi__bar" style="width: {% if total_stock %}{% widthratio kpis.sold total_stock 100 %}{% else %}0{% endif %}%"></div>
+      </div>
+      <div class="jh-cc-kpi__meta">
+        <span>Entregadas a clientes</span>
+        <span class="jh-cc-kpi__pct">{% if total_stock %}{% widthratio kpis.sold total_stock 100 %}{% else %}0{% endif %}%</span>
+      </div>
+    </div>
+
+    <div class="jh-cc-kpi jh-cc-kpi--defective">
+      <div class="jh-cc-kpi__watermark"><span class="material-symbols-outlined">warning</span></div>
+      <div class="jh-cc-kpi__label"><span class="jh-cc-kpi__label-dot"></span>Caídas</div>
+      <div class="jh-cc-kpi__value">{{ kpis.defective }}</div>
+      <div class="jh-cc-kpi__bar-wrap">
+        <div class="jh-cc-kpi__bar" style="width: {% if total_stock %}{% widthratio kpis.defective total_stock 100 %}{% else %}0{% endif %}%"></div>
+      </div>
+      <div class="jh-cc-kpi__meta">
+        <span>Requieren reposición</span>
+        <span class="jh-cc-kpi__pct">{% if total_stock %}{% widthratio kpis.defective total_stock 100 %}{% else %}0{% endif %}%</span>
+      </div>
+    </div>
+
   </div>
+  {% endwith %}
+  {% endwith %}
 
   {# Buscador cross-plataforma — pegás un correo y te dice si ya está #}
-  <form method="get" action="{% url 'admin_cuentas_dashboard' %}" class="jh2-toolbar">
-    <span class="jh2-toolbar__label">🔎 Buscar correo</span>
-    <input type="search" name="q" value="{{ q|default:'' }}"
+  <form method="get" action="{% url 'admin_cuentas_dashboard' %}" class="jh-cc-search">
+    <span class="jh-cc-search__icon material-symbols-outlined">search</span>
+    <input type="search" name="q" value="{{ q|default:'' }}" autocomplete="off"
            placeholder="Pegá un correo o palabra clave para chequear si ya está cargado…"
-           class="jh2-input"
-           style="flex:1;min-width:260px;">
+           class="jh-cc-search__input">
     {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
     {% if mode and mode != 'all' %}<input type="hidden" name="mode" value="{{ mode }}">{% endif %}
-    <button type="submit" class="jh2-btn jh2-btn--primary">
-      <span class="material-symbols-outlined" style="font-size:16px;">search</span>
-      Buscar
-    </button>
     {% if q or status != 'all' or mode != 'all' %}
-      <a href="{% url 'admin_cuentas_dashboard' %}" class="jh2-chip">
-        <span class="material-symbols-outlined" style="font-size:14px;">close</span>
-        Limpiar
+      <a href="{% url 'admin_cuentas_dashboard' %}" class="jh-cc-search__clear" title="Limpiar filtros">
+        <span class="material-symbols-outlined">close</span>
       </a>
     {% endif %}
+    <button type="submit" class="jh-cc-search__btn">Buscar</button>
   </form>
+  <style>
+    .jh-cc-search {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 8px 8px 16px; border-radius: 14px;
+      background: rgba(15,23,42,.65);
+      border: 1px solid rgba(255,255,255,.08);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .jh-cc-search:focus-within {
+      border-color: rgba(167,139,250,.50);
+      box-shadow: 0 0 0 4px rgba(167,139,250,.10);
+    }
+    .jh-cc-search__icon {
+      color: rgba(148,163,184,.75); font-size: 20px;
+      flex-shrink: 0;
+    }
+    .jh-cc-search__input {
+      flex: 1; min-width: 0;
+      background: transparent; border: 0; outline: 0;
+      color: #f1f5f9; font-size: 14px;
+      padding: 8px 0;
+    }
+    .jh-cc-search__input::placeholder { color: rgba(148,163,184,.55); }
+    .jh-cc-search__clear {
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 8px;
+      background: rgba(148,163,184,.08);
+      color: rgba(203,213,225,.75);
+      text-decoration: none;
+    }
+    .jh-cc-search__clear:hover { background: rgba(148,163,184,.16); color: #fff; }
+    .jh-cc-search__clear .material-symbols-outlined { font-size: 16px; }
+    .jh-cc-search__btn {
+      flex-shrink: 0;
+      padding: 8px 18px; border-radius: 10px;
+      background: linear-gradient(135deg, #a78bfa, #ec4899);
+      color: white; font-size: 13px; font-weight: 600;
+      border: 0; cursor: pointer;
+      box-shadow: 0 6px 18px -6px rgba(236,72,153,.55);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .jh-cc-search__btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgba(236,72,153,.65); }
+  </style>
 
   {% if q %}
     <div class="jh2-card jh2-card--padded">
