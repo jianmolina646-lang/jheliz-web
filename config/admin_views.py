@@ -1116,6 +1116,193 @@ def stock_quick_action(request, item_id: int):
 # Control de cuentas — vista agrupada por plataforma (sustituye al Excel/bloc)
 # ---------------------------------------------------------------------------
 
+def _parse_bulk_replace_line(raw: str) -> tuple[str, str, str] | None:
+    """Parsea una línea del modal de reemplazo masivo de credenciales.
+
+    Devuelve ``(email_actual, email_nuevo, contraseña_nueva)`` o ``None`` si
+    no se pudo parsear. ``email_nuevo`` puede ser ``""`` si solo cambia la
+    contraseña.
+
+    Formatos soportados (auto-detectados):
+      A. ``email_actual:contraseña_nueva`` (solo cambia contraseña)
+      B. ``email_actual|email_nuevo|contraseña_nueva`` (separador pipe)
+      C. ``email_actual,email_nuevo,contraseña_nueva`` (separador coma)
+      D. ``email_actual -> email_nuevo:contraseña_nueva``
+    """
+    line = (raw or "").strip()
+    if not line or line.startswith("#"):
+        return None
+
+    # Formato D: flecha
+    if "->" in line or "→" in line:
+        sep = "->" if "->" in line else "→"
+        left, _, right = line.partition(sep)
+        left = left.strip()
+        right = right.strip()
+        if "@" in left and ":" in right:
+            new_email, _, new_pass = right.partition(":")
+            new_email = new_email.strip()
+            new_pass = new_pass.strip()
+            if "@" in new_email and new_pass:
+                return (left.lower(), new_email, new_pass)
+
+    # Formato B/C: 3 campos con | o ,
+    for sep in ("|", ","):
+        if line.count(sep) >= 2:
+            parts = [p.strip() for p in line.split(sep, 2)]
+            if (
+                len(parts) == 3
+                and "@" in parts[0]
+                and "@" in parts[1]
+                and parts[2]
+            ):
+                return (parts[0].lower(), parts[1], parts[2])
+
+    # Formato A: email:contraseña (solo cambia password)
+    if ":" in line:
+        email, _, password = line.partition(":")
+        email = email.strip()
+        password = password.strip()
+        if "@" in email and password:
+            return (email.lower(), "", password)
+
+    return None
+
+
+@staff_member_required
+@require_POST
+def stock_bulk_replace_credentials(request):
+    """Reemplaza correo+contraseña en lote para varias StockItems.
+
+    El proveedor te pasa una lista de credenciales actualizadas. Pegás ese
+    listado en un modal y el sistema:
+
+    1. Parsea cada línea (autodetecta formato).
+    2. Por cada línea busca StockItems cuya credencial actual tenga ese
+       email (match exacto vía ``parse(creds).email``).
+    3. Reemplaza email y/o contraseña usando ``replace_account`` (mantiene
+       perfil/PIN intactos).
+    4. Sincroniza ``OrderItem.delivered_credentials`` para que los clientes
+       que ya recibieron esa cuenta vean las nuevas credenciales al volver
+       a la zona de clientes — y guarda el snapshot anterior por 30 días
+       para rollback 1-click.
+    """
+    from catalog.models import StockItem
+    from orders.credentials import parse as parse_creds, replace_account
+    from orders.models import OrderItem
+
+    pasted = (request.POST.get("pasted") or "").strip()
+    next_url = request.POST.get("next") or reverse("admin_cuentas_dashboard")
+
+    if not pasted:
+        messages.error(request, "Pegá el listado de reemplazos antes de aplicar.")
+        return redirect(next_url)
+
+    replacements: list[tuple[str, str, str]] = []
+    skipped: list[str] = []
+    for raw in pasted.splitlines():
+        parsed = _parse_bulk_replace_line(raw)
+        if parsed is None:
+            if raw.strip():
+                skipped.append(raw.strip()[:80])
+            continue
+        replacements.append(parsed)
+
+    if not replacements:
+        messages.error(
+            request,
+            "No pude parsear ninguna línea. Usá uno de los formatos: "
+            "'correo:nueva_contraseña' (solo cambia password) o "
+            "'correo_viejo|correo_nuevo|nueva_contraseña' (cambia ambos).",
+        )
+        return redirect(next_url)
+
+    updated_items = 0
+    updated_orderitems = 0
+    not_found: list[str] = []
+    now = timezone.now()
+
+    for search_email, new_email, new_password in replacements:
+        # Pre-filtramos por icontains (rápido en SQL) y luego validamos el
+        # match exacto en Python parseando las credenciales (más confiable
+        # que un LIKE en texto encriptado de Fernet — recordá que el campo
+        # es EncryptedTextField que sí queda en claro a nivel DB para esta
+        # FK específica, ver orders/credentials.py).
+        candidates = StockItem.objects.filter(credentials__icontains=search_email)
+        matched: list[StockItem] = []
+        for it in candidates:
+            current = parse_creds(it.credentials or "")
+            if current.email.lower() == search_email:
+                matched.append(it)
+
+        if not matched:
+            not_found.append(search_email)
+            continue
+
+        for item in matched:
+            current = parse_creds(item.credentials or "")
+            target_email = new_email or current.email
+            item.credentials = replace_account(
+                item.credentials, target_email, new_password
+            )
+            item.save(update_fields=["credentials"])
+            updated_items += 1
+
+            # Sincronizar pedidos que ya recibieron esta cuenta.
+            related = OrderItem.objects.filter(stock_item=item).exclude(
+                delivered_credentials=""
+            )
+            for oi in related:
+                old_delivered = oi.delivered_credentials or ""
+                if not old_delivered:
+                    continue
+                new_delivered = replace_account(
+                    old_delivered, target_email, new_password
+                )
+                if new_delivered == old_delivered:
+                    continue
+                oi.previous_delivered_credentials = old_delivered
+                oi.credentials_replaced_at = now
+                oi.delivered_credentials = new_delivered
+                oi.save(
+                    update_fields=[
+                        "previous_delivered_credentials",
+                        "credentials_replaced_at",
+                        "delivered_credentials",
+                    ]
+                )
+                updated_orderitems += 1
+
+    parts: list[str] = []
+    if updated_items:
+        parts.append(
+            f"{updated_items} cuenta{'s' if updated_items != 1 else ''} actualizada"
+            f"{'s' if updated_items != 1 else ''}"
+        )
+    if updated_orderitems:
+        parts.append(
+            f"{updated_orderitems} pedido{'s' if updated_orderitems != 1 else ''} "
+            f"sincronizado{'s' if updated_orderitems != 1 else ''}"
+        )
+    if not_found:
+        sample = ", ".join(not_found[:5])
+        more = f" +{len(not_found) - 5} más" if len(not_found) > 5 else ""
+        parts.append(f"{len(not_found)} no encontradas: {sample}{more}")
+    if skipped:
+        parts.append(f"{len(skipped)} línea(s) sin parsear")
+
+    summary = " · ".join(parts) if parts else "Sin cambios."
+
+    if updated_items:
+        messages.success(request, "✓ " + summary)
+    elif not_found or skipped:
+        messages.warning(request, "⚠️ " + summary)
+    else:
+        messages.info(request, summary)
+
+    return redirect(next_url)
+
+
 def _extract_primary_email(text: str) -> str:
     """Devuelve el primer email (lowercase) encontrado en el texto, o ''."""
     import re

@@ -153,6 +153,11 @@ urlpatterns = [
         name="admin_cuentas_dashboard",
     ),
     path(
+        "panel-jheliz-2026/control-cuentas/bulk-replace/",
+        admin_views.stock_bulk_replace_credentials,
+        name="admin_stock_bulk_replace_credentials",
+    ),
+    path(
         "panel-jheliz-2026/customers/",
         admin_views.customer_index,
         name="admin_customer_index",
