@@ -327,6 +327,12 @@ def checkout(request):
     payment_settings = PaymentSettings.load()
     yape_available = bool(payment_settings.yape_enabled and payment_settings.yape_qr)
 
+    user_balance = Decimal("0")
+    wallet_available = False
+    if request.user.is_authenticated:
+        user_balance = request.user.wallet_balance or Decimal("0")
+        wallet_available = user_balance > Decimal("0")
+
     if request.method == "POST":
         form = CheckoutForm(request.POST)
         if form.is_valid():
@@ -334,11 +340,43 @@ def checkout(request):
             if method == "yape" and not yape_available:
                 messages.error(request, "Yape no est\u00e1 disponible en este momento.")
                 return redirect("orders:checkout")
+            if method == "wallet" and not request.user.is_authenticated:
+                messages.error(request, "Necesitás iniciar sesión para pagar con saldo.")
+                return redirect("accounts:login")
+
+            cart_total = cart.subtotal_for(request.user) - cart.discount_for(request.user) - cart.combo_discount_for(request.user)
+            if method == "wallet":
+                if not wallet_available:
+                    messages.error(request, "No tenés saldo en tu wallet. Recordá recargar primero.")
+                    return redirect("orders:checkout")
+                if user_balance < cart_total:
+                    messages.error(
+                        request,
+                        f"Saldo insuficiente. Necesitás S/ {cart_total:,.2f} y tenés S/ {user_balance:,.2f}. Recordá recargar tu wallet.",
+                    )
+                    return redirect("orders:checkout")
 
             order = _create_order_from_cart(request, cart, form.cleaned_data)
             cart.clear()
             emails.send_order_received(order)
             telegram.notify_admin_about_order(order)
+
+            if method == "wallet":
+                from accounts.wallet import charge_for_order, InsufficientFundsError
+                try:
+                    charge_for_order(request.user, order.total, order)
+                except InsufficientFundsError as exc:
+                    messages.error(request, str(exc))
+                    return redirect("orders:detail", uuid=order.uuid)
+                order.payment_provider = "wallet"
+                order.status = Order.Status.PAID
+                order.paid_at = timezone.now()
+                order.save(update_fields=["payment_provider", "status", "paid_at"])
+                messages.success(
+                    request,
+                    f"Pagaste S/ {order.total:,.2f} con tu wallet. Pedido en preparación.",
+                )
+                return redirect("orders:detail", uuid=order.uuid)
 
             if method == "yape":
                 order.payment_provider = "yape"
@@ -374,14 +412,23 @@ def checkout(request):
             return redirect("orders:detail", uuid=order.uuid)
     else:
         form = CheckoutForm(initial=initial)
-        if not yape_available:
-            # Deja solo Mercado Pago como opci\u00f3n.
-            form.fields["payment_method"].choices = [CheckoutForm.PAYMENT_METHODS[0]]
+
+    # Construir choices del payment_method dinámicamente según disponibilidad.
+    # Filtramos yape si no hay QR configurado y wallet si el usuario no tiene saldo.
+    available_methods = []
+    for value, label in CheckoutForm.PAYMENT_METHODS:
+        if value == "yape" and not yape_available:
+            continue
+        if value == "wallet" and not wallet_available:
+            continue
+        available_methods.append((value, label))
+    form.fields["payment_method"].choices = available_methods
 
     subtotal = cart.subtotal_for(request.user)
     discount = cart.discount_for(request.user)
     combo_discount = cart.combo_discount_for(request.user)
     combo_pct = cart.combo_tier_percent()
+    cart_total = subtotal - discount - combo_discount
     return render(request, "orders/checkout.html", {
         "form": form,
         "cart": cart,
@@ -390,9 +437,12 @@ def checkout(request):
         "discount": discount,
         "combo_discount": combo_discount,
         "combo_percent_int": int(combo_pct * 100) if combo_pct else 0,
-        "total": subtotal - discount - combo_discount,
+        "total": cart_total,
         "coupon": cart.get_coupon(),
         "yape_available": yape_available,
+        "wallet_available": wallet_available,
+        "wallet_balance": user_balance,
+        "wallet_enough": wallet_available and user_balance >= cart_total,
         "payment_settings": payment_settings,
     })
 
