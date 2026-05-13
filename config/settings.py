@@ -262,6 +262,11 @@ TELEGRAM_CHANNEL_ID = config("TELEGRAM_CHANNEL_ID", default="")
 # Si está vacío, las publicaciones automáticas a cliente final se
 # desactivan, pero las del canal distribuidor siguen funcionando.
 TELEGRAM_CUSTOMER_CHANNEL_ID = config("TELEGRAM_CUSTOMER_CHANNEL_ID", default="")
+# Si False (default), nunca se publica automáticamente al canal cuando se
+# crea o activa un producto/cupón. La publicación queda 100% manual desde
+# el admin (acción "📢 Publicar en Telegram" o botón en el change form).
+# Esto da al admin control total sobre qué y cuándo se anuncia.
+TELEGRAM_AUTO_PUBLISH = config("TELEGRAM_AUTO_PUBLISH", default=False, cast=bool)
 
 # Brand
 SITE_NAME = "Jheliz"

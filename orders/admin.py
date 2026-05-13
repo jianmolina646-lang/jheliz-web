@@ -12,7 +12,7 @@ from import_export.admin import ExportMixin
 from import_export.fields import Field
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.contrib.import_export.forms import ExportForm, ImportForm, SelectableFieldsExportForm
-from unfold.decorators import display
+from unfold.decorators import action as unfold_action, display
 
 from accounts.admin_helpers import chip, time_ago
 from . import credentials as creds_utils
@@ -1144,6 +1144,42 @@ class CouponAdmin(ModelAdmin):
         }),
     )
     actions = ("duplicate_coupon", "deactivate_coupons", "activate_coupons")
+    # Botones arriba del formulario de edición de UN cupón. Publica ese
+    # cupón puntual en el canal de Telegram que corresponde a su audiencia.
+    actions_detail = ("detail_publish_to_telegram",)
+
+    @unfold_action(
+        description="📢 Publicar en Telegram",
+        url_path="publish-telegram",
+    )
+    def detail_publish_to_telegram(self, request, object_id):
+        from orders import telegram
+
+        coupon = self.get_object(request, object_id)
+        if coupon is None:
+            self.message_user(request, "Cupón no encontrado.", level=messages.ERROR)
+            return redirect(reverse("admin:orders_coupon_changelist"))
+        if not telegram.is_configured():
+            self.message_user(
+                request,
+                "TELEGRAM_BOT_TOKEN no configurado — no se publicó nada.",
+                level=messages.WARNING,
+            )
+            return redirect(reverse("admin:orders_coupon_change", args=[object_id]))
+        res = telegram.announce_coupon(coupon)
+        if res and res.get("ok"):
+            self.message_user(
+                request,
+                f"📢 Publicado en Telegram → cupón {coupon.code}.",
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                f"❌ No se pudo publicar el cupón {coupon.code}: {res}",
+                level=messages.ERROR,
+            )
+        return redirect(reverse("admin:orders_coupon_change", args=[object_id]))
 
     @display(description="Descuento")
     def discount_label_col(self, obj):

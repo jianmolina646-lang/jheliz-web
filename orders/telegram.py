@@ -182,37 +182,82 @@ def order_action_buttons(order) -> list[list[dict]]:
     return rows
 
 
+_DIVIDER = "━━━━━━━━━━━━━━━━━━"
+
+
+def _fmt_money(order) -> str:
+    return f"<b>{order.currency} {order.total}</b>"
+
+
+def _fmt_datetime(dt) -> str:
+    """Devuelve algo como '13 may · 14:32' usando la TZ local del proyecto."""
+    if dt is None:
+        return ""
+    from django.utils import timezone
+
+    try:
+        local = timezone.localtime(dt)
+    except Exception:
+        local = dt
+    return local.strftime("%d %b · %H:%M")
+
+
+def _escape(value) -> str:
+    return html.escape(str(value or ""))
+
+
 def format_new_order(order) -> str:
+    """Mensaje moderno y compacto para notif de pedido nuevo."""
+    email = order.email or "(sin correo)"
+    phone_line = f"  ·  📱 {_escape(order.phone)}" if order.phone else ""
+    when = _fmt_datetime(getattr(order, "created_at", None))
+
     lines = [
-        f"<b>Nuevo pedido #{order.short_uuid}</b>",
-        f"Cliente: {order.email or '(sin correo)'}"
-        + (f" · tel {order.phone}" if order.phone else ""),
-        f"Total: {order.currency} {order.total}",
-        f"Estado: {order.get_status_display()}",
+        f"🛒 <b>NUEVO PEDIDO</b>  ·  #{order.short_uuid}",
         "",
-        "<b>Items</b>",
+        f"👤 <i>{_escape(email)}</i>{phone_line}",
+        f"💰 {_fmt_money(order)}  ·  {_escape(order.get_status_display())}",
     ]
+    if when:
+        lines.append(f"🕒 {when}")
+    lines.append("")
+    lines.append(_DIVIDER)
+    lines.append("")
+
     for it in order.items.all():
-        lines.append(f"• {it.product_name} — {it.plan_name} × {it.quantity}")
+        lines.append(
+            f"📦 <b>{_escape(it.product_name)}</b> — "
+            f"{_escape(it.plan_name)}  ×  {it.quantity}"
+        )
         if it.requested_profile_name or it.requested_pin:
             lines.append(
-                f"   Perfil: <b>{it.requested_profile_name or '-'}</b> · "
-                f"PIN: <b>{it.requested_pin or '-'}</b>"
+                f"     <i>Perfil:</i> <b>{_escape(it.requested_profile_name or '—')}</b>  "
+                f"·  <i>PIN:</i> <b>{_escape(it.requested_pin or '—')}</b>"
             )
         if it.customer_notes:
-            lines.append(f"   Notas: {it.customer_notes}")
+            lines.append(f"     <i>📝 {_escape(it.customer_notes)}</i>")
     return "\n".join(lines)
 
 
 def format_yape_proof(order) -> str:
-    return "\n".join([
-        f"<b>💸 Comprobante Yape — pedido #{order.short_uuid}</b>",
-        f"Cliente: {order.email or '(sin correo)'}"
-        + (f" · tel {order.phone}" if order.phone else ""),
-        f"Total: {order.currency} {order.total}",
+    """Mensaje moderno para revisar comprobante Yape."""
+    email = order.email or "(sin correo)"
+    phone_line = f"  ·  📱 {_escape(order.phone)}" if order.phone else ""
+    when = _fmt_datetime(getattr(order, "created_at", None))
+
+    lines = [
+        f"💸 <b>COMPROBANTE YAPE</b>  ·  #{order.short_uuid}",
         "",
-        "Aprueba o rechaza desde aquí mismo:",
-    ])
+        f"👤 <i>{_escape(email)}</i>{phone_line}",
+        f"💰 {_fmt_money(order)}",
+    ]
+    if when:
+        lines.append(f"🕒 {when}")
+    lines.append("")
+    lines.append(_DIVIDER)
+    lines.append("")
+    lines.append("👇 <i>Aprobá o rechazá con los botones de abajo</i>")
+    return "\n".join(lines)
 
 
 def notify_admin_about_order(order) -> None:
@@ -1061,20 +1106,29 @@ def daily_summary_text() -> str:
     except Exception:
         pass
 
+    when = _fmt_datetime(timezone.now())
     lines = [
-        "🌅 <b>Resumen diario Jheliz</b>",
+        "🌅 <b>RESUMEN DIARIO</b>",
+        f"<i>{when}</i>",
         "",
-        f"<b>Ayer</b>: {yest_qs.count()} pedidos · {cur} {t_yest}",
-        f"<b>Yape por verificar</b>: {pending_yape}",
-        f"<b>Pedidos en preparación</b>: {pending_prep}",
-        f"<b>Tickets abiertos</b>: {open_tickets}",
+        _DIVIDER,
+        "",
+        "📊 <b>Ventas de ayer</b>",
+        f"     • <b>{yest_qs.count()} pedidos</b>  ·  {cur} <b>{t_yest}</b>",
+        "",
+        "⏳ <b>Pendientes</b>",
+        f"     • Yape por verificar:  <b>{pending_yape}</b>",
+        f"     • En preparación:  <b>{pending_prep}</b>",
+        f"     • Tickets abiertos:  <b>{open_tickets}</b>",
     ]
     if low_stock_lines:
         lines.append("")
-        lines.append("<b>Stock crítico (≤1):</b>")
-        lines.extend(low_stock_lines)
+        lines.append("⚠️ <b>Stock crítico</b>  <i>(≤1)</i>")
+        for item in low_stock_lines:
+            lines.append(f"     {item.strip()}")
     lines.append("")
-    lines.append(f"🔗 {ADMIN_BASE}/")
+    lines.append(_DIVIDER)
+    lines.append(f'<a href="{ADMIN_BASE}/">🔗 Abrir panel</a>')
     return "\n".join(lines)
 
 

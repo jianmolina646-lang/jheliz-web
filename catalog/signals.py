@@ -44,8 +44,15 @@ def _announce_new_or_activated_product(sender, instance: Product, created, **kwa
       decisión se toma en el admin; si querés evitarlo, dejalo activo o
       apagá `TELEGRAM_CHANNEL_ID`).
     """
+    from django.conf import settings
+
     from orders import telegram
 
+    # Por defecto la publicación es 100% manual: el admin decide cuándo y
+    # dónde se anuncia un producto. Para reactivar el auto-post, definir
+    # TELEGRAM_AUTO_PUBLISH=true en el .env.
+    if not getattr(settings, "TELEGRAM_AUTO_PUBLISH", False):
+        return
     if not telegram.channel_is_configured():
         return
     was_active = getattr(instance, _ACTIVATION_FLAG, False)
@@ -53,7 +60,6 @@ def _announce_new_or_activated_product(sender, instance: Product, created, **kwa
     if not became_active:
         return
     if getattr(instance, "telegram_audience", "both") == "none":
-        # Admin configuró este producto para no publicarse en Telegram.
         return
     try:
         telegram.announce_product(instance, kind="new")
