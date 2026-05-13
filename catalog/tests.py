@@ -1135,3 +1135,46 @@ class AdminInboxViewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         # El nombre del autor debe aparecer en el feed (campo author_name).
         self.assertContains(resp, "Cliente Test")
+
+
+class ProductAdminChangelistDesignTests(TestCase):
+    """Verifica el rediseño de la lista de productos en el admin (chips)."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staffprods", password="x",
+            is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="Streaming-list", slug="streaming-list")
+        Product.objects.create(
+            category=cat, name="ProdPerfil", slug="prodperfil",
+            mode="perfil", is_active=True, is_featured=True,
+            telegram_audience="customer", delivery_is_instant=False,
+        )
+        Product.objects.create(
+            category=cat, name="ProdCompleta", slug="prodcompleta",
+            mode="completa", is_active=True, is_featured=False,
+            telegram_audience="both", delivery_is_instant=True,
+        )
+        Product.objects.create(
+            category=cat, name="ProdLicencia", slug="prodlicencia",
+            mode="licencia", is_active=False, is_featured=False,
+            telegram_audience="none", delivery_is_instant=False,
+        )
+
+    def test_changelist_renders_compact_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get("/panel-jheliz-2026/catalog/product/")
+        self.assertEqual(resp.status_code, 200)
+        # Modo de venta como chips compactos
+        self.assertContains(resp, "Por perfil")
+        self.assertContains(resp, "Completa")
+        self.assertContains(resp, "Licencia")
+        # Telegram audience como chips compactos
+        self.assertContains(resp, "Clientes")
+        self.assertContains(resp, "Ambos")
+        self.assertContains(resp, "No publicar")
+        # Entrega como chip
+        self.assertContains(resp, "Inmediata")
+        self.assertContains(resp, "Manual")
