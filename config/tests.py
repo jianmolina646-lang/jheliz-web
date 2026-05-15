@@ -652,3 +652,81 @@ class RenewalsViewDesignTests(TestCase):
         self.assertIn("jh-ren-btn--wa", body)
         # El chip de filtro "Próx. 7 días" muestra count=1 (cabe en ventana).
         self.assertIn('jh-ren-tab--has-items', body)
+
+
+class LockedLoginsAdminTests(TestCase):
+    """Tests para la pantalla del admin que desbloquea logins (django-axes)."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.admin = User.objects.create_superuser(
+            username="locks_admin", email="locks@ex.com", password="pw12345!",
+        )
+
+    def test_locked_logins_page_renders_empty(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_locked_logins"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        self.assertIn("Logins bloqueados", body)
+        self.assertIn("No hay intentos fallidos", body)
+
+    def test_locked_logins_page_lists_attempts(self):
+        from axes.models import AccessAttempt
+
+        AccessAttempt.objects.create(
+            username="cliente@x.com",
+            ip_address="10.0.0.1",
+            user_agent="curl/8",
+            failures_since_start=12,
+            get_data="", post_data="", http_accept="", path_info="/admin/login/",
+        )
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_locked_logins"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        self.assertIn("cliente@x.com", body)
+        self.assertIn("10.0.0.1", body)
+        # 12 fallos contra threshold 10 → bloqueado
+        self.assertIn("Bloqueado", body)
+
+    def test_unlock_login_deletes_one_attempt(self):
+        from axes.models import AccessAttempt
+
+        a = AccessAttempt.objects.create(
+            username="a@x.com", ip_address="1.1.1.1",
+            failures_since_start=15,
+            get_data="", post_data="", http_accept="", path_info="/",
+        )
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("admin_unlock_login", args=[a.pk]))
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(AccessAttempt.objects.filter(pk=a.pk).exists())
+
+    def test_unlock_all_deletes_everything(self):
+        from axes.models import AccessAttempt
+
+        for i in range(3):
+            AccessAttempt.objects.create(
+                username=f"u{i}@x.com", ip_address=f"1.1.1.{i}",
+                failures_since_start=11,
+                get_data="", post_data="", http_accept="", path_info="/",
+            )
+        self.client.force_login(self.admin)
+        resp = self.client.post(reverse("admin_unlock_all_logins"))
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(AccessAttempt.objects.count(), 0)
+
+    def test_unlock_requires_staff(self):
+        # Anónimo se redirige a login admin.
+        from axes.models import AccessAttempt
+        a = AccessAttempt.objects.create(
+            username="x@x.com", ip_address="2.2.2.2",
+            failures_since_start=11,
+            get_data="", post_data="", http_accept="", path_info="/",
+        )
+        resp = self.client.post(reverse("admin_unlock_login", args=[a.pk]))
+        self.assertIn(resp.status_code, (302, 403))
+        # No se borró.
+        self.assertTrue(AccessAttempt.objects.filter(pk=a.pk).exists())
