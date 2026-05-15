@@ -131,16 +131,17 @@
 
 {% block content %}
 <div class="jh-kanban-wrap">
-    <div class="jh-kanban-header">
-        <h1>
-            <span class="material-symbols-outlined">view_kanban</span>
-            Kanban de pedidos
-        </h1>
-        <div class="jh-kanban-filters">
-            <span class="jh-label">Últimos</span>
+    <div class="jh2-page-head">
+        <div>
+            <div class="jh2-page-head__eyebrow">Pedidos</div>
+            <h1 class="jh2-page-head__title">Kanban</h1>
+            <p class="jh2-page-head__subtitle">Vista por estado de los últimos pedidos.</p>
+        </div>
+        <div class="jh2-page-head__actions">
+            <span style="font-size:11px;color:rgba(196,181,253,.7);text-transform:uppercase;letter-spacing:.06em;font-weight:600;align-self:center;margin-right:4px;">Últimos</span>
             {% for d in window_options %}
             <a href="?days={{ d }}"
-               class="jh-filter-btn {% if d == window_days %}active{% endif %}">{{ d }} días</a>
+               class="jh2-chip {% if d == window_days %}jh2-chip--active{% endif %}">{{ d }} días</a>
             {% endfor %}
         </div>
     </div>

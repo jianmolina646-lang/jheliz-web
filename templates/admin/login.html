@@ -1,71 +1,386 @@
-{% extends 'unfold/layouts/unauthenticated.html' %}
+{% load i18n static %}<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="theme-color" content="#0f0a1a">
+    <title>{{ title|default:"Acceso restringido" }} · Jheliz</title>
 
-{% load i18n static unfold %}
+    <!-- Geist (variable) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined">
 
-{% block extrastyle %}
-    {{ block.super }}
     {{ form.media }}
-{% endblock %}
 
-{% block title %}
-    {{ title }} | {{ site_title }}
-{% endblock %}
+    <style>
+        :root {
+            --pink-300: #f9a8d4;
+            --pink-400: #f472b6;
+            --pink-500: #ec4899;
+            --pink-600: #db2777;
+            --violet-400: #c084fc;
+            --violet-500: #a855f7;
+            --violet-600: #9333ea;
+            --indigo-700: #4338ca;
+            --bg-1: #0a0612;
+            --bg-2: #150a26;
+            --text: #f5f3ff;
+            --text-muted: rgba(245, 243, 255, 0.65);
+            --border: rgba(255, 255, 255, 0.10);
+            --error: #fda4af;
+            --error-bg: rgba(244, 63, 94, 0.12);
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+            min-height: 100vh;
+            font-family: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+            font-feature-settings: "ss01", "ss02";
+            color: var(--text);
+            background: var(--bg-1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(16px, 4vw, 40px);
+            overflow-x: hidden;
+            position: relative;
+        }
+        /* Mesh gradient animado (mismo lenguaje que la home pública 2026). */
+        body::before, body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+        }
+        body::before {
+            background:
+                radial-gradient(60% 50% at 15% 20%, rgba(236, 72, 153, 0.45), transparent 60%),
+                radial-gradient(45% 40% at 85% 15%, rgba(168, 85, 247, 0.45), transparent 60%),
+                radial-gradient(55% 50% at 70% 85%, rgba(99, 102, 241, 0.40), transparent 60%),
+                radial-gradient(40% 40% at 25% 90%, rgba(236, 72, 153, 0.30), transparent 70%);
+            animation: meshDrift 24s ease-in-out infinite alternate;
+        }
+        body::after {
+            background:
+                radial-gradient(circle at 50% 50%, transparent 0%, rgba(10, 6, 18, 0.85) 90%);
+        }
+        @keyframes meshDrift {
+            0%   { transform: translate3d(0,0,0) scale(1); }
+            50%  { transform: translate3d(2%, -1%, 0) scale(1.06); }
+            100% { transform: translate3d(-1%, 2%, 0) scale(1.02); }
+        }
 
-{% block content %}
-    {% include "unfold/helpers/unauthenticated_title.html" with title=site_title|default:_('Django site admin') subtitle=_('Welcome back to') %}
+        .stage {
+            width: 100%;
+            max-width: 440px;
+            display: grid;
+            gap: 24px;
+            animation: stageIn .9s cubic-bezier(.2,.8,.2,1) both;
+        }
+        @keyframes stageIn {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
 
-    {% include "unfold/helpers/messages.html" %}
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-align: center;
+        }
+        .brand-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 999px;
+            backdrop-filter: blur(12px);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            color: rgba(245, 243, 255, 0.85);
+            box-shadow: 0 1px 0 rgba(255,255,255,.08) inset;
+        }
+        .brand-pill .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--pink-400), var(--violet-500));
+            box-shadow: 0 0 12px rgba(236, 72, 153, 0.7);
+            animation: pulse 2.4s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.25); }
+        }
 
-    {% if form.errors or form.non_field_errors %}
-        <div class="flex flex-col gap-4 mb-8 *:mb-0">
-            {% include "unfold/helpers/messages/errornote.html" with errors=form.errors %}
+        .card {
+            position: relative;
+            padding: 32px 28px 28px;
+            background: rgba(20, 13, 33, 0.55);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            box-shadow:
+                0 30px 60px -20px rgba(0,0,0,0.55),
+                0 1px 0 rgba(255,255,255,.06) inset;
+        }
+        .card::before {
+            /* borde gradient sutil */
+            content: "";
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(236,72,153,.5), rgba(168,85,247,.5), rgba(99,102,241,.3));
+            -webkit-mask:
+                linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+                    mask-composite: exclude;
+            opacity: .55;
+            pointer-events: none;
+        }
 
-            {% include "unfold/helpers/messages/error.html" with errors=form.non_field_errors %}
+        h1.title {
+            margin: 0 0 6px 0;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text);
+        }
+        p.subtitle {
+            margin: 0 0 22px 0;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
 
-            {% if user.is_authenticated %}
-                {% blocktranslate trimmed asvar message %}
-                    You are authenticated as {{ username }}, but are not authorized to
-                    access this page. Would you like to login to a different account?
-                {% endblocktranslate %}
+        .field { margin-bottom: 14px; }
+        .field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: rgba(245, 243, 255, 0.6);
+            margin-bottom: 6px;
+        }
+        .field input[type="text"],
+        .field input[type="password"],
+        .field input[type="number"],
+        .field input[type="email"] {
+            width: 100%;
+            padding: 12px 14px;
+            font: inherit;
+            font-size: 15px;
+            color: var(--text);
+            background: rgba(15, 10, 26, 0.65);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+            outline: none;
+        }
+        .field input:focus {
+            border-color: rgba(236, 72, 153, 0.7);
+            box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.15);
+            background: rgba(20, 13, 33, 0.85);
+        }
+        .field .help {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
 
-                {% include "unfold/helpers/messages/error.html" with error=message %}
-            {% endif %}
+        /* Honeypot — invisible para humanos, accesible para bots. */
+        .honeypot {
+            position: absolute !important;
+            left: -10000px !important;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        button.submit {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 13px 16px;
+            margin-top: 8px;
+            font: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            color: #fff;
+            background: linear-gradient(135deg, var(--pink-500) 0%, var(--violet-500) 60%, var(--indigo-700) 110%);
+            border: 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+            box-shadow:
+                0 10px 30px -10px rgba(168, 85, 247, 0.6),
+                0 1px 0 rgba(255,255,255,.15) inset;
+        }
+        button.submit:hover { transform: translateY(-1px); filter: brightness(1.05); }
+        button.submit:active { transform: translateY(0); filter: brightness(.97); }
+
+        a.secondary {
+            display: block;
+            text-align: center;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 10px;
+            transition: color .15s ease, background .15s ease;
+        }
+        a.secondary:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+
+        .alerts { margin-bottom: 16px; }
+        .alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            background: var(--error-bg);
+            border: 1px solid rgba(244, 63, 94, 0.4);
+            color: var(--error);
+            border-radius: 12px;
+            font-size: 13px;
+        }
+        .alert .material-symbols-outlined { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+        .alert ul { margin: 0; padding-left: 18px; }
+
+        .last-login {
+            margin-top: 6px;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .last-login .material-symbols-outlined { font-size: 16px; color: var(--pink-400); }
+
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: rgba(245, 243, 255, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .footer a { color: inherit; text-decoration: none; border-bottom: 1px dotted rgba(255,255,255,0.25); }
+        .footer .sep { opacity: .4; }
+
+        /* Reduced motion respect */
+        @media (prefers-reduced-motion: reduce) {
+            body::before, .brand-pill .dot, .stage { animation: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="stage">
+
+        <div class="brand">
+            <span class="brand-pill">
+                <span class="dot"></span>
+                <span>Jheliz <span style="opacity:.5">·</span> panel admin</span>
+            </span>
         </div>
-    {% endif %}
 
-    {% block login_before %}{% endblock %}
+        <div class="card">
+            <h1 class="title">Acceso restringido</h1>
+            <p class="subtitle">Iniciá sesión para administrar la tienda.</p>
 
-    <form action="{{ app_path }}" method="post" id="login-form">
-        {% csrf_token %}
-
-        {% include "unfold/helpers/field.html" with field=form.username %}
-
-        {% include "unfold/helpers/field.html" with field=form.password %}
-
-        {% if form.otp_token %}
-            {% include "unfold/helpers/field.html" with field=form.otp_token %}
-            <p class="text-font-subtle-light dark:text-font-subtle-dark text-xs mt-2 -mb-2">
-                {% translate "Código de 6 dígitos de tu app autenticadora (Google Authenticator, Authy, etc). Si perdiste el dispositivo, usa un código de rescate." %}
-            </p>
-        {% endif %}
-        {% if form.otp_device %}{{ form.otp_device.as_hidden }}{% endif %}
-        {% if form.otp_challenge %}{{ form.otp_challenge.as_hidden }}{% endif %}
-
-        <div class="flex flex-col gap-3 mt-6">
-            {% component "unfold/components/button.html" with submit=1 variant="primary" class="submit-row w-full" %}
-                {% translate 'Log in' %} <span class="material-symbols-outlined relative right-0 transition-all group-hover:-right-1 text-sm">arrow_forward</span>
-            {% endcomponent %}
-
-            {% url 'admin_password_reset' as password_reset_url %}
-            {% url 'admin:admin_password_reset' as unfold_password_reset_url %}
-
-            {% if password_reset_url or unfold_password_reset_url %}
-                {% component "unfold/components/button.html" with href=password_reset_url|default:unfold_password_reset_url variant="secondary" class="password-reset-link w-full" %}
-                    {% translate 'Forgotten your password or username?' %}
-                {% endcomponent %}
+            {% if form.errors or form.non_field_errors %}
+                <div class="alerts">
+                    {% if form.non_field_errors %}
+                        <div class="alert">
+                            <span class="material-symbols-outlined">shield_locked</span>
+                            <ul>
+                                {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+                            </ul>
+                        </div>
+                    {% else %}
+                        <div class="alert">
+                            <span class="material-symbols-outlined">error</span>
+                            <span>Revisá los campos marcados.</span>
+                        </div>
+                    {% endif %}
+                </div>
             {% endif %}
-        </div>
-    </form>
 
-    {% block login_after %}{% endblock %}
-{% endblock %}
+            <form action="{{ app_path }}" method="post" id="login-form" autocomplete="off" spellcheck="false">
+                {% csrf_token %}
+
+                <!-- Honeypot anti-bot. Los humanos nunca lo ven (CSS + tabindex=-1). -->
+                <div class="honeypot" aria-hidden="true">
+                    <label for="id_website">No llenar este campo</label>
+                    <input type="text" name="website" id="id_website" tabindex="-1" autocomplete="off" value="">
+                </div>
+
+                <div class="field">
+                    <label for="id_username">{{ form.username.label }}</label>
+                    {{ form.username }}
+                </div>
+
+                <div class="field">
+                    <label for="id_password">{{ form.password.label }}</label>
+                    {{ form.password }}
+                </div>
+
+                {% if form.otp_token %}
+                <div class="field">
+                    <label for="id_otp_token">Código 2FA</label>
+                    {{ form.otp_token }}
+                    <div class="help">6 dígitos de tu app autenticadora (Google Authenticator, Authy, 1Password). Si perdiste el dispositivo, usá un código de respaldo.</div>
+                </div>
+                {% endif %}
+                {% if form.otp_device %}{{ form.otp_device.as_hidden }}{% endif %}
+                {% if form.otp_challenge %}{{ form.otp_challenge.as_hidden }}{% endif %}
+
+                <button type="submit" class="submit">
+                    Entrar
+                    <span class="material-symbols-outlined" style="font-size:18px;">arrow_forward</span>
+                </button>
+
+                {% url 'admin_password_reset' as password_reset_url %}
+                {% if password_reset_url %}
+                    <a class="secondary" href="{{ password_reset_url }}">¿Olvidaste tu contraseña?</a>
+                {% endif %}
+
+                {% if last_login_text %}
+                    <div class="last-login">
+                        <span class="material-symbols-outlined">schedule</span>
+                        <span>{{ last_login_text }}</span>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="footer">
+            <span>🔒 Jheliz © {% now "Y" %}</span>
+            <span class="sep">·</span>
+            <a href="/">Volver a la tienda</a>
+        </div>
+
+    </div>
+</body>
+</html>

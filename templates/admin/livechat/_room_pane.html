@@ -1,0 +1,94 @@
+{% load i18n %}
+{% comment %}Panel derecho del split-pane: header de la sala + thread + form de reply. Se sustituye entero cuando se clickea otra sala en la lista de la izquierda.{% endcomment %}
+<div id="livechat-room-pane" class="jh2-livechat__pane" data-room-id="{{ room.pk }}">
+  <header class="jh2-livechat__header">
+    <div class="jh2-livechat__header-main">
+      <div class="jh2-livechat__avatar">{{ room.display_name|slice:":1"|upper|default:"?" }}</div>
+      <div class="jh2-livechat__header-text">
+        <div class="jh2-livechat__header-title">
+          {{ room.display_name }}
+          {% if room.status == 'open' %}
+            <span class="jh2-livechat__status jh2-livechat__status--open" title="Sala abierta"></span>
+          {% else %}
+            <span class="jh2-livechat__status jh2-livechat__status--closed" title="Sala cerrada"></span>
+          {% endif %}
+        </div>
+        <div class="jh2-livechat__header-meta">
+          {% if room.customer_email %}{{ room.customer_email }}{% endif %}
+          {% if room.user %}{% if room.customer_email %} · {% endif %}cuenta <strong>{{ room.user.username }}</strong>{% endif %}
+          {% if room.page_url %}
+            {% if room.customer_email or room.user %} · {% endif %}
+            <a href="{{ room.page_url }}" target="_blank" rel="noopener">{{ room.page_url|truncatechars:50 }}</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="jh2-livechat__header-actions">
+      {% if room.status == 'open' %}
+        <form method="post"
+              action="{{ close_url }}"
+              hx-post="{{ close_url }}"
+              hx-target="#livechat-room-pane"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          <button type="submit" class="jh2-btn jh2-btn--ghost jh2-btn--sm" title="Cerrar conversación">
+            <span class="material-symbols-outlined" style="font-size:16px;">archive</span>
+            Cerrar
+          </button>
+        </form>
+      {% else %}
+        <form method="post"
+              action="{{ reopen_url }}"
+              hx-post="{{ reopen_url }}"
+              hx-target="#livechat-room-pane"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          <button type="submit" class="jh2-btn jh2-btn--success jh2-btn--sm" title="Reabrir conversación">
+            <span class="material-symbols-outlined" style="font-size:16px;">refresh</span>
+            Reabrir
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </header>
+
+  <div id="livechat-scroll" class="jh2-livechat__thread">
+    {% include "admin/livechat/_messages.html" %}
+  </div>
+
+  {% if room.status == 'open' %}
+    <form method="post"
+          action="{{ reply_url }}"
+          enctype="multipart/form-data"
+          hx-post="{{ reply_url }}"
+          hx-target="#livechat-thread"
+          hx-swap="outerHTML"
+          hx-encoding="multipart/form-data"
+          hx-on::after-request="this.querySelector('textarea').value=''; this.querySelector('input[type=file]').value=''; const p=this.querySelector('.jh2-livechat__attach-preview'); if(p){p.classList.add('jh2-hidden'); p.querySelector('img').src='';} const s=document.getElementById('livechat-scroll'); if(s){s.scrollTop=s.scrollHeight;}"
+          class="jh2-livechat__composer">
+      {% csrf_token %}
+      <div class="jh2-livechat__attach-preview jh2-hidden">
+        <img alt="Vista previa de imagen adjunta">
+        <button type="button" class="jh2-livechat__attach-remove" title="Quitar imagen">×</button>
+      </div>
+      <textarea name="body" rows="2"
+                placeholder="Escribí tu respuesta — Ctrl+Enter para enviar…"
+                autofocus
+                class="jh2-livechat__textarea"></textarea>
+      <input type="file" name="image" accept="image/jpeg,image/png,image/gif,image/webp"
+             class="jh2-hidden jh2-livechat__file-picker">
+      <button type="button" class="jh2-btn jh2-btn--ghost jh2-livechat__attach"
+              title="Adjuntar imagen (JPG, PNG, GIF, WebP — máx 5 MB)">
+        <span class="material-symbols-outlined" style="font-size:18px;">attach_file</span>
+      </button>
+      <button type="submit" class="jh2-btn jh2-btn--primary jh2-livechat__send">
+        <span class="material-symbols-outlined" style="font-size:18px;">send</span>
+        <span class="jh2-livechat__send-label">Enviar</span>
+      </button>
+    </form>
+  {% else %}
+    <div class="jh2-livechat__composer jh2-livechat__composer--locked">
+      Este chat está cerrado. Reabrilo para responder.
+    </div>
+  {% endif %}
+</div>

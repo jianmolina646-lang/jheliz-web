@@ -188,14 +188,39 @@ def cart_view(request):
         ok, msg = coupon.is_eligible_for(request.user, subtotal)
         if not ok:
             coupon_error = msg
+    combo_discount = cart.combo_discount_for(request.user)
+    combo_pct = cart.combo_tier_percent()
+    distinct_products = cart.distinct_product_count()
+    # Si el carrito está vacío, sugerimos los 4 destacados para que el cliente
+    # no se quede en una página muerta.
+    suggested = []
+    if cart.is_empty():
+        from catalog.models import Product
+        suggested = list(
+            Product.objects.filter(is_active=True, is_featured=True)
+            .select_related("category")
+            .order_by("-id")[:4]
+        )
+        if len(suggested) < 4:
+            extra = (
+                Product.objects.filter(is_active=True)
+                .exclude(id__in=[p.id for p in suggested])
+                .select_related("category")
+                .order_by("-id")[: 4 - len(suggested)]
+            )
+            suggested.extend(list(extra))
     return render(request, "orders/cart.html", {
         "cart": cart,
         "lines": lines,
         "subtotal": subtotal,
         "discount": discount,
-        "total": subtotal - discount,
+        "combo_discount": combo_discount,
+        "combo_percent_int": int(combo_pct * 100) if combo_pct else 0,
+        "distinct_products": distinct_products,
+        "total": subtotal - discount - combo_discount,
         "coupon": coupon,
         "coupon_error": coupon_error,
+        "suggested_products": suggested,
     })
 
 
@@ -302,6 +327,12 @@ def checkout(request):
     payment_settings = PaymentSettings.load()
     yape_available = bool(payment_settings.yape_enabled and payment_settings.yape_qr)
 
+    user_balance = Decimal("0")
+    wallet_available = False
+    if request.user.is_authenticated:
+        user_balance = request.user.wallet_balance or Decimal("0")
+        wallet_available = user_balance > Decimal("0")
+
     if request.method == "POST":
         form = CheckoutForm(request.POST)
         if form.is_valid():
@@ -309,38 +340,91 @@ def checkout(request):
             if method == "yape" and not yape_available:
                 messages.error(request, "Yape no est\u00e1 disponible en este momento.")
                 return redirect("orders:checkout")
+            if method == "wallet" and not request.user.is_authenticated:
+                messages.error(request, "Necesitás iniciar sesión para pagar con saldo.")
+                return redirect("accounts:login")
+
+            cart_total = cart.subtotal_for(request.user) - cart.discount_for(request.user) - cart.combo_discount_for(request.user)
+            if method == "wallet":
+                if not wallet_available:
+                    messages.error(request, "No tenés saldo en tu wallet. Recordá recargar primero.")
+                    return redirect("orders:checkout")
+                if user_balance < cart_total:
+                    messages.error(
+                        request,
+                        f"Saldo insuficiente. Necesitás S/ {cart_total:,.2f} y tenés S/ {user_balance:,.2f}. Recordá recargar tu wallet.",
+                    )
+                    return redirect("orders:checkout")
 
             order = _create_order_from_cart(request, cart, form.cleaned_data)
             cart.clear()
             emails.send_order_received(order)
             telegram.notify_admin_about_order(order)
 
+            if method == "wallet":
+                from accounts.wallet import charge_for_order, InsufficientFundsError
+                try:
+                    charge_for_order(request.user, order.total, order)
+                except InsufficientFundsError as exc:
+                    messages.error(request, str(exc))
+                    return redirect("orders:detail", uuid=order.uuid)
+                order.payment_provider = "wallet"
+                order.status = Order.Status.PAID
+                order.paid_at = timezone.now()
+                order.save(update_fields=["payment_provider", "status", "paid_at"])
+                messages.success(
+                    request,
+                    f"Pagaste S/ {order.total:,.2f} con tu wallet. Pedido en preparación.",
+                )
+                return redirect("orders:detail", uuid=order.uuid)
+
             if method == "yape":
                 order.payment_provider = "yape"
                 order.save(update_fields=["payment_provider"])
                 return redirect("orders:yape_payment", uuid=order.uuid)
 
-            # Default: Mercado Pago
+            # Default: Mercado Pago. Si falla (token vencido, cuenta sin
+            # habilitar, error transitorio del SDK), no dejamos al cliente
+            # tirado en una pantalla genérica: lo mandamos a Yape si está
+            # habilitado, así puede pagar de inmediato. Si tampoco hay Yape,
+            # mostramos el detalle del pedido con instrucciones claras.
+            mp_failed = False
             if mercadopago_client.is_configured():
                 try:
                     preference = mercadopago_client.create_preference(request, order)
-                except mercadopago_client.MercadoPagoError as exc:
+                except mercadopago_client.MercadoPagoError:
                     logger.exception("Mercado Pago preference failed")
-                    messages.error(
-                        request,
-                        f"No pudimos iniciar el pago: {exc}. Te contactaremos por correo.",
-                    )
-                    return redirect("orders:detail", uuid=order.uuid)
+                    mp_failed = True
+                else:
+                    order.payment_provider = "mercadopago"
+                    order.payment_reference = preference.get("id", "")
+                    order.save(update_fields=["payment_provider", "payment_reference"])
 
-                order.payment_provider = "mercadopago"
-                order.payment_reference = preference.get("id", "")
-                order.save(update_fields=["payment_provider", "payment_reference"])
+                    init_point = preference.get("init_point")
+                    sandbox_init = preference.get("sandbox_init_point")
+                    target = init_point if not settings.DEBUG else (sandbox_init or init_point)
+                    if target:
+                        return redirect(target)
 
-                init_point = preference.get("init_point")
-                sandbox_init = preference.get("sandbox_init_point")
-                target = init_point if not settings.DEBUG else (sandbox_init or init_point)
-                if target:
-                    return redirect(target)
+            if mp_failed and yape_available:
+                # Failover automático a Yape — el cliente igual puede pagar.
+                order.payment_provider = "yape"
+                order.save(update_fields=["payment_provider"])
+                messages.warning(
+                    request,
+                    "Mercado Pago no respondió en este momento. "
+                    "Te redirigimos a pagar con Yape para que no esperes.",
+                )
+                return redirect("orders:yape_payment", uuid=order.uuid)
+
+            if mp_failed:
+                messages.error(
+                    request,
+                    "No pudimos iniciar el pago con Mercado Pago. "
+                    "Tu pedido quedó registrado y un asesor te escribirá por WhatsApp "
+                    "con un link alternativo.",
+                )
+                return redirect("orders:detail", uuid=order.uuid)
 
             messages.warning(
                 request,
@@ -349,21 +433,37 @@ def checkout(request):
             return redirect("orders:detail", uuid=order.uuid)
     else:
         form = CheckoutForm(initial=initial)
-        if not yape_available:
-            # Deja solo Mercado Pago como opci\u00f3n.
-            form.fields["payment_method"].choices = [CheckoutForm.PAYMENT_METHODS[0]]
+
+    # Construir choices del payment_method dinámicamente según disponibilidad.
+    # Filtramos yape si no hay QR configurado y wallet si el usuario no tiene saldo.
+    available_methods = []
+    for value, label in CheckoutForm.PAYMENT_METHODS:
+        if value == "yape" and not yape_available:
+            continue
+        if value == "wallet" and not wallet_available:
+            continue
+        available_methods.append((value, label))
+    form.fields["payment_method"].choices = available_methods
 
     subtotal = cart.subtotal_for(request.user)
     discount = cart.discount_for(request.user)
+    combo_discount = cart.combo_discount_for(request.user)
+    combo_pct = cart.combo_tier_percent()
+    cart_total = subtotal - discount - combo_discount
     return render(request, "orders/checkout.html", {
         "form": form,
         "cart": cart,
         "lines": _decorated_lines(cart, request.user),
         "subtotal": subtotal,
         "discount": discount,
-        "total": subtotal - discount,
+        "combo_discount": combo_discount,
+        "combo_percent_int": int(combo_pct * 100) if combo_pct else 0,
+        "total": cart_total,
         "coupon": cart.get_coupon(),
         "yape_available": yape_available,
+        "wallet_available": wallet_available,
+        "wallet_balance": user_balance,
+        "wallet_enough": wallet_available and user_balance >= cart_total,
         "payment_settings": payment_settings,
     })
 
@@ -433,7 +533,25 @@ def telegram_webhook(request, secret: str):
 
 
 def _create_order_from_cart(request, cart: Cart, contact: dict) -> Order:
-    user = request.user if request.user.is_authenticated else None
+    if request.user.is_authenticated:
+        user = request.user
+    else:
+        # Auto-creamos (o reutilizamos) un User cliente para que el comprador
+        # aparezca en "Zona de clientes" del admin. El User queda sin password
+        # utilizable hasta que reclame la cuenta vía reseteo de contraseña.
+        # Ver accounts/guest_signup.py.
+        from accounts.guest_signup import get_or_create_guest_user
+        try:
+            user = get_or_create_guest_user(
+                email=contact["email"],
+                full_name=contact.get("full_name", ""),
+                phone=contact.get("phone", ""),
+            )
+        except Exception:
+            logger.exception(
+                "No se pudo auto-crear User invitado; pedido queda sin user."
+            )
+            user = None
     with transaction.atomic():
         order = Order.objects.create(
             user=user,
@@ -473,6 +591,11 @@ def _create_order_from_cart(request, cart: Cart, contact: dict) -> Order:
                 order.save(update_fields=["coupon", "coupon_code", "discount_amount"])
                 # Bumpea el contador de usos del cupón (atomic).
                 Coupon.objects.filter(pk=coupon.pk).update(times_used=models.F("times_used") + 1)
+        # Aplicar descuento por combo (auto, sobre subtotal post-cupón).
+        combo = cart.combo_discount_for(request.user)
+        if combo > 0:
+            order.combo_discount_amount = combo
+            order.save(update_fields=["combo_discount_amount"])
         order.recompute_total()
     return order
 

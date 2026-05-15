@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Mis cuentas activas — {{ SITE_NAME }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .acc-card {
+    position: relative;
+    border-radius: 1.25rem;
+    background: linear-gradient(135deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+    border: 1px solid rgba(255,255,255,.08);
+    padding: 1.1rem 1.15rem;
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+  }
+  .acc-card:hover { transform: translateY(-2px); border-color: rgba(236,72,153,.45); box-shadow: 0 20px 40px -20px rgba(236,72,153,.35); }
+  .acc-card.is-expired { border-color: rgba(248,113,113,.35); background: linear-gradient(135deg, rgba(248,113,113,.05), rgba(255,255,255,.01)); }
+  .acc-card.is-soon { border-color: rgba(251,191,36,.4); }
+  .acc-icon { width:46px; height:46px; border-radius:14px; display:flex;align-items:center;justify-content:center;font-size:22px; background: linear-gradient(135deg, rgba(236,72,153,.18), rgba(139,92,246,.18)); border: 1px solid rgba(255,255,255,.08); }
+  .field-row { display:flex; align-items:center; gap:.5rem; padding:.45rem .65rem; border-radius:.7rem; background: rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.06); }
+  .field-row .label { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color: rgb(161 161 170); width: 64px; flex-shrink: 0; }
+  .field-row .value { flex:1; font-family: ui-monospace, SFMono-Regular, monospace; font-size:.82rem; word-break: break-all; color: #f5f5f5; }
+  .field-row .copy {
+    flex-shrink:0; padding:.25rem .55rem; border-radius:.5rem;
+    background: rgba(236,72,153,.12); border:1px solid rgba(236,72,153,.35); color:#fbcfe8;
+    cursor:pointer; transition: all .12s; font-size:.7rem; font-weight:700;
+  }
+  .field-row .copy:hover { background: rgba(236,72,153,.25); transform: translateY(-1px); }
+  .field-row .copy.is-copied { background: rgba(134,239,172,.22); border-color: rgba(134,239,172,.45); color: #6ee7b7; }
+  .pwd-mask { letter-spacing: 2px; }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .45rem .85rem; border-radius: 9999px;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+    color: #e5e7eb; font-weight: 600; font-size: .8rem; cursor: pointer;
+    transition: all .12s;
+  }
+  .filter-chip:hover { border-color: rgba(236,72,153,.45); color: #f9a8d4; transform: translateY(-1px); }
+  .filter-chip.is-active { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: transparent; color: white; box-shadow: 0 8px 22px -6px rgba(236,72,153,.55); }
+  .filter-chip .count { background: rgba(0,0,0,.25); padding: 0 .45rem; border-radius: 9999px; font-size: .68rem; font-weight: 800; }
+  .filter-chip.is-active .count { background: rgba(255,255,255,.18); }
+  .badge { display:inline-flex; align-items:center; gap:.25rem; padding:.2rem .55rem; border-radius:9999px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .badge-ok { background:rgba(134,239,172,.14); border:1px solid rgba(134,239,172,.4); color:#86efac; }
+  .badge-soon { background:rgba(251,191,36,.14); border:1px solid rgba(251,191,36,.4); color:#fde68a; }
+  .badge-expired { background:rgba(248,113,113,.14); border:1px solid rgba(248,113,113,.4); color:#fca5a5; }
+  .badge-broken { background:rgba(244,114,182,.14); border:1px solid rgba(244,114,182,.4); color:#f9a8d4; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section>
+  <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+    <div>
+      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-pink-300">Mis cuentas activas</p>
+      <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight mt-1" style="letter-spacing:-0.03em">
+        Todos mis <span style="background:linear-gradient(135deg,#ec4899,#d946ef,#8b5cf6);-webkit-background-clip:text;background-clip:text;color:transparent">accesos</span>
+      </h1>
+      <p class="text-sm text-zinc-400 mt-1">Credenciales 1-click. Sin escarbar entre correos viejos.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="{% url 'catalog:distributor_panel' %}" class="text-sm text-zinc-400 hover:text-white">← Panel</a>
+      <a href="{% url 'catalog:distributor_catalog' %}" class="inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm font-bold text-white" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">🛒 Comprar más</a>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <form method="get" class="mb-5">
+    <div class="flex flex-wrap gap-2 mb-3">
+      {% with cur=status_filter %}
+        <a href="?status=all{% if platform_filter %}&platform={{ platform_filter }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}" class="filter-chip {% if cur == 'all' %}is-active{% endif %}">Todas <span class="count">{{ counts.all }}</span></a>
+        <a href="?status=active{% if platform_filter %}&platform={{ platform_filter }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}" class="filter-chip {% if cur == 'active' %}is-active{% endif %}">✓ Activas <span class="count">{{ counts.active }}</span></a>
+        <a href="?status=expiring{% if platform_filter %}&platform={{ platform_filter }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}" class="filter-chip {% if cur == 'expiring' %}is-active{% endif %}">⚡ Vencen pronto <span class="count">{{ counts.expiring }}</span></a>
+        <a href="?status=expired{% if platform_filter %}&platform={{ platform_filter }}{% endif %}{% if search_q %}&q={{ search_q }}{% endif %}" class="filter-chip {% if cur == 'expired' %}is-active{% endif %}">⏰ Vencidas <span class="count">{{ counts.expired }}</span></a>
+        {% if counts.broken %}
+          <a href="?status=broken" class="filter-chip {% if cur == 'broken' %}is-active{% endif %}">🚨 Caídas <span class="count">{{ counts.broken }}</span></a>
+        {% endif %}
+      {% endwith %}
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <input type="text" name="q" value="{{ search_q }}" placeholder="🔍 Buscar por producto, cliente, perfil…"
+             class="flex-1 min-w-[260px] rounded-full px-4 py-2.5 text-sm bg-white/5 border border-white/10 placeholder-zinc-500 text-white focus:border-pink-400 focus:outline-none">
+      <select name="platform" class="rounded-full px-4 py-2.5 text-sm bg-white/5 border border-white/10 text-white">
+        <option value="">Todas las plataformas</option>
+        {% for p in platforms %}
+          <option value="{{ p.product__slug }}" {% if platform_filter == p.product__slug %}selected{% endif %}>{{ p.product__icon|default:"🎬" }} {{ p.product__name }}</option>
+        {% endfor %}
+      </select>
+      <input type="hidden" name="status" value="{{ status_filter }}">
+      <button type="submit" class="rounded-full px-4 py-2.5 text-sm font-bold text-white" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">Buscar</button>
+    </div>
+  </form>
+
+  <!-- Cards -->
+  {% if items %}
+    <div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      {% for it in items %}
+        {% with item=it.obj %}
+        <article class="acc-card
+          {% if it.days_left is not None and it.days_left < 0 %}is-expired{% elif it.days_left is not None and it.days_left <= 3 %}is-soon{% endif %}">
+          <div class="flex items-start gap-3 mb-3">
+            <div class="acc-icon">{{ item.product.icon|default:"🎬" }}</div>
+            <div class="flex-1 min-w-0">
+              <div class="font-display font-bold text-white truncate">{{ item.product_name }}</div>
+              <div class="text-xs text-zinc-400 truncate">{{ item.plan_name }}</div>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+              {% if it.days_left is not None and it.days_left < 0 %}
+                <span class="badge badge-expired">⏰ Vencida</span>
+              {% elif it.days_left is not None and it.days_left == 0 %}
+                <span class="badge badge-expired">Vence HOY</span>
+              {% elif it.days_left is not None and it.days_left <= 3 %}
+                <span class="badge badge-soon">Vence en {{ it.days_left }} d</span>
+              {% elif it.days_left is not None and it.days_left <= 7 %}
+                <span class="badge badge-soon">{{ it.days_left }} d restantes</span>
+              {% elif it.days_left is not None %}
+                <span class="badge badge-ok">{{ it.days_left }} d restantes</span>
+              {% endif %}
+              {% if item.reported_broken_at %}
+                <span class="badge badge-broken">🚨 Reportada</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Credentials -->
+          <div class="space-y-1.5 mb-2.5">
+            {% if it.email %}
+              <div class="field-row">
+                <span class="label">Correo</span>
+                <span class="value" data-copy-source="email-{{ item.id }}">{{ it.email }}</span>
+                <button type="button" class="copy" data-copy="{{ it.email }}">Copiar</button>
+              </div>
+            {% endif %}
+            {% if it.password %}
+              <div class="field-row">
+                <span class="label">Contraseña</span>
+                <span class="value pwd-mask" data-pwd="{{ it.password }}" data-masked="1">••••••••</span>
+                <button type="button" class="copy js-toggle-pwd">Ver</button>
+                <button type="button" class="copy" data-copy="{{ it.password }}">Copiar</button>
+              </div>
+            {% endif %}
+            {% if it.profile or it.pin %}
+              <div class="field-row">
+                <span class="label">Perfil</span>
+                <span class="value">
+                  {% if it.profile %}{{ it.profile }}{% else %}—{% endif %}
+                  {% if it.pin %}<span class="text-zinc-500"> · PIN</span> {{ it.pin }}{% endif %}
+                </span>
+              </div>
+            {% endif %}
+            {% if not it.email and not it.password %}
+              <div class="text-xs text-zinc-500 italic px-2 py-1.5">Sin credenciales registradas en el pedido. <a class="text-pink-300 underline" href="{% url 'orders:detail' uuid=item.order.uuid %}">Ver detalle</a></div>
+            {% endif %}
+          </div>
+
+          <!-- Cliente final + actions -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t" style="border-color:rgba(255,255,255,.06)">
+            <div class="text-xs min-w-0">
+              {% if item.final_customer_name %}
+                <span class="text-zinc-400">👤</span>
+                <span class="text-zinc-200 font-medium">{{ item.final_customer_name }}</span>
+                {% if item.final_customer_whatsapp %}
+                  · <a href="https://wa.me/{{ item.final_customer_whatsapp|cut:'+' }}" target="_blank" rel="noopener" class="text-emerald-300 hover:underline">WA</a>
+                {% endif %}
+              {% else %}
+                <span class="text-zinc-500 italic">Sin cliente final</span>
+              {% endif %}
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button type="button" class="text-xs px-2.5 py-1 rounded-md font-semibold"
+                      style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#e5e7eb"
+                      onclick="openCustomerModal({{ item.id }}, '{{ item.final_customer_name|escapejs }}', '{{ item.final_customer_whatsapp|escapejs }}', '{{ item.final_customer_notes|escapejs }}', '{{ item.product_name|escapejs }}')">
+                ✏️ Cliente
+              </button>
+              {% if not item.reported_broken_at %}
+                <form method="post" action="{% url 'catalog:distributor_report_broken' item_id=item.id %}" class="inline" onsubmit="return confirm('¿Reportar caída?');">
+                  {% csrf_token %}
+                  <button type="submit" class="text-xs px-2.5 py-1 rounded-md font-semibold"
+                          style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.4);color:#fca5a5">🚨 Caída</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        </article>
+        {% endwith %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="rounded-2xl p-10 text-center" style="background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08)">
+      <div class="text-5xl mb-2">📦</div>
+      <div class="font-display text-lg font-bold">No hay cuentas que coincidan</div>
+      <p class="text-zinc-500 text-sm mt-1">Probá quitar filtros o comprar nuevas desde el catálogo mayorista.</p>
+      <a href="{% url 'catalog:distributor_catalog' %}" class="mt-4 inline-flex items-center gap-1 rounded-full px-5 py-2.5 text-sm font-bold text-white" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">🛒 Ir al catálogo</a>
+    </div>
+  {% endif %}
+</section>
+
+<!-- Modal cliente final (lo reusamos del panel original si está) -->
+<div id="customer-modal" class="fixed inset-0 z-50 hidden items-center justify-center" style="background:rgba(0,0,0,.7)" onclick="if(event.target===this) closeCustomerModal()">
+  <form id="customer-form" method="post" class="w-[min(440px,92vw)] rounded-2xl p-5"
+        style="background:#1a0f2e;border:1px solid rgba(236,72,153,.35)">
+    {% csrf_token %}
+    <h3 class="font-display text-lg font-bold mb-1">Cliente final</h3>
+    <p class="text-xs text-zinc-500 mb-4" id="customer-product"></p>
+    <label class="block text-xs font-medium text-zinc-400 mb-1">Nombre</label>
+    <input type="text" name="name" id="cf-name" class="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 mb-3 text-white">
+    <label class="block text-xs font-medium text-zinc-400 mb-1">WhatsApp</label>
+    <input type="text" name="whatsapp" id="cf-whatsapp" placeholder="+51..." class="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 mb-3 text-white">
+    <label class="block text-xs font-medium text-zinc-400 mb-1">Notas</label>
+    <textarea name="notes" id="cf-notes" rows="2" class="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 mb-4 text-white"></textarea>
+    <div class="flex gap-2 justify-end">
+      <button type="button" class="text-sm px-4 py-2 rounded-lg text-zinc-300" onclick="closeCustomerModal()">Cancelar</button>
+      <button type="submit" class="text-sm px-4 py-2 rounded-lg text-white font-bold" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<script>
+function openCustomerModal(id, name, whatsapp, notes, product) {
+  var m = document.getElementById('customer-modal');
+  document.getElementById('cf-name').value = name || '';
+  document.getElementById('cf-whatsapp').value = whatsapp || '';
+  document.getElementById('cf-notes').value = notes || '';
+  document.getElementById('customer-product').textContent = product || '';
+  document.getElementById('customer-form').action = "/distribuidor/items/" + id + "/cliente/";
+  m.classList.remove('hidden');
+  m.classList.add('flex');
+}
+function closeCustomerModal() {
+  var m = document.getElementById('customer-modal');
+  m.classList.add('hidden');
+  m.classList.remove('flex');
+}
+
+// Copy-to-clipboard
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('.copy[data-copy]');
+  if (!btn) return;
+  var text = btn.dataset.copy || "";
+  if (!text) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text);
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+  }
+  var orig = btn.textContent;
+  btn.textContent = "✓ Copiado";
+  btn.classList.add('is-copied');
+  setTimeout(function(){ btn.textContent = orig; btn.classList.remove('is-copied'); }, 1500);
+});
+
+// Toggle password visibility
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('.js-toggle-pwd');
+  if (!btn) return;
+  var row = btn.closest('.field-row');
+  var span = row && row.querySelector('[data-pwd]');
+  if (!span) return;
+  if (span.dataset.masked === "1") {
+    span.textContent = span.dataset.pwd;
+    span.classList.remove('pwd-mask');
+    span.dataset.masked = "0";
+    btn.textContent = "Ocultar";
+  } else {
+    span.textContent = "••••••••";
+    span.classList.add('pwd-mask');
+    span.dataset.masked = "1";
+    btn.textContent = "Ver";
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% load i18n %}
+{% comment %}
+  Selectores de idioma + país (footer del sitio público).
+
+  - El cambio de idioma usa la vista built-in de Django (`set_language`)
+    que persiste en cookie `django_language`.
+  - El cambio de país usa `set_country` (custom) que persiste en cookie
+    `jheliz_country`. La moneda y el método de pago default se derivan
+    del país elegido.
+{% endcomment %}
+<div class="border-t hairline">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined" style="font-size:14px;">language</span>
+      <span class="font-medium uppercase tracking-wider">{% trans "Idioma" %}</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+      <form action="{% url 'set_language' %}" method="post" class="flex items-center gap-1">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <select name="language"
+                onchange="this.form.submit()"
+                class="bg-zinc-900/60 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-300 text-xs cursor-pointer hover:border-jheliz-500/40 focus:border-jheliz-500 focus:outline-none transition"
+                style="appearance:none; -webkit-appearance:none; padding-right:2rem; background-image:url('data:image/svg+xml;utf8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 20 20&quot; fill=&quot;%2371717a&quot;><path d=&quot;M5 8l5 5 5-5z&quot;/></svg>'); background-repeat:no-repeat; background-position:right .3rem center; background-size:1rem;">
+          {% get_current_language as CURRENT_LANG %}
+          {% for code, name in AVAILABLE_LANGUAGES %}
+            <option value="{{ code }}" {% if code == CURRENT_LANG %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+
+      <form action="{% url 'set_country' %}" method="post" class="flex items-center gap-1">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <select name="code"
+                onchange="this.form.submit()"
+                class="bg-zinc-900/60 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-300 text-xs cursor-pointer hover:border-jheliz-500/40 focus:border-jheliz-500 focus:outline-none transition"
+                style="appearance:none; -webkit-appearance:none; padding-right:2rem; background-image:url('data:image/svg+xml;utf8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 20 20&quot; fill=&quot;%2371717a&quot;><path d=&quot;M5 8l5 5 5-5z&quot;/></svg>'); background-repeat:no-repeat; background-position:right .3rem center; background-size:1rem;">
+          {% for c in AVAILABLE_COUNTRIES %}
+            <option value="{{ c.code }}" {% if c.code == COUNTRY_CODE %}selected{% endif %}>{{ c.flag }} {{ c.name }} · {{ c.symbol }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+  </div>
+</div>

@@ -13,14 +13,19 @@ SECRET_KEY = config("SECRET_KEY", default="dev-insecure-key-change-me")
 DEBUG = config("DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
-    default="127.0.0.1,localhost,jhelizservicestv.xyz,www.jhelizservicestv.xyz",
+    default="127.0.0.1,localhost,ecormecejhelizstore.com,www.ecormecejhelizstore.com",
     cast=Csv(),
 )
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 
+# URL base del panel admin. Cambiá esto en .env para "esconder" el admin
+# de bots que escanean rutas conocidas (/admin/, /wp-admin/, etc.). El
+# valor NO debe llevar barras al inicio o al final.
+ADMIN_URL_PATH = config("ADMIN_URL_PATH", default="panel-jheliz-2026").strip("/")
+
 CSRF_TRUSTED_ORIGINS = [
-    "https://jhelizservicestv.xyz",
-    "https://www.jhelizservicestv.xyz",
+    "https://ecormecejhelizstore.com",
+    "https://www.ecormecejhelizstore.com",
 ]
 
 INSTALLED_APPS = [
@@ -54,12 +59,17 @@ INSTALLED_APPS = [
     "orders.apps.OrdersConfig",
     "support.apps.SupportConfig",
     "blog.apps.BlogConfig",
+    "livechat.apps.LivechatConfig",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # i18n: detecta el idioma del usuario (cookie / header / sesión).
+    "django.middleware.locale.LocaleMiddleware",
+    # multi-país: inyecta `request.country` con el dict del país activo.
+    "config.i18n_country.CountryMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -95,7 +105,9 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.i18n",
                 "catalog.context_processors.site_context",
+                "config.i18n_country.country_context",
             ],
         },
     },
@@ -125,15 +137,41 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Localization: Peru
+# Localization: Peru por default (multi-país habilitado).
 LANGUAGE_CODE = "es"
 TIME_ZONE = "America/Lima"
 USE_I18N = True
 USE_TZ = True
 
-# Currency (used across the app)
+# Idiomas soportados. El switcher del header expone exactamente estos.
+LANGUAGES = [
+    ("es", "Español"),
+    ("en", "English"),
+    ("pt", "Português"),
+]
+# Carpeta donde viven los .po/.mo de las traducciones.
+LOCALE_PATHS = [BASE_DIR / "locale"]
+
+# Currency (default cuando no se conoce el país del visitante).
 DEFAULT_CURRENCY = "PEN"
 DEFAULT_CURRENCY_SYMBOL = "S/"
+
+# Países soportados. Cada uno define su moneda, su flag emoji y su locale
+# preferido. El selector se renderiza en el footer; las páginas pueden
+# resolver `request.country` (vía middleware liviano) para decidir cosas
+# como el método de pago default o el formato de número telefónico.
+COUNTRIES = [
+    {"code": "PE", "name": "Perú", "flag": "🇵🇪", "currency": "PEN", "symbol": "S/", "locale": "es", "phone_cc": "+51"},
+    {"code": "CO", "name": "Colombia", "flag": "🇨🇴", "currency": "COP", "symbol": "$", "locale": "es", "phone_cc": "+57"},
+    {"code": "MX", "name": "México", "flag": "🇲🇽", "currency": "MXN", "symbol": "$", "locale": "es", "phone_cc": "+52"},
+    {"code": "AR", "name": "Argentina", "flag": "🇦🇷", "currency": "ARS", "symbol": "$", "locale": "es", "phone_cc": "+54"},
+    {"code": "CL", "name": "Chile", "flag": "🇨🇱", "currency": "CLP", "symbol": "$", "locale": "es", "phone_cc": "+56"},
+    {"code": "EC", "name": "Ecuador", "flag": "🇪🇨", "currency": "USD", "symbol": "$", "locale": "es", "phone_cc": "+593"},
+    {"code": "BO", "name": "Bolivia", "flag": "🇧🇴", "currency": "BOB", "symbol": "Bs.", "locale": "es", "phone_cc": "+591"},
+    {"code": "BR", "name": "Brasil", "flag": "🇧🇷", "currency": "BRL", "symbol": "R$", "locale": "pt", "phone_cc": "+55"},
+    {"code": "US", "name": "USA", "flag": "🇺🇸", "currency": "USD", "symbol": "$", "locale": "en", "phone_cc": "+1"},
+]
+DEFAULT_COUNTRY = "PE"
 
 # Static & media
 STATIC_URL = "/static/"
@@ -157,19 +195,30 @@ STORAGES = {
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Tamaño máximo de upload (multipart). Necesario para imágenes del chat
+# (5 MB efectivo + overhead de form-data). nginx en producción acepta hasta 20M
+# (`client_max_body_size 20M`). Default de Django es 2.5 MB, demasiado bajo.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024  # 8 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024  # 8 MB
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Email
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Jheliz <no-reply@jhelizservicestv.xyz>")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Jheliz <no-reply@ecormecejhelizstore.com>")
 SUPPORT_ADMIN_EMAIL = config("SUPPORT_ADMIN_EMAIL", default="")
 
-# SMTP (opcional, para enviar correos reales en prod)
+# SMTP (opcional, para enviar correos reales en prod).
+# Muchos VPS bloquean SMTP saliente; si es tu caso, usá BrevoEmailBackend (HTTP).
 EMAIL_HOST = config("EMAIL_HOST", default="")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+
+# Brevo (ex-Sendinblue) — backend HTTP, ver orders.brevo_backend.
+# Activar con: EMAIL_BACKEND=orders.brevo_backend.BrevoEmailBackend
+BREVO_API_KEY = config("BREVO_API_KEY", default="")
 
 # Password reset: token de 24h en lugar del default de 3 días.
 PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
@@ -178,6 +227,22 @@ PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
 MERCADOPAGO_ACCESS_TOKEN = config("MERCADOPAGO_ACCESS_TOKEN", default="")
 MERCADOPAGO_PUBLIC_KEY = config("MERCADOPAGO_PUBLIC_KEY", default="")
 MERCADOPAGO_WEBHOOK_SECRET = config("MERCADOPAGO_WEBHOOK_SECRET", default="")
+
+# Web Push notifications (VAPID).
+# Para generar el par de claves:
+#   from py_vapid import Vapid
+#   v = Vapid()
+#   v.generate_keys()
+#   v.save_key("vapid_private.pem")
+#   v.save_public_key("vapid_public.pem")
+#   v.public_key  # Base64URL — esto va en VAPID_PUBLIC_KEY (lo lee el browser)
+# La privada va en VAPID_PRIVATE_KEY como PEM o como base64url de la EC raw.
+VAPID_PUBLIC_KEY = config("VAPID_PUBLIC_KEY", default="")
+VAPID_PRIVATE_KEY = config("VAPID_PRIVATE_KEY", default="")
+VAPID_CLAIM_EMAIL = config(
+    "VAPID_CLAIM_EMAIL",
+    default="mailto:soporte@ecormecejhelizstore.com",
+)
 
 # Contact
 WHATSAPP_NUMBER = config("WHATSAPP_NUMBER", default="+51999999999")
@@ -197,6 +262,11 @@ TELEGRAM_CHANNEL_ID = config("TELEGRAM_CHANNEL_ID", default="")
 # Si está vacío, las publicaciones automáticas a cliente final se
 # desactivan, pero las del canal distribuidor siguen funcionando.
 TELEGRAM_CUSTOMER_CHANNEL_ID = config("TELEGRAM_CUSTOMER_CHANNEL_ID", default="")
+# Si False (default), nunca se publica automáticamente al canal cuando se
+# crea o activa un producto/cupón. La publicación queda 100% manual desde
+# el admin (acción "📢 Publicar en Telegram" o botón en el change form).
+# Esto da al admin control total sobre qué y cuándo se anuncia.
+TELEGRAM_AUTO_PUBLISH = config("TELEGRAM_AUTO_PUBLISH", default=False, cast=bool)
 
 # Brand
 SITE_NAME = "Jheliz"
@@ -234,14 +304,34 @@ UNFOLD = {
     "STYLES": [
         lambda request: _hashed_static("admin/jheliz_polish.css"),
         lambda request: _hashed_static("admin/notifications_bell.css"),
+        lambda request: _hashed_static("admin/users_redesign.css"),
+        lambda request: _hashed_static("admin/changelist_polish.css"),
+        # Capa "2026": sistema de diseño moderno (glass cards, pills, bento
+        # stats, empty states ilustrados). Se carga al final para que sus
+        # tokens y clases `.jh2-*` puedan sobrescribir reglas previas.
+        lambda request: _hashed_static("admin/jheliz_2026.css"),
+        # Capa de tipografía 2026: Geist + Space Grotesk + JetBrains Mono,
+        # gradient en titulares, refresco de sidebar/headings. Va al final
+        # de las STYLES porque sobreescribe reglas de jheliz_2026.css.
+        lambda request: _hashed_static("admin/typography_2026.css"),
+        # Split-pane del chat en vivo (lista a la izquierda + conversación
+        # a la derecha estilo Gmail/WhatsApp Web). Usa los tokens de fuente
+        # de typography_2026.css, así que va después de esa.
+        lambda request: _hashed_static("admin/livechat_splitpane.css"),
     ],
     "SCRIPTS": [
         lambda request: _hashed_static("admin/global_search.js"),
+        lambda request: _hashed_static("admin/empty_state.js"),
         lambda request: _hashed_static("admin/ticket_templates.js"),
         lambda request: _hashed_static("admin/fab.js"),
         lambda request: _hashed_static("admin/toasts.js"),
         lambda request: _hashed_static("admin/keyboard_shortcuts.js"),
         lambda request: _hashed_static("admin/notifications_bell.js"),
+        # PWA: inyecta <link rel="manifest"> + theme-color, registra el service
+        # worker dedicado (/panel-jheliz-2026/sw.js) y muestra un banner
+        # "Instalar app" para que el admin se pueda guardar en el cel como
+        # app independiente.
+        lambda request: _hashed_static("admin/pwa_install.js"),
     ],
     "COLORS": {
         "primary": {
@@ -262,45 +352,33 @@ UNFOLD = {
     "SIDEBAR": {
         "show_search": True,
         "show_all_applications": False,
+        # Reagrupada por WORKFLOW del día a día (no por modelo Django).
+        # Orden basado en frecuencia de uso real:
+        # Inicio → Vender (catálogo) → Pedidos → Clientes → Marketing → Soporte → Sistema.
         "navigation": [
             {
-                "title": "Resumen",
+                "title": "✨ Inicio",
                 "separator": False,
                 "items": [
                     {
                         "title": "Dashboard",
                         "icon": "dashboard",
-                        "link": "/jheliz-admin/",
+                        "link": "/panel-jheliz-2026/",
                     },
                     {
                         "title": "Reportes financieros",
                         "icon": "monitoring",
-                        "link": "/jheliz-admin/reports/",
-                    },
-                    {
-                        "title": "Clientes valiosos",
-                        "icon": "workspace_premium",
-                        "link": "/jheliz-admin/top-customers/",
+                        "link": "/panel-jheliz-2026/reports/",
                     },
                     {
                         "title": "Renovaciones",
                         "icon": "autorenew",
-                        "link": "/jheliz-admin/renewals/",
-                    },
-                    {
-                        "title": "Stock por producto",
-                        "icon": "inventory_2",
-                        "link": "/jheliz-admin/stock/",
-                    },
-                    {
-                        "title": "Clientes 360°",
-                        "icon": "groups",
-                        "link": "/jheliz-admin/customers/",
+                        "link": "/panel-jheliz-2026/renewals/",
                     },
                     {
                         "title": "Estado de servicios",
                         "icon": "health_and_safety",
-                        "link": "/jheliz-admin/health/",
+                        "link": "/panel-jheliz-2026/health/",
                     },
                     {
                         "title": "Ver tienda",
@@ -310,138 +388,183 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "Ventas (cliente final)",
-                "separator": True,
-                "items": [
-                    {
-                        "title": "Pedidos",
-                        "icon": "receipt_long",
-                        "link": "/jheliz-admin/orders/order/",
-                    },
-                    {
-                        "title": "Items de pedidos",
-                        "icon": "list_alt",
-                        "link": "/jheliz-admin/orders/orderitem/",
-                    },
-                    {
-                        "title": "Config. de pagos (Yape)",
-                        "icon": "qr_code_2",
-                        "link": "/jheliz-admin/orders/paymentsettings/",
-                    },
-                ],
-            },
-            {
-                "title": "Catálogo",
+                "title": "🛍️ Vender",
                 "separator": True,
                 "items": [
                     {
                         "title": "Productos",
                         "icon": "inventory_2",
-                        "link": "/jheliz-admin/catalog/product/",
+                        "link": "/panel-jheliz-2026/catalog/product/",
                     },
                     {
                         "title": "Planes — Cliente final",
                         "icon": "sell",
-                        "link": "/jheliz-admin/catalog/customerplan/",
+                        "link": "/panel-jheliz-2026/catalog/customerplan/",
                     },
                     {
                         "title": "Planes — Distribuidor",
                         "icon": "storefront",
-                        "link": "/jheliz-admin/catalog/distributorplan/",
-                    },
-                    {
-                        "title": "Planes (todos)",
-                        "icon": "list",
-                        "link": "/jheliz-admin/catalog/plan/",
+                        "link": "/panel-jheliz-2026/catalog/distributorplan/",
                     },
                     {
                         "title": "Categorías",
                         "icon": "category",
-                        "link": "/jheliz-admin/catalog/category/",
+                        "link": "/panel-jheliz-2026/catalog/category/",
                     },
                     {
-                        "title": "Stock",
+                        "title": "Stock por producto",
                         "icon": "inventory",
-                        "link": "/jheliz-admin/catalog/stockitem/",
+                        "link": "/panel-jheliz-2026/stock/",
                     },
                     {
-                        "title": "Reseñas",
-                        "icon": "reviews",
-                        "link": "/jheliz-admin/catalog/testimonial/",
+                        "title": "Control de cuentas",
+                        "icon": "manage_accounts",
+                        "link": "/panel-jheliz-2026/control-cuentas/",
+                    },
+                    {
+                        "title": "Stock (todos)",
+                        "icon": "list_alt",
+                        "link": "/panel-jheliz-2026/catalog/stockitem/",
+                    },
+                    {
+                        "title": "Avísame cuando vuelva",
+                        "icon": "notifications_active",
+                        "link": "/panel-jheliz-2026/catalog/backinstockalert/",
                     },
                 ],
             },
             {
-                "title": "Distribuidor",
+                "title": "🧾 Pedidos",
                 "separator": True,
                 "items": [
                     {
+                        "title": "Pedidos clientes",
+                        "icon": "receipt_long",
+                        "link": "/panel-jheliz-2026/orders/order/",
+                    },
+                    {
+                        "title": "Bandeja Yape",
+                        "icon": "qr_code_scanner",
+                        "link": "/panel-jheliz-2026/orders/order/yape-inbox/",
+                    },
+                    {
+                        "title": "Items de pedidos",
+                        "icon": "list_alt",
+                        "link": "/panel-jheliz-2026/orders/orderitem/",
+                    },
+                    {
                         "title": "Pedidos mayoristas",
                         "icon": "local_shipping",
-                        "link": "/jheliz-admin/orders/distributororder/",
+                        "link": "/panel-jheliz-2026/orders/distributororder/",
                     },
                     {
-                        "title": "Distribuidores",
-                        "icon": "badge",
-                        "link": "/jheliz-admin/accounts/distributor/",
-                    },
-                    {
-                        "title": "Movimientos de wallet",
-                        "icon": "account_balance_wallet",
-                        "link": "/jheliz-admin/accounts/wallettransaction/",
+                        "title": "Reemplazar cuenta",
+                        "icon": "sync_alt",
+                        "link": "/panel-jheliz-2026/replace-blocked-account/",
                     },
                 ],
             },
             {
-                "title": "Clientes",
+                "title": "🤝 Clientes",
                 "separator": True,
                 "items": [
                     {
                         "title": "Clientes",
                         "icon": "person",
-                        "link": "/jheliz-admin/accounts/customer/",
+                        "link": "/panel-jheliz-2026/accounts/customer/",
                     },
                     {
-                        "title": "Usuarios (staff)",
-                        "icon": "group",
-                        "link": "/jheliz-admin/accounts/user/",
+                        "title": "Clientes 360°",
+                        "icon": "groups",
+                        "link": "/panel-jheliz-2026/customers/",
+                    },
+                    {
+                        "title": "Clientes valiosos",
+                        "icon": "workspace_premium",
+                        "link": "/panel-jheliz-2026/top-customers/",
+                    },
+                    {
+                        "title": "Distribuidores",
+                        "icon": "badge",
+                        "link": "/panel-jheliz-2026/accounts/distributor/",
+                    },
+                    {
+                        "title": "Movimientos de wallet",
+                        "icon": "account_balance_wallet",
+                        "link": "/panel-jheliz-2026/accounts/wallettransaction/",
                     },
                 ],
             },
             {
-                "title": "Soporte",
-                "separator": True,
-                "items": [
-                    {
-                        "title": "Tickets",
-                        "icon": "support_agent",
-                        "link": "/jheliz-admin/support/ticket/",
-                    },
-                    {
-                        "title": "Solicitudes de código",
-                        "icon": "mark_email_unread",
-                        "link": "/jheliz-admin/support/coderequest/",
-                    },
-                ],
-            },
-            {
-                "title": "Marketing",
+                "title": "🚀 Marketing",
                 "separator": True,
                 "items": [
                     {
                         "title": "Cupones / códigos",
                         "icon": "redeem",
-                        "link": "/jheliz-admin/orders/coupon/",
+                        "link": "/panel-jheliz-2026/orders/coupon/",
+                    },
+                    {
+                        "title": "Reseñas",
+                        "icon": "reviews",
+                        "link": "/panel-jheliz-2026/catalog/testimonial/",
                     },
                     {
                         "title": "Posts del blog",
                         "icon": "article",
-                        "link": "/jheliz-admin/blog/blogpost/",
+                        "link": "/panel-jheliz-2026/blog/blogpost/",
                     },
                     {
                         "title": "Categorías de blog",
                         "icon": "label",
-                        "link": "/jheliz-admin/blog/blogcategory/",
+                        "link": "/panel-jheliz-2026/blog/blogcategory/",
+                    },
+                ],
+            },
+            {
+                "title": "🎧 Soporte",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Chats en vivo",
+                        "icon": "chat",
+                        "link": "/panel-jheliz-2026/livechat/",
+                    },
+                    {
+                        "title": "Tickets",
+                        "icon": "support_agent",
+                        "link": "/panel-jheliz-2026/support/ticket/",
+                    },
+                    {
+                        "title": "Solicitudes de código",
+                        "icon": "mark_email_unread",
+                        "link": "/panel-jheliz-2026/support/coderequest/",
+                    },
+                ],
+            },
+            {
+                "title": "🛠️ Sistema",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Config. de pagos (Yape)",
+                        "icon": "qr_code_2",
+                        "link": "/panel-jheliz-2026/orders/paymentsettings/",
+                    },
+                    {
+                        "title": "Usuarios (staff)",
+                        "icon": "group",
+                        "link": "/panel-jheliz-2026/accounts/user/",
+                    },
+                    {
+                        "title": "2FA / autenticador",
+                        "icon": "shield_lock",
+                        "link": "/panel-jheliz-2026/security/2fa/",
+                    },
+                    {
+                        "title": "Auditoría",
+                        "icon": "fact_check",
+                        "link": "/panel-jheliz-2026/auditoria/",
                     },
                 ],
             },
@@ -461,12 +584,31 @@ FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default="")
 # ---------------------------------------------------------------------------
 # django-axes: bloqueo por intentos fallidos de login
 # ---------------------------------------------------------------------------
-AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=5, cast=int)
-AXES_COOLOFF_TIME = config("AXES_COOLOFF_TIME_HOURS", default=1, cast=int)  # horas
-AXES_LOCKOUT_PARAMETERS = ["ip_address", "username"]
-AXES_RESET_ON_SUCCESS = True
+#
+# IMPORTANTE: los defaults anteriores (3 intentos / 24h) eran demasiado
+# agresivos y bloqueaban a clientes que escribían mal su contraseña 2-3
+# veces. Ajustados a 10 intentos / 1 hora — sigue siendo seguro contra
+# fuerza bruta automatizada pero ya no maltrata a usuarios honestos.
+AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=10, cast=int)
+AXES_COOLOFF_TIME = config(
+    # Acepta horas en decimales (0.5 = 30 min) para poder bajarlo más sin
+    # tener que migrar a otra unidad si más adelante hace falta.
+    "AXES_COOLOFF_TIME_HOURS", default=1.0, cast=float,
+)
+# Lockout sólo por (ip, username): un atacante que prueba varias contraseñas
+# del mismo usuario es lo único que queremos frenar. Así NO bloqueamos a
+# clientes detrás del mismo NAT/ISP cuando alguien más se equivoca.
+AXES_LOCKOUT_PARAMETERS = [["ip_address", "username"]]
 AXES_LOCKOUT_TEMPLATE = None  # usa el formulario default con mensaje de error
 AXES_VERBOSE = False
+# Cuando un cliente "se desloguea" tras un login exitoso, NO debe quedar con
+# contador residual de intentos fallidos.
+AXES_RESET_ON_SUCCESS = True
+
+# Notificaciones (email + Telegram) cuando alguien inicia sesión en el admin.
+# Útil para detectar rápido un acceso indebido — si recibes un correo de
+# login y no fuiste tú, sabés que tu password se filtró.
+ADMIN_LOGIN_NOTIFY = config("ADMIN_LOGIN_NOTIFY", default=True, cast=bool)
 
 # ---------------------------------------------------------------------------
 # 2FA (django-otp)

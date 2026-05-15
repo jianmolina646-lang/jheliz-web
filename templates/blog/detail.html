@@ -6,7 +6,7 @@
 {% block og_type %}article{% endblock %}
 {% block og_title %}{{ post.effective_seo_title }}{% endblock %}
 {% block og_description %}{{ post.effective_seo_description }}{% endblock %}
-{% block og_image %}{% if post.cover_image %}{{ request.scheme }}://{{ request.get_host }}{{ post.cover_image_url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.jpg' %}{% endif %}{% endblock %}
+{% block og_image %}{% if post.cover_image %}{{ SITE_URL_BASE }}{{ post.cover_image_url }}{% else %}{{ SITE_URL_BASE }}{% static 'img/og-image.jpg' %}{% endif %}{% endblock %}
 
 {% block extra_head %}
 {% if post.seo_keywords %}<meta name="keywords" content="{{ post.seo_keywords }}">{% endif %}
@@ -17,7 +17,7 @@
   "@type": "BlogPosting",
   "headline": "{{ post.title|escapejs }}",
   "description": "{{ post.effective_seo_description|escapejs }}",
-  "image": "{% if post.cover_image %}{{ request.scheme }}://{{ request.get_host }}{{ post.cover_image_url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'img/og-image.jpg' %}{% endif %}",
+  "image": "{% if post.cover_image %}{{ SITE_URL_BASE }}{{ post.cover_image_url }}{% else %}{{ SITE_URL_BASE }}{% static 'img/og-image.jpg' %}{% endif %}",
   "author": {
     "@type": "Person",
     "name": "{% if post.author %}{{ post.author.get_full_name|default:post.author.username|escapejs }}{% else %}{{ SITE_NAME|escapejs }}{% endif %}"
@@ -27,14 +27,14 @@
     "name": "{{ SITE_NAME|escapejs }}",
     "logo": {
       "@type": "ImageObject",
-      "url": "{{ request.scheme }}://{{ request.get_host }}{% static 'img/icon-512.png' %}"
+      "url": "{{ SITE_URL_BASE }}{% static 'img/icon-512.png' %}"
     }
   },
   "datePublished": "{{ post.published_at|date:'c' }}",
   "dateModified": "{{ post.updated_at|date:'c' }}",
   "mainEntityOfPage": {
     "@type": "WebPage",
-    "@id": "{{ request.build_absolute_uri }}"
+    "@id": "{{ CANONICAL_URL }}"
   }
 }
 </script>
@@ -188,15 +188,15 @@
       <!-- Share buttons -->
       <div class="flex items-center gap-2">
         <span class="text-xs text-zinc-500 hidden sm:inline">Compartir:</span>
-        <a href="https://wa.me/?text={{ post.title|urlencode }}%20{{ request.build_absolute_uri|urlencode }}"
+        <a href="https://wa.me/?text={{ post.title|urlencode }}%20{{ CANONICAL_URL|urlencode }}"
            target="_blank" rel="noopener" class="share-btn" aria-label="Compartir por WhatsApp" title="WhatsApp">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         </a>
-        <a href="https://twitter.com/intent/tweet?text={{ post.title|urlencode }}&url={{ request.build_absolute_uri|urlencode }}"
+        <a href="https://twitter.com/intent/tweet?text={{ post.title|urlencode }}&url={{ CANONICAL_URL|urlencode }}"
            target="_blank" rel="noopener" class="share-btn" aria-label="Compartir en X/Twitter" title="X">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
         </a>
-        <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri|urlencode }}"
+        <a href="https://www.facebook.com/sharer/sharer.php?u={{ CANONICAL_URL|urlencode }}"
            target="_blank" rel="noopener" class="share-btn" aria-label="Compartir en Facebook" title="Facebook">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></svg>
         </a>

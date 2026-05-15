@@ -1,0 +1,95 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;gap:14px;">
+
+    <div class="jh2-page-head">
+        <div>
+            <div class="jh2-page-head__eyebrow">Seguridad · Auditoría</div>
+            <h1 class="jh2-page-head__title">Entrada #{{ entry.pk }}</h1>
+            <p class="jh2-page-head__subtitle">{{ entry.object_repr|truncatechars:90 }}</p>
+        </div>
+        <div class="jh2-page-head__actions">
+            <a href="{% url 'admin_auditlog' %}" class="jh2-btn jh2-btn--ghost">
+                <span class="material-symbols-outlined" style="font-size:16px;">arrow_back</span>
+                Volver
+            </a>
+        </div>
+    </div>
+
+    <div class="jh2-stat-grid">
+        <article class="jh2-stat jh2-stat--neutral">
+            <span class="jh2-stat__icon material-symbols-outlined">schedule</span>
+            <div class="jh2-stat__label">Cuándo</div>
+            <div class="jh2-stat__value" style="font-size:16px;line-height:1.3;">{{ entry.timestamp|date:"d M Y" }}</div>
+            <div class="jh2-stat__hint">{{ entry.timestamp|date:"H:i:s" }}</div>
+        </article>
+        <article class="jh2-stat jh2-stat--info">
+            <span class="jh2-stat__icon material-symbols-outlined">person</span>
+            <div class="jh2-stat__label">Actor</div>
+            <div class="jh2-stat__value" style="font-size:16px;line-height:1.3;">
+                {% if entry.actor %}{{ entry.actor.get_username }}{% else %}—{% endif %}
+            </div>
+            <div class="jh2-stat__hint">
+                {% if entry.actor and entry.actor.email %}{{ entry.actor.email }}{% else %}sin actor{% endif %}
+            </div>
+        </article>
+        <article class="jh2-stat jh2-stat--warning">
+            <span class="jh2-stat__icon material-symbols-outlined">{{ action_icon }}</span>
+            <div class="jh2-stat__label">Acción</div>
+            <div class="jh2-stat__value" style="font-size:16px;line-height:1.3;">{{ action_label }}</div>
+            <div class="jh2-stat__hint">{{ action_slug }}</div>
+        </article>
+        <article class="jh2-stat jh2-stat--neutral">
+            <span class="jh2-stat__icon material-symbols-outlined">router</span>
+            <div class="jh2-stat__label">IP / puerto</div>
+            <div class="jh2-stat__value jh2-mono" style="font-size:14px;line-height:1.3;">
+                {{ entry.remote_addr|default:"—" }}{% if entry.remote_port %}:{{ entry.remote_port }}{% endif %}
+            </div>
+        </article>
+    </div>
+
+    <div class="jh2-card jh2-card--padded">
+        <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:6px;">Objeto</div>
+        <div style="font-size:14px;color:#f1f5f9;">
+            <span class="jh2-mono jh2-table__muted">{{ model_label }}</span>
+            <span style="margin-left:8px;">#{{ entry.object_pk }}</span>
+            <span style="margin-left:8px;color:#cbd5e1;">{{ entry.object_repr }}</span>
+        </div>
+    </div>
+
+    <div class="jh2-card jh2-card--padded">
+        <h3 class="jh2-section-title">
+            <span class="material-symbols-outlined" style="color:#f472b6;">difference</span>
+            Diff de campos
+        </h3>
+        {% if diffs %}
+        <div class="jh2-table-wrap">
+            <table class="jh2-table">
+                <thead>
+                    <tr>
+                        <th>Campo</th>
+                        <th>Antes</th>
+                        <th>Ahora</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in diffs %}
+                    <tr style="vertical-align:top;">
+                        <td><span class="jh2-mono jh2-table__muted">{{ d.field }}</span></td>
+                        <td style="color:#fca5a5;white-space:pre-wrap;word-break:break-all;">{{ d.old }}</td>
+                        <td style="color:#86efac;white-space:pre-wrap;word-break:break-all;">{{ d.new }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="jh2-table__muted">— sin diff disponible (acción de tipo {{ action_slug }}) —</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

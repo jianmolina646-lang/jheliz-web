@@ -1,0 +1,248 @@
+{% extends 'admin/base.html' %}
+{% load i18n static %}
+
+{% block title %}Chats en vivo | Jheliz{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+  {# HTMX para cargar la conversación a la derecha sin recargar la página. #}
+  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="jh2-livechat" data-show-closed="{% if show_closed %}1{% else %}0{% endif %}">
+  <div class="jh2-page-head">
+    <div>
+      <div class="jh2-page-head__eyebrow">Soporte</div>
+      <h1 class="jh2-page-head__title">Chat en vivo</h1>
+      <p class="jh2-page-head__subtitle">
+        Abiertas: <strong style="color:#f8fafc;">{{ open_count }}</strong> ·
+        Sin leer: <strong style="color:#f8fafc;">{{ total_unread }}</strong>
+      </p>
+    </div>
+    <div class="jh2-page-head__actions">
+      {% if show_closed %}
+        <a href="{% url 'admin_livechat_index' %}" class="jh2-btn jh2-btn--ghost">Solo abiertas</a>
+      {% else %}
+        <a href="?closed=1" class="jh2-btn jh2-btn--ghost">Ver cerradas</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="jh2-livechat__shell jh2-card">
+    {# ============================== Lista (izquierda) ============================ #}
+    <aside class="jh2-livechat__list">
+      {% if rooms_data %}
+        {% for item in rooms_data %}
+          {% with room=item.room %}
+          <a href="?room={{ room.pk }}{% if show_closed %}&amp;closed=1{% endif %}"
+             hx-get="{% url 'admin_livechat_room_pane' room_id=room.pk %}"
+             hx-target="#livechat-room-pane"
+             hx-swap="outerHTML"
+             hx-push-url="?room={{ room.pk }}{% if show_closed %}&amp;closed=1{% endif %}"
+             class="jh2-livechat__item {% if selected_room and selected_room.pk == room.pk %}is-active{% endif %}"
+             data-room-id="{{ room.pk }}">
+            <div class="jh2-livechat__item-avatar">
+              {{ room.display_name|slice:":1"|upper|default:"?" }}
+            </div>
+            <div class="jh2-livechat__item-body">
+              <div class="jh2-livechat__item-row">
+                <div class="jh2-livechat__item-name">
+                  {{ room.display_name }}
+                  {% if room.customer_email %}<span class="jh2-livechat__item-email">· {{ room.customer_email }}</span>{% endif %}
+                </div>
+                <div class="jh2-livechat__item-time">
+                  {% if room.last_message_at %}{{ room.last_message_at|timesince }}{% else %}—{% endif %}
+                </div>
+              </div>
+              <div class="jh2-livechat__item-row">
+                <div class="jh2-livechat__item-preview">
+                  {% if item.last_message %}
+                    {% if item.last_message.sender == 'admin' %}<span class="jh2-livechat__item-sender">vos:</span>{% endif %}
+                    {% if item.last_message.sender == 'system' %}<span class="jh2-livechat__item-sender">sistema:</span>{% endif %}
+                    {{ item.last_message.body|truncatechars:80 }}
+                  {% else %}
+                    <em class="jh2-livechat__item-empty">sin mensajes aún</em>
+                  {% endif %}
+                </div>
+                <div class="jh2-livechat__item-meta">
+                  {% if item.admin_unread > 0 %}
+                    <span class="jh2-livechat__unread">{{ item.admin_unread }}</span>
+                  {% endif %}
+                  {% if room.status == 'closed' %}
+                    <span class="jh2-livechat__pill jh2-livechat__pill--closed">cerrada</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </a>
+          {% endwith %}
+        {% endfor %}
+      {% else %}
+        <div class="jh2-livechat__empty">
+          <div class="jh2-livechat__empty-icon">💬</div>
+          <div class="jh2-livechat__empty-title">No hay chats todavía</div>
+          <div class="jh2-livechat__empty-desc">Cuando un visitante use el chat de la web, aparecerá acá.</div>
+        </div>
+      {% endif %}
+    </aside>
+
+    {# ============================== Conversación (derecha) ====================== #}
+    <main class="jh2-livechat__main">
+      {% if selected_room %}
+        {% include "admin/livechat/_room_pane.html" %}
+      {% else %}
+        <div id="livechat-room-pane" class="jh2-livechat__placeholder">
+          <div class="jh2-livechat__placeholder-icon">🎧</div>
+          <div class="jh2-livechat__placeholder-title">Elegí una conversación</div>
+          <div class="jh2-livechat__placeholder-desc">
+            Click en cualquier chat de la izquierda para verlo y responder desde acá mismo,
+            sin abrir páginas nuevas.
+          </div>
+        </div>
+      {% endif %}
+    </main>
+  </section>
+</div>
+
+<script>
+  (function () {
+    // ----------------------------------------------------------------
+    // Helper: scroll del thread al fondo cuando entra un mensaje nuevo.
+    // ----------------------------------------------------------------
+    function scrollThreadToEnd() {
+      var s = document.getElementById('livechat-scroll');
+      if (s) { s.scrollTop = s.scrollHeight; }
+    }
+    scrollThreadToEnd();
+
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+      if (!evt.target) return;
+      // Polling de mensajes -> scroll al fondo
+      if (evt.target.id === 'livechat-thread') {
+        scrollThreadToEnd();
+      }
+      // Cambio de sala -> también
+      if (evt.target.id === 'livechat-room-pane') {
+        scrollThreadToEnd();
+        // Marca como activa la sala seleccionada en la lista.
+        var newRoomId = evt.target.getAttribute('data-room-id');
+        document.querySelectorAll('.jh2-livechat__item').forEach(function (el) {
+          if (el.getAttribute('data-room-id') === newRoomId) {
+            el.classList.add('is-active');
+          } else {
+            el.classList.remove('is-active');
+          }
+        });
+      }
+    });
+
+    // ----------------------------------------------------------------
+    // Adjuntar imagen: el botón clip abre el file picker; al elegir
+    // archivo mostramos un preview con botón para quitarlo. El form ya
+    // tiene enctype=multipart/form-data y hx-encoding correcto.
+    // ----------------------------------------------------------------
+    function wireAttachButtons(scope) {
+      var attachBtns = (scope || document).querySelectorAll('.jh2-livechat__attach');
+      attachBtns.forEach(function (btn) {
+        if (btn.__jh2_wired) return;
+        btn.__jh2_wired = true;
+        var form = btn.closest('form');
+        if (!form) return;
+        var fileInput = form.querySelector('.jh2-livechat__file-picker');
+        var preview = form.querySelector('.jh2-livechat__attach-preview');
+        var previewImg = preview ? preview.querySelector('img') : null;
+        var removeBtn = preview ? preview.querySelector('.jh2-livechat__attach-remove') : null;
+
+        btn.addEventListener('click', function () { if (fileInput) fileInput.click(); });
+
+        if (fileInput) {
+          fileInput.addEventListener('change', function () {
+            var f = fileInput.files && fileInput.files[0];
+            if (!f) {
+              if (preview) preview.classList.add('jh2-hidden');
+              return;
+            }
+            if (f.size > 5 * 1024 * 1024) {
+              alert('La imagen es demasiado grande (máximo 5 MB).');
+              fileInput.value = '';
+              return;
+            }
+            if (previewImg) previewImg.src = URL.createObjectURL(f);
+            if (preview) preview.classList.remove('jh2-hidden');
+          });
+        }
+
+        if (removeBtn) {
+          removeBtn.addEventListener('click', function () {
+            if (fileInput) fileInput.value = '';
+            if (previewImg) previewImg.src = '';
+            if (preview) preview.classList.add('jh2-hidden');
+          });
+        }
+      });
+    }
+    wireAttachButtons();
+    document.body.addEventListener('htmx:afterSwap', function (evt) {
+      wireAttachButtons(evt.target);
+    });
+
+    // ----------------------------------------------------------------
+    // Ctrl+Enter (o Cmd+Enter en Mac) envía el form de reply activo.
+    // ----------------------------------------------------------------
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        var form = document.querySelector('.jh2-livechat__composer[hx-post]');
+        if (form) {
+          if (typeof htmx !== 'undefined') {
+            htmx.trigger(form, 'submit');
+          } else {
+            form.submit();
+          }
+        }
+      }
+    });
+
+    // ----------------------------------------------------------------
+    // Auto-refresh de la lista cada 8s (chats nuevos / unreads). Solo
+    // refrescamos la columna izquierda; el panel derecho ya hace polling
+    // de sus mensajes por su cuenta.
+    // ----------------------------------------------------------------
+    var REFRESH_MS = 8000;
+    setInterval(function () {
+      if (document.hidden) return;
+      // Conservamos el ?room actual para no perder la sala seleccionada
+      // si la página llegara a recargarse.
+      fetch(window.location.href, { credentials: 'same-origin' })
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+          var parser = new DOMParser();
+          var doc = parser.parseFromString(html, 'text/html');
+          var newList = doc.querySelector('.jh2-livechat__list');
+          var curList = document.querySelector('.jh2-livechat__list');
+          if (newList && curList && newList.innerHTML !== curList.innerHTML) {
+            curList.innerHTML = newList.innerHTML;
+            // Re-activa la sala actual
+            var openPane = document.getElementById('livechat-room-pane');
+            var openRoomId = openPane ? openPane.getAttribute('data-room-id') : null;
+            if (openRoomId) {
+              document.querySelectorAll('.jh2-livechat__item').forEach(function (el) {
+                if (el.getAttribute('data-room-id') === openRoomId) {
+                  el.classList.add('is-active');
+                }
+              });
+            }
+            // htmx necesita re-procesar los nuevos `hx-*` que acabamos de inyectar
+            if (typeof htmx !== 'undefined') {
+              htmx.process(curList);
+            }
+          }
+        })
+        .catch(function () { /* swallow */ });
+    }, REFRESH_MS);
+  })();
+</script>
+{% endblock %}

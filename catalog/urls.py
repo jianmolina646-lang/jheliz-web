@@ -7,12 +7,22 @@ app_name = "catalog"
 urlpatterns = [
     path("", views.home, name="home"),
     path("productos/", views.product_list, name="products"),
+    path("combos/", views.combo_builder, name="combo_builder"),
+    path("combos/agregar/", views.combo_add, name="combo_add"),
     path("categoria/<slug:slug>/", views.category_detail, name="category"),
     path("producto/<slug:slug>/", views.product_detail, name="product"),
+    path(
+        "producto/<slug:slug>/avisame/",
+        views.back_in_stock_subscribe,
+        name="back_in_stock_subscribe",
+    ),
     path("plataforma/<slug:slug>/", views.platform_landing, name="platform_landing"),
     path("distribuidor/", views.distributor_landing, name="distributor"),
     path("distribuidor/panel/", views.distributor_panel, name="distributor_panel"),
     path("distribuidor/catalogo/", views.distributor_catalog, name="distributor_catalog"),
+    path("distribuidor/cuentas/", views.distributor_accounts, name="distributor_accounts"),
+    path("distribuidor/soporte/", views.distributor_support, name="distributor_support"),
+    path("distribuidor/calendario/", views.distributor_calendar, name="distributor_calendar"),
     path(
         "distribuidor/items/<int:item_id>/cliente/",
         views.distributor_edit_customer,
@@ -33,4 +43,5 @@ urlpatterns = [
     path("estado/", seo_views.status_page, name="status"),
     path("resena/gracias/", views.review_thanks, name="review_thanks"),
     path("resena/<str:token>/", views.submit_review, name="review_submit"),
+    path("api/compras-recientes/", views.recent_purchases_api, name="recent_purchases_api"),
 ]

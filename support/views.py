@@ -12,6 +12,37 @@ from .forms import CodeRequestForm, TicketCreateForm, TicketReplyForm
 from .models import CodeRequest, Ticket, TicketMessage
 
 
+# Presets para abrir el formulario de ticket pre-llenado desde botones de
+# acceso rápido (distributor_support, support landing del sitio público).
+# Se activan vía `?tipo=caida|password|codigo` en el GET.
+_TIPO_PRESETS = {
+    "caida": {
+        "subject": "📱 Suscripción caída",
+        "hint": (
+            "Cuéntanos qué plataforma se cayó, en qué dispositivo "
+            "(TV/celular/PC), qué mensaje exacto te aparece y desde "
+            "cuándo no funciona."
+        ),
+    },
+    "password": {
+        "subject": "🔑 Error de contraseña",
+        "hint": (
+            "Indícanos qué plataforma rechaza la contraseña, si te "
+            "pidió cambiarla o si el sistema te dice 'contraseña "
+            "incorrecta', y desde cuándo te pasa."
+        ),
+    },
+    "codigo": {
+        "subject": "🔐 Necesito código (hogar / inicio de sesión)",
+        "hint": (
+            "Indícanos qué tipo de código necesitas (inicio de sesión, "
+            "activar TV, hogar / estoy de viaje), el correo de la cuenta "
+            "y el mensaje exacto que aparece en pantalla."
+        ),
+    },
+}
+
+
 @login_required
 def ticket_list(request):
     tickets = request.user.tickets.all()
@@ -24,6 +55,10 @@ def ticket_create(request):
     order_uuid = request.GET.get("pedido")
     if order_uuid:
         initial["order"] = request.user.orders.filter(uuid=order_uuid).first()
+    tipo = (request.GET.get("tipo") or "").strip()
+    preset = _TIPO_PRESETS.get(tipo)
+    if preset and "subject" not in initial:
+        initial["subject"] = preset["subject"]
     if request.method == "POST":
         form = TicketCreateForm(request.POST, user=request.user)
         if form.is_valid():
@@ -41,7 +76,11 @@ def ticket_create(request):
             return redirect("support:detail", pk=ticket.id)
     else:
         form = TicketCreateForm(user=request.user, initial=initial)
-    return render(request, "support/ticket_form.html", {"form": form})
+    return render(request, "support/ticket_form.html", {
+        "form": form,
+        "preset_hint": preset["hint"] if preset else None,
+        "tipo": tipo,
+    })
 
 
 def _user_can_view(ticket: Ticket, user) -> bool:

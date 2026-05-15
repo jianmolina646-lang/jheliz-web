@@ -57,10 +57,70 @@
   @media (min-width: 768px) { .stat-num { font-size: 3.25rem; } }
   .hero-title {
     font-family: 'Geist', system-ui, sans-serif;
-    font-weight: 800;
-    letter-spacing: -0.045em;
-    line-height: 0.96;
-    font-size: clamp(2.6rem, 8vw, 5.5rem);
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    line-height: 0.94;
+    font-size: clamp(2.7rem, 8.4vw, 5.8rem);
+    text-shadow:
+      0 1px 0 rgba(255,255,255,.04),
+      0 14px 40px rgba(236,72,153,.18);
+  }
+
+  /* Floating orbs — emoji decorativos detrás del hero. Drift suave + fade. */
+  .hero-orbs {
+    position: absolute; inset: 0;
+    pointer-events: none; z-index: 0;
+    overflow: hidden;
+  }
+  .hero-orb {
+    position: absolute;
+    font-size: 2.6rem;
+    opacity: .14;
+    filter: blur(.4px) drop-shadow(0 8px 22px rgba(236,72,153,.35));
+    animation: orbDrift 18s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+  }
+  .hero-orb--1 { top:  8%; left:  6%; font-size: 3rem;   animation-duration: 22s; }
+  .hero-orb--2 { top: 14%; left: 80%; font-size: 2.2rem; animation-duration: 19s; animation-delay: -3s; }
+  .hero-orb--3 { top: 38%; left:  2%; font-size: 2.4rem; animation-duration: 24s; animation-delay: -7s; }
+  .hero-orb--4 { top: 52%; left: 86%; font-size: 2.8rem; animation-duration: 17s; animation-delay: -2s; }
+  .hero-orb--5 { top: 72%; left: 12%; font-size: 2.6rem; animation-duration: 21s; animation-delay: -10s; }
+  .hero-orb--6 { top: 78%; left: 76%; font-size: 2.3rem; animation-duration: 20s; animation-delay: -5s; }
+  .hero-orb--7 { top: 26%; left: 50%; font-size: 1.9rem; animation-duration: 23s; animation-delay: -8s; opacity: .09; }
+  .hero-orb--8 { top: 64%; left: 44%; font-size: 2.1rem; animation-duration: 25s; animation-delay: -12s; opacity: .1; }
+  @keyframes orbDrift {
+    0%   { transform: translate3d(0, 0, 0) rotate(-2deg); }
+    50%  { transform: translate3d(8px, -14px, 0) rotate(3deg); }
+    100% { transform: translate3d(-6px, 10px, 0) rotate(-3deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-orb { animation: none; opacity: .08; }
+  }
+  @media (max-width: 640px) {
+    .hero-orb--7, .hero-orb--8 { display: none; }
+    .hero-orb { font-size: 1.7rem !important; opacity: .1; }
+  }
+
+  /* Neon ring pulse alrededor del CTA primario en hero (intensifica ítem 11) */
+  .btn-primary.btn-neon {
+    position: relative;
+  }
+  .btn-primary.btn-neon::before {
+    content: '';
+    position: absolute; inset: -3px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, #ec4899, #a855f7, #6366f1, #ec4899);
+    background-size: 300% 300%;
+    animation: neonRotate 6s linear infinite;
+    z-index: -1;
+    filter: blur(8px); opacity: .55;
+  }
+  @keyframes neonRotate {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 300% 50%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-primary.btn-neon::before { animation: none; }
   }
   .hero-italic {
     font-family: 'Instrument Serif', Georgia, serif;
@@ -76,6 +136,36 @@
     background: linear-gradient(135deg, rgba(236,72,153,.14), rgba(168,85,247,.12));
     border: 1px solid rgba(236,72,153,.25);
     box-shadow: 0 6px 24px -10px rgba(236,72,153,.5);
+  }
+  .hero-live-pulse {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .35rem .75rem;
+    border-radius: 9999px;
+    background: rgba(16,185,129,.08);
+    border: 1px solid rgba(16,185,129,.25);
+    font-size: .72rem; color: #a7f3d0;
+    font-family: 'Geist', system-ui, sans-serif;
+  }
+  .hero-live-pulse__dot {
+    width: 7px; height: 7px;
+    border-radius: 9999px;
+    background: #34d399;
+    box-shadow: 0 0 0 0 rgba(52,211,153,.6);
+    animation: liveDot 1.6s ease-out infinite;
+  }
+  .hero-live-pulse__label {
+    font-weight: 700; letter-spacing: .08em;
+    color: #34d399;
+  }
+  .hero-live-pulse__sep { color: rgba(255,255,255,.25); }
+  .hero-live-pulse__value {
+    font-weight: 700; color: #fafafa;
+  }
+  .hero-live-pulse__text { color: #a1a1aa; }
+  @keyframes liveDot {
+    0% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); }
+    70% { box-shadow: 0 0 0 8px rgba(52,211,153,0); }
+    100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
   }
   .badge-glow { position: relative; }
   .badge-glow::after {
@@ -93,12 +183,24 @@
 {% block content %}
 
 <!-- Hero ----------------------------------------------------------------- -->
-<section class="mesh-accent pt-10 md:pt-20 pb-16 md:pb-24 text-center">
-  <div class="max-w-4xl mx-auto" data-reveal>
+<section class="mesh-accent pt-10 md:pt-20 pb-16 md:pb-24 text-center relative overflow-hidden">
+  {% include "partials/_hero_floating_orbs.html" %}
+  <div class="max-w-4xl mx-auto relative z-10" data-reveal>
     <span class="hero-eyebrow badge-glow">
       <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
       Entrega inmediata · Soporte 24/7 en Perú
     </span>
+
+    {# Live pulse counter — pedidos entregados hoy. SOCIAL_PROOF.today_orders #}
+    {% if SOCIAL_PROOF.today_orders %}
+    <div class="hero-live-pulse mt-4" role="status" aria-live="polite">
+      <span class="hero-live-pulse__dot" aria-hidden="true"></span>
+      <span class="hero-live-pulse__label">EN VIVO</span>
+      <span class="hero-live-pulse__sep">·</span>
+      <span class="hero-live-pulse__value">{{ SOCIAL_PROOF.today_orders }}</span>
+      <span class="hero-live-pulse__text">{% if SOCIAL_PROOF.today_orders == 1 %}pedido entregado hoy{% else %}pedidos entregados hoy{% endif %}</span>
+    </div>
+    {% endif %}
     <h1 class="hero-title mt-7">
       Streaming &amp; licencias<br>
       <span class="hero-italic text-zinc-300">al mejor</span>
@@ -109,27 +211,16 @@
       Pago con Mercado Pago o Yape; cuenta en tu correo en minutos.
     </p>
     <div class="mt-9 flex flex-wrap gap-3 justify-center">
-      <a href="{% url 'catalog:products' %}" class="btn btn-primary btn-lg">
+      <a href="{% url 'catalog:products' %}" class="btn btn-primary btn-lg btn-neon">
         Explorar catálogo
         <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
       </a>
       <a href="{% url 'catalog:distributor' %}" class="btn btn-secondary btn-lg" style="border-radius:9999px">Soy distribuidor</a>
     </div>
 
-    <!-- Trust row -->
-    <div class="mt-12 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs text-zinc-500">
-      <div class="flex items-center gap-2">
-        <svg class="icon" viewBox="0 0 24 24" style="color:#34d399"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-        Más de 5 000 entregas
-      </div>
-      <div class="flex items-center gap-2">
-        <svg class="icon icon-filled" viewBox="0 0 24 24" style="color:#fbbf24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        4.9 / 5 promedio
-      </div>
-      <div class="flex items-center gap-2">
-        <svg class="icon" viewBox="0 0 24 24" style="color:#f472b6"><path d="M12 22s-8-4.5-8-12a8 8 0 0 1 16 0c0 7.5-8 12-8 12z"/><circle cx="12" cy="10" r="3"/></svg>
-        Hecho en Perú
-      </div>
+    <!-- Trust badges 2026 — confianza, pagos, sello, SSL -->
+    <div class="mt-12">
+      {% include "partials/_trust_badges.html" with variant="hero" %}
     </div>
   </div>
 
@@ -283,7 +374,10 @@
   </div>
 </section>
 
-<!-- Testimonios ---------------------------------------------------------- -->
+<!-- Reseñas verificadas con foto (datos reales de ProductReview) ---------- -->
+{% include "partials/_featured_reviews.html" %}
+
+<!-- Testimonios curados ---------------------------------------------------- -->
 {% if testimonios %}
 <section class="py-14 border-t hairline">
   <div class="flex items-end justify-between mb-8">

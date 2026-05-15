@@ -228,6 +228,11 @@ class Order(models.Model):
         "Descuento aplicado", max_digits=10, decimal_places=2,
         default=Decimal("0.00"),
     )
+    combo_discount_amount = models.DecimalField(
+        "Descuento combo", max_digits=10, decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Descuento automático por armar un combo de varios productos.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
@@ -267,11 +272,15 @@ class Order(models.Model):
         # Si hay cupón ya asociado pero el descuento no se calculó aún, calcúlalo.
         if self.coupon_id and self.discount_amount == 0:
             self.discount_amount = self.coupon.compute_discount(subtotal)
-        total = subtotal - (self.discount_amount or Decimal("0.00"))
+        total = (
+            subtotal
+            - (self.discount_amount or Decimal("0.00"))
+            - (self.combo_discount_amount or Decimal("0.00"))
+        )
         if total < 0:
             total = Decimal("0.00")
         self.total = total
-        self.save(update_fields=["total", "discount_amount"])
+        self.save(update_fields=["total", "discount_amount", "combo_discount_amount"])
         return total
 
     # ------------------------------------------------------------------

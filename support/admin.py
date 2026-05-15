@@ -48,6 +48,22 @@ class TicketAdmin(ModelAdmin):
     autocomplete_fields = ("user", "order")
     inlines = [TicketMessageInline]
     list_filter_submit = True
+    actions = ("mark_resolved", "mark_pending_admin", "mark_closed")
+
+    @admin.action(description="✓ Marcar como Resuelto")
+    def mark_resolved(self, request, queryset):
+        n = queryset.update(status=Ticket.Status.RESOLVED)
+        self.message_user(request, f"{n} ticket(s) marcado(s) como Resueltos.")
+
+    @admin.action(description="⏳ Marcar como Esperando soporte")
+    def mark_pending_admin(self, request, queryset):
+        n = queryset.update(status=Ticket.Status.PENDING_ADMIN)
+        self.message_user(request, f"{n} ticket(s) marcado(s) como Pendientes de respuesta.")
+
+    @admin.action(description="🗄 Cerrar ticket")
+    def mark_closed(self, request, queryset):
+        n = queryset.update(status=Ticket.Status.CLOSED)
+        self.message_user(request, f"{n} ticket(s) cerrado(s).")
 
     @display(
         description="Estado",

@@ -1,0 +1,146 @@
+{% comment %}
+  Sticky bar inferior en mobile con CTA "Ver carrito (S/ X)".
+  Solo se muestra si:
+  - Hay items en el carrito (cart_count > 0)
+  - NO estamos ya en /carrito o /checkout
+  - Solo en breakpoints mobile (< lg, ≤1023px) — desktop tiene el carrito
+    siempre visible en la barra superior.
+{% endcomment %}
+{% with view_name=request.resolver_match.url_name %}
+{% if cart_count and view_name != 'cart' and view_name != 'checkout' and view_name != 'cart_done' %}
+<aside class="sticky-mobile-cart"
+       role="complementary"
+       aria-label="Acceso rápido al carrito">
+  <a href="{% url 'orders:cart' %}" class="sticky-mobile-cart__inner">
+    <span class="sticky-mobile-cart__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="21" r="1"/>
+        <circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+      <span class="sticky-mobile-cart__count">{{ cart_count }}</span>
+    </span>
+    <span class="sticky-mobile-cart__body">
+      <span class="sticky-mobile-cart__label">
+        {% if cart_count == 1 %}1 producto en tu carrito{% else %}{{ cart_count }} productos en tu carrito{% endif %}
+      </span>
+      {% if cart_subtotal %}
+        <span class="sticky-mobile-cart__total">{{ CURRENCY_SYMBOL }} {{ cart_subtotal|floatformat:2 }}</span>
+      {% endif %}
+    </span>
+    <span class="sticky-mobile-cart__cta">
+      Ver carrito
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12h14M13 5l7 7-7 7"/>
+      </svg>
+    </span>
+  </a>
+</aside>
+
+<style>
+  /* Sticky cart bar — visible solo en mobile/tablet (<lg, <1024px).
+     Se posiciona ARRIBA de la mobile_bottom_nav para no taparla. */
+  .sticky-mobile-cart {
+    position: fixed;
+    left: 12px; right: 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0) + 64px); /* 64px = altura aprox del bottom-nav */
+    z-index: 49;
+    pointer-events: auto;
+    animation: stickyCartIn .35s cubic-bezier(.22,.61,.36,1);
+  }
+  @media (min-width: 1024px) {
+    .sticky-mobile-cart { display: none; }
+  }
+  @keyframes stickyCartIn {
+    from { transform: translateY(120%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sticky-mobile-cart { animation: none; }
+  }
+
+  .sticky-mobile-cart__inner {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .65rem .75rem .65rem 1rem;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #ec4899, #a855f7);
+    box-shadow:
+      0 18px 40px -12px rgba(236,72,153,.55),
+      0 0 0 1px rgba(255,255,255,.08) inset;
+    color: #fff;
+    text-decoration: none;
+    transition: transform .15s ease;
+  }
+  .sticky-mobile-cart__inner:active { transform: scale(.98); }
+
+  .sticky-mobile-cart__icon {
+    position: relative;
+    flex-shrink: 0;
+    width: 2.4rem; height: 2.4rem;
+    border-radius: 10px;
+    background: rgba(255,255,255,.16);
+    display: inline-flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .sticky-mobile-cart__icon svg { width: 22px; height: 22px; color: #fff; }
+  .sticky-mobile-cart__count {
+    position: absolute; top: -4px; right: -4px;
+    min-width: 18px; height: 18px;
+    border-radius: 9999px;
+    background: #fff; color: #ec4899;
+    font-size: 10px; font-weight: 800;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 4px;
+    border: 2px solid #ec4899;
+  }
+
+  .sticky-mobile-cart__body {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    line-height: 1.15;
+  }
+  .sticky-mobile-cart__label {
+    font-size: .72rem; font-weight: 600;
+    color: rgba(255,255,255,.85);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sticky-mobile-cart__total {
+    font-family: 'Geist', sans-serif;
+    font-size: 1.05rem; font-weight: 800;
+    color: #fff; letter-spacing: -.02em;
+    margin-top: 1px;
+  }
+
+  .sticky-mobile-cart__cta {
+    display: inline-flex; align-items: center; gap: .25rem;
+    flex-shrink: 0;
+    padding: .5rem .85rem;
+    border-radius: 9999px;
+    background: rgba(255,255,255,.18);
+    font-size: .78rem; font-weight: 700;
+    color: #fff;
+  }
+  .sticky-mobile-cart__cta svg { width: 14px; height: 14px; }
+
+  /* En pantallas muy estrechas el "Ver carrito" se acorta a flecha sola */
+  @media (max-width: 360px) {
+    .sticky-mobile-cart__cta {
+      padding: .5rem .65rem;
+    }
+    .sticky-mobile-cart__cta span,
+    .sticky-mobile-cart__label { display: none; }
+  }
+
+  /* Ajustes cuando la sticky cart está visible: empujar el WhatsApp FAB
+     más arriba para que no choque, y dar espacio extra al body. */
+  @media (max-width: 1023px) {
+    body:has(.sticky-mobile-cart) > a[aria-label="Escríbenos por WhatsApp"] {
+      bottom: 142px !important;
+    }
+  }
+  @media (max-width: 767px) {
+    body:has(.sticky-mobile-cart) { padding-bottom: 130px; }
+  }
+</style>
+{% endif %}
+{% endwith %}

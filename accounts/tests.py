@@ -83,7 +83,7 @@ class DashboardQueryTests(TestCase):
         """Antes: 15+ queries .exists() en el bucle de nuevos vs recurrentes.
         Ahora: una sola query agregada."""
         self.client.force_login(self.staff)
-        resp, n = _query_count(self.client, "/jheliz-admin/")
+        resp, n = _query_count(self.client, "/panel-jheliz-2026/")
         self.assertEqual(resp.status_code, 200)
         # Tope holgado para no romperse con cambios cosméticos en Unfold.
         self.assertLess(
@@ -215,3 +215,647 @@ class PasswordResetFlowTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "¿Olvidaste tu contraseña?")
         self.assertContains(resp, reverse("accounts:password_reset"))
+
+
+# -- Rediseño moderno admin de Usuarios / Clientes / Distribuidores --------
+
+from datetime import timedelta
+from django.utils import timezone
+
+from accounts.admin_helpers import (
+    avatar_html,
+    chip,
+    chips,
+    contact_actions,
+    modern_table,
+    stat_grid,
+    time_ago,
+    user_card_cell,
+    _initials,
+    _avatar_colors,
+)
+
+
+class AdminHelpersTests(TestCase):
+    """Cubre los helpers visuales del admin de usuarios."""
+
+    def test_initials_from_full_name(self):
+        u = User(first_name="Jheliz", last_name="Servicios", username="jhz")
+        self.assertEqual(_initials(u), "JS")
+
+    def test_initials_fallback_username(self):
+        u = User(username="colocha", email="")
+        self.assertEqual(_initials(u), "CO")
+
+    def test_initials_handles_dots_and_underscores(self):
+        u = User(username="jian.molina", first_name="", last_name="")
+        self.assertEqual(_initials(u), "JM")
+
+    def test_avatar_colors_are_deterministic(self):
+        a = _avatar_colors("foo@bar.com")
+        b = _avatar_colors("foo@bar.com")
+        self.assertEqual(a, b)
+
+    def test_avatar_colors_differ_for_different_seeds(self):
+        a = _avatar_colors("a@b.com")
+        b = _avatar_colors("c@d.com")
+        # No exigimos que SIEMPRE difieran (hash colisiones), pero al menos
+        # una pareja debe diferir entre 8 colores.
+        seen = set()
+        for seed in ("a@b.com", "c@d.com", "x@y.com", "z@w.com"):
+            seen.add(_avatar_colors(seed))
+        self.assertGreater(len(seen), 1)
+
+    def test_user_card_cell_includes_name_and_sub(self):
+        u = User(username="jian", email="jian@x.com", first_name="Jian", last_name="Molina")
+        html = str(user_card_cell(u))
+        self.assertIn("Jian Molina", html)
+        self.assertIn("jian@x.com", html)
+        self.assertIn("jh-avatar", html)
+
+    def test_user_card_cell_escapes_html(self):
+        u = User(username="<script>", email="<x>@evil.com")
+        html = str(user_card_cell(u))
+        self.assertNotIn("<script>", html)
+        self.assertIn("&lt;script&gt;", html)
+
+    def test_chip_renders_with_tone_and_icon(self):
+        html = str(chip("VIP", tone="pink", icon="diamond"))
+        self.assertIn("VIP", html)
+        self.assertIn("diamond", html)
+        self.assertIn("jh-chip", html)
+
+    def test_chips_renders_multiple(self):
+        html = str(chips([("A", "success"), ("B", "warning")]))
+        self.assertIn("A", html)
+        self.assertIn("B", html)
+        self.assertIn("jh-chips", html)
+
+    def test_time_ago_handles_none(self):
+        self.assertEqual(time_ago(None), "—")
+
+    def test_time_ago_relative(self):
+        now = timezone.now()
+        self.assertEqual(time_ago(now), "ahora mismo")
+        self.assertIn("min", time_ago(now - timedelta(minutes=5)))
+        self.assertIn("h", time_ago(now - timedelta(hours=3)))
+        self.assertIn("día", time_ago(now - timedelta(days=2)))
+        self.assertIn("mes", time_ago(now - timedelta(days=60)))
+        self.assertIn("año", time_ago(now - timedelta(days=400)))
+
+    def test_contact_actions_with_phone_email_and_telegram(self):
+        u = User(
+            username="x", email="x@x.com", phone="+51 987 654 321",
+            telegram_username="@xyz",
+        )
+        html = str(contact_actions(u))
+        self.assertIn("wa.me/51987654321", html)
+        self.assertIn("mailto:x@x.com", html)
+        self.assertIn("t.me/xyz", html)
+
+    def test_contact_actions_with_no_data(self):
+        u = User(username="x", email="", phone="", telegram_username="")
+        html = str(contact_actions(u))
+        self.assertIn("—", html)
+
+    def test_stat_grid_renders_cards(self):
+        html = str(stat_grid([
+            {"label": "Pedidos", "value": "42", "tone": "cyan", "icon": "receipt_long"},
+            {"label": "Total", "value": "S/ 100"},
+        ]))
+        self.assertIn("Pedidos", html)
+        self.assertIn("42", html)
+        self.assertIn("Total", html)
+        self.assertIn("jh-stat-grid", html)
+
+    def test_modern_table_with_rows(self):
+        html = str(modern_table(
+            ["#", "Estado"],
+            [["123", "Pagado"], ["124", "Entregado"]],
+        ))
+        self.assertIn("123", html)
+        self.assertIn("124", html)
+        self.assertIn("jh-table", html)
+
+    def test_modern_table_empty(self):
+        html = str(modern_table(["A", "B"], []))
+        self.assertIn("Sin registros", html)
+
+
+class CustomerAdminListColumnsTests(TestCase):
+    """Verifica que el changelist de Clientes renderiza el rediseño."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_superuser(
+            username="admin2", email="a2@example.com", password="password",
+        )
+        cls.vip = User.objects.create_user(
+            username="vipclient", email="vip@x.com", password="x",
+            first_name="Cliente", last_name="VIP", role=Role.CLIENTE,
+            phone="+51999888777",
+        )
+        for _ in range(6):
+            Order.objects.create(
+                user=cls.vip, email=cls.vip.email,
+                total=Decimal("50"), status=Order.Status.DELIVERED,
+            )
+        cls.nuevo = User.objects.create_user(
+            username="nuevo", email="nuevo@x.com", password="x",
+            role=Role.CLIENTE,
+        )
+        Order.objects.create(
+            user=cls.nuevo, email=cls.nuevo.email,
+            total=Decimal("15"), status=Order.Status.DELIVERED,
+        )
+
+    def test_changelist_shows_avatar_chips_and_actions(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:accounts_customer_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-avatar", html)
+        self.assertIn("jh-user-cell", html)
+        self.assertIn("VIP", html)  # chip de cliente VIP (≥5 pedidos)
+        self.assertIn("Nuevo", html)  # chip de cliente nuevo (1 pedido)
+        self.assertIn("wa.me/51999888777", html)  # acción WhatsApp
+
+
+class DistributorAdminListColumnsTests(TestCase):
+    """Verifica que el changelist de Distribuidores renderiza el rediseño."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_superuser(
+            username="admin3", email="a3@example.com", password="password",
+        )
+        cls.aprobado = User.objects.create_user(
+            username="dist1", email="d1@x.com", password="x",
+            role=Role.DISTRIBUIDOR, distributor_approved=True,
+            wallet_balance=Decimal("123.45"),
+        )
+        cls.pendiente = User.objects.create_user(
+            username="dist2", email="d2@x.com", password="x",
+            role=Role.DISTRIBUIDOR, distributor_approved=False,
+        )
+
+    def test_changelist_shows_status_and_wallet_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:accounts_distributor_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-avatar", html)
+        self.assertIn("Aprobado", html)
+        self.assertIn("Pendiente", html)
+        self.assertIn("S/ 123.45", html)
+
+
+class CustomerChangeFormTests(TestCase):
+    """La ficha del cliente debe mostrar el panel de stats y secciones nuevas."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = User.objects.create_superuser(
+            username="admin4", email="a4@example.com", password="password",
+        )
+        cls.cli = User.objects.create_user(
+            username="ficha", email="ficha@x.com", password="x",
+            role=Role.CLIENTE, first_name="Ana", last_name="López",
+        )
+        Order.objects.create(
+            user=cls.cli, email=cls.cli.email,
+            total=Decimal("80"), status=Order.Status.DELIVERED,
+        )
+
+    def test_change_form_renders_stats_panel(self):
+        self.client.force_login(self.staff)
+        url = reverse("admin:accounts_customer_change", args=[self.cli.pk])
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-stat-grid", html)
+        self.assertIn("Pedidos", html)
+        self.assertIn("Total gastado", html)
+        self.assertIn("Ticket promedio", html)
+        self.assertIn("Última compra", html)
+
+
+class WalletTransactionAdminTests(TestCase):
+    """Wallet movements: chip de tipo + monto con signo."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from accounts.models import WalletTransaction
+        cls.staff = User.objects.create_superuser(
+            username="walletadmin", email="w@x.com", password="x",
+        )
+        cls.distri = User.objects.create_user(
+            username="d1", email="d@x.com", password="x",
+            first_name="Carlos", last_name="Distri",
+        )
+        WalletTransaction.objects.create(
+            user=cls.distri, kind="recarga",
+            amount=Decimal("100.00"), balance_after=Decimal("100.00"),
+            reference="Yape #abc",
+        )
+        WalletTransaction.objects.create(
+            user=cls.distri, kind="compra",
+            amount=Decimal("-25.00"), balance_after=Decimal("75.00"),
+            reference="Pedido #123",
+        )
+
+    def test_changelist_renders_chips_and_amounts(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(
+            reverse("admin:accounts_wallettransaction_changelist")
+        )
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-amount", html)
+        self.assertIn("jh-chip", html)
+        self.assertIn("Recarga", html)
+        self.assertIn("Compra", html)
+        self.assertIn("jh-amount--pos", html)
+        self.assertIn("jh-amount--neg", html)
+
+
+class CatalogAdminListTests(TestCase):
+    """Productos / Stock / Reclamaciones renderean el diseño moderno."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from catalog.models import Category, Product, StockItem, Plan
+        cls.staff = User.objects.create_superuser(
+            username="catadm", email="c@x.com", password="x",
+        )
+        cls.category = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
+        cls.product = Product.objects.create(
+            category=cls.category, name="Netflix Premium",
+            slug="netflix-premium", icon="🎬", is_active=True,
+        )
+        cls.plan = Plan.objects.create(
+            product=cls.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15"), price_distributor=Decimal("10"),
+            is_active=True,
+        )
+        StockItem.objects.create(
+            product=cls.product, plan=cls.plan,
+            credentials="email: a\nclave: b",
+            status="available",
+        )
+
+    def test_product_changelist_renders_modern_cell(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:catalog_product_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-product-cell", html)
+        self.assertIn("Netflix Premium", html)
+
+    def test_stockitem_changelist_renders_chip(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:catalog_stockitem_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-chip", html)
+        self.assertIn("Disponible", html)
+
+
+class BlogAdminListTests(TestCase):
+    """Posts y Categorías de blog usan los chips/cells modernos."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from blog.models import BlogCategory, BlogPost
+        cls.staff = User.objects.create_superuser(
+            username="bladm", email="b@x.com", password="x",
+        )
+        cls.cat = BlogCategory.objects.create(
+            name="Tutoriales", slug="tutoriales", emoji="📚",
+        )
+        cls.post = BlogPost.objects.create(
+            title="Cómo usar Netflix", slug="como-usar-netflix",
+            excerpt="...", body="...", status=BlogPost.Status.PUBLISHED,
+            category=cls.cat, is_featured=True, views_count=150,
+        )
+
+    def test_blogpost_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:blog_blogpost_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-product-cell", html)
+        self.assertIn("jh-chip", html)
+        self.assertIn("Destacado", html)
+        self.assertIn("150", html)
+
+    def test_blogcategory_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:blog_blogcategory_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        self.assertIn("jh-product-cell", html)
+        self.assertIn("Tutoriales", html)
+        self.assertIn("post", html)
+
+
+# -----------------------------------------------------------------------------
+# Web Push notifications
+# -----------------------------------------------------------------------------
+
+import json as _json_push
+from unittest.mock import patch as _patch
+
+from django.test import override_settings
+from accounts.models import PushSubscription
+
+
+@override_settings(VAPID_PUBLIC_KEY="testkey-public", VAPID_PRIVATE_KEY="testkey-private")
+class PushSubscribeEndpointTests(TestCase):
+    def test_config_returns_public_key(self):
+        resp = self.client.get(reverse("accounts:push_config"))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["public_key"], "testkey-public")
+        self.assertTrue(data["configured"])
+
+    def test_subscribe_creates_subscription(self):
+        body = _json_push.dumps({
+            "endpoint": "https://fcm.googleapis.com/fcm/send/abc",
+            "keys": {"p256dh": "P256-key-here", "auth": "AUTH-here"},
+        })
+        resp = self.client.post(
+            reverse("accounts:push_subscribe"),
+            data=body, content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json()["ok"])
+        self.assertEqual(PushSubscription.objects.count(), 1)
+
+    def test_subscribe_idempotent_by_endpoint(self):
+        body = _json_push.dumps({
+            "endpoint": "https://fcm.googleapis.com/fcm/send/abc",
+            "keys": {"p256dh": "P1", "auth": "A1"},
+        })
+        self.client.post(reverse("accounts:push_subscribe"), data=body, content_type="application/json")
+        # Mismo endpoint, distintas claves → actualiza, no crea otra fila
+        body2 = _json_push.dumps({
+            "endpoint": "https://fcm.googleapis.com/fcm/send/abc",
+            "keys": {"p256dh": "P2", "auth": "A2"},
+        })
+        self.client.post(reverse("accounts:push_subscribe"), data=body2, content_type="application/json")
+        self.assertEqual(PushSubscription.objects.count(), 1)
+        sub = PushSubscription.objects.first()
+        self.assertEqual(sub.p256dh, "P2")
+
+    def test_subscribe_validates_payload(self):
+        resp = self.client.post(
+            reverse("accounts:push_subscribe"),
+            data="not-json", content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        resp = self.client.post(
+            reverse("accounts:push_subscribe"),
+            data=_json_push.dumps({"endpoint": "x"}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_unsubscribe_disables_subscription(self):
+        sub = PushSubscription.objects.create(
+            endpoint="https://x/y", p256dh="p", auth="a", is_enabled=True,
+        )
+        body = _json_push.dumps({"endpoint": sub.endpoint})
+        resp = self.client.post(
+            reverse("accounts:push_unsubscribe"),
+            data=body, content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        sub.refresh_from_db()
+        self.assertFalse(sub.is_enabled)
+
+
+@override_settings(VAPID_PUBLIC_KEY="kp", VAPID_PRIVATE_KEY="kr")
+class PushBroadcastViewTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="pb-staff", password="x", is_staff=True, is_superuser=True,
+        )
+        self.client.force_login(self.staff)
+        self.url = reverse("admin_push_broadcast")
+
+    def test_renders_form(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Notificaciones push")
+        self.assertContains(resp, "Enviar notificaci")
+
+    def test_requires_staff(self):
+        self.client.logout()
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 302)
+
+    @_patch("pywebpush.webpush")
+    def test_broadcast_calls_webpush(self, mock_webpush):
+        # Crear 2 subs activas
+        PushSubscription.objects.create(
+            endpoint="https://x/1", p256dh="p1", auth="a1",
+        )
+        PushSubscription.objects.create(
+            endpoint="https://x/2", p256dh="p2", auth="a2",
+        )
+        # 1 deshabilitada — no debe enviarse
+        PushSubscription.objects.create(
+            endpoint="https://x/3", p256dh="p3", auth="a3", is_enabled=False,
+        )
+        resp = self.client.post(self.url, {
+            "title": "Test", "body": "Body", "url": "/",
+        })
+        self.assertEqual(resp.status_code, 302)
+        # webpush fue llamado 2 veces (no para la deshabilitada)
+        self.assertEqual(mock_webpush.call_count, 2)
+
+
+@override_settings(VAPID_PUBLIC_KEY="", VAPID_PRIVATE_KEY="")
+class PushBroadcastUnconfiguredTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="pb-noconf", password="x", is_staff=True, is_superuser=True,
+        )
+        self.client.force_login(self.staff)
+
+    def test_warns_when_vapid_missing(self):
+        resp = self.client.get(reverse("admin_push_broadcast"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "VAPID no est")
+
+
+class SignupPageRedesignTests(TestCase):
+    """Lock in the modern signup page (split layout, distri mode toggle)."""
+
+    def test_signup_renders_modern_hero_panel(self):
+        resp = self.client.get(reverse("accounts:signup"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        # New 2026 design markers
+        self.assertIn("su-hero", body)
+        self.assertIn("su-card", body)
+        self.assertIn("su-roles", body)
+        # Default mode = cliente: shows cliente-flavoured hero copy
+        self.assertIn("Crear cuenta", body)
+
+    def test_signup_distri_mode_via_query_param(self):
+        resp = self.client.get(reverse("accounts:signup") + "?role=distribuidor")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        # Distri-specific hero copy
+        self.assertIn("Programa de distribuidores", body)
+        self.assertIn("Hasta 60%", body)
+        self.assertIn("Enviar postulaci", body)  # button label
+        # Distri role pre-selected (the distribuidor radio carries `checked`)
+        import re as _re
+        m = _re.search(
+            r'<input[^>]*name="role"[^>]*value="distribuidor"[^>]*>', body
+        )
+        self.assertIsNotNone(m, "distribuidor radio not found")
+        self.assertIn("checked", m.group(0))
+
+    def test_signup_distri_post_creates_pending_distributor(self):
+        resp = self.client.post(
+            reverse("accounts:signup") + "?role=distribuidor",
+            {
+                "username": "newdistri",
+                "email": "newdistri@example.com",
+                "phone": "+51999000111",
+                "telegram_username": "",
+                "role": Role.DISTRIBUIDOR,
+                "password1": "Sup3rSecret!",
+                "password2": "Sup3rSecret!",
+            },
+        )
+        self.assertEqual(resp.status_code, 302)
+        u = User.objects.get(username="newdistri")
+        self.assertEqual(u.role, Role.DISTRIBUIDOR)
+        # not approved yet
+        self.assertFalse(getattr(u, "distributor_approved", False))
+
+
+class WalletServiceTests(TestCase):
+    """Pruebas del servicio del wallet (deposit/charge/refund + recargas)."""
+
+    def setUp(self):
+        from accounts.models import Role
+        self.user = User.objects.create_user(
+            username="distri", email="distri@example.com", password="pwd12345",
+            role=Role.DISTRIBUIDOR, distributor_approved=True,
+        )
+
+    def test_deposit_credits_balance_and_creates_tx(self):
+        from accounts import wallet
+        tx = wallet.deposit(self.user, Decimal("50.00"), reference="test deposit")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("50.00"))
+        self.assertEqual(tx.kind, "recarga")
+        self.assertEqual(tx.balance_after, Decimal("50.00"))
+
+    def test_charge_debits_balance(self):
+        from accounts import wallet
+        wallet.deposit(self.user, Decimal("100.00"))
+        class FakeOrder:
+            pk = 1
+            short_uuid = "deadbeef"
+        tx = wallet.charge_for_order(self.user, Decimal("30.00"), FakeOrder())
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("70.00"))
+        self.assertEqual(tx.kind, "compra")
+        self.assertEqual(tx.balance_after, Decimal("70.00"))
+
+    def test_charge_fails_when_insufficient(self):
+        from accounts import wallet
+        wallet.deposit(self.user, Decimal("10.00"))
+        class FakeOrder:
+            pk = 1
+            short_uuid = "deadbeef"
+        with self.assertRaises(wallet.InsufficientFundsError):
+            wallet.charge_for_order(self.user, Decimal("50.00"), FakeOrder())
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("10.00"))
+
+    def test_approve_recharge_credits_and_links_tx(self):
+        from accounts import wallet
+        from accounts.models import WalletRecharge
+        rec = WalletRecharge.objects.create(
+            user=self.user, amount=Decimal("25.00"), method=WalletRecharge.Method.YAPE,
+        )
+        result = wallet.approve_recharge(rec)
+        self.assertTrue(result.ok)
+        rec.refresh_from_db()
+        self.user.refresh_from_db()
+        self.assertEqual(rec.status, WalletRecharge.Status.APPROVED)
+        self.assertEqual(self.user.wallet_balance, Decimal("25.00"))
+        self.assertIsNotNone(rec.transaction)
+        self.assertEqual(rec.transaction.kind, "recarga")
+
+    def test_reject_recharge_does_not_credit(self):
+        from accounts import wallet
+        from accounts.models import WalletRecharge
+        rec = WalletRecharge.objects.create(
+            user=self.user, amount=Decimal("25.00"), method=WalletRecharge.Method.YAPE,
+        )
+        result = wallet.reject_recharge(rec, "Comprobante no coincide.")
+        self.assertTrue(result.ok)
+        rec.refresh_from_db()
+        self.user.refresh_from_db()
+        self.assertEqual(rec.status, WalletRecharge.Status.REJECTED)
+        self.assertEqual(rec.rejection_reason, "Comprobante no coincide.")
+        self.assertEqual(self.user.wallet_balance, Decimal("0.00"))
+
+    def test_double_approve_fails(self):
+        from accounts import wallet
+        from accounts.models import WalletRecharge
+        rec = WalletRecharge.objects.create(
+            user=self.user, amount=Decimal("10.00"),
+        )
+        wallet.approve_recharge(rec)
+        result = wallet.approve_recharge(rec)  # segundo intento
+        self.assertFalse(result.ok)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("10.00"))
+
+
+class WalletViewsTests(TestCase):
+    """Pruebas de las vistas web del wallet."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="distri2", email="distri2@example.com", password="pwd12345",
+        )
+        self.client.force_login(self.user)
+
+    def test_wallet_page_renders(self):
+        from accounts import wallet
+        wallet.deposit(self.user, Decimal("100.00"), reference="seed")
+        resp = self.client.get(reverse("accounts:wallet"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        # En es-PE intcomma puede formatear "100.00" como "100,00".
+        self.assertTrue(("100.00" in body) or ("100,00" in body), "Saldo no encontrado en respuesta")
+
+    def test_recharge_create_creates_pending(self):
+        from accounts.models import WalletRecharge
+        resp = self.client.post(reverse("accounts:wallet_recharge"), {
+            "amount": "50",
+            "method": "yape",
+            "user_note": "test",
+        })
+        self.assertIn(resp.status_code, (200, 302))
+        self.assertEqual(WalletRecharge.objects.filter(user=self.user).count(), 1)
+        rec = WalletRecharge.objects.get(user=self.user)
+        self.assertEqual(rec.status, WalletRecharge.Status.PENDING)
+        self.assertEqual(rec.amount, Decimal("50.00"))
+
+    def test_history_page_renders(self):
+        resp = self.client.get(reverse("accounts:wallet_history"))
+        self.assertEqual(resp.status_code, 200)

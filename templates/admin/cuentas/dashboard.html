@@ -1,0 +1,957 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+<style>
+  /* ── Hero moderno (control de cuentas) ──────────────────────────── */
+  .jh-cc-hero {
+    position: relative; overflow: hidden;
+    border-radius: 20px;
+    padding: 24px 28px;
+    background:
+      radial-gradient(ellipse 70% 60% at 100% 0%, rgba(167,139,250,.18), transparent 60%),
+      radial-gradient(ellipse 80% 70% at 0% 100%, rgba(96,165,250,.10), transparent 60%),
+      linear-gradient(135deg, rgba(15,23,42,.85), rgba(2,6,23,.85));
+    border: 1px solid rgba(167,139,250,.20);
+    display: flex; gap: 20px; align-items: center; flex-wrap: wrap;
+  }
+  .jh-cc-hero__icon {
+    flex-shrink: 0;
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #a78bfa, #ec4899);
+    color: white;
+    box-shadow: 0 12px 32px -10px rgba(167,139,250,.55);
+  }
+  .jh-cc-hero__icon .material-symbols-outlined { font-size: 30px; }
+  .jh-cc-hero__body { flex: 1 1 280px; min-width: 0; }
+  .jh-cc-hero__eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    background: rgba(167,139,250,.16); color: #ddd6fe;
+    border: 1px solid rgba(167,139,250,.30);
+    margin-bottom: 8px;
+  }
+  .jh-cc-hero__title {
+    margin: 0;
+    font-size: 26px; font-weight: 800;
+    letter-spacing: -.02em; color: #fff;
+    line-height: 1.15;
+  }
+  .jh-cc-hero__subtitle {
+    margin: 6px 0 0;
+    font-size: 13.5px; line-height: 1.55;
+    color: rgba(203,213,225,.72);
+    max-width: 65ch;
+  }
+  .jh-cc-hero__cta {
+    flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 16px; border-radius: 12px;
+    font-size: 13px; font-weight: 600;
+    background: rgba(167,139,250,.16);
+    color: #ddd6fe;
+    border: 1px solid rgba(167,139,250,.40);
+    cursor: pointer;
+    transition: background .15s ease, transform .15s ease;
+  }
+  .jh-cc-hero__cta:hover { background: rgba(167,139,250,.30); transform: translateY(-1px); }
+  .jh-cc-hero__cta .material-symbols-outlined { font-size: 18px; }
+
+  /* ── KPI cards modernos ─────────────────────────────────────────── */
+  .jh-cc-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .jh-cc-kpi {
+    position: relative; overflow: hidden;
+    padding: 18px 18px 16px;
+    border-radius: 16px;
+    background: linear-gradient(160deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+    border: 1px solid rgba(255,255,255,.08);
+    transition: transform .18s ease, border-color .18s ease;
+  }
+  .jh-cc-kpi:hover { transform: translateY(-2px); border-color: rgba(255,255,255,.16); }
+  .jh-cc-kpi__watermark {
+    position: absolute; top: -20px; right: -20px;
+    width: 130px; height: 130px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: .07;
+    pointer-events: none;
+  }
+  .jh-cc-kpi__watermark .material-symbols-outlined { font-size: 110px; line-height: 1; }
+  .jh-cc-kpi__label {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: .10em; text-transform: uppercase;
+    color: rgba(148,163,184,.85);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .jh-cc-kpi__label-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .jh-cc-kpi__value {
+    margin: 8px 0 12px;
+    font-size: 38px; font-weight: 800;
+    color: #fff; line-height: 1;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .jh-cc-kpi__bar-wrap {
+    width: 100%; height: 5px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.06);
+    overflow: hidden;
+  }
+  .jh-cc-kpi__bar { height: 100%; border-radius: 999px; transition: width .4s ease; }
+  .jh-cc-kpi__meta {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 8px;
+    font-size: 11.5px; color: rgba(203,213,225,.65);
+  }
+  .jh-cc-kpi__pct {
+    font-weight: 700; font-variant-numeric: tabular-nums;
+    padding: 2px 7px; border-radius: 999px;
+    background: rgba(255,255,255,.06);
+  }
+
+  /* Variantes de tono */
+  .jh-cc-kpi--platforms .jh-cc-kpi__label-dot,
+  .jh-cc-kpi--platforms .jh-cc-kpi__bar { background: linear-gradient(90deg, #a78bfa, #6366f1); }
+  .jh-cc-kpi--platforms .jh-cc-kpi__watermark { color: #a78bfa; }
+  .jh-cc-kpi--available .jh-cc-kpi__label-dot,
+  .jh-cc-kpi--available .jh-cc-kpi__bar { background: linear-gradient(90deg, #34d399, #10b981); }
+  .jh-cc-kpi--available .jh-cc-kpi__watermark { color: #10b981; }
+  .jh-cc-kpi--sold .jh-cc-kpi__label-dot,
+  .jh-cc-kpi--sold .jh-cc-kpi__bar { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+  .jh-cc-kpi--sold .jh-cc-kpi__watermark { color: #3b82f6; }
+  .jh-cc-kpi--defective .jh-cc-kpi__label-dot,
+  .jh-cc-kpi--defective .jh-cc-kpi__bar { background: linear-gradient(90deg, #fb923c, #ef4444); }
+  .jh-cc-kpi--defective .jh-cc-kpi__watermark { color: #f97316; }
+</style>
+
+<div class="flex flex-col gap-5">
+
+  {# ── Hero moderno ──────────────────────────────────────────────── #}
+  <div class="jh-cc-hero">
+    <div class="jh-cc-hero__icon">
+      <span class="material-symbols-outlined">inventory_2</span>
+    </div>
+    <div class="jh-cc-hero__body">
+      <div class="jh-cc-hero__eyebrow">
+        <span class="material-symbols-outlined" style="font-size:13px;">layers</span>
+        Inventario
+      </div>
+      <h1 class="jh-cc-hero__title">Control de cuentas</h1>
+      <p class="jh-cc-hero__subtitle">
+        Tu cuaderno de cuentas, organizado por plataforma. Mirá de un vistazo
+        cuántas quedan disponibles y cuáles ya vendiste para no equivocarte.
+      </p>
+    </div>
+    <button type="button" id="bulk-replace-open" class="jh-cc-hero__cta">
+      <span class="material-symbols-outlined">sync_alt</span>
+      Reemplazar credenciales en masa
+    </button>
+  </div>
+
+  {# ── KPI cards modernos ────────────────────────────────────────── #}
+  {% with total_stock=kpis.total %}
+  {% with av_pct=kpis.available|default:0 sld_pct=kpis.sold|default:0 def_pct=kpis.defective|default:0 %}
+  <div class="jh-cc-kpi-grid">
+
+    <div class="jh-cc-kpi jh-cc-kpi--platforms">
+      <div class="jh-cc-kpi__watermark"><span class="material-symbols-outlined">apps</span></div>
+      <div class="jh-cc-kpi__label"><span class="jh-cc-kpi__label-dot"></span>Plataformas</div>
+      <div class="jh-cc-kpi__value">{{ kpis.platforms }}</div>
+      <div class="jh-cc-kpi__bar-wrap"><div class="jh-cc-kpi__bar" style="width:100%"></div></div>
+      <div class="jh-cc-kpi__meta">
+        <span>Activas en catálogo</span>
+      </div>
+    </div>
+
+    <div class="jh-cc-kpi jh-cc-kpi--available">
+      <div class="jh-cc-kpi__watermark"><span class="material-symbols-outlined">check_circle</span></div>
+      <div class="jh-cc-kpi__label"><span class="jh-cc-kpi__label-dot"></span>Disponibles</div>
+      <div class="jh-cc-kpi__value">{{ kpis.available }}</div>
+      <div class="jh-cc-kpi__bar-wrap">
+        <div class="jh-cc-kpi__bar" style="width: {% if total_stock %}{% widthratio kpis.available total_stock 100 %}{% else %}0{% endif %}%"></div>
+      </div>
+      <div class="jh-cc-kpi__meta">
+        <span>Listas para vender</span>
+        <span class="jh-cc-kpi__pct">{% if total_stock %}{% widthratio kpis.available total_stock 100 %}{% else %}0{% endif %}%</span>
+      </div>
+    </div>
+
+    <div class="jh-cc-kpi jh-cc-kpi--sold">
+      <div class="jh-cc-kpi__watermark"><span class="material-symbols-outlined">local_shipping</span></div>
+      <div class="jh-cc-kpi__label"><span class="jh-cc-kpi__label-dot"></span>Vendidas</div>
+      <div class="jh-cc-kpi__value">{{ kpis.sold }}</div>
+      <div class="jh-cc-kpi__bar-wrap">
+        <div class="jh-cc-kpi__bar" style="width: {% if total_stock %}{% widthratio kpis.sold total_stock 100 %}{% else %}0{% endif %}%"></div>
+      </div>
+      <div class="jh-cc-kpi__meta">
+        <span>Entregadas a clientes</span>
+        <span class="jh-cc-kpi__pct">{% if total_stock %}{% widthratio kpis.sold total_stock 100 %}{% else %}0{% endif %}%</span>
+      </div>
+    </div>
+
+    <div class="jh-cc-kpi jh-cc-kpi--defective">
+      <div class="jh-cc-kpi__watermark"><span class="material-symbols-outlined">warning</span></div>
+      <div class="jh-cc-kpi__label"><span class="jh-cc-kpi__label-dot"></span>Caídas</div>
+      <div class="jh-cc-kpi__value">{{ kpis.defective }}</div>
+      <div class="jh-cc-kpi__bar-wrap">
+        <div class="jh-cc-kpi__bar" style="width: {% if total_stock %}{% widthratio kpis.defective total_stock 100 %}{% else %}0{% endif %}%"></div>
+      </div>
+      <div class="jh-cc-kpi__meta">
+        <span>Requieren reposición</span>
+        <span class="jh-cc-kpi__pct">{% if total_stock %}{% widthratio kpis.defective total_stock 100 %}{% else %}0{% endif %}%</span>
+      </div>
+    </div>
+
+  </div>
+  {% endwith %}
+  {% endwith %}
+
+  {# Buscador cross-plataforma — pegás un correo y te dice si ya está #}
+  <form method="get" action="{% url 'admin_cuentas_dashboard' %}" class="jh-cc-search">
+    <span class="jh-cc-search__icon material-symbols-outlined">search</span>
+    <input type="search" name="q" value="{{ q|default:'' }}" autocomplete="off"
+           placeholder="Pegá un correo o palabra clave para chequear si ya está cargado…"
+           class="jh-cc-search__input">
+    {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    {% if mode and mode != 'all' %}<input type="hidden" name="mode" value="{{ mode }}">{% endif %}
+    {% if q or status != 'all' or mode != 'all' %}
+      <a href="{% url 'admin_cuentas_dashboard' %}" class="jh-cc-search__clear" title="Limpiar filtros">
+        <span class="material-symbols-outlined">close</span>
+      </a>
+    {% endif %}
+    <button type="submit" class="jh-cc-search__btn">Buscar</button>
+  </form>
+  <style>
+    .jh-cc-search {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 8px 8px 16px; border-radius: 14px;
+      background: rgba(15,23,42,.65);
+      border: 1px solid rgba(255,255,255,.08);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .jh-cc-search:focus-within {
+      border-color: rgba(167,139,250,.50);
+      box-shadow: 0 0 0 4px rgba(167,139,250,.10);
+    }
+    .jh-cc-search__icon {
+      color: rgba(148,163,184,.75); font-size: 20px;
+      flex-shrink: 0;
+    }
+    .jh-cc-search__input {
+      flex: 1; min-width: 0;
+      background: transparent; border: 0; outline: 0;
+      color: #f1f5f9; font-size: 14px;
+      padding: 8px 0;
+    }
+    .jh-cc-search__input::placeholder { color: rgba(148,163,184,.55); }
+    .jh-cc-search__clear {
+      flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 8px;
+      background: rgba(148,163,184,.08);
+      color: rgba(203,213,225,.75);
+      text-decoration: none;
+    }
+    .jh-cc-search__clear:hover { background: rgba(148,163,184,.16); color: #fff; }
+    .jh-cc-search__clear .material-symbols-outlined { font-size: 16px; }
+    .jh-cc-search__btn {
+      flex-shrink: 0;
+      padding: 8px 18px; border-radius: 10px;
+      background: linear-gradient(135deg, #a78bfa, #ec4899);
+      color: white; font-size: 13px; font-weight: 600;
+      border: 0; cursor: pointer;
+      box-shadow: 0 6px 18px -6px rgba(236,72,153,.55);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .jh-cc-search__btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgba(236,72,153,.65); }
+  </style>
+
+  {% if q %}
+    <div class="jh2-card jh2-card--padded">
+      <div style="display:flex;align-items:center;gap:10px;">
+        {% if total_results %}
+          <span class="material-symbols-outlined" style="font-size:20px;color:#34d399;">check_circle</span>
+          <div>
+            <div class="jh2-table__strong">
+              {{ total_results }} cuenta{{ total_results|pluralize:"s" }} coincide{{ total_results|pluralize:"n" }} con "<code>{{ q }}</code>"
+            </div>
+            <div class="jh2-table__muted">
+              Mirá abajo en qué plataforma{{ groups|pluralize:",s" }} está.
+              {% if matched_email %}<b style="color:#fb923c;">⚠️ Si este correo ya aparece como Vendida, NO lo vuelvas a cargar.</b>{% endif %}
+            </div>
+          </div>
+        {% else %}
+          <span class="material-symbols-outlined" style="font-size:20px;color:#94a3b8;">search_off</span>
+          <div>
+            <div class="jh2-table__strong">No hay coincidencias para "<code>{{ q }}</code>".</div>
+            <div class="jh2-table__muted">
+              {% if matched_email %}✅ Este correo NO está cargado todavía — podés agregarlo sin riesgo de duplicado.{% endif %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+  {# ── Barra de filtros (Estado + Modo unificados) ───────────────── #}
+  <style>
+    .jh-cc-filters {
+      display: grid; gap: 12px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(15,23,42,.55);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .jh-cc-filters__row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .jh-cc-filters__label {
+      font-size: 10.5px; font-weight: 700;
+      letter-spacing: .14em; text-transform: uppercase;
+      color: rgba(148,163,184,.72);
+      width: 52px; flex-shrink: 0;
+    }
+    .jh-cc-fchip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 11px; border-radius: 10px;
+      font-size: 12.5px; font-weight: 600;
+      color: rgba(203,213,225,.85);
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.07);
+      text-decoration: none;
+      transition: background .15s, border-color .15s, color .15s, transform .15s;
+    }
+    .jh-cc-fchip:hover { background: rgba(255,255,255,.07); transform: translateY(-1px); color: #fff; }
+    .jh-cc-fchip__icon { font-size: 14px; opacity: .85; }
+    .jh-cc-fchip__count {
+      padding: 1px 7px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; line-height: 1.4;
+      background: rgba(148,163,184,.15);
+      color: rgba(226,232,240,.85);
+      font-variant-numeric: tabular-nums;
+    }
+    /* tono según semáforo - non-active */
+    .jh-cc-fchip--success { color:#86efac; border-color: rgba(52,211,153,.20); }
+    .jh-cc-fchip--success .jh-cc-fchip__count { background: rgba(52,211,153,.18); color:#a7f3d0; }
+    .jh-cc-fchip--info    { color:#93c5fd; border-color: rgba(96,165,250,.20); }
+    .jh-cc-fchip--info .jh-cc-fchip__count { background: rgba(96,165,250,.18); color:#bfdbfe; }
+    .jh-cc-fchip--warning { color:#fcd34d; border-color: rgba(251,191,36,.22); }
+    .jh-cc-fchip--warning .jh-cc-fchip__count { background: rgba(251,191,36,.18); color:#fde68a; }
+    .jh-cc-fchip--danger  { color:#fca5a5; border-color: rgba(239,68,68,.22); }
+    .jh-cc-fchip--danger .jh-cc-fchip__count { background: rgba(239,68,68,.18); color:#fecaca; }
+    .jh-cc-fchip--purple  { color:#c4b5fd; border-color: rgba(167,139,250,.22); }
+    .jh-cc-fchip--purple .jh-cc-fchip__count { background: rgba(167,139,250,.18); color:#ddd6fe; }
+    /* active state */
+    .jh-cc-fchip--active {
+      background: linear-gradient(135deg, rgba(167,139,250,.22), rgba(236,72,153,.18));
+      border-color: rgba(167,139,250,.55);
+      color: #fff;
+      box-shadow: 0 4px 14px -4px rgba(167,139,250,.35);
+    }
+    .jh-cc-fchip--active .jh-cc-fchip__count { background: rgba(255,255,255,.18); color: #fff; }
+  </style>
+  <div class="jh-cc-filters">
+    <div class="jh-cc-filters__row">
+      <span class="jh-cc-filters__label">Estado</span>
+      {% for opt in status_options %}
+        {# tonos según value: all=neutral, available=success, sold=info, reserved=purple, defective=danger, disabled=neutral #}
+        {% if opt.value == 'available' %}{% with tone='success' icon='check_circle' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip jh-cc-fchip--{{ tone }} {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% elif opt.value == 'sold' %}{% with tone='info' icon='local_shipping' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip jh-cc-fchip--{{ tone }} {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% elif opt.value == 'reserved' %}{% with tone='purple' icon='schedule' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip jh-cc-fchip--{{ tone }} {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% elif opt.value == 'defective' %}{% with tone='danger' icon='warning' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip jh-cc-fchip--{{ tone }} {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% elif opt.value == 'disabled' %}{% with icon='block' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% else %}{% with icon='list_alt' %}
+          <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if mode and mode != 'all' %}mode={{ mode }}&{% endif %}status={{ opt.value }}"
+             class="jh-cc-fchip {% if status == opt.value %}jh-cc-fchip--active{% endif %}">
+            <span class="material-symbols-outlined jh-cc-fchip__icon">{{ icon }}</span>
+            {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+          </a>
+        {% endwith %}{% endif %}
+      {% endfor %}
+    </div>
+
+    <div class="jh-cc-filters__row" style="border-top:1px dashed rgba(255,255,255,.06);padding-top:12px;">
+      <span class="jh-cc-filters__label">Modo</span>
+      {% for opt in mode_options %}
+        <a href="?{% if q %}q={{ q|urlencode }}&{% endif %}{% if status and status != 'all' %}status={{ status }}&{% endif %}mode={{ opt.value }}"
+           class="jh-cc-fchip {% if opt.value == 'profile' %}jh-cc-fchip--success{% elif opt.value == 'full' %}jh-cc-fchip--purple{% elif opt.value == 'license' %}jh-cc-fchip--warning{% endif %} {% if mode == opt.value or mode == '' and opt.value == 'all' %}jh-cc-fchip--active{% endif %}">
+          <span class="material-symbols-outlined jh-cc-fchip__icon">{{ opt.icon }}</span>
+          {{ opt.label }}<span class="jh-cc-fchip__count">{{ opt.count }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Plataformas (acordeón por producto) ───────────────────────── #}
+  <style>
+    .jh-cc-plat {
+      padding: 16px 18px;
+      border-radius: 16px;
+      background: linear-gradient(160deg, rgba(255,255,255,.035), rgba(255,255,255,.01));
+      border: 1px solid rgba(255,255,255,.07);
+      transition: border-color .15s;
+    }
+    .jh-cc-plat[open] { border-color: rgba(167,139,250,.20); }
+    .jh-cc-plat__sum {
+      display: flex; align-items: center; gap: 14px;
+      cursor: pointer; list-style: none;
+    }
+    .jh-cc-plat__sum::-webkit-details-marker { display: none; }
+    .jh-cc-plat__chev {
+      width: 32px; height: 32px; flex-shrink: 0;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(167,139,250,.10);
+      color: #c4b5fd;
+      transition: transform .2s ease, background .15s;
+    }
+    .jh-cc-plat__chev .material-symbols-outlined { font-size: 22px; }
+    .jh-cc-plat[open] .jh-cc-plat__chev { transform: rotate(180deg); background: rgba(167,139,250,.18); }
+    .jh-cc-plat__avatar {
+      width: 36px; height: 36px; flex-shrink: 0;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 800; color: white;
+      background: linear-gradient(135deg, var(--av-a, #a78bfa), var(--av-b, #ec4899));
+      box-shadow: 0 6px 18px -8px rgba(0,0,0,.45);
+    }
+    .jh-cc-plat__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .jh-cc-plat__title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .jh-cc-plat__name {
+      font-size: 15px; font-weight: 700; color: #f1f5f9;
+      letter-spacing: -.005em;
+    }
+    .jh-cc-plat__meta { font-size: 12px; color: rgba(148,163,184,.78); }
+    .jh-cc-plat__right {
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      flex-wrap: wrap; justify-content: flex-end;
+    }
+    .jh-cc-plat__stat {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 9px; border-radius: 8px;
+      font-size: 11.5px; font-weight: 700;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.06);
+      color: rgba(203,213,225,.85);
+      font-variant-numeric: tabular-nums;
+    }
+    .jh-cc-plat__stat--success { color:#86efac; background: rgba(52,211,153,.10); border-color: rgba(52,211,153,.22); }
+    .jh-cc-plat__stat--info    { color:#93c5fd; background: rgba(96,165,250,.10); border-color: rgba(96,165,250,.22); }
+    .jh-cc-plat__stat--danger  { color:#fca5a5; background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.22); }
+    .jh-cc-plat__stat .material-symbols-outlined { font-size: 13px; }
+    .jh-cc-plat__add {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 12px; border-radius: 10px;
+      font-size: 12.5px; font-weight: 700;
+      background: linear-gradient(135deg, #a78bfa, #ec4899);
+      color: #fff; border: 0; cursor: pointer;
+      box-shadow: 0 6px 14px -6px rgba(236,72,153,.55);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .jh-cc-plat__add:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -8px rgba(236,72,153,.65); }
+    .jh-cc-plat__add .material-symbols-outlined { font-size: 14px; }
+    .jh-cc-plat__mode-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 9px; border-radius: 999px;
+      font-size: 10.5px; font-weight: 700; line-height: 1.6;
+      letter-spacing: .03em;
+    }
+    .jh-cc-plat__mode-badge .material-symbols-outlined { font-size: 12px; }
+
+    /* ── Tabla pulida ────────────────────────────────────────────── */
+    .jh-cc-plat .jh2-table th {
+      font-size: 10.5px; letter-spacing: .10em; text-transform: uppercase;
+      font-weight: 700; color: rgba(148,163,184,.65);
+      padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .jh-cc-plat .jh2-table td {
+      padding: 12px; vertical-align: top;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+    }
+    .jh-cc-plat .jh2-table tbody tr:last-child td { border-bottom: 0; }
+    .jh-cc-plat .jh2-table tbody tr { transition: background .12s; }
+    .jh-cc-plat .jh2-table tbody tr:hover { background: rgba(167,139,250,.04); }
+
+    /* ── Acciones inline ─────────────────────────────────────────── */
+    .jh-cc-actions { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+    .jh-cc-actions form { display: inline-flex; }
+    .jh-cc-act {
+      width: 30px; height: 30px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.07);
+      color: rgba(203,213,225,.85);
+      cursor: pointer; text-decoration: none;
+      transition: background .15s, color .15s, border-color .15s, transform .15s;
+    }
+    .jh-cc-act:hover { transform: translateY(-1px); }
+    .jh-cc-act .material-symbols-outlined { font-size: 16px; }
+    .jh-cc-act--success { color:#86efac; background: rgba(52,211,153,.10); border-color: rgba(52,211,153,.22); }
+    .jh-cc-act--success:hover { background: rgba(52,211,153,.20); color: #d1fae5; }
+    .jh-cc-act--info    { color:#93c5fd; background: rgba(96,165,250,.10); border-color: rgba(96,165,250,.22); }
+    .jh-cc-act--info:hover { background: rgba(96,165,250,.20); color: #dbeafe; }
+    .jh-cc-act--danger  { color:#fca5a5; background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.22); }
+    .jh-cc-act--danger:hover { background: rgba(239,68,68,.20); color: #fecaca; }
+  </style>
+  {% if groups %}
+    {% for g in groups %}
+    <details class="jh-cc-plat" {% if forloop.counter <= 3 or g.total <= 12 %}open{% endif %}>
+      <summary class="jh-cc-plat__sum">
+        <span class="jh-cc-plat__chev">
+          <span class="material-symbols-outlined">expand_more</span>
+        </span>
+        {% with first_char=g.product.name|slice:":1"|upper %}
+        <span class="jh-cc-plat__avatar"
+              style="--av-a:{% if first_char == 'A' %}#fb7185{% elif first_char == 'C' %}#f97316{% elif first_char == 'H' %}#8b5cf6{% elif first_char == 'N' %}#dc2626{% elif first_char == 'P' %}#0ea5e9{% elif first_char == 'D' %}#3b82f6{% else %}#a78bfa{% endif %};
+                     --av-b:{% if first_char == 'A' %}#ec4899{% elif first_char == 'C' %}#ea580c{% elif first_char == 'H' %}#6366f1{% elif first_char == 'N' %}#991b1b{% elif first_char == 'P' %}#0284c7{% elif first_char == 'D' %}#1d4ed8{% else %}#ec4899{% endif %};">
+          {{ first_char }}
+        </span>
+        {% endwith %}
+        <div class="jh-cc-plat__body">
+          <div class="jh-cc-plat__title-row">
+            <span class="jh-cc-plat__name">{{ g.product.name }}</span>
+            {% if g.mode_meta %}
+              <span class="jh-cc-plat__mode-badge"
+                    style="background:{{ g.mode_meta.bg }};border:1px solid {{ g.mode_meta.border }};color:{{ g.mode_meta.color }};">
+                <span class="material-symbols-outlined">{{ g.mode_meta.icon }}</span>
+                {{ g.mode_label }}
+              </span>
+            {% endif %}
+          </div>
+          <div class="jh-cc-plat__meta">
+            {{ g.total }} cuenta{{ g.total|pluralize:"s" }} cargada{{ g.total|pluralize:"s" }}
+          </div>
+        </div>
+        <div class="jh-cc-plat__right">
+          {% if g.available %}
+            <span class="jh-cc-plat__stat jh-cc-plat__stat--success">
+              <span class="material-symbols-outlined">check_circle</span>
+              {{ g.available }} disp.
+            </span>
+          {% endif %}
+          {% if g.sold %}
+            <span class="jh-cc-plat__stat jh-cc-plat__stat--info">
+              <span class="material-symbols-outlined">local_shipping</span>
+              {{ g.sold }} vend.
+            </span>
+          {% endif %}
+          {% if g.defective %}
+            <span class="jh-cc-plat__stat jh-cc-plat__stat--danger">
+              <span class="material-symbols-outlined">warning</span>
+              {{ g.defective }} caídas
+            </span>
+          {% endif %}
+          <button type="button"
+                  class="quick-add-btn jh-cc-plat__add"
+                  data-product-id="{{ g.product.pk }}"
+                  data-product-name="{{ g.product.name|escapejs }}">
+            <span class="material-symbols-outlined">add</span>
+            Agregar
+          </button>
+        </div>
+      </summary>
+
+      {% if g.items %}
+      <div class="jh2-table-wrap" style="margin-top:14px;">
+        <table class="jh2-table">
+          <thead>
+            <tr>
+              <th>Cuenta</th>
+              <th>Perfil / PIN</th>
+              <th>Estado</th>
+              <th>Etiqueta</th>
+              <th>Cargada</th>
+              <th class="jh2-table__right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in g.items %}
+            <tr {% if matched_email and matched_email in item.account_text|lower %}style="background:rgba(251,146,60,0.06);"{% endif %}>
+              <td>
+                <div class="jh2-table__mono jh2-table__cell-wrap" style="max-width:38ch;font-size:12.5px;">{{ item.account_text|default:item.credentials|truncatechars:120 }}</div>
+              </td>
+              <td>
+                {% if item.profile_text or item.pin_text %}
+                  <div class="jh2-table__mono" style="font-size:12px;">
+                    {% if item.profile_text %}<span style="color:#cbd5e1;">{{ item.profile_text }}</span>{% endif %}
+                    {% if item.pin_text %}<span style="color:#94a3b8;"> · PIN {{ item.pin_text }}</span>{% endif %}
+                  </div>
+                {% else %}
+                  <div class="jh2-table__muted">—</div>
+                {% endif %}
+                {# Cliente: nombre de perfil + PIN que SOLICITÓ el cliente al pagar (no el slot) #}
+                {% if item.buyer_profile or item.buyer_pin %}
+                  <div class="jh2-table__mono" style="font-size:11px;margin-top:4px;padding-top:4px;border-top:1px dashed rgba(148,163,184,.18);">
+                    <span style="color:#94a3b8;">Pidió:</span>
+                    {% if item.buyer_profile %}<span style="color:#fde68a;">"{{ item.buyer_profile }}"</span>{% endif %}
+                    {% if item.buyer_pin %}<span style="color:#fde68a;"> · PIN {{ item.buyer_pin }}</span>{% endif %}
+                  </div>
+                {% endif %}
+              </td>
+              <td>
+                {% if item.status == 'available' %}
+                  {% include "admin/components/_pill.html" with text="Disponible" variant="success" %}
+                {% elif item.status == 'sold' %}
+                  {% include "admin/components/_pill.html" with text="Vendida" variant="info" static=True %}
+                {% elif item.status == 'reserved' %}
+                  {% include "admin/components/_pill.html" with text="Reservada" variant="neutral" static=True %}
+                {% elif item.status == 'defective' %}
+                  {% include "admin/components/_pill.html" with text="Caída" variant="danger" %}
+                {% else %}
+                  {% include "admin/components/_pill.html" with text="Deshabilitada" variant="neutral" static=True %}
+                {% endif %}
+
+                {# Info del comprador (cuando la cuenta NO está disponible) #}
+                {% if item.buyer_email or item.sale_date or item.buyer_resale_name %}
+                  <div style="margin-top:6px;font-size:11px;line-height:1.45;display:flex;flex-direction:column;gap:2px;max-width:30ch;">
+                    {% if item.buyer_email %}
+                      <div style="color:#cbd5e1;display:flex;align-items:center;gap:4px;min-width:0;">
+                        <span class="material-symbols-outlined" style="font-size:12px;color:#94a3b8;">person</span>
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.buyer_email }}</span>
+                      </div>
+                    {% endif %}
+                    {% if item.buyer_phone %}
+                      <div style="color:#94a3b8;display:flex;align-items:center;gap:4px;">
+                        <span class="material-symbols-outlined" style="font-size:12px;">phone</span>
+                        {{ item.buyer_phone }}
+                      </div>
+                    {% endif %}
+                    {% if item.sale_date %}
+                      <div style="color:#93c5fd;display:flex;align-items:center;gap:4px;">
+                        <span class="material-symbols-outlined" style="font-size:12px;">event</span>
+                        Vendida {{ item.sale_date|date:"d/m/y H:i" }}
+                      </div>
+                    {% endif %}
+                    {% if item.buyer_resale_name %}
+                      <div style="color:#fbbf24;display:flex;align-items:center;gap:4px;font-size:10.5px;">
+                        <span class="material-symbols-outlined" style="font-size:11px;">forward</span>
+                        Revendida a: {{ item.buyer_resale_name }}
+                        {% if item.buyer_resale_whatsapp %} · {{ item.buyer_resale_whatsapp }}{% endif %}
+                      </div>
+                    {% endif %}
+                    {% if item.order_uuid %}
+                      <div class="jh2-table__muted" style="font-size:10.5px;font-family:ui-monospace,monospace;">
+                        #{{ item.order_uuid }}
+                      </div>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </td>
+              <td><div class="jh2-table__strong" style="font-size:12px;">{{ item.label|default:"—" }}</div></td>
+              <td class="jh2-table__muted" style="font-size:11.5px;">
+                <div>{{ item.created_at|date:"d/m/y" }}</div>
+                {% if item.sold_at %}<div style="color:#93c5fd;">✓ {{ item.sold_at|date:"d/m/y" }}</div>{% endif %}
+              </td>
+              <td class="jh2-table__right">
+                <div class="jh-cc-actions">
+                  {% if item.status != 'available' %}
+                    <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="jh2-inline-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="mark_available">
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="jh-cc-act jh-cc-act--success" title="Marcar disponible">
+                        <span class="material-symbols-outlined">check</span>
+                      </button>
+                    </form>
+                  {% endif %}
+                  {% if item.status == 'available' %}
+                    <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="jh2-inline-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="mark_sold">
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="jh-cc-act jh-cc-act--info" title="Marcar como vendida (uso manual fuera del checkout)">
+                        <span class="material-symbols-outlined">local_shipping</span>
+                      </button>
+                    </form>
+                  {% endif %}
+                  {% if item.status != 'defective' %}
+                    <form method="post" action="{% url 'admin_stock_quick_action' item.pk %}" class="jh2-inline-form">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="mark_defective">
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="jh-cc-act jh-cc-act--danger" title="Marcar caída">
+                        <span class="material-symbols-outlined">warning</span>
+                      </button>
+                    </form>
+                  {% endif %}
+                  <a href="{% url 'admin:catalog_stockitem_change' item.pk %}"
+                     class="jh-cc-act" title="Ver / editar detalle">
+                    <span class="material-symbols-outlined">edit</span>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <div style="margin-top:12px;text-align:center;padding:24px 12px;color:#94a3b8;font-size:13px;">
+          Esta plataforma no tiene cuentas cargadas todavía.
+          <button type="button"
+                  class="quick-add-btn jh2-btn jh2-btn--primary jh2-btn--sm"
+                  style="margin-top:8px;"
+                  data-product-id="{{ g.product.pk }}"
+                  data-product-name="{{ g.product.name|escapejs }}">
+            <span class="material-symbols-outlined" style="font-size:14px;">add</span>
+            Agregar la primera
+          </button>
+        </div>
+      {% endif %}
+    </details>
+    {% endfor %}
+  {% else %}
+    {% include "admin/components/_empty.html" with icon="inbox" title="Sin cuentas" desc="No hay cuentas cargadas todavía. Andá a un producto y agregalas." %}
+  {% endif %}
+
+</div>
+
+{# Modal Quick-Add — mismo backend que stock_overview. #}
+<div id="quick-add-modal"
+     class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+     style="backdrop-filter: blur(4px);">
+  <div class="bg-base-900 border border-base-700 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col"
+       style="max-height: 90vh;">
+    <form method="post" action="{% url 'admin_stock_quick_add' %}"
+          class="flex flex-col h-full overflow-hidden">
+      {% csrf_token %}
+      <input type="hidden" name="product_id" id="qa-product-id">
+      <input type="hidden" name="redirect_to" value="{% url 'admin_cuentas_dashboard' %}">
+
+      <div class="flex items-center justify-between px-5 py-4 border-b border-base-700">
+        <div>
+          <div class="text-xs uppercase tracking-wide text-base-400">Agregar cuentas a</div>
+          <div id="qa-product-name" class="text-lg font-semibold text-white"></div>
+        </div>
+        <button type="button" id="qa-close"
+                class="text-base-400 hover:text-white text-2xl leading-none">×</button>
+      </div>
+
+      <div class="px-5 py-4 space-y-3 overflow-y-auto">
+        <div class="text-xs text-base-300 bg-base-950 border border-base-800 rounded-lg p-3 leading-relaxed">
+          Pegá tus cuentas, una por línea. Formatos válidos:
+          <pre class="text-[11px] text-base-200 mt-2 overflow-x-auto">correo1@gmail.com|password1
+correo2@gmail.com:password2
+correo3@gmail.com,password3,Perfil1</pre>
+          Separadores: <code class="text-primary-300">|</code>, <code class="text-primary-300">,</code>, <code class="text-primary-300">;</code>, <code class="text-primary-300">:</code>, tab o espacios.
+          <div style="margin-top:8px;color:#fbbf24;">
+            ⚠️ Los correos que ya existan en esta plataforma se omiten automáticamente.
+          </div>
+        </div>
+
+        <textarea name="pasted" required rows="10"
+                  placeholder="Pegá acá tus cuentas — una por línea"
+                  class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm font-mono p-3
+                         focus:border-primary-500 focus:outline-none resize-none"></textarea>
+
+        <div id="qa-counter" class="text-xs text-base-400">0 cuentas detectadas</div>
+      </div>
+
+      <div class="flex justify-end gap-2 px-5 py-3 border-t border-base-700 bg-base-900">
+        <button type="button" id="qa-cancel"
+                class="px-4 py-2 rounded-md border border-base-700 hover:bg-base-800 text-base-200 text-sm">
+          Cancelar
+        </button>
+        <button type="submit"
+                class="px-4 py-2 rounded-md bg-primary-500 hover:bg-primary-400 text-white font-semibold text-sm">
+          Agregar cuentas
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# Modal Bulk-Replace — reemplazar credenciales en masa. #}
+<div id="bulk-replace-modal"
+     class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+     style="backdrop-filter: blur(4px);">
+  <div class="bg-base-900 border border-base-700 rounded-xl shadow-2xl w-full max-w-2xl flex flex-col"
+       style="max-height: 90vh;">
+    <form method="post" action="{% url 'admin_stock_bulk_replace_credentials' %}"
+          class="flex flex-col h-full overflow-hidden">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'admin_cuentas_dashboard' %}">
+
+      <div class="flex items-center justify-between px-5 py-4 border-b border-base-700">
+        <div>
+          <div class="text-xs uppercase tracking-wide text-base-400">Reemplazo masivo</div>
+          <div class="text-lg font-semibold text-white">🔄 Cambiar correo + contraseña en lote</div>
+        </div>
+        <button type="button" id="br-close"
+                class="text-base-400 hover:text-white text-2xl leading-none">×</button>
+      </div>
+
+      <div class="px-5 py-4 space-y-3 overflow-y-auto">
+        <div class="text-xs text-base-300 bg-base-950 border border-base-800 rounded-lg p-3 leading-relaxed">
+          Pegá las credenciales nuevas que te pasó el proveedor — una por línea.
+          El sistema busca el <b>correo actual</b> y reemplaza email + contraseña
+          en todas las cuentas que coincidan (perfil y PIN se mantienen).
+          <br><br>
+          <b>Formatos aceptados</b> (auto-detecta cada línea):
+          <pre class="text-[11px] text-base-200 mt-1 overflow-x-auto"># Si solo cambia la contraseña:
+correo@gmail.com:nueva_password
+
+# Si cambia correo Y contraseña (cualquier formato):
+correo_viejo@gmail.com|correo_nuevo@gmail.com|nueva_password
+correo_viejo@gmail.com,correo_nuevo@gmail.com,nueva_password
+correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
+          <div style="margin-top:8px;color:#93c5fd;">
+            ℹ️ Si la cuenta ya fue entregada a un cliente, también se sincroniza
+            su pedido (delivered_credentials) y se guarda snapshot para rollback.
+          </div>
+          <div style="margin-top:6px;color:#fbbf24;">
+            ⚠️ Las líneas que no podamos parsear y los emails que no estén
+            cargados se reportan al final como aviso.
+          </div>
+        </div>
+
+        <textarea name="pasted" required rows="10"
+                  placeholder="Pegá acá las credenciales nuevas — una cuenta por línea"
+                  class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm font-mono p-3
+                         focus:border-primary-500 focus:outline-none resize-none"></textarea>
+
+        <div id="br-counter" class="text-xs text-base-400">0 reemplazos detectados</div>
+      </div>
+
+      <div class="flex justify-end gap-2 px-5 py-3 border-t border-base-700 bg-base-900">
+        <button type="button" id="br-cancel"
+                class="px-4 py-2 rounded-md border border-base-700 hover:bg-base-800 text-base-200 text-sm">
+          Cancelar
+        </button>
+        <button type="submit"
+                class="px-4 py-2 rounded-md font-semibold text-sm text-white"
+                style="background:rgba(167,139,250,.85);">
+          🔄 Aplicar reemplazos
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  const modal = document.getElementById('quick-add-modal');
+  if (!modal) return;
+  const productIdInput = document.getElementById('qa-product-id');
+  const productNameLabel = document.getElementById('qa-product-name');
+  const textarea = modal.querySelector('textarea[name="pasted"]');
+  const counter = document.getElementById('qa-counter');
+
+  function openModal(productId, productName) {
+    productIdInput.value = productId;
+    productNameLabel.textContent = productName;
+    textarea.value = '';
+    counter.textContent = '0 cuentas detectadas';
+    counter.className = 'text-xs text-base-400';
+    modal.classList.remove('hidden');
+    setTimeout(() => textarea.focus(), 50);
+  }
+  function closeModal() { modal.classList.add('hidden'); }
+
+  document.querySelectorAll('.quick-add-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      openModal(this.dataset.productId, this.dataset.productName);
+    });
+  });
+  document.getElementById('qa-close').addEventListener('click', closeModal);
+  document.getElementById('qa-cancel').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+  });
+
+  textarea.addEventListener('input', function() {
+    const text = this.value.trim();
+    if (!text) {
+      counter.textContent = '0 cuentas detectadas';
+      counter.className = 'text-xs text-base-400';
+      return;
+    }
+    const lines = text.split(/\r?\n/);
+    const hasBlankBlocks = lines.some((l, i) => !l.trim() && i > 0 && i < lines.length - 1);
+    let n;
+    if (hasBlankBlocks) {
+      n = text.split(/\n\s*\n/).filter(b => b.trim()).length;
+    } else {
+      n = lines.filter(l => l.trim()).length;
+    }
+    counter.textContent = n + ' cuenta' + (n === 1 ? '' : 's') + ' detectada' + (n === 1 ? '' : 's');
+    counter.className = n > 0 ? 'text-xs text-emerald-300' : 'text-xs text-base-400';
+  });
+})();
+
+(function() {
+  // Modal de reemplazo masivo de credenciales.
+  const modal = document.getElementById('bulk-replace-modal');
+  const openBtn = document.getElementById('bulk-replace-open');
+  if (!modal || !openBtn) return;
+  const closeBtn = document.getElementById('br-close');
+  const cancelBtn = document.getElementById('br-cancel');
+  const counter = document.getElementById('br-counter');
+  const textarea = modal.querySelector('textarea[name="pasted"]');
+
+  function openModal() {
+    textarea.value = '';
+    counter.textContent = '0 reemplazos detectados';
+    counter.className = 'text-xs text-base-400';
+    modal.classList.remove('hidden');
+    setTimeout(() => textarea.focus(), 50);
+  }
+  function closeModal() { modal.classList.add('hidden'); }
+
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+  });
+
+  textarea.addEventListener('input', function() {
+    const lines = this.value.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith('#'));
+    const n = lines.length;
+    counter.textContent = n + ' reemplazo' + (n === 1 ? '' : 's') + ' detectado' + (n === 1 ? '' : 's');
+    counter.className = n > 0 ? 'text-xs text-violet-300' : 'text-xs text-base-400';
+  });
+})();
+</script>
+{% endblock %}

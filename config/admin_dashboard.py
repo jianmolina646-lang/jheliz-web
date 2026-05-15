@@ -16,6 +16,47 @@ from django.urls import reverse
 from django.utils import timezone
 
 
+def _sparkline_svg(values, width=120, height=36):
+    """Render a list of numeric values as an inline SVG sparkline path.
+
+    Returns an HTML string with the polyline + filled area. Returns empty
+    string if fewer than 2 values or all values are zero. Color is set via
+    ``currentColor`` so the parent element controls the tone via CSS class.
+    """
+    from django.utils.safestring import mark_safe
+
+    if not values or len(values) < 2:
+        return mark_safe("")
+    floats = [float(v or 0) for v in values]
+    vmin = min(floats)
+    vmax = max(floats)
+    span = vmax - vmin
+    if span == 0:
+        # Sin variación → línea plana al medio (no invisible).
+        norm = [0.5 for _ in floats]
+    else:
+        norm = [(v - vmin) / span for v in floats]
+    n = len(floats)
+    pts = []
+    for i, v in enumerate(norm):
+        x = (i / (n - 1)) * width
+        # Invertir Y porque SVG cuenta desde arriba.
+        y = height - (v * (height - 4)) - 2
+        pts.append(f"{x:.1f},{y:.1f}")
+    path = " ".join(pts)
+    area_path = f"M {pts[0]} L " + " L ".join(pts[1:]) + f" L {width:.1f},{height} L 0,{height} Z"
+    line_path = f"M {pts[0]} L " + " L ".join(pts[1:])
+    svg = (
+        f'<svg viewBox="0 0 {width} {height}" preserveAspectRatio="none" '
+        f'class="kpi-sparkline" aria-hidden="true">'
+        f'<path d="{area_path}" fill="currentColor" fill-opacity="0.18"/>'
+        f'<path d="{line_path}" fill="none" stroke="currentColor" '
+        f'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>'
+        f'</svg>'
+    )
+    return mark_safe(svg)
+
+
 def dashboard_callback(request, context):
     from orders.models import Order, OrderItem, ReminderRunLog
     from support.models import Ticket
@@ -176,6 +217,76 @@ def dashboard_callback(request, context):
         "labels": [d.strftime("%d %b") for d in days],
         "data": [float(per_day_rows[d]) for d in days],
     }
+
+    # Sparklines (últimos 7 días) para los KPI cards. Punteros pequeños
+    # que dan contexto visual al número grande sin tener que abrir un
+    # gráfico aparte.
+    last_7_days = days[-7:]
+    sales_sparkline = [float(per_day_rows[d]) for d in last_7_days]
+
+    # Pedidos por día (últimos 7) — count, no monto.
+    orders_per_day = {d: 0 for d in last_7_days}
+    orders_qs = (
+        Order.objects.filter(created_at__date__gte=last_7_days[0])
+        .values("created_at__date")
+        .annotate(qty=Count("id"))
+    )
+    for row in orders_qs:
+        d = row["created_at__date"]
+        if d in orders_per_day:
+            orders_per_day[d] = row["qty"]
+    orders_sparkline = [orders_per_day[d] for d in last_7_days]
+
+    # Ticket promedio por día (últimos 7) — solo días con ventas.
+    avg_ticket_per_day = {d: 0.0 for d in last_7_days}
+    paid_count_per_day = {d: 0 for d in last_7_days}
+    paid_qs = (
+        Order.objects.filter(
+            created_at__date__gte=last_7_days[0],
+            status__in=paid_statuses,
+        )
+        .values("created_at__date")
+        .annotate(qty=Count("id"))
+    )
+    for row in paid_qs:
+        d = row["created_at__date"]
+        if d in paid_count_per_day:
+            paid_count_per_day[d] = row["qty"]
+    for d in last_7_days:
+        c = paid_count_per_day[d]
+        if c:
+            avg_ticket_per_day[d] = float(per_day_rows[d]) / c
+    ticket_sparkline = [avg_ticket_per_day[d] for d in last_7_days]
+
+    # Deltas (semana actual vs semana anterior) para badges de tendencia.
+    prev_week_start = last_7_days[0] - timedelta(days=7)
+    prev_week_end = last_7_days[0] - timedelta(days=1)
+    prev_week_sales = float(
+        Order.objects.filter(
+            created_at__date__gte=prev_week_start,
+            created_at__date__lte=prev_week_end,
+            status__in=paid_statuses,
+        ).aggregate(total=Sum("total")).get("total") or Decimal("0.00")
+    )
+    cur_week_sales = sum(sales_sparkline)
+    if prev_week_sales > 0:
+        sales_week_delta = (cur_week_sales - prev_week_sales) / prev_week_sales * 100
+    elif cur_week_sales > 0:
+        sales_week_delta = 100.0
+    else:
+        sales_week_delta = 0.0
+
+    prev_week_orders = Order.objects.filter(
+        created_at__date__gte=prev_week_start,
+        created_at__date__lte=prev_week_end,
+    ).count()
+    cur_week_orders = sum(orders_sparkline)
+    if prev_week_orders > 0:
+        orders_week_delta = (cur_week_orders - prev_week_orders) / prev_week_orders * 100
+    elif cur_week_orders > 0:
+        orders_week_delta = 100.0
+    else:
+        orders_week_delta = 0.0
 
     # ---- Chart 2: top 5 productos del mes -----------------------------------
     top_products_rows = list(
@@ -381,10 +492,43 @@ def dashboard_callback(request, context):
     for item in needs_action:
         item["classes"] = _TONE_CLASSES[item["tone"]]
 
+    # ---- Status de 2FA del usuario actual ----------------------------------
+    # Sirve para mostrar un banner si el superuser todavía no tiene TOTP.
+    has_2fa = False
+    try:
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        if hasattr(request, "user") and request.user.is_authenticated:
+            has_2fa = TOTPDevice.objects.filter(
+                user=request.user, confirmed=True,
+            ).exists()
+    except Exception:  # pragma: no cover - defensive
+        has_2fa = False
+
+    # ---- Última sesión previa (capturada por accounts.admin_security) ------
+    previous_login_text = ""
+    previous_login_ip = ""
+    try:
+        from datetime import datetime as _dt
+        sess = getattr(request, "session", None)
+        prev_iso = sess.get("jheliz_previous_login") if sess else None
+        if prev_iso:
+            prev_dt = _dt.fromisoformat(prev_iso)
+            if timezone.is_naive(prev_dt):
+                prev_dt = timezone.make_aware(prev_dt)
+            previous_login_text = timezone.localtime(prev_dt).strftime(
+                "%d/%m/%Y a las %H:%M"
+            )
+            previous_login_ip = sess.get("jheliz_previous_login_ip", "") or ""
+    except Exception:  # pragma: no cover - defensive
+        previous_login_text = ""
+
     context.update(
         {
             "dashboard_greeting": greeting,
             "dashboard_user_first_name": user_first_name,
+            "dashboard_user_has_2fa": has_2fa,
+            "dashboard_previous_login_text": previous_login_text,
+            "dashboard_previous_login_ip": previous_login_ip,
             "dashboard_orders_today": orders_today,
             "dashboard_sales_today": sales_today,
             "dashboard_pending_orders_count": pending_orders + verifying_orders,
@@ -395,6 +539,10 @@ def dashboard_callback(request, context):
                     "metric": f"S/ {sales_today:,.2f}",
                     "footer": f"{arrow} {abs(delta_pct):.0f}% vs ayer (S/ {sales_yesterday:,.2f})",
                     "icon": "trending_up",
+                    "tone": "emerald",
+                    "delta_pct": float(delta_pct),
+                    "delta_label": "vs ayer",
+                    "sparkline": _sparkline_svg(sales_sparkline),
                     "link": reverse("admin:orders_order_changelist") + "?status__exact=delivered",
                 },
                 {
@@ -402,6 +550,10 @@ def dashboard_callback(request, context):
                     "metric": orders_today,
                     "footer": f"{now.strftime('%d %b %Y')}",
                     "icon": "today",
+                    "tone": "primary",
+                    "delta_pct": float(orders_week_delta),
+                    "delta_label": "vs semana ant.",
+                    "sparkline": _sparkline_svg(orders_sparkline),
                     "link": reverse("admin:orders_order_changelist"),
                 },
                 {
@@ -409,6 +561,10 @@ def dashboard_callback(request, context):
                     "metric": f"S/ {sales_month:,.2f}",
                     "footer": f"Desde {first_of_month.strftime('%d %b')}",
                     "icon": "payments",
+                    "tone": "violet",
+                    "delta_pct": float(sales_week_delta),
+                    "delta_label": "semanal",
+                    "sparkline": _sparkline_svg(sales_sparkline),
                     "link": reverse("admin:orders_order_changelist") + "?status__exact=delivered",
                 },
                 {
@@ -416,6 +572,8 @@ def dashboard_callback(request, context):
                     "metric": f"S/ {avg_ticket:,.2f}",
                     "footer": f"{paid_month_count} pedidos pagados",
                     "icon": "receipt_long",
+                    "tone": "blue",
+                    "sparkline": _sparkline_svg(ticket_sparkline),
                     "link": reverse("admin:orders_order_changelist"),
                 },
                 {
@@ -423,6 +581,7 @@ def dashboard_callback(request, context):
                     "metric": verifying_orders,
                     "footer": "Comprobantes pendientes",
                     "icon": "qr_code_scanner",
+                    "tone": "amber" if verifying_orders else "neutral",
                     "link": reverse("admin:orders_order_yape_inbox"),
                 },
                 {
@@ -430,6 +589,7 @@ def dashboard_callback(request, context):
                     "metric": pending_orders,
                     "footer": "Pendiente / Pagado / En prep.",
                     "icon": "pending_actions",
+                    "tone": "amber" if pending_orders else "neutral",
                     "link": reverse("admin:orders_order_changelist") + "?status__exact=preparing",
                 },
                 {
@@ -437,6 +597,7 @@ def dashboard_callback(request, context):
                     "metric": pending_support_tickets,
                     "footer": "Esperan tu respuesta",
                     "icon": "support_agent",
+                    "tone": "rose" if pending_support_tickets else "neutral",
                     "link": reverse("admin:support_ticket_changelist"),
                 },
                 {
@@ -444,6 +605,7 @@ def dashboard_callback(request, context):
                     "metric": pending_reviews,
                     "footer": "Aprobar / rechazar",
                     "icon": "rate_review",
+                    "tone": "blue" if pending_reviews else "neutral",
                     "link": reverse("admin:catalog_productreview_changelist") + "?status__exact=pending",
                 },
                 {
@@ -451,6 +613,7 @@ def dashboard_callback(request, context):
                     "metric": expiring_today,
                     "footer": f"+{expiring_tomorrow} mañana",
                     "icon": "schedule",
+                    "tone": "rose" if expiring_today else "neutral",
                     "link": reverse("admin:orders_orderitem_changelist"),
                 },
             ],

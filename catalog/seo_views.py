@@ -13,7 +13,7 @@ def robots_txt(request):
     sitemap_url = request.build_absolute_uri(reverse("django.contrib.sitemaps.views.sitemap"))
     body = "\n".join([
         "User-agent: *",
-        "Disallow: /jheliz-admin/",
+        "Disallow: /panel-jheliz-2026/",
         "Disallow: /cuenta/",
         "Disallow: /pedidos/",
         "Disallow: /soporte/",
@@ -50,10 +50,11 @@ def manifest_json(request):
     icon192 = request.build_absolute_uri("/static/img/icon-192.png")
     icon512 = request.build_absolute_uri("/static/img/icon-512.png")
     return JsonResponse({
+        "id": "/?source=pwa",
         "name": "Jheliz Services TV",
         "short_name": "Jheliz",
         "description": "Streaming y licencias al instante en Per\u00fa.",
-        "start_url": "/",
+        "start_url": "/?source=pwa",
         "scope": "/",
         "display": "standalone",
         "background_color": "#07060b",
@@ -66,7 +67,258 @@ def manifest_json(request):
             {"src": icon512, "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
         ],
         "categories": ["shopping", "entertainment"],
+        "shortcuts": [
+            {
+                "name": "Cat\u00e1logo",
+                "short_name": "Cat\u00e1logo",
+                "url": "/productos/",
+                "icons": [{"src": icon192, "sizes": "192x192"}],
+            },
+            {
+                "name": "Mis pedidos",
+                "short_name": "Pedidos",
+                "url": "/cuenta/",
+                "icons": [{"src": icon192, "sizes": "192x192"}],
+            },
+            {
+                "name": "Armar combo",
+                "short_name": "Combo",
+                "url": "/combos/",
+                "icons": [{"src": icon192, "sizes": "192x192"}],
+            },
+        ],
     })
+
+
+_SERVICE_WORKER_JS = """// Jheliz PWA service worker
+const VERSION = 'jheliz-v4';
+const STATIC_CACHE = `static-${VERSION}`;
+const RUNTIME_CACHE = `runtime-${VERSION}`;
+
+// Assets that should always work offline (the app shell).
+const APP_SHELL = [
+  '/',
+  '/productos/',
+  '/manifest.webmanifest',
+  '/static/img/icon-192.png',
+  '/static/img/icon-512.png',
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE)
+      .then((cache) => cache.addAll(APP_SHELL).catch(() => null))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.filter((k) => ![STATIC_CACHE, RUNTIME_CACHE].includes(k))
+            .map((k) => caches.delete(k))
+      )
+    ).then(() => self.clients.claim())
+  );
+});
+
+// Network-first for documents, cache-first for static assets.
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  // Don't cache admin, auth, checkout or anything POST-sensitive.
+  if (url.pathname.startsWith('/panel-jheliz-2026') ||
+      url.pathname.startsWith('/cuenta') ||
+      url.pathname.startsWith('/pedidos') ||
+      url.pathname.startsWith('/soporte') ||
+      url.pathname.startsWith('/distribuidor/panel')) {
+    return;
+  }
+  const isStatic = url.pathname.startsWith('/static/') ||
+                   url.pathname.startsWith('/media/') ||
+                   /\\.(css|js|png|jpg|jpeg|svg|webp|woff2?|ico)$/i.test(url.pathname);
+  if (isStatic) {
+    event.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        if (res && res.ok) {
+          const clone = res.clone();
+          caches.open(RUNTIME_CACHE).then((c) => c.put(req, clone));
+        }
+        return res;
+      }).catch(() => hit))
+    );
+    return;
+  }
+  // Document requests: network first, fallback to cache, fallback to offline page.
+  if (req.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(req).then((res) => {
+        if (res && res.ok) {
+          const clone = res.clone();
+          caches.open(RUNTIME_CACHE).then((c) => c.put(req, clone));
+        }
+        return res;
+      }).catch(() =>
+        caches.match(req).then((hit) => hit || caches.match('/'))
+      )
+    );
+  }
+});
+
+// --- Web Push notifications ---
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { title: 'Jheliz Store', body: event.data ? event.data.text() : '' };
+  }
+  const title = payload.title || 'Jheliz Store';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/static/img/icon-192.png',
+    badge: '/static/img/icon-192.png',
+    data: { url: payload.url || '/' },
+    tag: payload.tag || 'jheliz-default',
+    renotify: true,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) {
+        if (w.url.includes(targetUrl) && 'focus' in w) return w.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+"""
+
+
+@cache_control(public=True, max_age=3600)
+def service_worker(request):
+    """PWA service worker served from the site root so its scope covers the whole app."""
+    response = HttpResponse(_SERVICE_WORKER_JS, content_type="application/javascript")
+    response["Service-Worker-Allowed"] = "/"
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Admin PWA
+#
+# El panel admin (/panel-jheliz-2026/) tiene su propio manifest y service worker
+# para que el operador pueda instalarlo como app independiente en celular /
+# escritorio. Scope dedicado para que no se mezcle con el SW del sitio público.
+# ---------------------------------------------------------------------------
+
+_ADMIN_SERVICE_WORKER_JS = """// Jheliz Admin PWA service worker
+// Scope: /panel-jheliz-2026/. Network-only para todas las requests dentro
+// del admin (queremos siempre datos frescos: pedidos, tickets, stock).
+const VERSION = 'jheliz-admin-v1';
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+// Network-only: pasamos todas las requests directo a la red.
+self.addEventListener('fetch', (event) => {
+  // No interceptamos nada — el browser maneja la request normal.
+});
+
+// --- Web Push (admin notifications) ---
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { title: 'Jheliz Admin', body: event.data ? event.data.text() : '' };
+  }
+  const title = payload.title || 'Jheliz Admin';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/static/img/icon-192.png',
+    badge: '/static/img/icon-192.png',
+    data: { url: payload.url || '/panel-jheliz-2026/' },
+    tag: payload.tag || 'jheliz-admin',
+    renotify: true,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/panel-jheliz-2026/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) {
+        if (w.url.includes(targetUrl) && 'focus' in w) return w.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+"""
+
+
+@cache_control(public=True, max_age=86400)
+def manifest_admin_json(request):
+    """PWA manifest del panel admin — instalable como app independiente."""
+    icon192 = request.build_absolute_uri("/static/img/icon-192.png")
+    icon512 = request.build_absolute_uri("/static/img/icon-512.png")
+    admin_root = "/panel-jheliz-2026/"
+    return JsonResponse({
+        "id": admin_root + "?source=pwa",
+        "name": "Jheliz Admin",
+        "short_name": "Jheliz Admin",
+        "description": "Panel de administraci\u00f3n de Jheliz Store.",
+        "start_url": admin_root + "?source=pwa",
+        "scope": admin_root,
+        "display": "standalone",
+        "background_color": "#0a0a0f",
+        "theme_color": "#ec4899",
+        "orientation": "portrait",
+        "lang": "es-PE",
+        "icons": [
+            {"src": icon192, "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": icon512, "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": icon512, "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ],
+        "categories": ["business", "productivity"],
+        "shortcuts": [
+            {
+                "name": "Pedidos",
+                "short_name": "Pedidos",
+                "url": admin_root + "orders/order/",
+                "icons": [{"src": icon192, "sizes": "192x192"}],
+            },
+            {
+                "name": "Tickets",
+                "short_name": "Tickets",
+                "url": admin_root + "support/ticket/",
+                "icons": [{"src": icon192, "sizes": "192x192"}],
+            },
+        ],
+    })
+
+
+@cache_control(public=True, max_age=3600)
+def service_worker_admin(request):
+    """Service worker dedicado al admin (scope /panel-jheliz-2026/)."""
+    response = HttpResponse(_ADMIN_SERVICE_WORKER_JS, content_type="application/javascript")
+    response["Service-Worker-Allowed"] = "/panel-jheliz-2026/"
+    return response
 
 
 def faq(request):

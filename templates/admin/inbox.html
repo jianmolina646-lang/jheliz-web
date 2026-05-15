@@ -1,0 +1,74 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;gap:14px;">
+
+    <div class="jh2-page-head">
+        <div>
+            <div class="jh2-page-head__eyebrow">Bandeja · Necesita acción</div>
+            <h1 class="jh2-page-head__title">
+                Pendientes
+                <span class="jh2-pill jh2-pill--danger" style="vertical-align:middle;margin-left:8px;font-size:13px;">
+                    <span class="jh2-pill__dot"></span>{{ total }}
+                </span>
+            </h1>
+            <p class="jh2-page-head__subtitle">
+                Pedidos atascados, comprobantes Yape, tickets sin responder, reseñas, distribuidores, cuentas que vencen. Ordenado por prioridad.
+            </p>
+        </div>
+    </div>
+
+    <!-- Chips de filtro por tipo -->
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+        {% for kind, label, count, icon in chips %}
+        <a href="?kind={{ kind }}&sort={{ sort }}"
+           class="jh2-chip {% if kind_filter == kind %}jh2-chip--active{% endif %}">
+            <span class="material-symbols-outlined" style="font-size:14px;">{{ icon }}</span>
+            {{ label }}
+            <span style="display:inline-flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);min-width:18px;padding:0 6px;border-radius:9999px;font-size:10px;font-weight:700;margin-left:2px;">
+                {{ count }}
+            </span>
+        </a>
+        {% endfor %}
+
+        <span style="margin-left:auto;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-weight:600;">Ordenar:</span>
+        <a href="?kind={{ kind_filter }}&sort=priority"
+           class="jh2-chip {% if sort == 'priority' %}jh2-chip--active{% endif %}">Prioridad</a>
+        <a href="?kind={{ kind_filter }}&sort=age"
+           class="jh2-chip {% if sort == 'age' %}jh2-chip--active{% endif %}">Más viejos</a>
+    </div>
+
+    {% if items %}
+    <div style="display:flex;flex-direction:column;gap:8px;">
+        {% for it in items %}
+        <a href="{{ it.link }}"
+           class="jh2-card jh2-card--padded {{ it.classes }}"
+           style="display:block;text-decoration:none;color:inherit;border-left-width:4px;transition:transform .15s ease, box-shadow .15s ease;"
+           onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 24px -12px rgba(0,0,0,.5)'"
+           onmouseout="this.style.transform='';this.style.boxShadow=''">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+                <span class="material-symbols-outlined" style="font-size:24px;color:#c4b5fd;">{{ it.icon }}</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:10px;">
+                        <span class="jh2-table__strong">{{ it.label }}</span>
+                        <span class="jh2-table__muted">{{ it.age_label }}</span>
+                        {% if it.money %}
+                        <span class="jh2-mono" style="color:#6ee7b7;font-weight:600;">S/ {{ it.money|floatformat:2 }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="jh2-table__muted" style="margin-top:2px;">{{ it.ref }}</div>
+                    <div style="font-size:12px;color:#cbd5e1;margin-top:4px;">{{ it.reason }}</div>
+                </div>
+                <span class="material-symbols-outlined" style="color:#64748b;align-self:center;">chevron_right</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    {% include "admin/components/_empty.html" with icon="check_circle" title="Todo al día" desc="No hay nada pendiente que necesite tu acción. ¡Buen trabajo!" %}
+    {% endif %}
+</div>
+{% endblock %}

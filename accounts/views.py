@@ -27,6 +27,8 @@ from .models import Role
 def signup(request):
     if request.user.is_authenticated:
         return redirect("accounts:dashboard")
+    requested_role = (request.GET.get("role") or "").lower().strip()
+    is_distri_mode = requested_role == Role.DISTRIBUIDOR
     if request.method == "POST":
         form = SignupForm(request.POST)
         if form.is_valid():
@@ -42,9 +44,19 @@ def signup(request):
                     "Mientras tanto ver\u00e1s los precios de cliente.",
                 )
             return redirect("accounts:dashboard")
+        # POST con error: si el usuario marcó distribuidor, mantenemos el panel
+        if (form.data.get("role") or "").lower() == Role.DISTRIBUIDOR:
+            is_distri_mode = True
     else:
-        form = SignupForm()
-    return render(request, "accounts/signup.html", {"form": form})
+        initial = {}
+        if is_distri_mode:
+            initial["role"] = Role.DISTRIBUIDOR
+        form = SignupForm(initial=initial)
+    return render(
+        request,
+        "accounts/signup.html",
+        {"form": form, "is_distri_mode": is_distri_mode},
+    )
 
 
 class JhelizLoginView(LoginView):
@@ -162,3 +174,186 @@ def profile(request):
     else:
         form = ProfileForm(instance=request.user)
     return render(request, "accounts/profile.html", {"form": form})
+
+
+# ---------------------------------------------------------------------------
+# Web Push subscription endpoints
+# ---------------------------------------------------------------------------
+
+import json as _json
+from django.conf import settings as _settings
+from django.http import JsonResponse, HttpResponseNotAllowed
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+from .models import PushSubscription
+
+
+def _vapid_public_key_for_browser() -> str:
+    """Devuelve la clave pública VAPID en formato Base64URL.
+
+    El navegador necesita esto para que `pushManager.subscribe()` use el server
+    correcto. Si no está configurada, devuelve "" y el JS desactiva el botón.
+    """
+    return (_settings.VAPID_PUBLIC_KEY or "").strip()
+
+
+@require_POST
+def push_subscribe(request):
+    """Recibe la subscription del navegador y la guarda.
+
+    Body esperado (JSON):
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/...",
+      "keys": {"p256dh": "...", "auth": "..."}
+    }
+    """
+    try:
+        data = _json.loads(request.body or b"{}")
+    except _json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+    endpoint = (data.get("endpoint") or "").strip()
+    keys = data.get("keys") or {}
+    p256dh = (keys.get("p256dh") or "").strip()
+    auth = (keys.get("auth") or "").strip()
+    if not endpoint or not p256dh or not auth:
+        return JsonResponse({"error": "endpoint+keys requeridos"}, status=400)
+
+    user = request.user if request.user.is_authenticated else None
+    user_agent = (request.META.get("HTTP_USER_AGENT") or "")[:300]
+
+    # update_or_create por endpoint (la clave única).
+    sub, created = PushSubscription.objects.update_or_create(
+        endpoint=endpoint,
+        defaults={
+            "p256dh": p256dh,
+            "auth": auth,
+            "user": user,
+            "user_agent": user_agent,
+            "is_enabled": True,
+            "failed_count": 0,
+            "last_error": "",
+        },
+    )
+    return JsonResponse({"ok": True, "created": created, "id": sub.pk})
+
+
+@require_POST
+def push_unsubscribe(request):
+    """Desactiva la subscripción identificada por su endpoint."""
+    try:
+        data = _json.loads(request.body or b"{}")
+    except _json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+    endpoint = (data.get("endpoint") or "").strip()
+    if not endpoint:
+        return JsonResponse({"error": "endpoint requerido"}, status=400)
+    PushSubscription.objects.filter(endpoint=endpoint).update(is_enabled=False)
+    return JsonResponse({"ok": True})
+
+
+def push_config(request):
+    """Devuelve la clave pública VAPID para que el JS la use al suscribirse."""
+    return JsonResponse({
+        "public_key": _vapid_public_key_for_browser(),
+        "configured": bool(_vapid_public_key_for_browser()),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Wallet (distribuidor)
+# ---------------------------------------------------------------------------
+
+from decimal import Decimal as _Decimal
+
+from .forms import WalletRechargeForm
+from .models import WalletRecharge, WalletTransaction
+
+
+def _is_distributor(user) -> bool:
+    """Permite que también clientes vean su wallet si tienen saldo o movimientos."""
+    if not user.is_authenticated:
+        return False
+    return getattr(user, "is_distributor", False) or user.wallet_transactions.exists() or (user.wallet_balance or 0) > 0
+
+
+@login_required
+def wallet(request):
+    """Pantalla principal del wallet: saldo, movimientos y solicitudes."""
+    user = request.user
+    transactions = (
+        WalletTransaction.objects.filter(user=user)
+        .order_by("-created_at")[:30]
+    )
+    recharges = (
+        WalletRecharge.objects.filter(user=user)
+        .order_by("-created_at")[:10]
+    )
+
+    # Resumen de movimientos para el header (recargas y compras del mes en curso).
+    from datetime import timedelta
+    from django.utils import timezone
+    now = timezone.now()
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    monthly_tx = WalletTransaction.objects.filter(user=user, created_at__gte=month_start)
+    total_in = sum(
+        (t.amount for t in monthly_tx if t.kind in {WalletTransaction.Kind.RECARGA, WalletTransaction.Kind.REEMBOLSO}),
+        _Decimal("0"),
+    )
+    total_out = sum(
+        (t.amount for t in monthly_tx if t.kind == WalletTransaction.Kind.COMPRA),
+        _Decimal("0"),
+    )
+    pending_recharge = WalletRecharge.objects.filter(user=user, status=WalletRecharge.Status.PENDING).first()
+
+    return render(request, "accounts/wallet.html", {
+        "balance": user.wallet_balance or _Decimal("0"),
+        "transactions": transactions,
+        "recharges": recharges,
+        "total_in_month": total_in,
+        "total_out_month": total_out,
+        "pending_recharge": pending_recharge,
+        "presets": WalletRechargeForm.AMOUNT_PRESETS,
+    })
+
+
+@login_required
+def wallet_recharge(request):
+    """Form para crear una solicitud de recarga."""
+    user = request.user
+    if request.method == "POST":
+        form = WalletRechargeForm(request.POST, request.FILES)
+        if form.is_valid():
+            recharge = form.save(commit=False)
+            recharge.user = user
+            recharge.save()
+            messages.success(
+                request,
+                f"Solicitud enviada: S/ {recharge.amount:,.2f}. Te avisaremos cuando se acredite.",
+            )
+            try:
+                from orders import telegram as _telegram  # type: ignore
+                if hasattr(_telegram, "notify_admin_about_wallet_recharge"):
+                    _telegram.notify_admin_about_wallet_recharge(recharge)
+            except Exception:
+                pass
+            return redirect("accounts:wallet")
+    else:
+        form = WalletRechargeForm()
+    return render(request, "accounts/wallet_recharge.html", {
+        "form": form,
+        "presets": WalletRechargeForm.AMOUNT_PRESETS,
+    })
+
+
+@login_required
+def wallet_history(request):
+    """Lista completa de movimientos paginada."""
+    from django.core.paginator import Paginator
+    qs = WalletTransaction.objects.filter(user=request.user).order_by("-created_at")
+    paginator = Paginator(qs, 30)
+    page = paginator.get_page(request.GET.get("page"))
+    return render(request, "accounts/wallet_history.html", {
+        "page": page,
+        "balance": request.user.wallet_balance or _Decimal("0"),
+    })

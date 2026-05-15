@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Soporte distribuidor — {{ SITE_NAME }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  .motive-card {
+    position: relative; overflow: hidden;
+    border-radius: 1.5rem; padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+    border: 1px solid rgba(255,255,255,.1);
+    transition: transform .15s, border-color .15s, box-shadow .15s;
+    text-decoration: none; color: inherit;
+    display: flex; flex-direction: column; gap: .75rem;
+  }
+  .motive-card:hover { transform: translateY(-3px); }
+  .motive-card .halo {
+    position: absolute; right: -30px; top: -30px;
+    width: 140px; height: 140px; border-radius: 50%;
+    filter: blur(50px); opacity: .55; pointer-events: none;
+  }
+  .motive-card .ico {
+    width: 56px; height: 56px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
+    border: 1px solid rgba(255,255,255,.12);
+  }
+  .motive-1 .halo { background: #f87171; }
+  .motive-1:hover { border-color: rgba(248,113,113,.55); box-shadow: 0 24px 50px -28px rgba(248,113,113,.6); }
+  .motive-1 .ico { background: linear-gradient(135deg,#ef4444,#f97316); }
+  .motive-1 .label { color: #fca5a5; }
+  .motive-2 .halo { background: #8b5cf6; }
+  .motive-2:hover { border-color: rgba(139,92,246,.55); box-shadow: 0 24px 50px -28px rgba(139,92,246,.6); }
+  .motive-2 .ico { background: linear-gradient(135deg,#8b5cf6,#d946ef); }
+  .motive-2 .label { color: #c4b5fd; }
+  .motive-3 .halo { background: #fbbf24; }
+  .motive-3:hover { border-color: rgba(251,191,36,.55); box-shadow: 0 24px 50px -28px rgba(251,191,36,.55); }
+  .motive-3 .ico { background: linear-gradient(135deg,#f59e0b,#fbbf24); }
+  .motive-3 .label { color: #fde68a; }
+
+  .status-pill {
+    display: inline-flex; align-items: center; gap:.25rem;
+    padding: .2rem .55rem; border-radius: 9999px;
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .st-open { background: rgba(56,189,248,.14); border:1px solid rgba(56,189,248,.4); color: #7dd3fc; }
+  .st-padmin { background: rgba(251,191,36,.14); border:1px solid rgba(251,191,36,.4); color: #fde68a; }
+  .st-puser { background: rgba(244,114,182,.14); border:1px solid rgba(244,114,182,.4); color: #f9a8d4; }
+  .st-resolved { background: rgba(134,239,172,.14); border:1px solid rgba(134,239,172,.4); color: #86efac; }
+  .st-closed { background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color: #a1a1aa; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section>
+  <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+    <div>
+      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-pink-300">Centro de soporte</p>
+      <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight mt-1" style="letter-spacing:-0.03em">
+        ¿Qué <span style="background:linear-gradient(135deg,#ec4899,#d946ef,#8b5cf6);-webkit-background-clip:text;background-clip:text;color:transparent">pasa con la cuenta</span>?
+      </h1>
+      <p class="text-sm text-zinc-400 mt-1">Elegí un motivo y te respondemos en minutos. {% if open_count %}<span class="text-pink-300 font-semibold">· Tienes {{ open_count }} ticket{{ open_count|pluralize }} abierto{{ open_count|pluralize }}</span>{% endif %}</p>
+    </div>
+    <a href="{% url 'catalog:distributor_panel' %}" class="text-sm text-zinc-400 hover:text-white">← Panel</a>
+  </div>
+
+  <!-- 3 motivos rápidos -->
+  <div class="grid md:grid-cols-3 gap-4 mb-8">
+    <a href="{% url 'support:create' %}?tipo=caida" class="motive-card motive-1">
+      <span class="halo"></span>
+      <div class="ico">📱</div>
+      <div class="label text-[11px] uppercase tracking-[.12em] font-bold">Motivo 1 · Plataforma</div>
+      <div class="font-display text-xl font-extrabold">Suscripción caída</div>
+      <p class="text-sm text-zinc-400">La cuenta no abre, da error 'no disponible' o pide pago en la app.</p>
+      <span class="mt-auto inline-flex items-center gap-1 text-sm font-bold" style="color:#fca5a5">Reportar →</span>
+    </a>
+    <a href="{% url 'support:create' %}?tipo=password" class="motive-card motive-2">
+      <span class="halo"></span>
+      <div class="ico">🔑</div>
+      <div class="label text-[11px] uppercase tracking-[.12em] font-bold">Motivo 2 · Acceso</div>
+      <div class="font-display text-xl font-extrabold">Error de contraseña</div>
+      <p class="text-sm text-zinc-400">La contraseña fue cambiada, te dice 'incorrecta' o te bloquea.</p>
+      <span class="mt-auto inline-flex items-center gap-1 text-sm font-bold" style="color:#c4b5fd">Recuperar acceso →</span>
+    </a>
+    <a href="{% url 'code_distrib_create' %}" class="motive-card motive-3">
+      <span class="halo"></span>
+      <div class="ico">🔐</div>
+      <div class="label text-[11px] uppercase tracking-[.12em] font-bold">Motivo 3 · Verificación</div>
+      <div class="font-display text-xl font-extrabold">Pide código</div>
+      <p class="text-sm text-zinc-400">Te pide código de inicio de sesión, activación de TV, hogar.</p>
+      <span class="mt-auto inline-flex items-center gap-1 text-sm font-bold" style="color:#fde68a">Solicitar código →</span>
+    </a>
+  </div>
+
+  <!-- Otro motivo -->
+  <div class="rounded-2xl p-4 mb-8 flex flex-wrap items-center justify-between gap-3"
+       style="background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06)">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">💬</span>
+      <div>
+        <div class="font-semibold">¿Es otro motivo?</div>
+        <div class="text-xs text-zinc-500">Abrí un ticket con descripción libre.</div>
+      </div>
+    </div>
+    <a href="{% url 'support:create' %}" class="text-sm font-bold px-4 py-2 rounded-full text-white"
+       style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">Abrir ticket</a>
+  </div>
+
+  <!-- Mis tickets -->
+  <div class="rounded-2xl p-5" style="background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.08)">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-display text-lg font-bold tracking-tight">🎫 Mis tickets recientes</h2>
+      <a href="{% url 'support:list' %}" class="text-xs text-pink-300 hover:underline">Ver todos →</a>
+    </div>
+    {% if tickets %}
+      <div class="space-y-2">
+        {% for t in tickets %}
+          <a href="{% url 'support:detail' pk=t.id %}"
+             class="block rounded-xl px-3 py-2.5"
+             style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);transition:border-color .12s">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="min-w-0">
+                <div class="font-semibold truncate text-white">#{{ t.id }} · {{ t.subject }}</div>
+                <div class="text-[11px] text-zinc-500">{{ t.updated_at|naturaltime }} · {{ t.messages.count }} mensaje{{ t.messages.count|pluralize }}</div>
+              </div>
+              {% if t.status == "open" %}<span class="status-pill st-open">● Abierto</span>
+              {% elif t.status == "pending_admin" %}<span class="status-pill st-padmin">⏳ Respondemos</span>
+              {% elif t.status == "pending_user" %}<span class="status-pill st-puser">📨 Tu turno</span>
+              {% elif t.status == "resolved" %}<span class="status-pill st-resolved">✓ Resuelto</span>
+              {% else %}<span class="status-pill st-closed">Cerrado</span>{% endif %}
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-center py-8 text-sm text-zinc-500">
+        <div class="text-3xl mb-2">📭</div>
+        Sin tickets aún. Cuando reportes algo te aparecerá acá.
+      </div>
+    {% endif %}
+  </div>
+
+  {% if code_requests %}
+  <!-- Solicitudes de código recientes -->
+  <div class="mt-6 rounded-2xl p-5" style="background:linear-gradient(180deg,rgba(251,191,36,.04),rgba(255,255,255,.01));border:1px solid rgba(251,191,36,.2)">
+    <h2 class="font-display text-lg font-bold tracking-tight mb-3">🔐 Códigos solicitados</h2>
+    <div class="space-y-2">
+      {% for cr in code_requests %}
+        <a href="{% url 'code_distrib_status' token=cr.token %}"
+           class="block rounded-xl px-3 py-2.5"
+           style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05)">
+          <div class="flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <div class="font-semibold truncate">{{ cr.get_platform_display }} · {{ cr.account_email }}</div>
+              <div class="text-[11px] text-zinc-500">{{ cr.created_at|naturaltime }} · {{ cr.get_requested_code_type_display }}</div>
+            </div>
+            <span class="status-pill {% if cr.status == 'delivered' %}st-resolved{% elif cr.status == 'pending' %}st-padmin{% else %}st-closed{% endif %}">
+              {% if cr.status == 'delivered' %}✓ Entregado{% elif cr.status == 'pending' %}⏳ Pendiente{% else %}{{ cr.get_status_display }}{% endif %}
+            </span>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

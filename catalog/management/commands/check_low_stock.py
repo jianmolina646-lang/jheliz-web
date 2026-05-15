@@ -41,18 +41,14 @@ class Command(BaseCommand):
             Plan.objects
             .filter(is_active=True, product__is_active=True)
             .select_related("product")
-            .annotate(
-                _avail=Count(
-                    "stock_items",
-                    filter=Q(stock_items__status=StockItem.Status.AVAILABLE),
-                )
-            )
         )
 
         below: list[tuple[Plan, int]] = []
         recovered: list[Plan] = []
         for plan in plans:
-            available = plan._avail
+            # Usa la propiedad que ya considera stock genérico (plan=None)
+            # del mismo producto, no sólo el atado al plan específico.
+            available = plan.available_stock
             threshold = plan.low_stock_threshold or 0
             if threshold <= 0:
                 continue

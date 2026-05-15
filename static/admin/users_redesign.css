@@ -1,0 +1,399 @@
+/* Jheliz admin — rediseño moderno de Usuarios / Clientes / Distribuidores.
+ *
+ * Estilos pensados para integrarse con Unfold v6 (dark mode) y con la paleta
+ * rosa→violeta del polish global. Todo está scoped a `body.change-list` /
+ * `body.change-form` para no afectar otras pantallas.
+ */
+
+/* ---------- Avatar circular con iniciales ---------- */
+.jh-avatar {
+    --s: 36px;
+    --g1: #f472b6;
+    --g2: #a855f7;
+    width: var(--s);
+    height: var(--s);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--g1), var(--g2));
+    color: #fff;
+    font-weight: 700;
+    font-size: calc(var(--s) * 0.42);
+    letter-spacing: -0.02em;
+    box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.35);
+    flex-shrink: 0;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+/* ---------- Celda combinada (changelist) avatar + nombre + email ---------- */
+.jh-user-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 220px;
+}
+.jh-user-cell__txt {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    min-width: 0;
+}
+.jh-user-cell__name {
+    font-weight: 600;
+    color: rgb(248 250 252 / 0.95);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+.jh-user-cell__sub {
+    font-size: 12px;
+    color: rgb(148 163 184 / 0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+
+/* ---------- Chips de estado ---------- */
+.jh-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+    border: 1px solid currentColor;
+    border-color: rgba(255, 255, 255, 0.06);
+}
+.jh-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* ---------- Acciones de contacto rápidas (mini-botones) ---------- */
+.jh-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.jh-act {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    color: #e2e8f0;
+    transition: transform .15s ease, background .15s ease, color .15s ease;
+    text-decoration: none !important;
+}
+.jh-act:hover {
+    transform: translateY(-1px);
+    text-decoration: none !important;
+}
+.jh-act .material-symbols-outlined { font-size: 18px; }
+.jh-act--wa:hover  { background: rgba(37,211,102,.18); color: #4ade80; }
+.jh-act--mail:hover{ background: rgba(244,114,182,.18); color: #f9a8d4; }
+.jh-act--tg:hover  { background: rgba(56,189,248,.18); color: #38bdf8; }
+
+.jh-muted { color: rgb(148 163 184 / 0.7); font-size: 12px; }
+
+/* ---------- Stat grid (change_form hero) ---------- */
+.jh-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 6px;
+}
+.jh-stat {
+    position: relative;
+    overflow: hidden;
+    padding: 16px 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background-image: linear-gradient(160deg, rgba(168,85,247,.10), rgba(15,23,42,0));
+    background-color: rgb(15 23 42 / 0.55);
+    transition: transform .25s ease, border-color .25s ease;
+}
+.jh-stat:hover { transform: translateY(-2px); border-color: rgba(244,114,182,.35); }
+.jh-stat.from-emerald-500\/15 { background-image: linear-gradient(160deg, rgba(16,185,129,.16), rgba(15,23,42,0)); }
+.jh-stat.from-cyan-500\/15    { background-image: linear-gradient(160deg, rgba(6,182,212,.16),  rgba(15,23,42,0)); }
+.jh-stat.from-violet-500\/15  { background-image: linear-gradient(160deg, rgba(139,92,246,.16), rgba(15,23,42,0)); }
+.jh-stat.from-pink-500\/15    { background-image: linear-gradient(160deg, rgba(236,72,153,.16), rgba(15,23,42,0)); }
+.jh-stat.from-amber-500\/15   { background-image: linear-gradient(160deg, rgba(245,158,11,.16), rgba(15,23,42,0)); }
+.jh-stat__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.jh-stat__label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgb(203 213 225 / 0.85);
+}
+.jh-stat__icon {
+    font-size: 18px !important;
+    color: rgb(244 114 182 / 0.8);
+}
+.jh-stat__value {
+    margin-top: 6px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+}
+.jh-stat__sub {
+    margin-top: 2px;
+    font-size: 11.5px;
+    color: rgb(148 163 184 / 0.85);
+}
+
+/* ---------- Tabla moderna (historial pedidos / wallet / tickets) ---------- */
+.jh-table-wrap {
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgb(15 23 42 / 0.45);
+}
+.jh-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.jh-table thead th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgb(148 163 184 / 0.85);
+    background: rgba(255, 255, 255, 0.025);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-weight: 600;
+}
+.jh-table tbody td {
+    padding: 10px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    color: rgb(226 232 240 / 0.92);
+    vertical-align: middle;
+}
+.jh-table tbody tr:first-child td { border-top: none; }
+.jh-table tbody tr:hover td { background: rgba(244, 114, 182, 0.045); }
+.jh-table a { color: #f472b6; text-decoration: none; font-weight: 600; }
+.jh-table a:hover { text-decoration: underline; }
+
+.jh-empty {
+    padding: 24px 14px;
+    text-align: center;
+    color: rgb(148 163 184 / 0.7);
+    font-size: 13px;
+    font-style: italic;
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.35);
+}
+
+/* ---------- Apretar columnas en changelist para que la celda combinada
+     respire pero la tabla no explote en mobile ---------- */
+body.change-list #result_list th,
+body.change-list #result_list td {
+    vertical-align: middle;
+}
+body.change-list #result_list .field-user_card {
+    min-width: 240px;
+}
+
+/* En vistas readonly, ocultar el "label" gris cuando la celda ya viene con
+   su propio header (stat cards, tablas). */
+.change-form .form-row .jh-stat-grid,
+.change-form .form-row .jh-table-wrap,
+.change-form .form-row .jh-empty {
+    margin-top: 4px;
+}
+
+/* Mobile: stat grid 2 columnas */
+@media (max-width: 640px) {
+    .jh-stat-grid { grid-template-columns: 1fr 1fr; }
+    .jh-stat { padding: 12px 14px; }
+    .jh-stat__value { font-size: 18px; }
+}
+
+/* =====================================================================
+ * Utilidades reutilizables para cualquier ModelAdmin (Pedidos, Catálogo,
+ * Soporte, Wallet, Blog, etc.). Diseñadas para reemplazar `style=` inline
+ * y dar consistencia visual a TODO el panel admin moderno.
+ * ===================================================================== */
+
+/* ---------- Celda nombre + sub (ej. cliente / reclamación) ---------- */
+.jh-cell {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    min-width: 180px;
+}
+.jh-cell__name {
+    font-weight: 600;
+    color: rgb(248 250 252 / 0.95);
+}
+.jh-cell__name a {
+    color: inherit;
+    border-bottom: 1px dotted rgba(244, 114, 182, 0.6);
+    text-decoration: none;
+}
+.jh-cell__name a:hover {
+    color: #f9a8d4;
+}
+.jh-cell__sub {
+    font-size: 11.5px;
+    color: rgb(148 163 184 / 0.85);
+    margin-top: 1px;
+}
+
+/* ---------- Tags compactos (ej. items de un pedido) ---------- */
+.jh-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    line-height: 1.4;
+}
+.jh-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(148, 163, 184, 0.12);
+    color: rgb(203 213 225 / 0.95);
+    font-size: 11.5px;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ---------- Botones de acción rápida en changelist ---------- */
+.jh-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.jh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    text-decoration: none !important;
+    white-space: nowrap;
+    transition: transform .15s ease, filter .15s ease;
+}
+.jh-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+}
+.jh-btn--success { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; }
+.jh-btn--danger  { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; }
+.jh-btn--pink    { background: linear-gradient(135deg, #db2777, #f472b6); color: #fff; }
+.jh-btn--info    { background: linear-gradient(135deg, #0284c7, #0ea5e9); color: #fff; }
+.jh-btn--violet  { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: #fff; }
+
+/* ---------- Producto / categoría / post (imagen o emoji) ---------- */
+.jh-product-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 220px;
+}
+.jh-product-cell__img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(15, 23, 42, 0.6);
+    flex-shrink: 0;
+}
+.jh-product-cell__emoji {
+    font-size: 26px;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, rgba(168, 85, 247, .12), rgba(244, 114, 182, .10));
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+    line-height: 1;
+}
+.jh-product-cell__txt {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.25;
+    min-width: 0;
+}
+.jh-product-cell__name {
+    font-weight: 600;
+    color: rgb(248 250 252 / 0.95);
+}
+.jh-product-cell__sub {
+    font-size: 11.5px;
+    color: rgb(148 163 184 / 0.85);
+    margin-top: 1px;
+}
+
+/* ---------- Importes con signo positivo / negativo (wallet, descuentos) ---------- */
+.jh-amount {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+.jh-amount--pos { color: #34d399; }
+.jh-amount--neg { color: #fb7185; }
+
+/* ---------- Time chip (fecha relativa con tooltip absoluto) ---------- */
+.jh-time-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: rgb(203 213 225 / 0.85);
+    background: rgba(148, 163, 184, 0.10);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    font-variant-numeric: tabular-nums;
+    cursor: help;
+    white-space: nowrap;
+}
+.jh-time-chip--info {
+    color: rgb(147 197 253);
+    background: rgba(59, 130, 246, 0.10);
+    border-color: rgba(96, 165, 250, 0.22);
+}
+
+/* ---------- Indicador de color (PlatformLanding, Categoría) ---------- */
+.jh-color-dot {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: var(--c, #ec4899);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    vertical-align: middle;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.jh-color-code {
+    font-size: 11px;
+    color: rgb(203 213 225 / 0.85);
+}

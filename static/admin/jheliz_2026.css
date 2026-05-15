@@ -1,0 +1,886 @@
+/* Jheliz Admin · Diseño 2026 (capa moderna)
+ * ============================================================
+ * Esta capa agrega encima de jheliz_polish.css un sistema visual más
+ * actual, inspirado en dashboards modernos (Linear, Vercel, Stripe).
+ *
+ * - Bento-grid de stats con gradientes suaves y sparkline.
+ * - Glass-morphism para tarjetas destacadas.
+ * - Tablas data-table sticky con pills de estado.
+ * - Empty states ilustrados.
+ * - Pills con icon + label + dot animado.
+ * - Toolbar moderna (search + filtros chip).
+ * - Botones primary con micro-shine.
+ * - Tipografía con escalado fluido.
+ *
+ * Convención de namespace: todas las clases nuevas comienzan con `jh2-`
+ * para no chocar con jheliz_polish.css ni con Unfold/Tailwind. */
+
+/* ---------------------------------------------------------------- */
+/* Tokens de diseño                                                  */
+/* ---------------------------------------------------------------- */
+
+:root {
+    /* Gradientes core (uso parsimonioso, solo en CTAs y stat cards) */
+    --jh2-grad-primary:   linear-gradient(135deg, #ec4899 0%, #a855f7 50%, #6366f1 100%);
+    --jh2-grad-success:   linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+    --jh2-grad-warning:   linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    --jh2-grad-info:      linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+    --jh2-grad-neutral:   linear-gradient(135deg, rgba(148,163,184,0.18), rgba(148,163,184,0.06));
+
+    /* Glow aura (para cards activos) */
+    --jh2-glow-primary:   0 0 0 1px rgba(168,85,247,0.25), 0 12px 48px -12px rgba(168,85,247,0.45);
+    --jh2-glow-success:   0 0 0 1px rgba(16,185,129,0.25), 0 12px 48px -12px rgba(16,185,129,0.45);
+
+    /* Tarjetas glass (dark) */
+    --jh2-card-bg:        rgba(15,23,42,0.55);          /* slate-900 con alpha */
+    --jh2-card-border:    rgba(255,255,255,0.06);
+    --jh2-card-border-hi: rgba(255,255,255,0.12);
+
+    /* Radios y sombras */
+    --jh2-radius-sm:      8px;
+    --jh2-radius:         14px;
+    --jh2-radius-lg:      20px;
+    --jh2-shadow-soft:    0 1px 3px rgba(0,0,0,0.12), 0 8px 24px -8px rgba(0,0,0,0.30);
+    --jh2-shadow-lift:    0 2px 6px rgba(0,0,0,0.18), 0 24px 48px -16px rgba(0,0,0,0.42);
+
+    /* Tipografía */
+    --jh2-fs-display:     clamp(1.75rem, 1.2rem + 1.5vw, 2.25rem);
+    --jh2-fs-h1:          clamp(1.4rem, 1.1rem + .8vw, 1.7rem);
+    --jh2-fs-stat:        clamp(1.6rem, 1rem + 1.6vw, 2rem);
+}
+
+/* ---------------------------------------------------------------- */
+/* Bento stat cards                                                  */
+/* ---------------------------------------------------------------- */
+
+.jh2-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+.jh2-stat-grid--lg {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.jh2-stat {
+    position: relative;
+    overflow: hidden;
+    padding: 18px 18px 16px;
+    border-radius: var(--jh2-radius);
+    background: var(--jh2-card-bg);
+    border: 1px solid var(--jh2-card-border);
+    box-shadow: var(--jh2-shadow-soft);
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+    isolation: isolate;
+}
+.jh2-stat::before {
+    /* halo de color, sutil arriba a la derecha */
+    content: "";
+    position: absolute;
+    top: -40%; right: -20%;
+    width: 220px; height: 220px;
+    background: var(--jh2-stat-glow, var(--jh2-grad-primary));
+    filter: blur(60px);
+    opacity: .22;
+    z-index: -1;
+    transition: opacity .25s ease;
+}
+.jh2-stat:hover {
+    transform: translateY(-2px);
+    border-color: var(--jh2-card-border-hi);
+    box-shadow: var(--jh2-shadow-lift);
+}
+.jh2-stat:hover::before { opacity: .35; }
+
+.jh2-stat__label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: rgba(226,232,240,.7);
+    margin-bottom: 6px;
+}
+.jh2-stat__icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--jh2-stat-glow, var(--jh2-grad-primary));
+    color: #fff;
+    box-shadow: 0 4px 12px -2px rgba(0,0,0,.30);
+}
+.jh2-stat__icon .material-symbols-outlined { font-size: 18px; }
+.jh2-stat__value {
+    font-size: var(--jh2-fs-stat);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: #fff;
+    line-height: 1.1;
+    margin: 4px 0 8px;
+}
+.jh2-stat__sub {
+    font-size: 12px;
+    color: rgba(203,213,225,.7);
+    line-height: 1.4;
+}
+.jh2-stat__trend {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 600;
+    margin-left: 4px;
+}
+.jh2-stat__trend--up   { background: rgba(16,185,129,.12); color: #6ee7b7; }
+.jh2-stat__trend--down { background: rgba(239,68,68,.12);  color: #fca5a5; }
+.jh2-stat__trend--flat { background: rgba(148,163,184,.12); color: #cbd5e1; }
+
+.jh2-stat--success { --jh2-stat-glow: var(--jh2-grad-success); }
+.jh2-stat--warning { --jh2-stat-glow: var(--jh2-grad-warning); }
+.jh2-stat--info    { --jh2-stat-glow: var(--jh2-grad-info); }
+.jh2-stat--neutral { --jh2-stat-glow: var(--jh2-grad-neutral); }
+
+/* ---------------------------------------------------------------- */
+/* Section: encabezado de página + breadcrumb-lite                   */
+/* ---------------------------------------------------------------- */
+
+.jh2-page-head {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-radius: var(--jh2-radius);
+    background:
+        radial-gradient(ellipse 80% 60% at 0% 0%, rgba(236,72,153,.10), transparent 60%),
+        radial-gradient(ellipse 80% 60% at 100% 100%, rgba(99,102,241,.10), transparent 60%),
+        var(--jh2-card-bg);
+    border: 1px solid var(--jh2-card-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    margin-bottom: 16px;
+}
+.jh2-page-head__title {
+    font-size: var(--jh2-fs-h1);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: #fff;
+    margin: 0;
+    line-height: 1.2;
+}
+.jh2-page-head__subtitle {
+    margin-top: 2px;
+    font-size: 13px;
+    color: rgba(203,213,225,.75);
+}
+.jh2-page-head__actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------- */
+/* Toolbar (search + filtros chip)                                   */
+/* ---------------------------------------------------------------- */
+
+.jh2-toolbar {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding: 10px 12px;
+    border-radius: var(--jh2-radius);
+    background: var(--jh2-card-bg);
+    border: 1px solid var(--jh2-card-border);
+    margin-bottom: 12px;
+}
+.jh2-toolbar__search {
+    flex: 1 1 240px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(2,6,23,.55);
+    border: 1px solid var(--jh2-card-border);
+    transition: border-color .2s ease, box-shadow .2s ease;
+}
+.jh2-toolbar__search:focus-within {
+    border-color: rgba(236,72,153,.6);
+    box-shadow: 0 0 0 3px rgba(236,72,153,.15);
+}
+.jh2-toolbar__search input {
+    flex: 1;
+    background: transparent;
+    border: none !important;
+    outline: none;
+    color: #fff;
+    font-size: 13px;
+    box-shadow: none !important;
+    padding: 4px 0 !important;
+}
+.jh2-toolbar__chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--jh2-card-border);
+    color: rgba(226,232,240,.9);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.jh2-toolbar__chip:hover {
+    background: rgba(255,255,255,.07);
+    border-color: var(--jh2-card-border-hi);
+    color: #fff;
+    text-decoration: none;
+}
+.jh2-toolbar__chip[aria-current="true"],
+.jh2-toolbar__chip.is-active {
+    background: rgba(168,85,247,.18);
+    border-color: rgba(168,85,247,.45);
+    color: #fff;
+}
+.jh2-toolbar__chip-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.10);
+    font-size: 10px; font-weight: 700;
+}
+
+/* ---------------------------------------------------------------- */
+/* Data table                                                        */
+/* ---------------------------------------------------------------- */
+
+.jh2-table-wrap {
+    border-radius: var(--jh2-radius);
+    background: var(--jh2-card-bg);
+    border: 1px solid var(--jh2-card-border);
+    overflow: hidden;
+    box-shadow: var(--jh2-shadow-soft);
+}
+.jh2-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+.jh2-table thead th {
+    position: sticky; top: 0;
+    background: rgba(2,6,23,.85);
+    backdrop-filter: blur(6px);
+    color: rgba(203,213,225,.75);
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .06em;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--jh2-card-border);
+    z-index: 2;
+}
+.jh2-table tbody td {
+    padding: 12px 14px;
+    color: rgba(226,232,240,.92);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: middle;
+}
+.jh2-table tbody tr {
+    transition: background .15s ease;
+}
+.jh2-table tbody tr:hover {
+    background: rgba(168,85,247,.06);
+}
+.jh2-table tbody tr:last-child td { border-bottom: none; }
+.jh2-table .jh2-row-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--jh2-grad-neutral);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: #cbd5e1;
+}
+
+/* ---------------------------------------------------------------- */
+/* Pills / badges de estado                                          */
+/* ---------------------------------------------------------------- */
+
+.jh2-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px; font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+.jh2-pill__dot {
+    width: 6px; height: 6px; border-radius: 999px;
+    background: currentColor;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.04);
+    animation: jh2DotPulse 2s ease-in-out infinite;
+}
+@keyframes jh2DotPulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%     { opacity: .55; transform: scale(.85); }
+}
+
+.jh2-pill--success { background: rgba(16,185,129,.12);  color: #6ee7b7; border-color: rgba(16,185,129,.25); }
+.jh2-pill--info    { background: rgba(59,130,246,.12);  color: #93c5fd; border-color: rgba(59,130,246,.25); }
+.jh2-pill--warning { background: rgba(245,158,11,.12);  color: #fcd34d; border-color: rgba(245,158,11,.30); }
+.jh2-pill--danger  { background: rgba(239,68,68,.12);   color: #fca5a5; border-color: rgba(239,68,68,.30); }
+.jh2-pill--primary { background: rgba(168,85,247,.12);  color: #d8b4fe; border-color: rgba(168,85,247,.30); }
+.jh2-pill--neutral { background: rgba(148,163,184,.12); color: #cbd5e1; border-color: rgba(148,163,184,.25); }
+
+/* Variante con dot estático (sin pulse) */
+.jh2-pill--static .jh2-pill__dot { animation: none; }
+
+/* ---------------------------------------------------------------- */
+/* Empty state                                                       */
+/* ---------------------------------------------------------------- */
+
+.jh2-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    padding: 48px 20px;
+    border-radius: var(--jh2-radius);
+    background:
+        radial-gradient(ellipse 60% 60% at 50% 0%, rgba(168,85,247,.10), transparent 70%),
+        var(--jh2-card-bg);
+    border: 1px dashed var(--jh2-card-border-hi);
+    color: rgba(226,232,240,.75);
+}
+.jh2-empty__icon {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: var(--jh2-grad-primary);
+    color: #fff;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    margin-bottom: 12px;
+    box-shadow: var(--jh2-glow-primary);
+    animation: jh2EmptyFloat 3s ease-in-out infinite;
+}
+@keyframes jh2EmptyFloat {
+    0%,100% { transform: translateY(0); }
+    50%     { transform: translateY(-4px); }
+}
+.jh2-empty__title {
+    font-size: 16px; font-weight: 700; color: #fff;
+    margin: 4px 0 6px;
+}
+.jh2-empty__desc {
+    font-size: 13px; max-width: 480px; line-height: 1.55;
+    color: rgba(203,213,225,.75);
+    margin-bottom: 14px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Botones primarios refinados (con micro-shine)                     */
+/* ---------------------------------------------------------------- */
+
+.jh2-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    position: relative; overflow: hidden;
+    text-decoration: none;
+}
+.jh2-btn--primary {
+    background: var(--jh2-grad-primary);
+    box-shadow: 0 6px 20px -4px rgba(168,85,247,.45);
+}
+.jh2-btn--primary::after {
+    content: "";
+    position: absolute; top: 0; left: -120%;
+    width: 60%; height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,.30), transparent);
+    transition: left .6s ease;
+}
+.jh2-btn--primary:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.08);
+    box-shadow: 0 8px 26px -4px rgba(168,85,247,.55);
+    color: #fff; text-decoration: none;
+}
+.jh2-btn--primary:hover::after { left: 130%; }
+
+.jh2-btn--ghost {
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--jh2-card-border);
+    color: rgba(226,232,240,.95);
+}
+.jh2-btn--ghost:hover {
+    background: rgba(255,255,255,.08);
+    border-color: var(--jh2-card-border-hi);
+    color: #fff;
+    text-decoration: none;
+}
+
+/* ---------------------------------------------------------------- */
+/* Cards genéricos (glass)                                            */
+/* ---------------------------------------------------------------- */
+
+.jh2-card {
+    padding: 18px;
+    border-radius: var(--jh2-radius);
+    background: var(--jh2-card-bg);
+    border: 1px solid var(--jh2-card-border);
+    box-shadow: var(--jh2-shadow-soft);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.jh2-card__header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+}
+.jh2-card__title {
+    font-size: 14px; font-weight: 700;
+    color: #fff;
+    letter-spacing: -.01em;
+    margin: 0;
+}
+.jh2-card__subtitle {
+    font-size: 12px;
+    color: rgba(203,213,225,.65);
+    margin-top: 2px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Skeleton premium                                                  */
+/* ---------------------------------------------------------------- */
+
+.jh2-skel {
+    display: inline-block;
+    background: linear-gradient(90deg,
+        rgba(255,255,255,0.05) 0%,
+        rgba(255,255,255,0.12) 50%,
+        rgba(255,255,255,0.05) 100%);
+    background-size: 200% 100%;
+    animation: jh2SkelShimmer 1.4s linear infinite;
+    border-radius: 6px;
+    color: transparent;
+}
+@keyframes jh2SkelShimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+}
+
+/* ---------------------------------------------------------------- */
+/* Mobile                                                            */
+/* ---------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+    .jh2-stat { padding: 14px; }
+    .jh2-stat__value { font-size: 1.5rem; }
+    .jh2-page-head { padding: 12px; flex-direction: column; align-items: flex-start; }
+    .jh2-toolbar { flex-direction: column; align-items: stretch; }
+    .jh2-toolbar__search { width: 100%; }
+    .jh2-table thead th,
+    .jh2-table tbody td { padding: 8px 10px; }
+}
+
+/* prefers-reduced-motion: cortar todas las animaciones decorativas */
+@media (prefers-reduced-motion: reduce) {
+    .jh2-empty__icon,
+    .jh2-pill__dot { animation: none !important; }
+    .jh2-btn--primary::after { display: none; }
+}
+
+/* Hero (cliente 360 / dashboard) */
+.jh2-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(244,114,182,.08), rgba(139,92,246,.06) 60%, rgba(15,23,42,.65));
+    border: 1px solid rgba(244,114,182,.18);
+}
+.jh2-hero__halo {
+    position: absolute;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    filter: blur(60px);
+    pointer-events: none;
+}
+.jh2-hero__inner { position: relative; }
+.jh2-hero__title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #f8fafc;
+    background: linear-gradient(135deg, #f472b6, #c4b5fd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Mono utility */
+.jh2-mono {
+    font-family: 'JetBrains Mono', Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+}
+
+/* Timeline */
+.jh2-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 14px 18px 18px;
+    position: relative;
+}
+.jh2-timeline::before {
+    content: "";
+    position: absolute;
+    left: 30px; top: 18px; bottom: 18px;
+    width: 2px;
+    background: rgba(244,114,182,.18);
+}
+.jh2-timeline__item {
+    position: relative;
+    padding: 4px 0 14px 50px;
+}
+.jh2-timeline__bullet {
+    position: absolute;
+    left: 18px; top: 4px;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 4px rgba(15,23,42,.95);
+}
+.jh2-timeline__link {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+}
+.jh2-timeline__link:hover .jh2-timeline__title { color: #f0abfc; }
+.jh2-timeline__title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #f1f5f9;
+    transition: color .2s ease;
+}
+.jh2-timeline__detail {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+.jh2-timeline__when {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 3px;
+}
+
+/* Variantes de botón pequeño (de PR4 pedidos) */
+.jh2-btn--sm {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+}
+
+/* Título de sección dentro de cards (de PR4 pedidos) */
+.jh2-section-title {
+    margin: 0 0 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    color: #f1f5f9;
+}
+
+/* ----------------------------------------------------------------- */
+/* Section: tabs, inputs, bento grid, mini-stats (PR3 catálogo/stock) */
+/* ----------------------------------------------------------------- */
+
+/* Tabs (sub-navigation dentro de un módulo, ej. Stock) */
+.jh2-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    background: rgba(15,23,42,.4);
+    border: 1px solid rgba(255,255,255,.04);
+    margin: 8px 0 0;
+}
+.jh2-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(226,232,240,.65);
+    text-decoration: none;
+    transition: background .2s ease, color .2s ease;
+}
+.jh2-tab:hover {
+    background: rgba(255,255,255,.04);
+    color: #f1f5f9;
+}
+.jh2-tab--active {
+    background: var(--jh2-grad-primary);
+    color: #ffffff;
+    box-shadow: 0 4px 12px -4px rgba(168,85,247,.5);
+}
+.jh2-tab--active:hover { color: #ffffff; }
+.jh2-tab__alt {
+    margin-left: auto;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    color: rgba(148,163,184,.65);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.jh2-tab__alt:hover { color: #f1f5f9; }
+
+/* Inputs/select uniformes para el sistema 2026 */
+.jh2-input {
+    appearance: none;
+    background: rgba(15,23,42,.7);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: #f1f5f9;
+    font-size: 13px;
+    line-height: 1.4;
+    min-width: 180px;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.jh2-input:focus {
+    outline: none;
+    border-color: rgba(168,85,247,.5);
+    box-shadow: 0 0 0 3px rgba(168,85,247,.15);
+    background: rgba(15,23,42,.85);
+}
+.jh2-input::placeholder { color: rgba(148,163,184,.5); }
+select.jh2-input {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M0 0l5 6 5-6z' fill='%23cbd5e1'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+}
+
+/* Chip-radio (radio button con apariencia de chip) */
+.jh2-chip-radio { cursor: pointer; }
+.jh2-chip-radio input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.jh2-chip__count {
+    margin-left: 4px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.06);
+    font-size: 10.5px;
+    color: rgba(226,232,240,.6);
+}
+.jh2-chip--active .jh2-chip__count {
+    background: rgba(168,85,247,.25);
+    color: #fef3c7;
+}
+
+/* Bento grid (cards de productos en stock overview) */
+.jh2-bento-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+/* Mini-stats (3 columnas dentro de una card) */
+.jh2-mini-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+.jh2-mini-stat {
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(15,23,42,.45);
+    border: 1px solid rgba(255,255,255,.04);
+    text-align: left;
+}
+.jh2-mini-stat__label {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: rgba(148,163,184,.6);
+    margin-bottom: 2px;
+}
+.jh2-mini-stat__value {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #f1f5f9;
+    font-variant-numeric: tabular-nums;
+}
+.jh2-mini-stat--success .jh2-mini-stat__value { color: #6ee7b7; }
+.jh2-mini-stat--info    .jh2-mini-stat__value { color: #93c5fd; }
+.jh2-mini-stat--danger  .jh2-mini-stat__value { color: #fca5a5; }
+.jh2-mini-stat--warning .jh2-mini-stat__value { color: #fcd34d; }
+
+/* Card hover lift */
+.jh2-card--hover {
+    transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+.jh2-card--hover:hover {
+    transform: translateY(-2px);
+    border-color: rgba(168,85,247,.25);
+    box-shadow: 0 0 0 1px rgba(168,85,247,.15), 0 16px 48px -16px rgba(168,85,247,.4);
+}
+
+/* Pagination footer */
+.jh2-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 4px 4px;
+}
+
+/* Alerts */
+.jh2-alert {
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    border: 1px solid;
+}
+.jh2-alert--danger {
+    background: rgba(239,68,68,.12);
+    color: #fca5a5;
+    border-color: rgba(239,68,68,.3);
+}
+.jh2-alert--warning {
+    background: rgba(245,158,11,.12);
+    color: #fcd34d;
+    border-color: rgba(245,158,11,.3);
+}
+.jh2-alert--info {
+    background: rgba(59,130,246,.12);
+    color: #93c5fd;
+    border-color: rgba(59,130,246,.3);
+}
+.jh2-alert--success {
+    background: rgba(16,185,129,.12);
+    color: #6ee7b7;
+    border-color: rgba(16,185,129,.3);
+}
+
+/* Form fields */
+.jh2-field { display: flex; flex-direction: column; gap: 4px; }
+.jh2-field__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(226,232,240,.85);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+.jh2-field__required { color: #f472b6; margin-left: 2px; }
+.jh2-field__help {
+    font-size: 11.5px;
+    color: rgba(148,163,184,.6);
+    margin: 2px 0 0;
+}
+.jh2-field__error {
+    font-size: 11.5px;
+    color: #fca5a5;
+    margin: 2px 0 0;
+}
+/* Inputs dentro de un form Django no nuestros — los normalizamos */
+.jh2-card--padded form input[type="text"],
+.jh2-card--padded form input[type="email"],
+.jh2-card--padded form input[type="password"],
+.jh2-card--padded form input[type="number"],
+.jh2-card--padded form input[type="search"],
+.jh2-card--padded form input[type="url"],
+.jh2-card--padded form input[type="file"],
+.jh2-card--padded form select,
+.jh2-card--padded form textarea {
+    background: rgba(15,23,42,.7);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 10px;
+    padding: 8px 12px;
+    color: #f1f5f9;
+    font-size: 13px;
+    width: 100%;
+    transition: border-color .2s ease, box-shadow .2s ease;
+}
+.jh2-card--padded form input:focus,
+.jh2-card--padded form select:focus,
+.jh2-card--padded form textarea:focus {
+    outline: none;
+    border-color: rgba(168,85,247,.5);
+    box-shadow: 0 0 0 3px rgba(168,85,247,.15);
+}
+
+/* Code block — monospace inside a glass surface */
+.jh2-codeblock {
+    background: rgba(2,6,23,.7);
+    border: 1px solid rgba(255,255,255,.05);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.55;
+    color: #e2e8f0;
+    overflow-x: auto;
+    margin: 0;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+}
+.jh2-kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(168,85,247,.18);
+    color: #ddd6fe;
+    font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+    font-size: 10.5px;
+}
+
+/* Botón danger (rojo discreto) */
+.jh2-btn--danger {
+    background: rgba(239,68,68,.12);
+    color: #fca5a5;
+    border: 1px solid rgba(239,68,68,.4);
+}
+.jh2-btn--danger:hover {
+    background: rgba(239,68,68,.22);
+    border-color: rgba(239,68,68,.6);
+}
+
+/* Cell wrap helper */
+.jh2-table__cell-wrap { white-space: pre-wrap; word-break: break-all; }
+
+/* Eyebrow del page-head (etiqueta superior) */
+.jh2-page-head__eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: rgba(196,181,253,.7);
+    margin-bottom: 4px;
+}
+
+/* Variantes de botón success / warning (de PR6) */
+.jh2-btn--success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    box-shadow: 0 4px 14px -6px rgba(16,185,129,.5);
+}
+.jh2-btn--success:hover { filter: brightness(1.08); }
+
+.jh2-btn--warning {
+    background: linear-gradient(135deg, #f59e0b, #ea580c);
+    color: #fff;
+    box-shadow: 0 4px 14px -6px rgba(245,158,11,.5);
+}
+.jh2-btn--warning:hover { filter: brightness(1.08); }
+
+/* Helper text (de PR6) */
+.jh2-helper {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+}

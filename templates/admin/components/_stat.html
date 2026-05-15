@@ -1,0 +1,33 @@
+{% comment %}
+Componente: stat card 2026 (bento-style con halo de gradiente).
+
+Parámetros (vía `with`):
+  label    — string, etiqueta superior (mayúsculas)
+  value    — string/number, el número grande
+  sub      — string opcional, texto debajo del valor
+  icon     — material-symbols nombre (ej. "shopping_cart")
+  variant  — "" | "success" | "warning" | "info" | "neutral"
+  trend    — opcional, dict {direction: "up"|"down"|"flat", text: "+12% vs sem"}
+  href     — opcional, hace toda la card clickeable.
+
+Uso:
+  include "admin/components/_stat.html" with label="Pedidos hoy" value="42" icon="shopping_cart" variant="success"
+{% endcomment %}
+{% if href %}<a href="{{ href }}" class="jh2-stat jh2-stat--{{ variant|default:'' }}" style="text-decoration:none;color:inherit;display:block;">{% else %}<div class="jh2-stat jh2-stat--{{ variant|default:'' }}">{% endif %}
+  <div class="jh2-stat__label">
+    {% if icon %}<span class="jh2-stat__icon"><span class="material-symbols-outlined">{{ icon }}</span></span>{% endif %}
+    <span>{{ label }}</span>
+  </div>
+  <div class="jh2-stat__value">{{ value|default:"—" }}</div>
+  {% if sub or trend %}
+    <div class="jh2-stat__sub">
+      {% if sub %}{{ sub }}{% endif %}
+      {% if trend %}
+        <span class="jh2-stat__trend jh2-stat__trend--{{ trend.direction|default:'flat' }}">
+          {% if trend.direction == 'up' %}↑{% elif trend.direction == 'down' %}↓{% else %}—{% endif %}
+          {{ trend.text }}
+        </span>
+      {% endif %}
+    </div>
+  {% endif %}
+{% if href %}</a>{% else %}</div>{% endif %}

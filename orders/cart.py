@@ -21,6 +21,22 @@ from catalog.models import Plan
 CART_SESSION_KEY = "cart"
 CART_COUPON_SESSION_KEY = "cart_coupon_code"
 
+# Descuentos por armar un combo (productos distintos en el carrito).
+# Solo para cliente final — el distribuidor ya tiene su propio precio mayorista.
+COMBO_DISCOUNT_TIERS = {
+    2: Decimal("0.10"),   # 10% con 2 productos distintos
+    3: Decimal("0.15"),   # 15% con 3+
+}
+
+
+def combo_tier_percent(distinct_products: int) -> Decimal:
+    """Devuelve el % de descuento para N productos distintos."""
+    if distinct_products >= 3:
+        return COMBO_DISCOUNT_TIERS[3]
+    if distinct_products == 2:
+        return COMBO_DISCOUNT_TIERS[2]
+    return Decimal("0.00")
+
 
 @dataclass
 class CartLine:
@@ -136,8 +152,36 @@ class Cart:
         return total
 
     def total_for(self, user) -> Decimal:
-        """Compatibilidad: devuelve el total con descuento aplicado si hay cupón."""
-        return self.subtotal_for(user) - self.discount_for(user)
+        """Devuelve el total con descuento de cupón y combo aplicados."""
+        base = self.subtotal_for(user)
+        return base - self.discount_for(user) - self.combo_discount_for(user)
+
+    # ----- Combo (auto-descuento por productos distintos) -----
+
+    def distinct_product_count(self) -> int:
+        """Cantidad de productos distintos en el carrito (no planes, no unidades)."""
+        seen = set()
+        for line in self.lines():
+            if line.plan and line.plan.product_id:
+                seen.add(line.plan.product_id)
+        return len(seen)
+
+    def combo_tier_percent(self) -> Decimal:
+        """% de descuento automático por armar un combo. 0 si el usuario es distribuidor."""
+        if self.user and getattr(self.user, "is_distributor", False):
+            return Decimal("0.00")
+        return combo_tier_percent(self.distinct_product_count())
+
+    def combo_discount_for(self, user) -> Decimal:
+        """Descuento absoluto (Soles) por el combo. Aplica sobre el subtotal post-cupón."""
+        pct = self.combo_tier_percent()
+        if pct <= 0:
+            return Decimal("0.00")
+        base = self.subtotal_for(user) - self.discount_for(user)
+        if base <= 0:
+            return Decimal("0.00")
+        discount = (base * pct).quantize(Decimal("0.01"))
+        return discount
 
     # ----- Cupones -----
 

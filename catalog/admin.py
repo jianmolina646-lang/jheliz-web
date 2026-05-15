@@ -2,11 +2,14 @@ from django import forms
 from django.contrib import admin, messages
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
-from django.utils.html import format_html
+from django.utils.html import escape, format_html
+from django.utils.safestring import SafeString
 from unfold.admin import ModelAdmin, TabularInline
-from unfold.decorators import display
+from unfold.decorators import action as unfold_action, display
 
+from accounts.admin_helpers import chip
 from .models import (
+    BackInStockAlert,
     Category,
     CustomerPlan,
     DistributorPlan,
@@ -40,19 +43,111 @@ class PlanInline(TabularInline):
     )
 
 
+class _PlanDisplayMixin:
+    """Helpers comunes para los 3 admins de Plan: render con chips.
+
+    Da una experiencia uniforme al listar planes (general, cliente,
+    distribuidor): la celda del producto trae ícono/imagen, la duración
+    y el precio se muestran como chips compactos con tonos semafóricos,
+    y el estado activo se muestra como pill ("Activo" / "Inactivo").
+    """
+
+    @display(description="Producto", ordering="product__name")
+    def plan_product_cell(self, obj) -> SafeString:
+        product = obj.product
+        emoji = (
+            product.icon
+            or (product.category.emoji if product.category_id else "")
+            or "\U0001F3AC"
+        )
+        sub = f"{product.category.name if product.category_id else ''} · {obj.name}"
+        if product.image:
+            return format_html(
+                '<div class="jh-product-cell">'
+                '<img class="jh-product-cell__img" src="{}" alt="" loading="lazy" />'
+                '<div class="jh-product-cell__txt">'
+                '<div class="jh-product-cell__name">{}</div>'
+                '<div class="jh-product-cell__sub">{}</div>'
+                '</div></div>',
+                product.image.url, product.name, sub,
+            )
+        return format_html(
+            '<div class="jh-product-cell">'
+            '<span class="jh-product-cell__emoji">{}</span>'
+            '<div class="jh-product-cell__txt">'
+            '<div class="jh-product-cell__name">{}</div>'
+            '<div class="jh-product-cell__sub">{}</div>'
+            '</div></div>',
+            emoji, product.name, sub,
+        )
+
+    @display(description="Duración", ordering="duration_days")
+    def plan_duration_chip(self, obj) -> SafeString:
+        if not obj.duration_days:
+            return chip("Perpetua", tone="violet", icon="all_inclusive")
+        d = obj.duration_days
+        if d >= 365:
+            label = f"{d // 365} año{'s' if d // 365 != 1 else ''}"
+        elif d >= 30:
+            months = d // 30
+            label = f"{months} mes{'es' if months != 1 else ''}"
+        else:
+            label = f"{d} día{'s' if d != 1 else ''}"
+        return chip(label, tone="info", icon="schedule")
+
+    @display(description="Precio cliente", ordering="price_customer")
+    def plan_price_customer_chip(self, obj) -> SafeString:
+        from decimal import Decimal
+        if obj.price_customer is None or obj.price_customer <= Decimal("0"):
+            return chip("Sin precio", tone="neutral", icon="block")
+        return chip(f"S/ {obj.price_customer:.2f}", tone="success", icon="payments")
+
+    @display(description="Precio distri", ordering="price_distributor")
+    def plan_price_distributor_chip(self, obj) -> SafeString:
+        from decimal import Decimal
+        if obj.price_distributor is None or obj.price_distributor <= Decimal("0"):
+            return chip("Sin precio", tone="neutral", icon="block")
+        return chip(f"S/ {obj.price_distributor:.2f}", tone="violet", icon="storefront")
+
+    @display(description="Stock", ordering="-id")
+    def plan_stock_chip(self, obj) -> SafeString:
+        stock = obj.available_stock
+        threshold = obj.low_stock_threshold or 3
+        if stock == 0:
+            tone, icon = "danger", "remove_shopping_cart"
+        elif stock <= threshold:
+            tone, icon = "warning", "warning"
+        else:
+            tone, icon = "success", "inventory_2"
+        return chip(str(stock), tone=tone, icon=icon)
+
+    @display(description="Estado", ordering="is_active")
+    def plan_active_chip(self, obj) -> SafeString:
+        if obj.is_active:
+            return chip("Activo", tone="success", icon="check_circle")
+        return chip("Inactivo", tone="neutral", icon="pause_circle")
+
+
 @admin.register(Plan)
-class PlanAdmin(ModelAdmin):
+class PlanAdmin(_PlanDisplayMixin, ModelAdmin):
     """Listado completo (cliente + distribuidor)."""
-    list_display = ("product", "name", "duration_days", "price_customer", "price_distributor", "is_active")
+    list_display = (
+        "plan_product_cell", "plan_duration_chip",
+        "plan_price_customer_chip", "plan_price_distributor_chip",
+        "plan_stock_chip", "plan_active_chip",
+    )
     list_filter = ("is_active", "available_for_customer", "available_for_distributor")
     search_fields = ("product__name", "name")
     autocomplete_fields = ("product",)
 
 
 @admin.register(CustomerPlan)
-class CustomerPlanAdmin(ModelAdmin):
+class CustomerPlanAdmin(_PlanDisplayMixin, ModelAdmin):
     """Vista enfocada en cliente final: solo se ve y edita el precio cliente."""
-    list_display = ("product", "name", "duration_days", "price_customer", "available_stock_short", "is_active")
+    list_display = (
+        "plan_product_cell", "plan_duration_chip",
+        "plan_price_customer_chip", "plan_stock_chip", "plan_active_chip",
+    )
     list_filter = ("is_active", "product__category")
     search_fields = ("product__name", "name")
     autocomplete_fields = ("product",)
@@ -73,15 +168,14 @@ class CustomerPlanAdmin(ModelAdmin):
         obj.available_for_customer = True
         super().save_model(request, obj, form, change)
 
-    @display(description="Stock", ordering="-id")
-    def available_stock_short(self, obj):
-        return obj.available_stock
-
 
 @admin.register(DistributorPlan)
-class DistributorPlanAdmin(ModelAdmin):
+class DistributorPlanAdmin(_PlanDisplayMixin, ModelAdmin):
     """Vista mayorista: solo se ve y edita el precio distribuidor."""
-    list_display = ("product", "name", "duration_days", "price_distributor", "available_stock_short", "is_active")
+    list_display = (
+        "plan_product_cell", "plan_duration_chip",
+        "plan_price_distributor_chip", "plan_stock_chip", "plan_active_chip",
+    )
     list_filter = ("is_active", "product__category")
     search_fields = ("product__name", "name")
     autocomplete_fields = ("product",)
@@ -101,17 +195,12 @@ class DistributorPlanAdmin(ModelAdmin):
         obj.available_for_distributor = True
         super().save_model(request, obj, form, change)
 
-    @display(description="Stock", ordering="-id")
-    def available_stock_short(self, obj):
-        return obj.available_stock
-
 
 @admin.register(Product)
 class ProductAdmin(ModelAdmin):
     list_display = (
-        "product_preview", "category", "mode", "display_active",
-        "is_featured", "telegram_audience", "delivery_is_instant",
-        "available_stock_count",
+        "product_preview", "mode_badge", "available_stock_count",
+        "display_active", "featured_badge", "telegram_badge", "delivery_badge",
     )
     list_filter = ("category", "mode", "is_active", "is_featured", "telegram_audience")
     search_fields = ("name", "short_description")
@@ -127,7 +216,110 @@ class ProductAdmin(ModelAdmin):
         "action_announce_to_customers",
         "action_announce_to_distributors",
         "action_announce_to_both",
+        "action_activate", "action_deactivate",
+        "action_mark_featured", "action_unmark_featured",
     )
+    # Botones que aparecen arriba del formulario de edición de un producto.
+    # Ofrecen postear ese producto puntual a Telegram con un solo toque.
+    actions_detail = (
+        "detail_publish_to_customers",
+        "detail_publish_to_distributors",
+        "detail_publish_to_both",
+    )
+
+    def _publish_single(self, request, object_id, audience, label):
+        """Publica UN producto puntual al canal indicado y vuelve al admin."""
+        from orders import telegram
+
+        product = self.get_object(request, object_id)
+        if product is None:
+            self.message_user(request, "Producto no encontrado.", level=messages.ERROR)
+            return redirect(reverse("admin:catalog_product_changelist"))
+
+        if not telegram.is_configured():
+            self.message_user(
+                request,
+                "TELEGRAM_BOT_TOKEN no configurado — no se publicó nada.",
+                level=messages.WARNING,
+            )
+            return redirect(
+                reverse("admin:catalog_product_change", args=[object_id]),
+            )
+
+        if not telegram.channel_is_configured(audience):
+            self.message_user(
+                request,
+                f"Canal '{label}' sin configurar en .env — no se publicó nada.",
+                level=messages.WARNING,
+            )
+            return redirect(
+                reverse("admin:catalog_product_change", args=[object_id]),
+            )
+
+        res = telegram.announce_product(product, kind="new", audience=audience)
+        if res and res.get("ok"):
+            self.message_user(
+                request,
+                f"📢 Publicado en Telegram → canal {label} ({product.name}).",
+                level=messages.SUCCESS,
+            )
+        else:
+            self.message_user(
+                request,
+                f"❌ No se pudo publicar en canal {label}: {res}",
+                level=messages.ERROR,
+            )
+        return redirect(reverse("admin:catalog_product_change", args=[object_id]))
+
+    @unfold_action(
+        description="📢 Publicar en Telegram · 🛍 Clientes",
+        url_path="publish-telegram-customer",
+    )
+    def detail_publish_to_customers(self, request, object_id):
+        from orders import telegram
+        return self._publish_single(
+            request, object_id, telegram.AUDIENCE_CUSTOMER, "clientes",
+        )
+
+    @unfold_action(
+        description="📢 Publicar en Telegram · 🏪 Distribuidores",
+        url_path="publish-telegram-distrib",
+    )
+    def detail_publish_to_distributors(self, request, object_id):
+        from orders import telegram
+        return self._publish_single(
+            request, object_id, telegram.AUDIENCE_DISTRIB, "distribuidores",
+        )
+
+    @unfold_action(
+        description="📢 Publicar en Telegram · 🌐 Ambos canales",
+        url_path="publish-telegram-both",
+    )
+    def detail_publish_to_both(self, request, object_id):
+        from orders import telegram
+        return self._publish_single(
+            request, object_id, telegram.AUDIENCE_ALL, "ambos canales",
+        )
+
+    @admin.action(description="✓ Activar (visible en tienda)")
+    def action_activate(self, request, queryset):
+        n = queryset.update(is_active=True)
+        self.message_user(request, f"{n} producto(s) activado(s).")
+
+    @admin.action(description="⏸ Desactivar (oculto en tienda)")
+    def action_deactivate(self, request, queryset):
+        n = queryset.update(is_active=False)
+        self.message_user(request, f"{n} producto(s) desactivado(s).")
+
+    @admin.action(description="⭐ Destacar en home")
+    def action_mark_featured(self, request, queryset):
+        n = queryset.update(is_featured=True)
+        self.message_user(request, f"{n} producto(s) destacado(s) en home.")
+
+    @admin.action(description="☆ Quitar de destacados")
+    def action_unmark_featured(self, request, queryset):
+        n = queryset.update(is_featured=False)
+        self.message_user(request, f"{n} producto(s) sin destacar.")
 
     def _run_announce(self, request, queryset, audience, label):
         from orders import telegram
@@ -182,13 +374,28 @@ class ProductAdmin(ModelAdmin):
 
     @display(description="Producto", ordering="name")
     def product_preview(self, obj: Product) -> str:
-        emoji = obj.icon or obj.category.emoji or ""
+        emoji = obj.icon or (obj.category.emoji if obj.category_id else "") or "\U0001F3AC"
+        if obj.image:
+            return format_html(
+                '<div class="jh-product-cell">'
+                '<img class="jh-product-cell__img" src="{}" alt="" loading="lazy" />'
+                '<div class="jh-product-cell__txt">'
+                '<div class="jh-product-cell__name">{}</div>'
+                '<div class="jh-product-cell__sub">{}</div>'
+                '</div></div>',
+                obj.image.url,
+                obj.name,
+                obj.category.name if obj.category_id else "",
+            )
         return format_html(
-            '<div class="flex items-center gap-2">'
-            '<span class="text-2xl">{}</span>'
-            '<span class="font-medium">{}</span>'
-            '</div>',
+            '<div class="jh-product-cell">'
+            '<span class="jh-product-cell__emoji">{}</span>'
+            '<div class="jh-product-cell__txt">'
+            '<div class="jh-product-cell__name">{}</div>'
+            '<div class="jh-product-cell__sub">{}</div>'
+            '</div></div>',
             emoji, obj.name,
+            obj.category.name if obj.category_id else "",
         )
 
     @display(
@@ -199,9 +406,55 @@ class ProductAdmin(ModelAdmin):
     def display_active(self, obj: Product) -> bool:
         return obj.is_active
 
-    def available_stock_count(self, obj: Product) -> int:
-        return obj.available_stock
-    available_stock_count.short_description = "Stock disp."
+    def available_stock_count(self, obj: Product) -> SafeString:
+        n = obj.available_stock
+        if n == 0:
+            tone = "danger"
+        elif n < 3:
+            tone = "warning"
+        else:
+            tone = "success"
+        return chip(str(n), tone=tone, icon="inventory_2")
+    available_stock_count.short_description = "Stock"
+
+    @display(description="Modo", ordering="mode")
+    def mode_badge(self, obj: Product) -> SafeString:
+        """Pill compacta con ícono según el modo de venta del producto."""
+        mapping = {
+            "perfil": ("success", "person", "Por perfil"),
+            "completa": ("violet", "vpn_key", "Completa"),
+            "licencia": ("warning", "card_membership", "Licencia"),
+        }
+        tone, icon, label = mapping.get(
+            obj.mode, ("neutral", "category", obj.get_mode_display() or "—"),
+        )
+        return chip(label, tone=tone, icon=icon)
+
+    @display(description="Destacado", ordering="is_featured")
+    def featured_badge(self, obj: Product) -> SafeString:
+        if obj.is_featured:
+            return chip("Sí", tone="warning", icon="star")
+        return chip("No", tone="neutral", icon="star_outline")
+
+    @display(description="Telegram", ordering="telegram_audience")
+    def telegram_badge(self, obj: Product) -> SafeString:
+        mapping = {
+            "both":        ("violet",  "public",      "Ambos"),
+            "customer":    ("success", "shopping_bag","Clientes"),
+            "distributor": ("info",    "storefront",  "Distri"),
+            "none":        ("neutral", "block",       "No publicar"),
+        }
+        tone, icon, label = mapping.get(
+            obj.telegram_audience,
+            ("neutral", "help", obj.get_telegram_audience_display() or "—"),
+        )
+        return chip(label, tone=tone, icon=icon)
+
+    @display(description="Entrega", ordering="delivery_is_instant")
+    def delivery_badge(self, obj: Product) -> SafeString:
+        if obj.delivery_is_instant:
+            return chip("Inmediata", tone="success", icon="bolt")
+        return chip("Manual", tone="neutral", icon="pan_tool")
 
 
 _INPUT_CLS = (
@@ -256,10 +509,9 @@ class StockImportForm(forms.Form):
 @admin.register(StockItem)
 class StockItemAdmin(ModelAdmin):
     list_display = (
-        "product", "plan", "status_badge", "status", "label",
-        "created_at", "sold_at", "provider_expires_at",
+        "stock_product_cell", "status_badge", "stock_label_chip",
+        "stock_created_chip", "stock_sold_chip", "stock_expires_chip",
     )
-    list_editable = ("status", "label")
     list_filter = ("status", "product", "plan", "provider_expires_at")
     search_fields = ("product__name", "label", "credentials")
     autocomplete_fields = ("product", "plan")
@@ -270,6 +522,142 @@ class StockItemAdmin(ModelAdmin):
     readonly_fields = ("created_at",)
     change_list_template = "admin/catalog/stock_changelist.html"
     actions = ("action_mark_defective", "action_mark_available", "action_duplicate")
+
+    @display(description="Producto / Plan", ordering="product__name")
+    def stock_product_cell(self, obj: StockItem) -> SafeString:
+        product = obj.product
+        emoji = (
+            product.icon
+            or (product.category.emoji if product.category_id else "")
+            or "\U0001F3AC"
+        )
+        plan_label = obj.plan.name if obj.plan_id else "Sin plan"
+        if product.image:
+            return format_html(
+                '<div class="jh-product-cell">'
+                '<img class="jh-product-cell__img" src="{}" alt="" loading="lazy" />'
+                '<div class="jh-product-cell__txt">'
+                '<div class="jh-product-cell__name">{}</div>'
+                '<div class="jh-product-cell__sub">{}</div>'
+                '</div></div>',
+                product.image.url, product.name, plan_label,
+            )
+        return format_html(
+            '<div class="jh-product-cell">'
+            '<span class="jh-product-cell__emoji">{}</span>'
+            '<div class="jh-product-cell__txt">'
+            '<div class="jh-product-cell__name">{}</div>'
+            '<div class="jh-product-cell__sub">{}</div>'
+            '</div></div>',
+            emoji, product.name, plan_label,
+        )
+
+    @display(description="Etiqueta interna")
+    def stock_label_chip(self, obj: StockItem) -> SafeString:
+        if not obj.label:
+            return format_html(
+                '<span style="color:rgba(148,163,184,.45);font-size:11px;">—</span>'
+            )
+        return chip(obj.label, tone="violet", icon="sell")
+
+    @staticmethod
+    def _relative_dt(dt) -> str:
+        """Devuelve un string corto tipo 'hace 5h' / 'ayer' / '08/05'."""
+        if dt is None:
+            return ""
+        from django.utils import timezone
+        now = timezone.now()
+        delta = now - dt
+        seconds = delta.total_seconds()
+        if seconds < 0:
+            # futuro
+            future = -seconds
+            if future < 60:
+                return "en seg"
+            if future < 3600:
+                return f"en {int(future // 60)}m"
+            if future < 86400:
+                return f"en {int(future // 3600)}h"
+            days = int(future // 86400)
+            return f"en {days}d"
+        if seconds < 60:
+            return "ahora"
+        if seconds < 3600:
+            return f"hace {int(seconds // 60)}m"
+        if seconds < 86400:
+            return f"hace {int(seconds // 3600)}h"
+        days = int(seconds // 86400)
+        if days == 1:
+            return "ayer"
+        if days < 7:
+            return f"hace {days}d"
+        return dt.strftime("%d/%m/%y")
+
+    @display(description="Cargada", ordering="created_at")
+    def stock_created_chip(self, obj: StockItem) -> SafeString:
+        if not obj.created_at:
+            return format_html(
+                '<span style="color:rgba(148,163,184,.45);font-size:11px;">—</span>'
+            )
+        rel = self._relative_dt(obj.created_at)
+        abs_fmt = obj.created_at.strftime("%d/%m/%y %H:%M")
+        return format_html(
+            '<span class="jh-time-chip" title="{}">'
+            '<span class="material-symbols-outlined" '
+            'style="font-size:13px;vertical-align:-2px;opacity:.7;">schedule</span>'
+            ' {}</span>',
+            abs_fmt, rel,
+        )
+
+    @display(description="Vendida", ordering="sold_at")
+    def stock_sold_chip(self, obj: StockItem) -> SafeString:
+        if not obj.sold_at:
+            return format_html(
+                '<span style="color:rgba(148,163,184,.45);font-size:11px;">—</span>'
+            )
+        rel = self._relative_dt(obj.sold_at)
+        abs_fmt = obj.sold_at.strftime("%d/%m/%y %H:%M")
+        return format_html(
+            '<span class="jh-time-chip jh-time-chip--info" title="{}">'
+            '<span class="material-symbols-outlined" '
+            'style="font-size:13px;vertical-align:-2px;">local_shipping</span>'
+            ' {}</span>',
+            abs_fmt, rel,
+        )
+
+    @display(description="Vence (proveedor)", ordering="provider_expires_at")
+    def stock_expires_chip(self, obj: StockItem) -> SafeString:
+        if not obj.provider_expires_at:
+            return format_html(
+                '<span style="color:rgba(148,163,184,.45);font-size:11px;">—</span>'
+            )
+        from django.utils import timezone
+        now = timezone.now()
+        dt = obj.provider_expires_at
+        delta_seconds = (dt - now).total_seconds()
+        days = delta_seconds / 86400
+        abs_fmt = dt.strftime("%d/%m/%y")
+        if delta_seconds < 0:
+            tone = "danger"
+            icon = "event_busy"
+            label = f"Vencido {self._relative_dt(dt)}"
+        elif days <= 3:
+            tone = "danger"
+            icon = "warning"
+            label = f"En {int(days)}d ({abs_fmt})" if days >= 1 else "Hoy"
+        elif days <= 7:
+            tone = "warning"
+            icon = "schedule"
+            label = f"En {int(days)}d ({abs_fmt})"
+        elif days <= 30:
+            tone = "info"
+            icon = "event"
+            label = f"En {int(days)}d ({abs_fmt})"
+        else:
+            tone = "success"
+            icon = "event_available"
+            label = abs_fmt
+        return chip(label, tone=tone, icon=icon)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -293,21 +681,15 @@ class StockItemAdmin(ModelAdmin):
         super().save_model(request, obj, form, change)
 
     def status_badge(self, obj):
-        from django.utils.safestring import mark_safe
-
-        styles = {
-            "available": ("#10b981", "✓ Disponible"),
-            "reserved": ("#6b7280", "● Reservada"),
-            "sold": ("#3b82f6", "✓ Vendida"),
-            "defective": ("#ef4444", "⚠ Caída"),
-            "disabled": ("#9ca3af", "○ Deshabilitada"),
+        tones = {
+            "available": ("success", "check_circle"),
+            "reserved": ("neutral", "radio_button_checked"),
+            "sold": ("info", "shopping_cart_checkout"),
+            "defective": ("danger", "warning"),
+            "disabled": ("neutral", "block"),
         }
-        color, text = styles.get(obj.status, ("#9ca3af", obj.get_status_display()))
-        return mark_safe(
-            f'<span style="display:inline-block;padding:2px 8px;border-radius:9999px;'
-            f'background:{color}22;color:{color};font-size:11px;font-weight:600;'
-            f'border:1px solid {color}55;">{text}</span>'
-        )
+        tone, icon = tones.get(obj.status, ("neutral", None))
+        return chip(obj.get_status_display(), tone=tone, icon=icon)
 
     status_badge.short_description = "Estado"
     status_badge.admin_order_field = "status"
@@ -894,29 +1276,23 @@ class ReclamacionAdmin(ModelAdmin):
     @display(description="Cliente")
     def display_cliente(self, obj: Reclamacion):
         return format_html(
-            '<div style="line-height:1.2"><div>{}</div>'
-            '<div style="font-size:11px;color:#94a3b8">{}</div></div>',
-            obj.nombre, obj.email,
+            '<div class="jh-cell">'
+            '<div class="jh-cell__name">{}</div>'
+            '<div class="jh-cell__sub">{}</div>'
+            '</div>',
+            obj.nombre, obj.email or "\u2014",
         )
 
     @display(description="Vence en")
     def display_dias_restantes(self, obj: Reclamacion):
         d = obj.dias_restantes
         if obj.estado in ("respondido", "cerrado"):
-            color = "#94a3b8"
-            txt = "—"
-        elif d == 0:
-            color = "#ef4444"
-            txt = "VENCIDO"
-        elif d <= 3:
-            color = "#f59e0b"
-            txt = f"{d}d"
-        else:
-            color = "#10b981"
-            txt = f"{d}d"
-        return format_html(
-            '<span style="color:{};font-weight:600">{}</span>', color, txt,
-        )
+            return chip("\u2014", tone="neutral")
+        if d == 0:
+            return chip("Vencido", tone="danger", icon="error")
+        if d <= 3:
+            return chip(f"{d}d", tone="warning", icon="schedule")
+        return chip(f"{d}d", tone="success", icon="check_circle")
 
 
 @admin.register(PlatformLanding)
@@ -954,7 +1330,54 @@ class PlatformLandingAdmin(ModelAdmin):
     @display(description="Color")
     def accent_color_chip(self, obj):
         return format_html(
-            '<span style="display:inline-block;width:18px;height:18px;border-radius:5px;background:{};border:1px solid rgba(255,255,255,.15);vertical-align:middle"></span> '
-            '<code style="font-size:11px">{}</code>',
-            obj.accent_color or "#ec4899", obj.accent_color or "—",
+            '<span class="jh-color-dot" style="--c:{}"></span> '
+            '<code class="jh-color-code">{}</code>',
+            obj.accent_color or "#ec4899", obj.accent_color or "\u2014",
         )
+
+
+@admin.register(BackInStockAlert)
+class BackInStockAlertAdmin(ModelAdmin):
+    list_display = (
+        "email",
+        "product",
+        "plan",
+        "status_chip",
+        "created_at",
+        "notified_at",
+    )
+    list_filter = ("status", "product")
+    search_fields = ("email", "product__name", "plan__name")
+    autocomplete_fields = ("product", "plan")
+    readonly_fields = (
+        "created_at", "notified_at", "user_agent", "ip",
+    )
+    actions = ["mark_cancelled", "mark_pending_again"]
+    list_per_page = 50
+
+    @display(description="Estado", label={
+        "Pendiente": "warning",
+        "Notificada": "success",
+        "Cancelada": "secondary",
+    })
+    def status_chip(self, obj):
+        return obj.get_status_display()
+
+    def mark_cancelled(self, request, queryset):
+        n = queryset.update(status=BackInStockAlert.Status.CANCELLED)
+        self.message_user(
+            request, f"{n} alerta(s) marcadas como canceladas.",
+            messages.SUCCESS,
+        )
+    mark_cancelled.short_description = "Marcar como canceladas"
+
+    def mark_pending_again(self, request, queryset):
+        n = queryset.update(
+            status=BackInStockAlert.Status.PENDING,
+            notified_at=None,
+        )
+        self.message_user(
+            request, f"{n} alerta(s) marcadas como pendientes de nuevo.",
+            messages.SUCCESS,
+        )
+    mark_pending_again.short_description = "Marcar como pendientes (re-enviar)"

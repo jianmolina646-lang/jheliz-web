@@ -1,0 +1,106 @@
+{% comment %}
+  Comparador de planes lado a lado. Aparece cuando el producto tiene 2+ planes
+  activos visibles. Muestra precio + duración + precio por día + features
+  universales (garantía, soporte, entrega).
+{% endcomment %}
+{% load humanize %}
+{% if plans|length > 1 %}
+<section class="plan-cmp" aria-labelledby="plan-cmp-heading">
+  <header class="plan-cmp__head">
+    <p class="plan-cmp__eyebrow">Compará lado a lado</p>
+    <h2 id="plan-cmp-heading" class="plan-cmp__title">
+      Elegí el plan que mejor te conviene
+    </h2>
+    <p class="plan-cmp__sub">Todos los planes incluyen entrega en 2 min, garantía 30 días y soporte 24/7.</p>
+  </header>
+
+  <div class="plan-cmp__grid">
+    {% for plan in plans %}
+      {% with idx=forloop.counter0 %}
+        {# Marcar el plan más barato como "popular" si hay 3+, o el del medio si exactamente 3 #}
+        <article class="plan-cmp__card{% if forloop.counter == 2 and plans|length >= 3 %} plan-cmp__card--popular{% endif %}">
+          {% if forloop.counter == 2 and plans|length >= 3 %}
+            <div class="plan-cmp__ribbon">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:11px;height:11px">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              Más popular
+            </div>
+          {% endif %}
+
+          <div class="plan-cmp__name">{{ plan.name }}</div>
+          <div class="plan-cmp__duration">
+            {% if plan.duration_days %}
+              {% if plan.duration_days == 30 %}1 mes
+              {% elif plan.duration_days == 60 %}2 meses
+              {% elif plan.duration_days == 90 %}3 meses
+              {% elif plan.duration_days == 180 %}6 meses
+              {% elif plan.duration_days == 365 %}1 año
+              {% else %}{{ plan.duration_days }} días{% endif %}
+            {% else %}
+              Sin expiración
+            {% endif %}
+          </div>
+
+          <div class="plan-cmp__price">
+            {% if user.is_distributor and plan.price_distributor %}
+              <span class="plan-cmp__currency">{{ CURRENCY_SYMBOL }}</span>
+              <span class="plan-cmp__amount">{{ plan.price_distributor|floatformat:2|intcomma }}</span>
+              <span class="plan-cmp__chip">Mayorista</span>
+            {% else %}
+              <span class="plan-cmp__currency">{{ CURRENCY_SYMBOL }}</span>
+              <span class="plan-cmp__amount">{{ plan.price_customer|floatformat:2|intcomma }}</span>
+            {% endif %}
+          </div>
+
+          {% if plan.duration_days and plan.duration_days >= 30 %}
+            {% widthratio plan.price_customer plan.duration_days 1 as price_per_day %}
+            <div class="plan-cmp__perday">{{ CURRENCY_SYMBOL }} {{ price_per_day }}/día</div>
+          {% endif %}
+
+          <ul class="plan-cmp__features">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/></svg>
+              Entrega en 2 min
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/></svg>
+              Garantía 30 días
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/></svg>
+              Soporte 24/7
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/></svg>
+              Pago Yape o Mercado Pago
+            </li>
+          </ul>
+
+          <a href="#agregar-al-carrito" class="plan-cmp__cta" data-plan-id="{{ plan.id }}">
+            Elegir plan
+          </a>
+        </article>
+      {% endwith %}
+    {% endfor %}
+  </div>
+</section>
+
+<script>
+  // Click en CTA del comparador → marcar el radio del plan + scroll al form.
+  (function() {
+    document.querySelectorAll('.plan-cmp__cta').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        var planId = btn.getAttribute('data-plan-id');
+        var radio = document.querySelector('input[name="plan_id"][value="' + planId + '"]');
+        if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change', {bubbles:true})); }
+        var form = document.querySelector('form[hx-post], form[action*="cart"]') || document.querySelector('input[name="plan_id"]');
+        if (form && form.scrollIntoView) {
+          form.scrollIntoView({behavior:'smooth', block:'center'});
+        }
+      });
+    });
+  })();
+</script>
+{% endif %}

@@ -64,6 +64,12 @@ def _order_status_transitions(sender, instance: Order, **kwargs):
 @receiver(post_save, sender=Coupon)
 def _announce_new_coupon(sender, instance: Coupon, created, **kwargs):
     """Publica un cupón nuevo al canal cuando se crea activo."""
+    from django.conf import settings
+
+    # Por defecto la publicación es 100% manual desde el admin. Para
+    # restaurar el auto-post, definir TELEGRAM_AUTO_PUBLISH=true en .env.
+    if not getattr(settings, "TELEGRAM_AUTO_PUBLISH", False):
+        return
     if not (created and instance.is_active):
         return
     try:

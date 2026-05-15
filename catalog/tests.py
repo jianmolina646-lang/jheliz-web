@@ -57,7 +57,7 @@ class StockUrgencyTests(TestCase):
 
 class StockImportDuplicateTests(TestCase):
     def setUp(self):
-        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.product = Product.objects.create(
             category=self.cat,
             name="Netflix Premium — 1 perfil",
@@ -252,7 +252,7 @@ class StockModuleViewsTests(TestCase):
         self.user = User.objects.create_user(
             username="cliente", email="c@example.com", password="pwd1234!",
         )
-        self.cat = Category.objects.create(name="Streaming", slug="streaming-mod")
+        self.cat = Category.objects.create(name="Streaming-mod", slug="streaming-mod")
         self.product_a = Product.objects.create(
             category=self.cat, name="Netflix Demo", slug="netflix-demo", is_active=True,
         )
@@ -365,7 +365,7 @@ class CheapestVisiblePlanTests(TestCase):
     """El `DESDE` de la card debe ignorar planes en S/ 0 o sólo-distribuidor."""
 
     def setUp(self):
-        self.cat = Category.objects.create(name="Streaming", slug="streaming-pp")
+        self.cat = Category.objects.create(name="Streaming-pp", slug="streaming-pp")
         self.product = Product.objects.create(
             category=self.cat, name="Prime Video Demo", slug="prime-video-demo",
             is_active=True,
@@ -452,7 +452,7 @@ class DistributorPanelTests(TestCase):
             email="c1@example.com",
             role="cliente",
         )
-        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.prod = Product.objects.create(
             category=self.cat, name="Netflix", slug="netflix", is_active=True,
         )
@@ -554,3 +554,699 @@ class DistributorPanelTests(TestCase):
         resp = self.client.get(reverse("catalog:distributor_catalog"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Catálogo")
+
+
+class BackInStockAlertTests(TestCase):
+    def setUp(self):
+        self.cat = Category.objects.create(name="Streaming-bis", slug="streaming-bis")
+        self.product = Product.objects.create(
+            category=self.cat,
+            name="Test BIS Product",
+            slug="test-bis-product",
+            is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes",
+            price_customer=Decimal("25.00"),
+        )
+        self.client = Client()
+
+    def test_subscribe_creates_alert(self):
+        from catalog.models import BackInStockAlert
+
+        url = reverse(
+            "catalog:back_in_stock_subscribe",
+            kwargs={"slug": self.product.slug},
+        )
+        resp = self.client.post(url, {"email": "user@test.com"}, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        alert = BackInStockAlert.objects.get(
+            email="user@test.com", product=self.product,
+        )
+        self.assertEqual(alert.status, BackInStockAlert.Status.PENDING)
+
+    def test_subscribe_duplicate_does_not_create_second(self):
+        from catalog.models import BackInStockAlert
+
+        url = reverse(
+            "catalog:back_in_stock_subscribe",
+            kwargs={"slug": self.product.slug},
+        )
+        self.client.post(url, {"email": "user@test.com"})
+        self.client.post(url, {"email": "user@test.com"})
+        count = BackInStockAlert.objects.filter(
+            email="user@test.com", product=self.product,
+        ).count()
+        self.assertEqual(count, 1)
+
+    def test_subscribe_invalid_email_rejected(self):
+        from catalog.models import BackInStockAlert
+
+        url = reverse(
+            "catalog:back_in_stock_subscribe",
+            kwargs={"slug": self.product.slug},
+        )
+        resp = self.client.post(url, {"email": "not-an-email"}, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(
+            BackInStockAlert.objects.filter(product=self.product).exists()
+        )
+
+    def test_signal_notifies_when_new_stock_available(self):
+        from django.core import mail
+        from catalog.models import BackInStockAlert
+
+        BackInStockAlert.objects.create(
+            email="alert1@test.com",
+            product=self.product, plan=self.plan,
+            status=BackInStockAlert.Status.PENDING,
+        )
+        BackInStockAlert.objects.create(
+            email="alert2@test.com",
+            product=self.product, plan=None,
+            status=BackInStockAlert.Status.PENDING,
+        )
+        # Crear un StockItem AVAILABLE → dispara el signal.
+        StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="email: foo\nclave: bar",
+            status=StockItem.Status.AVAILABLE,
+        )
+        # Ambas alertas deberían quedar como NOTIFIED.
+        notified = BackInStockAlert.objects.filter(
+            status=BackInStockAlert.Status.NOTIFIED,
+        ).count()
+        self.assertEqual(notified, 2)
+        # Y deberían haberse mandado 2 correos.
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertTrue(
+            any("Volvi" in m.subject for m in mail.outbox),
+            f"Subjects: {[m.subject for m in mail.outbox]}",
+        )
+
+    def test_signal_does_not_re_notify_already_notified(self):
+        from catalog.models import BackInStockAlert
+
+        BackInStockAlert.objects.create(
+            email="already@test.com",
+            product=self.product, plan=self.plan,
+            status=BackInStockAlert.Status.NOTIFIED,
+            notified_at=timezone.now(),
+        )
+        StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="email: foo\nclave: bar",
+        )
+        # Ya estaba notified, no se vuelve a tocar.
+        alert = BackInStockAlert.objects.get(email="already@test.com")
+        self.assertEqual(alert.status, BackInStockAlert.Status.NOTIFIED)
+
+
+class RecentPurchasesApiTests(TestCase):
+    """El endpoint /api/compras-recientes/ devuelve los últimos pedidos
+    pagados/entregados con ciudad y emoji. Se usa para el widget de toasts
+    de prueba social en el frontend."""
+
+    def setUp(self):
+        from orders.models import Order, OrderItem
+        from django.core.cache import cache
+        cache.clear()
+        self.User = get_user_model()
+        self.cat = Category.objects.create(
+            name="StreamingRecent", slug="streaming-recent", emoji="📺",
+        )
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix Premium", slug="netflix-recent", is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", price_customer=Decimal("25.00"),
+        )
+        self.user = self.User.objects.create_user(
+            username="seba", email="seba@test.pe", first_name="Sebastián",
+        )
+        self.order = Order.objects.create(
+            user=self.user, total=Decimal("25.00"), status=Order.Status.PAID,
+        )
+        OrderItem.objects.create(
+            order=self.order, product=self.product, plan=self.plan, quantity=1,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=Decimal("25.00"),
+        )
+
+    def test_returns_json_with_paid_order(self):
+        resp = self.client.get(reverse("catalog:recent_purchases_api"))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("items", data)
+        self.assertGreaterEqual(len(data["items"]), 1)
+        item = data["items"][0]
+        self.assertEqual(item["name"], "Sebastián")
+        self.assertEqual(item["product"], "Netflix Premium")
+        self.assertEqual(item["emoji"], "📺")
+        self.assertTrue(item["city"])  # ciudad peruana asignada por id
+        self.assertIn("when_iso", item)
+
+    def test_excludes_unpaid_orders(self):
+        from orders.models import Order, OrderItem
+        order = Order.objects.create(
+            user=self.user, total=Decimal("25.00"), status=Order.Status.PENDING,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan, quantity=1,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=Decimal("25.00"),
+        )
+        from django.core.cache import cache
+        cache.clear()
+        resp = self.client.get(reverse("catalog:recent_purchases_api"))
+        data = resp.json()
+        # Solo el pedido pagado (1 item), no el pending.
+        self.assertEqual(len(data["items"]), 1)
+
+
+class ProductFaqTests(TestCase):
+    """La página de detalle de producto debe mostrar el bloque de FAQs
+    dinámicas + emitir el FAQPage JSON-LD para SEO."""
+
+    def setUp(self):
+        self.cat = Category.objects.create(
+            name="Streaming-FAQ", slug="streaming-faq", emoji="📺",
+        )
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix FAQ", slug="netflix-faq",
+            is_active=True, mode="perfil", delivery_is_instant=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes",
+            price_customer=Decimal("25.00"),
+        )
+
+    def test_faq_section_renders_on_product_detail(self):
+        resp = self.client.get(
+            reverse("catalog:product", kwargs={"slug": self.product.slug})
+        )
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode()
+        # La sección destacada
+        self.assertIn("Preguntas frecuentes", body)
+        self.assertIn("¿Tenés dudas sobre Netflix FAQ?", body)
+        # Pregunta base de entrega
+        self.assertIn("¿Cuánto demora la entrega de Netflix FAQ?", body)
+        # Pregunta del modo perfil
+        self.assertIn("¿Netflix FAQ funciona en mi Smart TV?", body)
+
+    def test_faq_jsonld_is_emitted_for_seo(self):
+        resp = self.client.get(
+            reverse("catalog:product", kwargs={"slug": self.product.slug})
+        )
+        body = resp.content.decode()
+        self.assertIn('"@type": "FAQPage"', body)
+        self.assertIn('"@type": "Question"', body)
+
+    def test_faq_for_licencia_product(self):
+        """Un producto en modo licencia muestra preguntas distintas."""
+        prod = Product.objects.create(
+            category=self.cat, name="Office 365", slug="office-365-faq",
+            is_active=True, mode="licencia",
+        )
+        Plan.objects.create(product=prod, name="1 año", price_customer=Decimal("50.00"))
+        resp = self.client.get(
+            reverse("catalog:product", kwargs={"slug": prod.slug})
+        )
+        body = resp.content.decode()
+        self.assertIn("¿Cómo activo Office 365?", body)
+        self.assertIn("¿La licencia es legal y permanente?", body)
+
+
+class ProductDetailRendersOutsideContentBlockTests(TestCase):
+    """Regression: el JS de tabs y la sección de productos relacionados
+    deben estar dentro de {% block content %} para que se rendericen."""
+
+    def setUp(self):
+        self.cat = Category.objects.create(
+            name="Streaming-Tabs", slug="streaming-tabs", emoji="📺",
+        )
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix Tabs", slug="netflix-tabs",
+            is_active=True, mode="perfil",
+        )
+        Plan.objects.create(
+            product=self.product, name="1 mes",
+            price_customer=Decimal("25.00"),
+        )
+
+    def test_tabs_js_is_rendered(self):
+        resp = self.client.get(
+            reverse("catalog:product", kwargs={"slug": self.product.slug})
+        )
+        body = resp.content.decode()
+        # El JS que activa los tabs debe estar en la página, si no los tabs
+        # "Garantía y soporte" y "Preguntas frecuentes" no abren su panel.
+        self.assertIn("querySelector('[data-pd-tabs]')", body)
+        # Los 3 tabs y sus paneles deben estar presentes.
+        self.assertIn('data-pd-tab="desc"', body)
+        self.assertIn('data-pd-tab="garantia"', body)
+        self.assertIn('data-pd-tab="faq"', body)
+        self.assertIn('data-pd-panel="garantia"', body)
+        self.assertIn('data-pd-panel="faq"', body)
+
+
+class AdminPWAEndpointsTests(TestCase):
+    """Verifica que el panel admin tiene su propio manifest + service worker
+    para poder instalarse como PWA."""
+
+    def test_admin_manifest_returns_json(self):
+        resp = self.client.get("/panel-jheliz-2026/manifest.webmanifest")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/json", resp["Content-Type"])
+        import json as _json
+        data = _json.loads(resp.content)
+        self.assertEqual(data["short_name"], "Jheliz Admin")
+        self.assertEqual(data["scope"], "/panel-jheliz-2026/")
+        self.assertEqual(data["display"], "standalone")
+        # Debe declarar al menos 1 icono.
+        self.assertGreaterEqual(len(data["icons"]), 1)
+
+    def test_admin_service_worker_is_javascript(self):
+        resp = self.client.get("/panel-jheliz-2026/sw.js")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("javascript", resp["Content-Type"])
+        # Scope dedicado al admin.
+        self.assertEqual(resp["Service-Worker-Allowed"], "/panel-jheliz-2026/")
+        # Network-only para no servir datos viejos del admin.
+        body = resp.content.decode()
+        self.assertIn("self.addEventListener('install'", body)
+        self.assertIn("self.addEventListener('fetch'", body)
+
+    def test_admin_password_reset_url_exists(self):
+        # El template templates/admin/login.html referencia este url-name;
+        # antes no estaba registrado y el "¿Olvidaste tu contraseña?" del
+        # login quedaba como link muerto.
+        from django.urls import reverse
+        url = reverse("admin_password_reset")
+        self.assertEqual(url, "/panel-jheliz-2026/password_reset/")
+        resp = self.client.get(url)
+        # Misma view que el reset público (200 con el formulario).
+        self.assertEqual(resp.status_code, 200)
+
+
+class DistributorPortalNewPagesTests(TestCase):
+    """Pruebas de las 3 páginas nuevas del portal del distribuidor:
+    cuentas, calendario y soporte."""
+
+    def setUp(self):
+        from orders.models import Order, OrderItem
+        User = get_user_model()
+        self.client = Client()
+        self.distri = User.objects.create_user(
+            username="distri_portal",
+            password="ClavePortal.123!",
+            email="portal@example.com",
+            role="distribuidor",
+            distributor_approved=True,
+        )
+        self.cliente = User.objects.create_user(
+            username="cli_portal",
+            password="ClaveCliente.123!",
+            email="cli_portal@example.com",
+            role="cliente",
+        )
+        self.cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
+        self.prod = Product.objects.create(
+            category=self.cat, name="Netflix", slug="netflix", is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.prod, name="1 mes", duration_days=30,
+            price_customer=Decimal("20.00"), price_distributor=Decimal("12.00"),
+            available_for_distributor=True, order=1,
+        )
+        from orders.models import Order as _Order
+        self.order = Order.objects.create(
+            user=self.distri,
+            email="portal@example.com",
+            total=Decimal("12.00"),
+            status=_Order.Status.DELIVERED,
+        )
+        self.item = OrderItem.objects.create(
+            order=self.order,
+            product=self.prod, plan=self.plan,
+            product_name=self.prod.name, plan_name=self.plan.name,
+            unit_price=Decimal("12.00"), quantity=1,
+            delivered_credentials="correo: x@y.com\nclave: 1234",
+            expires_at=timezone.now() + timedelta(days=3),
+        )
+
+    # ---------------------- cuentas ----------------------
+    def test_accounts_requires_login(self):
+        resp = self.client.get(reverse("catalog:distributor_accounts"))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_accounts_redirects_for_non_distributor(self):
+        self.client.force_login(self.cliente)
+        resp = self.client.get(reverse("catalog:distributor_accounts"))
+        self.assertRedirects(resp, reverse("catalog:distributor"))
+
+    def test_accounts_renders_for_distributor(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_accounts"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Netflix")
+        # Credenciales parseadas mostradas
+        self.assertContains(resp, "x@y.com")
+
+    def test_accounts_search_filter(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_accounts") + "?q=Netflix")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Netflix")
+
+    # ---------------------- calendar ---------------------
+    def test_calendar_requires_login(self):
+        resp = self.client.get(reverse("catalog:distributor_calendar"))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_calendar_renders_for_distributor(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_calendar"))
+        self.assertEqual(resp.status_code, 200)
+
+    def test_calendar_handles_custom_month(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_calendar") + "?month=2026-12")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_calendar_ignores_invalid_month_param(self):
+        # No debe romper con basura en ?month
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_calendar") + "?month=invalid")
+        self.assertEqual(resp.status_code, 200)
+
+    # ---------------------- support ----------------------
+    def test_support_requires_login(self):
+        resp = self.client.get(reverse("catalog:distributor_support"))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_support_renders_for_distributor(self):
+        self.client.force_login(self.distri)
+        resp = self.client.get(reverse("catalog:distributor_support"))
+        self.assertEqual(resp.status_code, 200)
+        # 3 motivos rápidos
+        self.assertContains(resp, "Suscripción caída")
+        self.assertContains(resp, "Error de contraseña")
+
+
+class SupportTipoPresetTests(TestCase):
+    """El formulario de ticket público acepta ?tipo=caida|password|codigo
+    para mostrar un hint contextual y prellenar el asunto. Usado por los
+    botones del distributor_support."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="tipopreset", password="Clave.123!", email="t@p.com",
+        )
+
+    def test_no_tipo_no_hint(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("support:create"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "Ayudanos a resolver rápido")
+
+    def test_tipo_caida_shows_hint_and_prefills_subject(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("support:create") + "?tipo=caida")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Ayudanos a resolver rápido")
+        # Asunto pre-llenado
+        self.assertContains(resp, "Suscripción caída")
+
+    def test_tipo_password_shows_hint(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("support:create") + "?tipo=password")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Error de contraseña")
+
+    def test_invalid_tipo_no_hint(self):
+        self.client.force_login(self.user)
+        resp = self.client.get(reverse("support:create") + "?tipo=invalid")
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "Ayudanos a resolver rápido")
+
+
+class BulkReplaceCredentialsTests(TestCase):
+    """Verifica el reemplazo masivo de credenciales en Control de cuentas."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="bulkstaff",
+            email="bulk@example.com",
+            password="pwd1234!",
+            is_staff=True,
+        )
+        self.cat = Category.objects.create(name="Streaming-bulk", slug="streaming-bulk")
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix Bulk", slug="netflix-bulk", is_active=True,
+        )
+        # 3 cuentas con credenciales bien formadas
+        self.it_a = StockItem.objects.create(
+            product=self.product,
+            credentials="Correo: aa@gmail.com\nContraseña: passA\nPerfil: 1\nPIN: 1111",
+        )
+        self.it_b = StockItem.objects.create(
+            product=self.product,
+            credentials="Correo: bb@gmail.com\nContraseña: passB\nPerfil: 2\nPIN: 2222",
+        )
+        self.it_c = StockItem.objects.create(
+            product=self.product,
+            credentials="Correo: cc@gmail.com\nContraseña: passC",
+        )
+
+    def test_parser_handles_all_formats(self):
+        from config.admin_views import _parse_bulk_replace_line
+
+        cases = [
+            ("x@gmail.com:newpass", ("x@gmail.com", "", "newpass")),
+            ("OLD@gmail.com|new@gmail.com|p1", ("old@gmail.com", "new@gmail.com", "p1")),
+            ("old@gmail.com,new@gmail.com,p2", ("old@gmail.com", "new@gmail.com", "p2")),
+            ("old@gmail.com -> new@gmail.com:p3", ("old@gmail.com", "new@gmail.com", "p3")),
+            ("# comentario", None),
+            ("", None),
+            ("solo_texto_sin_email", None),
+            ("noemail:pass", None),
+        ]
+        for raw, expected in cases:
+            self.assertEqual(_parse_bulk_replace_line(raw), expected, msg=f"input={raw!r}")
+
+    def test_password_only_update(self):
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_stock_bulk_replace_credentials"),
+            {"pasted": "aa@gmail.com:nuevaPassA"},
+            follow=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.it_a.refresh_from_db()
+        self.assertIn("nuevaPassA", self.it_a.credentials)
+        self.assertIn("aa@gmail.com", self.it_a.credentials)
+        # Perfil y PIN se mantienen
+        self.assertIn("Perfil: 1", self.it_a.credentials)
+        self.assertIn("PIN: 1111", self.it_a.credentials)
+        # Las otras no se tocan
+        self.it_b.refresh_from_db()
+        self.assertIn("passB", self.it_b.credentials)
+
+    def test_email_and_password_update(self):
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_stock_bulk_replace_credentials"),
+            {"pasted": "bb@gmail.com|bbnew@gmail.com|nuevaPassB"},
+            follow=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.it_b.refresh_from_db()
+        self.assertIn("bbnew@gmail.com", self.it_b.credentials)
+        self.assertNotIn("bb@gmail.com\n", self.it_b.credentials)  # no debería quedar el viejo
+        self.assertIn("nuevaPassB", self.it_b.credentials)
+        # Perfil/PIN preservados
+        self.assertIn("Perfil: 2", self.it_b.credentials)
+        self.assertIn("PIN: 2222", self.it_b.credentials)
+
+    def test_email_not_found_reported(self):
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_stock_bulk_replace_credentials"),
+            {"pasted": "fantasma@gmail.com:nope"},
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        msgs = [str(m) for m in resp.context["messages"]]
+        self.assertTrue(any("fantasma@gmail.com" in m for m in msgs))
+
+    def test_requires_staff(self):
+        # Usuario no-staff debe ser bloqueado
+        User = get_user_model()
+        u = User.objects.create_user(
+            username="nopuede", email="np@example.com", password="x"
+        )
+        self.client.force_login(u)
+        resp = self.client.post(
+            reverse("admin_stock_bulk_replace_credentials"),
+            {"pasted": "aa@gmail.com:newp"},
+        )
+        self.assertNotEqual(resp.status_code, 200)
+        # No debería haber cambiado nada
+        self.it_a.refresh_from_db()
+        self.assertIn("passA", self.it_a.credentials)
+
+
+class AdminInboxViewTests(TestCase):
+    """Smoke test del feed unificado de bandeja del admin.
+
+    Cubre regresión: usar el campo correcto ``ProductReview.author_name``
+    (no ``author``). Crear una review pendiente fuerza la rama que antes
+    crasheaba con AttributeError y rompía toda la bandeja.
+    """
+
+    def setUp(self):
+        from catalog.models import ProductReview
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staffinbox", password="x", is_staff=True, is_superuser=True,
+        )
+        self.cat = Category.objects.create(name="Streaming-inbox", slug="streaming-inbox")
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix Inbox", slug="netflix-inbox", is_active=True,
+        )
+        # Una review pendiente fuerza el render del item "review pendiente".
+        ProductReview.objects.create(
+            product=self.product,
+            author_name="Cliente Test",
+            email="c@example.com",
+            rating=5,
+            comment="Andaba todo perfecto",
+            status=ProductReview.Status.PENDING,
+        )
+
+    def test_inbox_view_renders_with_pending_review(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_inbox"))
+        self.assertEqual(resp.status_code, 200)
+        # El nombre del autor debe aparecer en el feed (campo author_name).
+        self.assertContains(resp, "Cliente Test")
+
+
+class ProductAdminChangelistDesignTests(TestCase):
+    """Verifica el rediseño de la lista de productos en el admin (chips)."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staffprods", password="x",
+            is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="Streaming-list", slug="streaming-list")
+        Product.objects.create(
+            category=cat, name="ProdPerfil", slug="prodperfil",
+            mode="perfil", is_active=True, is_featured=True,
+            telegram_audience="customer", delivery_is_instant=False,
+        )
+        Product.objects.create(
+            category=cat, name="ProdCompleta", slug="prodcompleta",
+            mode="completa", is_active=True, is_featured=False,
+            telegram_audience="both", delivery_is_instant=True,
+        )
+        Product.objects.create(
+            category=cat, name="ProdLicencia", slug="prodlicencia",
+            mode="licencia", is_active=False, is_featured=False,
+            telegram_audience="none", delivery_is_instant=False,
+        )
+
+    def test_changelist_renders_compact_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get("/panel-jheliz-2026/catalog/product/")
+        self.assertEqual(resp.status_code, 200)
+        # Modo de venta como chips compactos
+        self.assertContains(resp, "Por perfil")
+        self.assertContains(resp, "Completa")
+        self.assertContains(resp, "Licencia")
+        # Telegram audience como chips compactos
+        self.assertContains(resp, "Clientes")
+        self.assertContains(resp, "Ambos")
+        self.assertContains(resp, "No publicar")
+        # Entrega como chip
+        self.assertContains(resp, "Inmediata")
+        self.assertContains(resp, "Manual")
+
+
+class PlanAdminChangelistDesignTests(TestCase):
+    """Verifica el rediseño de los listados de planes (cliente/distri/general)."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staffplans", password="x",
+            is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="Streaming-plans", slug="streaming-plans")
+        product = Product.objects.create(
+            category=cat, name="Netflix Plans Test", slug="nflx-plans-test",
+            is_active=True,
+        )
+        Plan.objects.create(
+            product=product, name="1 mes",
+            duration_days=30,
+            price_customer=Decimal("35.00"),
+            price_distributor=Decimal("0.00"),
+            available_for_customer=True,
+            available_for_distributor=False,
+            is_active=True, low_stock_threshold=3,
+        )
+        Plan.objects.create(
+            product=product, name="Perpetua",
+            duration_days=0,
+            price_customer=Decimal("0.00"),
+            price_distributor=Decimal("55.00"),
+            available_for_customer=False,
+            available_for_distributor=True,
+            is_active=False, low_stock_threshold=3,
+        )
+
+    def test_customer_plan_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get("/panel-jheliz-2026/catalog/customerplan/")
+        self.assertEqual(resp.status_code, 200)
+        # Producto con celda combinada
+        self.assertContains(resp, "Netflix Plans Test")
+        # Duración chip
+        self.assertContains(resp, "1 mes")
+        # Precio chip cliente
+        self.assertContains(resp, "S/ 35.00")
+        # Estado activo
+        self.assertContains(resp, "Activo")
+        # Chip class debe aparecer
+        self.assertContains(resp, "jh-chip")
+
+    def test_distributor_plan_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get("/panel-jheliz-2026/catalog/distributorplan/")
+        self.assertEqual(resp.status_code, 200)
+        # Solo se ve el plan distri (Perpetua)
+        self.assertContains(resp, "Perpetua")
+        # Precio chip distri
+        self.assertContains(resp, "S/ 55.00")
+        # Inactivo
+        self.assertContains(resp, "Inactivo")
+
+    def test_general_plan_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get("/panel-jheliz-2026/catalog/plan/")
+        self.assertEqual(resp.status_code, 200)
+        # Ambos planes deben aparecer (cliente + distri)
+        self.assertContains(resp, "Netflix Plans Test")
+        self.assertContains(resp, "1 mes")
+        self.assertContains(resp, "Perpetua")
+        # Chips de precios ambos
+        self.assertContains(resp, "S/ 35.00")
+        self.assertContains(resp, "S/ 55.00")

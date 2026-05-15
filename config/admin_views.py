@@ -1,13 +1,14 @@
 """Vistas auxiliares del panel admin: reportes, clientes valiosos, health check
 y endpoint de notificaciones para polling.
 
-Se montan bajo `/jheliz-admin/...` antes del catch-all `admin.site.urls` para
+Se montan bajo `/panel-jheliz-2026/...` antes del catch-all `admin.site.urls` para
 que Django las matchee primero.
 """
 
 from __future__ import annotations
 
 import csv
+import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -42,7 +43,15 @@ def _admin_context(request, **extra):
 
 @staff_member_required
 def reports_view(request):
-    """Reportes de ventas: hoy, 7d, 30d + top productos + ingreso por método."""
+    """Reportes de ventas: hoy, 7d, 30d + top productos + ingreso por método.
+
+    Además incluye:
+    - Comparativas vs el período anterior (delta absoluto y porcentual).
+    - Serie diaria de revenue para sparkline (últimos 30 días).
+    - Ticket promedio y métricas derivadas.
+    - Íconos/emojis por producto y por método de pago para el render.
+    """
+    from catalog.models import Product
     from orders.models import Order, OrderItem
 
     today = timezone.localdate()
@@ -51,9 +60,16 @@ def reports_view(request):
     )
     paid_qs = Order.objects.filter(status__in=paid_statuses)
 
-    def _range(days):
-        start = timezone.now() - timedelta(days=days)
-        agg = paid_qs.filter(paid_at__gte=start).aggregate(
+    def _range(days, *, offset=0):
+        """Agrega ``count`` y ``revenue`` para una ventana móvil reciente.
+
+        ``offset=0`` es el período actual (últimos N días). ``offset=days``
+        es el período anterior inmediatamente previo (días N..2N hacia atrás)
+        — sirve para mostrar deltas vs el período pasado.
+        """
+        end = timezone.now() - timedelta(days=offset)
+        start = end - timedelta(days=days)
+        agg = paid_qs.filter(paid_at__gte=start, paid_at__lt=end).aggregate(
             count=Count("id"), revenue=Sum("total"),
         )
         return {
@@ -61,40 +77,147 @@ def reports_view(request):
             "revenue": agg["revenue"] or Decimal("0"),
         }
 
+    def _with_delta(current, previous):
+        cur_rev = current["revenue"]
+        prev_rev = previous["revenue"]
+        delta_abs = cur_rev - prev_rev
+        if prev_rev > 0:
+            pct = float((cur_rev - prev_rev) / prev_rev) * 100.0
+        elif cur_rev > 0:
+            pct = 100.0
+        else:
+            pct = 0.0
+        if pct > 0:
+            tone = "success"; arrow = "▲"
+        elif pct < 0:
+            tone = "danger"; arrow = "▼"
+        else:
+            tone = "neutral"; arrow = "→"
+        avg_ticket = (cur_rev / current["count"]) if current["count"] else Decimal("0")
+        return {
+            **current,
+            "delta_abs": delta_abs,
+            "delta_pct": round(pct, 1),
+            "delta_tone": tone,
+            "delta_arrow": arrow,
+            "avg_ticket": avg_ticket,
+        }
+
     today_start = timezone.make_aware(datetime.combine(today, datetime.min.time()))
+    yesterday_start = today_start - timedelta(days=1)
     today_stats_agg = paid_qs.filter(paid_at__gte=today_start).aggregate(
         count=Count("id"), revenue=Sum("total"),
     )
-    today_stats = {
-        "count": today_stats_agg["count"] or 0,
-        "revenue": today_stats_agg["revenue"] or Decimal("0"),
-    }
-    week_stats = _range(7)
-    month_stats = _range(30)
-    year_stats = _range(365)
+    yest_stats_agg = paid_qs.filter(
+        paid_at__gte=yesterday_start, paid_at__lt=today_start,
+    ).aggregate(count=Count("id"), revenue=Sum("total"))
+    today_stats = _with_delta(
+        {
+            "count": today_stats_agg["count"] or 0,
+            "revenue": today_stats_agg["revenue"] or Decimal("0"),
+        },
+        {
+            "count": yest_stats_agg["count"] or 0,
+            "revenue": yest_stats_agg["revenue"] or Decimal("0"),
+        },
+    )
+    week_stats = _with_delta(_range(7), _range(7, offset=7))
+    month_stats = _with_delta(_range(30), _range(30, offset=30))
+    year_stats = _with_delta(_range(365), _range(365, offset=365))
 
-    # Top productos por revenue (últimos 30 días)
+    # Serie diaria de revenue (últimos 30 días) para el sparkline/chart.
     last_30 = timezone.now() - timedelta(days=30)
+    daily_qs = (
+        paid_qs.filter(paid_at__gte=last_30)
+        .extra(select={"day": "date(paid_at)"})
+        .values("day")
+        .annotate(revenue=Sum("total"), count=Count("id"))
+        .order_by("day")
+    )
+    daily_map = {row["day"]: row for row in daily_qs}
+    # Normalizar a 30 días con 0s donde no hubo ventas.
+    daily_raw = []
+    daily_max_rev = Decimal("0")
+    for offset_days in range(29, -1, -1):
+        d = today - timedelta(days=offset_days)
+        # daily_map keys may be either ``date`` or ``str`` (sqlite vs postgres).
+        row = daily_map.get(d) or daily_map.get(d.isoformat()) or {}
+        rev = row.get("revenue") or Decimal("0")
+        cnt = row.get("count") or 0
+        daily_max_rev = max(daily_max_rev, rev)
+        daily_raw.append({"day": d, "revenue": rev, "count": cnt})
+
+    # Precomputo posiciones SVG (viewBox 300x90, 30 barras de width=9).
+    daily_series = []
+    for i, row in enumerate(daily_raw):
+        rev = row["revenue"]
+        if daily_max_rev > 0:
+            bar_h = float(rev) / float(daily_max_rev) * 80.0
+        else:
+            bar_h = 0.0
+        daily_series.append({
+            **row,
+            # Strings con punto decimal (evita localización a coma en SVG).
+            "x": f"{i * 10}",
+            "y": f"{85.0 - bar_h:.2f}",
+            "h": f"{bar_h:.2f}",
+        })
+
+    # Top productos por revenue (últimos 30 días) — agrego ícono y % del total.
     from django.db.models import F
 
-    top_products = (
+    top_products_qs = (
         OrderItem.objects
         .filter(order__status__in=paid_statuses, order__paid_at__gte=last_30)
-        .values("product_name")
+        .values("product_name", "product_id")
         .annotate(
             units=Sum("quantity"),
             revenue=Sum(F("unit_price") * F("quantity")),
         )
         .order_by("-revenue")[:10]
     )
+    top_products = list(top_products_qs)
+    total_top_rev = sum((p["revenue"] or Decimal("0")) for p in top_products) or Decimal("1")
+    icon_map = {
+        p.pk: (p.icon or (p.category.emoji if p.category_id else "") or "\U0001F3AC")
+        for p in Product.objects.filter(pk__in=[
+            p["product_id"] for p in top_products if p.get("product_id")
+        ]).select_related("category")
+    }
+    for p in top_products:
+        p["icon"] = icon_map.get(p.get("product_id"), "\U0001F3AC")
+        p["pct"] = float((p["revenue"] or Decimal("0")) / total_top_rev * 100)
 
-    # Ingresos por método de pago (últimos 30 días)
-    by_method = (
+    # Ingresos por método de pago (últimos 30 días) — agrego ícono y tono.
+    method_visuals = {
+        "yape":         {"icon": "\U0001F4F1", "tone": "violet",  "label": "Yape"},
+        "mercadopago":  {"icon": "\U0001F4B3", "tone": "info",    "label": "Mercado Pago"},
+        "wallet":       {"icon": "\U0001F4B0", "tone": "success", "label": "Saldo wallet"},
+        "manual":       {"icon": "\U0001F91D", "tone": "neutral", "label": "Manual"},
+        "transferencia":{"icon": "\U0001F3E6", "tone": "info",    "label": "Transferencia"},
+    }
+    by_method_qs = (
         paid_qs.filter(paid_at__gte=last_30)
         .values("payment_provider")
         .annotate(count=Count("id"), revenue=Sum("total"))
         .order_by("-revenue")
     )
+    by_method = list(by_method_qs)
+    total_method_rev = sum((m["revenue"] or Decimal("0")) for m in by_method) or Decimal("1")
+    for m in by_method:
+        key = (m["payment_provider"] or "").lower()
+        viz = method_visuals.get(key, {
+            "icon": "\U0001F4B3", "tone": "neutral", "label": m["payment_provider"] or "—",
+        })
+        m.update(viz)
+        m["pct"] = float((m["revenue"] or Decimal("0")) / total_method_rev * 100)
+
+    kpi_cards = [
+        {"slug": "today", "label": "Hoy",              "emoji": "\u2600\ufe0f", "stats": today_stats},
+        {"slug": "week",  "label": "Últimos 7 días",   "emoji": "\U0001F4C5", "stats": week_stats},
+        {"slug": "month", "label": "Últimos 30 días",  "emoji": "\U0001F4CA", "stats": month_stats},
+        {"slug": "year",  "label": "Últimos 365 días", "emoji": "\U0001F3C6", "stats": year_stats},
+    ]
 
     ctx = _admin_context(
         request,
@@ -103,8 +226,11 @@ def reports_view(request):
         week_stats=week_stats,
         month_stats=month_stats,
         year_stats=year_stats,
-        top_products=list(top_products),
-        by_method=list(by_method),
+        kpi_cards=kpi_cards,
+        top_products=top_products,
+        by_method=by_method,
+        daily_series=daily_series,
+        daily_max_rev=daily_max_rev,
         currency_symbol=settings.DEFAULT_CURRENCY_SYMBOL,
     )
     return render(request, "admin/reports.html", ctx)
@@ -290,7 +416,7 @@ def _perform_global_search(q: str, limit: int):
     """Ejecuta la búsqueda cruzada y devuelve un dict con los grupos encontrados.
 
     Se usa tanto desde el endpoint JSON (modal Cmd+K) como desde la página
-    de resultados HTML (`/jheliz-admin/search/?q=...&full=1`).
+    de resultados HTML (`/panel-jheliz-2026/search/?q=...&full=1`).
     """
     from django.urls import reverse as _reverse
     from django.db.models import Q
@@ -494,6 +620,7 @@ def notifications_count(request):
 
     from accounts.models import User
     from catalog.models import ProductReview, StockItem
+    from livechat.models import ChatMessage, ChatRoom
     from orders.models import Order, OrderItem
     from support.models import Ticket
 
@@ -651,6 +778,36 @@ def notifications_count(request):
             "relative": "ahora",
         })
 
+    # Chat en vivo: salas con mensajes del cliente que el admin no ha visto.
+    chat_rooms_unread = (
+        ChatRoom.objects.filter(status=ChatRoom.Status.OPEN)
+        .order_by("-last_message_at")[:item_limit]
+    )
+    chat_unread_total = 0
+    for room in chat_rooms_unread:
+        msg_qs = ChatMessage.objects.filter(
+            room_id=room.pk, sender=ChatMessage.Sender.CUSTOMER,
+        )
+        if room.last_admin_seen_at:
+            msg_qs = msg_qs.filter(created_at__gt=room.last_admin_seen_at)
+        unread_count = msg_qs.count()
+        if unread_count == 0:
+            continue
+        chat_unread_total += unread_count
+        ts = room.last_message_at or room.created_at
+        last_msg = ChatMessage.objects.filter(room_id=room.pk).order_by("-created_at").first()
+        snippet = (last_msg.body if last_msg else "")[:80]
+        items.append({
+            "id": f"livechat-{room.pk}",
+            "kind": "livechat",
+            "icon": "chat",
+            "title": f"Chat con {room.display_name} · {unread_count} sin leer",
+            "subtitle": snippet or "(mensaje vacío)",
+            "url": reverse("admin_livechat_detail", args=[room.pk]),
+            "created_at": ts.isoformat() if ts else None,
+            "relative": _humanize_delta(now - ts) if ts else "",
+        })
+
     # Más recientes primero, máximo 20 visibles en el bell.
     items.sort(key=lambda x: x["created_at"] or "", reverse=True)
     items = items[:20]
@@ -671,6 +828,7 @@ def notifications_count(request):
             plan__is_active=True,
             plan__product__is_active=True,
         ).values("plan_id").annotate(avail=Count("id")).filter(avail__lte=1).count(),
+        "livechat_unread": chat_unread_total,
     }
     counts["total"] = sum(counts.values())
 
@@ -688,12 +846,15 @@ def notifications_count(request):
 # Renovaciones pendientes (#nuevo) — items próximos a vencer + 1-click renew
 # ---------------------------------------------------------------------------
 
+# Cada entrada: (label, start_offset, end_offset, icon, tone)
+# ``tone`` se usa en el chip del filtro (semafórico):
+#   danger=rojo, warning=naranja, info=azul, success=verde, neutral=gris.
 _RENEWAL_WINDOWS = {
-    "expired": ("Vencidos", -180, 0),
-    "today": ("Vencen hoy", 0, 1),
-    "3d": ("Próx. 3 días", 0, 4),
-    "7d": ("Próx. 7 días", 0, 8),
-    "30d": ("Próx. 30 días", 0, 31),
+    "expired": ("Vencidos",       -180, 0,  "error",            "danger"),
+    "today":   ("Vencen hoy",     0,    1,  "today",            "warning"),
+    "3d":      ("Próx. 3 días",   0,    4,  "alarm",            "warning"),
+    "7d":      ("Próx. 7 días",   0,    8,  "calendar_today",   "info"),
+    "30d":     ("Próx. 30 días",  0,    31, "event_repeat",     "success"),
 }
 
 
@@ -705,23 +866,45 @@ def renewals_view(request):
     window_key = request.GET.get("w", "7d")
     if window_key not in _RENEWAL_WINDOWS:
         window_key = "7d"
-    label, start_offset, end_offset = _RENEWAL_WINDOWS[window_key]
+    label, start_offset, end_offset, _icon, _tone = _RENEWAL_WINDOWS[window_key]
 
     now = timezone.now()
-    start = now + timedelta(days=start_offset) if start_offset < 0 else now
-    end = now + timedelta(days=end_offset)
+    paid_statuses = (
+        Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+    )
+
+    def _window_qs(s_off: int, e_off: int):
+        s = now + timedelta(days=s_off) if s_off < 0 else now
+        e = now + timedelta(days=e_off)
+        return OrderItem.objects.filter(
+            expires_at__isnull=False,
+            expires_at__gte=s,
+            expires_at__lt=e,
+            order__status__in=paid_statuses,
+        )
+
+    # Conteos por ventana para mostrar en los chips de filtro.
+    window_counts = {
+        key: _window_qs(s_off, e_off).count()
+        for key, (_lbl, s_off, e_off, _ic, _to) in _RENEWAL_WINDOWS.items()
+    }
+
+    # Estructura "rica" para el template — más fácil de iterar con todos
+    # los metadatos del chip (label, count, ícono, tono, key).
+    windows_rich = [
+        {
+            "key": key,
+            "label": lbl,
+            "icon": ic,
+            "tone": to,
+            "count": window_counts.get(key, 0),
+            "active": (window_key == key),
+        }
+        for key, (lbl, _s, _e, ic, to) in _RENEWAL_WINDOWS.items()
+    ]
 
     qs = (
-        OrderItem.objects.filter(
-            expires_at__isnull=False,
-            expires_at__gte=start,
-            expires_at__lt=end,
-            order__status__in=(
-                Order.Status.PAID,
-                Order.Status.PREPARING,
-                Order.Status.DELIVERED,
-            ),
-        )
+        _window_qs(start_offset, end_offset)
         .select_related("order", "order__user", "product", "plan")
         .order_by("expires_at")
     )
@@ -729,6 +912,22 @@ def renewals_view(request):
     items = []
     for it in qs[:200]:
         days_left = (it.expires_at - now).days if it.expires_at else None
+        # Tono semafórico para el chip "Días" (alineado con el de filtros).
+        if days_left is None:
+            d_tone, d_icon = "neutral", "schedule"
+        elif days_left < 0:
+            d_tone, d_icon = "danger", "error"
+        elif days_left == 0:
+            d_tone, d_icon = "danger", "today"
+        elif days_left <= 1:
+            d_tone, d_icon = "warning", "alarm"
+        elif days_left <= 3:
+            d_tone, d_icon = "warning", "schedule"
+        elif days_left <= 7:
+            d_tone, d_icon = "info", "calendar_today"
+        else:
+            d_tone, d_icon = "success", "event_available"
+
         items.append({
             "id": it.pk,
             "order_id": it.order_id,
@@ -739,6 +938,8 @@ def renewals_view(request):
             "plan_name": it.plan_name,
             "expires_at": it.expires_at,
             "days_left": days_left,
+            "days_tone": d_tone,
+            "days_icon": d_icon,
             "reminder_3d": bool(it.expiry_reminder_3d_sent_at),
             "reminder_1d": bool(it.expiry_reminder_1d_sent_at),
             "order_change_url": reverse("admin:orders_order_change", args=[it.order_id]),
@@ -753,6 +954,9 @@ def renewals_view(request):
         window_key=window_key,
         window_label=label,
         windows=_RENEWAL_WINDOWS,
+        windows_rich=windows_rich,
+        window_counts=window_counts,
+        total_items=sum(window_counts.values()),
     )
     return render(request, "admin/renewals.html", ctx)
 
@@ -1047,15 +1251,46 @@ def stock_quick_add(request):
     product_id = request.POST.get("product_id")
     plan_id = request.POST.get("plan_id") or None
     pasted = (request.POST.get("pasted") or "").strip()
+    # ``redirect_to`` permite que el modal viva en /cuentas/ y vuelva ahí
+    # en vez de tirar siempre al overview clásico.
+    fallback_url = request.POST.get("redirect_to") or reverse("admin_stock_overview")
 
     if not product_id or not pasted:
         messages.error(request, "Falta el producto o las credenciales pegadas.")
-        return redirect("admin_stock_overview")
+        return redirect(fallback_url)
 
     product = get_object_or_404(Product, pk=product_id)
     plan = None
     if plan_id:
         plan = get_object_or_404(Plan, pk=plan_id, product=product)
+
+    # Cross-platform duplicate check ANTES de procesar: avisa si alguno
+    # de los correos ya está cargado en OTRO producto (vendido o no).
+    # Esto es lo que pidió el usuario: "no subir correos que ya están
+    # vendidos".
+    import re as _re
+    new_emails = {
+        m.lower() for m in _re.findall(
+            r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", pasted
+        )
+    }
+    cross_hits = []
+    if new_emails:
+        # Pre-filtramos por icontains en SQL para no traer todo el stock.
+        q_or = Q()
+        for em in new_emails:
+            q_or |= Q(credentials__icontains=em)
+        candidates = (
+            StockItem.objects.exclude(product=product)
+            .filter(q_or)
+            .select_related("product")
+        )
+        for item in candidates:
+            text_lc = (item.credentials or "").lower()
+            for em in new_emails:
+                if em in text_lc:
+                    cross_hits.append((em, item.product.name, item.get_status_display()))
+                    break
 
     admin_obj = StockItemAdmin(StockItem, admin_site)
     try:
@@ -1064,17 +1299,17 @@ def stock_quick_add(request):
         )
     except Exception as exc:  # pragma: no cover - defensive
         messages.error(request, f"Error procesando: {exc}")
-        return redirect("admin_stock_overview")
+        return redirect(fallback_url)
 
     if created:
         msg = f"Se agregaron {created} cuenta(s) a {product.name}."
         if skipped:
-            msg += f" Se omitieron {skipped} duplicado(s)."
+            msg += f" Se omitieron {skipped} duplicado(s) dentro de {product.name}."
         messages.success(request, msg)
     elif skipped:
         messages.warning(
             request,
-            f"Todas las cuentas pegadas ({skipped}) ya existían en el stock. "
+            f"Todas las cuentas pegadas ({skipped}) ya existían en {product.name}. "
             "No se creó nada nuevo.",
         )
     else:
@@ -1082,7 +1317,26 @@ def stock_quick_add(request):
             request,
             "No se detectó ninguna cuenta válida. Revisa el formato.",
         )
-    return redirect("admin_stock_overview")
+
+    if cross_hits:
+        # De-dup y armado de mensaje en una línea por correo conflictivo.
+        seen = set()
+        unique = []
+        for em, pname, status in cross_hits:
+            key = (em, pname)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append((em, pname, status))
+        lines = "; ".join(f"{em} ya está en {pname} ({status})" for em, pname, status in unique[:5])
+        suffix = "" if len(unique) <= 5 else f" (+{len(unique) - 5} más)"
+        messages.warning(
+            request,
+            "⚠️ Detectamos cuentas que ya existen en OTRAS plataformas: "
+            + lines + suffix + ". Revisalas — si se trata de un re-uso intencional, ignorá este aviso.",
+        )
+
+    return redirect(fallback_url)
 
 
 @staff_member_required
@@ -1103,6 +1357,17 @@ def stock_quick_action(request, item_id: int):
         item.status = StockItem.Status.AVAILABLE
         item.save(update_fields=["status"])
         messages.success(request, f"Stock #{item.pk} marcado como disponible.")
+    elif action == "mark_sold":
+        # Marca manual: para casos en que se vendió fuera del checkout
+        # automático (ej. venta directa por WhatsApp) y querés que quede
+        # registrado para no re-cargar el mismo correo.
+        item.status = StockItem.Status.SOLD
+        update_fields = ["status"]
+        if not item.sold_at:
+            item.sold_at = timezone.now()
+            update_fields.append("sold_at")
+        item.save(update_fields=update_fields)
+        messages.success(request, f"Stock #{item.pk} marcado como vendida.")
     elif action == "duplicate":
         clone = StockItem.objects.create(
             product=item.product,
@@ -1116,6 +1381,470 @@ def stock_quick_action(request, item_id: int):
         messages.error(request, f"Acción desconocida: {action}")
 
     return redirect(next_url)
+
+
+# ---------------------------------------------------------------------------
+# Control de cuentas — vista agrupada por plataforma (sustituye al Excel/bloc)
+# ---------------------------------------------------------------------------
+
+def _parse_bulk_replace_line(raw: str) -> tuple[str, str, str] | None:
+    """Parsea una línea del modal de reemplazo masivo de credenciales.
+
+    Devuelve ``(email_actual, email_nuevo, contraseña_nueva)`` o ``None`` si
+    no se pudo parsear. ``email_nuevo`` puede ser ``""`` si solo cambia la
+    contraseña.
+
+    Formatos soportados (auto-detectados):
+      A. ``email_actual:contraseña_nueva`` (solo cambia contraseña)
+      B. ``email_actual|email_nuevo|contraseña_nueva`` (separador pipe)
+      C. ``email_actual,email_nuevo,contraseña_nueva`` (separador coma)
+      D. ``email_actual -> email_nuevo:contraseña_nueva``
+    """
+    line = (raw or "").strip()
+    if not line or line.startswith("#"):
+        return None
+
+    # Formato D: flecha
+    if "->" in line or "→" in line:
+        sep = "->" if "->" in line else "→"
+        left, _, right = line.partition(sep)
+        left = left.strip()
+        right = right.strip()
+        if "@" in left and ":" in right:
+            new_email, _, new_pass = right.partition(":")
+            new_email = new_email.strip()
+            new_pass = new_pass.strip()
+            if "@" in new_email and new_pass:
+                return (left.lower(), new_email, new_pass)
+
+    # Formato B/C: 3 campos con | o ,
+    for sep in ("|", ","):
+        if line.count(sep) >= 2:
+            parts = [p.strip() for p in line.split(sep, 2)]
+            if (
+                len(parts) == 3
+                and "@" in parts[0]
+                and "@" in parts[1]
+                and parts[2]
+            ):
+                return (parts[0].lower(), parts[1], parts[2])
+
+    # Formato A: email:contraseña (solo cambia password)
+    if ":" in line:
+        email, _, password = line.partition(":")
+        email = email.strip()
+        password = password.strip()
+        if "@" in email and password:
+            return (email.lower(), "", password)
+
+    return None
+
+
+@staff_member_required
+@require_POST
+def stock_bulk_replace_credentials(request):
+    """Reemplaza correo+contraseña en lote para varias StockItems.
+
+    El proveedor te pasa una lista de credenciales actualizadas. Pegás ese
+    listado en un modal y el sistema:
+
+    1. Parsea cada línea (autodetecta formato).
+    2. Por cada línea busca StockItems cuya credencial actual tenga ese
+       email (match exacto vía ``parse(creds).email``).
+    3. Reemplaza email y/o contraseña usando ``replace_account`` (mantiene
+       perfil/PIN intactos).
+    4. Sincroniza ``OrderItem.delivered_credentials`` para que los clientes
+       que ya recibieron esa cuenta vean las nuevas credenciales al volver
+       a la zona de clientes — y guarda el snapshot anterior por 30 días
+       para rollback 1-click.
+    """
+    from catalog.models import StockItem
+    from orders.credentials import parse as parse_creds, replace_account
+    from orders.models import OrderItem
+
+    pasted = (request.POST.get("pasted") or "").strip()
+    next_url = request.POST.get("next") or reverse("admin_cuentas_dashboard")
+
+    if not pasted:
+        messages.error(request, "Pegá el listado de reemplazos antes de aplicar.")
+        return redirect(next_url)
+
+    replacements: list[tuple[str, str, str]] = []
+    skipped: list[str] = []
+    for raw in pasted.splitlines():
+        parsed = _parse_bulk_replace_line(raw)
+        if parsed is None:
+            if raw.strip():
+                skipped.append(raw.strip()[:80])
+            continue
+        replacements.append(parsed)
+
+    if not replacements:
+        messages.error(
+            request,
+            "No pude parsear ninguna línea. Usá uno de los formatos: "
+            "'correo:nueva_contraseña' (solo cambia password) o "
+            "'correo_viejo|correo_nuevo|nueva_contraseña' (cambia ambos).",
+        )
+        return redirect(next_url)
+
+    updated_items = 0
+    updated_orderitems = 0
+    not_found: list[str] = []
+    now = timezone.now()
+
+    for search_email, new_email, new_password in replacements:
+        # Pre-filtramos por icontains (rápido en SQL) y luego validamos el
+        # match exacto en Python parseando las credenciales (más confiable
+        # que un LIKE en texto encriptado de Fernet — recordá que el campo
+        # es EncryptedTextField que sí queda en claro a nivel DB para esta
+        # FK específica, ver orders/credentials.py).
+        candidates = StockItem.objects.filter(credentials__icontains=search_email)
+        matched: list[StockItem] = []
+        for it in candidates:
+            current = parse_creds(it.credentials or "")
+            if current.email.lower() == search_email:
+                matched.append(it)
+
+        if not matched:
+            not_found.append(search_email)
+            continue
+
+        for item in matched:
+            current = parse_creds(item.credentials or "")
+            target_email = new_email or current.email
+            item.credentials = replace_account(
+                item.credentials, target_email, new_password
+            )
+            item.save(update_fields=["credentials"])
+            updated_items += 1
+
+            # Sincronizar pedidos que ya recibieron esta cuenta.
+            related = OrderItem.objects.filter(stock_item=item).exclude(
+                delivered_credentials=""
+            )
+            for oi in related:
+                old_delivered = oi.delivered_credentials or ""
+                if not old_delivered:
+                    continue
+                new_delivered = replace_account(
+                    old_delivered, target_email, new_password
+                )
+                if new_delivered == old_delivered:
+                    continue
+                oi.previous_delivered_credentials = old_delivered
+                oi.credentials_replaced_at = now
+                oi.delivered_credentials = new_delivered
+                oi.save(
+                    update_fields=[
+                        "previous_delivered_credentials",
+                        "credentials_replaced_at",
+                        "delivered_credentials",
+                    ]
+                )
+                updated_orderitems += 1
+
+    parts: list[str] = []
+    if updated_items:
+        parts.append(
+            f"{updated_items} cuenta{'s' if updated_items != 1 else ''} actualizada"
+            f"{'s' if updated_items != 1 else ''}"
+        )
+    if updated_orderitems:
+        parts.append(
+            f"{updated_orderitems} pedido{'s' if updated_orderitems != 1 else ''} "
+            f"sincronizado{'s' if updated_orderitems != 1 else ''}"
+        )
+    if not_found:
+        sample = ", ".join(not_found[:5])
+        more = f" +{len(not_found) - 5} más" if len(not_found) > 5 else ""
+        parts.append(f"{len(not_found)} no encontradas: {sample}{more}")
+    if skipped:
+        parts.append(f"{len(skipped)} línea(s) sin parsear")
+
+    summary = " · ".join(parts) if parts else "Sin cambios."
+
+    if updated_items:
+        messages.success(request, "✓ " + summary)
+    elif not_found or skipped:
+        messages.warning(request, "⚠️ " + summary)
+    else:
+        messages.info(request, summary)
+
+    return redirect(next_url)
+
+
+def _extract_primary_email(text: str) -> str:
+    """Devuelve el primer email (lowercase) encontrado en el texto, o ''."""
+    import re
+    if not text:
+        return ""
+    matches = re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text)
+    return matches[0].lower() if matches else ""
+
+
+def _strip_password_from_account_line(text: str) -> str:
+    """Devuelve solo la línea con el correo (no expone contraseña en la vista).
+
+    Si el texto tiene formato ``Correo: x@y.com\\nContraseña: secreto``,
+    devuelve solo ``x@y.com``. Si es ``x@y.com:secreto`` también filtra.
+    """
+    email = _extract_primary_email(text or "")
+    return email or (text or "").splitlines()[0][:80]
+
+
+@staff_member_required
+def cuentas_dashboard(request):
+    """Control de cuentas: muestra TODAS las cuentas agrupadas por plataforma.
+
+    Es la sección "📚 Control de cuentas" del sidebar. Pensada para reemplazar
+    el Excel / bloc de notas del usuario: ver de un vistazo cuántas cuentas
+    quedan disponibles y cuáles ya están vendidas por plataforma.
+    """
+    from catalog.models import Product, ProductMode, StockItem
+    from orders.credentials import split_account_extras
+
+    q = (request.GET.get("q") or "").strip().lower()
+    status_filter = (request.GET.get("status") or "all").strip()
+    mode_filter = (request.GET.get("mode") or "all").strip()
+    show_only = (request.GET.get("only") or "").strip()  # "active" = oculta deshabilitadas
+
+    valid_statuses = {s for s, _ in StockItem.Status.choices}
+    valid_modes = {m for m, _ in ProductMode.choices}
+
+    from django.db.models import Prefetch
+    from orders.models import OrderItem
+
+    # Pre-cargamos OrderItem para mostrar comprador / fecha de venta / perfil
+    # solicitado por item — sin generar N+1 queries.
+    sold_items_qs = (
+        OrderItem.objects.select_related("order")
+        .only(
+            "id", "stock_item_id", "requested_profile_name", "requested_pin",
+            "final_customer_name", "final_customer_whatsapp",
+            "order__id", "order__uuid", "order__email", "order__phone",
+            "order__paid_at", "order__created_at",
+        )
+        .order_by("-order__paid_at", "-order__created_at")
+    )
+
+    qs = (
+        StockItem.objects.select_related("product", "plan")
+        .prefetch_related(Prefetch("order_items", queryset=sold_items_qs))
+        .order_by("-created_at")
+    )
+    if status_filter in valid_statuses:
+        qs = qs.filter(status=status_filter)
+    if mode_filter in valid_modes:
+        qs = qs.filter(product__mode=mode_filter)
+
+    # Búsqueda cross-plataforma: si pegás un correo te muestra dónde está.
+    matched_email = ""
+    if q:
+        qs = qs.filter(credentials__icontains=q)
+        # Detectar si q "parece" un email para resaltarlo en el header.
+        if "@" in q:
+            matched_email = q
+
+    # Cargamos todo (no hay millones de cuentas — es una tienda).
+    items = list(qs[:5000])
+
+    # Decoramos con cuenta/perfil/pin parseados.
+    for it in items:
+        account, profile, pin = split_account_extras(it.credentials or "")
+        it.account_text = account
+        it.profile_text = profile
+        it.pin_text = pin
+        it.email_lc = _extract_primary_email(account)
+
+        # Comprador (OrderItem más reciente asociado). Solo poblamos si la
+        # cuenta NO está disponible — el caso interesante para el admin.
+        it.buyer_email = ""
+        it.buyer_phone = ""
+        it.buyer_profile = ""
+        it.buyer_pin = ""
+        it.buyer_resale_name = ""
+        it.buyer_resale_whatsapp = ""
+        it.sale_date = None
+        it.order_uuid = ""
+        if it.status in (StockItem.Status.SOLD, StockItem.Status.RESERVED):
+            oi = next(iter(it.order_items.all()), None)
+            if oi:
+                it.buyer_email = oi.order.email or ""
+                it.buyer_phone = oi.order.phone or ""
+                it.buyer_profile = oi.requested_profile_name or ""
+                it.buyer_pin = oi.requested_pin or ""
+                it.buyer_resale_name = oi.final_customer_name or ""
+                it.buyer_resale_whatsapp = oi.final_customer_whatsapp or ""
+                it.sale_date = oi.order.paid_at or oi.order.created_at
+                it.order_uuid = str(oi.order.uuid)[:8]
+
+    # Metadata por modo (para badges + filtros). Orden estable: perfil → completa → licencia.
+    mode_meta = {
+        ProductMode.PERFIL: {
+            "label": "Por perfil",
+            "color": "#34d399",
+            "bg": "rgba(52,211,153,.12)",
+            "border": "rgba(52,211,153,.32)",
+            "icon": "person",
+        },
+        ProductMode.COMPLETA: {
+            "label": "Cuenta completa",
+            "color": "#c4b5fd",
+            "bg": "rgba(167,139,250,.16)",
+            "border": "rgba(167,139,250,.36)",
+            "icon": "vpn_key",
+        },
+        ProductMode.LICENCIA: {
+            "label": "Licencia / código",
+            "color": "#fbbf24",
+            "bg": "rgba(251,191,36,.14)",
+            "border": "rgba(251,191,36,.34)",
+            "icon": "vpn_lock",
+        },
+    }
+    mode_order = {ProductMode.PERFIL: 0, ProductMode.COMPLETA: 1, ProductMode.LICENCIA: 2}
+
+    def _mode_for(product) -> str:
+        return getattr(product, "mode", "") or ProductMode.PERFIL
+
+    # Agrupar por producto. Productos sin items y sin filtro aplicado los
+    # mostramos también con sección vacía (para que el usuario sepa que la
+    # plataforma existe y pueda agregar cuentas).
+    products_with_items: dict[int, dict] = {}
+    for it in items:
+        product_mode = _mode_for(it.product)
+        slot = products_with_items.setdefault(
+            it.product_id,
+            {
+                "product": it.product,
+                "mode": product_mode,
+                "mode_label": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL])["label"],
+                "mode_meta": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL]),
+                "items": [],
+                "available": 0, "sold": 0, "reserved": 0,
+                "defective": 0, "disabled": 0, "total": 0,
+            },
+        )
+        slot["items"].append(it)
+        slot[it.status] = slot.get(it.status, 0) + 1
+        slot["total"] += 1
+
+    # Si no hay filtros (q/status/mode), agregar productos sin stock también.
+    if not q and status_filter == "all" and mode_filter == "all":
+        active_products = Product.objects.filter(is_active=True).only("id", "name", "mode")
+        for p in active_products:
+            if p.pk not in products_with_items:
+                product_mode = _mode_for(p)
+                products_with_items[p.pk] = {
+                    "product": p,
+                    "mode": product_mode,
+                    "mode_label": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL])["label"],
+                    "mode_meta": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL]),
+                    "items": [],
+                    "available": 0, "sold": 0, "reserved": 0,
+                    "defective": 0, "disabled": 0, "total": 0,
+                }
+    elif mode_filter in valid_modes:
+        # Si filtran por modo y NO hay q/status, mostrar también plataformas
+        # de ese modo aunque no tengan stock cargado.
+        if not q and status_filter == "all":
+            active_products = Product.objects.filter(is_active=True, mode=mode_filter).only("id", "name", "mode")
+            for p in active_products:
+                if p.pk not in products_with_items:
+                    product_mode = _mode_for(p)
+                    products_with_items[p.pk] = {
+                        "product": p,
+                        "mode": product_mode,
+                        "mode_label": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL])["label"],
+                        "mode_meta": mode_meta.get(product_mode, mode_meta[ProductMode.PERFIL]),
+                        "items": [],
+                        "available": 0, "sold": 0, "reserved": 0,
+                        "defective": 0, "disabled": 0, "total": 0,
+                    }
+
+    # Ordenar:
+    #   1) primero plataformas con disponibles
+    #   2) luego agrupar por modo (perfil → completa → licencia)
+    #   3) alfabético por nombre dentro de cada modo
+    groups = sorted(
+        products_with_items.values(),
+        key=lambda g: (
+            0 if g["available"] > 0 else (1 if g["total"] > 0 else 2),
+            mode_order.get(g["mode"], 99),
+            g["product"].name.lower(),
+        ),
+    )
+
+    # KPIs globales (todas las plataformas) — independientes del filtro de modo,
+    # así el usuario siempre ve el total real.
+    all_counts = (
+        StockItem.objects.values("status")
+        .annotate(c=Count("id"))
+    )
+    counts_by_status = {row["status"]: row["c"] for row in all_counts}
+    kpis = {
+        "available": counts_by_status.get("available", 0),
+        "sold": counts_by_status.get("sold", 0),
+        "defective": counts_by_status.get("defective", 0),
+        "reserved": counts_by_status.get("reserved", 0),
+        "disabled": counts_by_status.get("disabled", 0),
+        "total": sum(counts_by_status.values()),
+        "platforms": len(products_with_items),
+    }
+
+    status_options = [
+        {"value": "all", "label": "Todas", "count": kpis["total"]},
+        {"value": "available", "label": "Disponibles", "count": kpis["available"]},
+        {"value": "sold", "label": "Vendidas", "count": kpis["sold"]},
+        {"value": "reserved", "label": "Reservadas", "count": kpis["reserved"]},
+        {"value": "defective", "label": "Caídas", "count": kpis["defective"]},
+        {"value": "disabled", "label": "Deshabilitadas", "count": kpis["disabled"]},
+    ]
+
+    # Contar plataformas activas por modo para los chips del filtro.
+    mode_platform_counts = {m: 0 for m in valid_modes}
+    for p in Product.objects.filter(is_active=True).values_list("mode", flat=True):
+        if p in mode_platform_counts:
+            mode_platform_counts[p] += 1
+    total_active_platforms = sum(mode_platform_counts.values())
+    mode_options = [
+        {"value": "all", "label": "Todos", "count": total_active_platforms, "icon": "apps"},
+        {
+            "value": ProductMode.PERFIL,
+            "label": "Por perfil",
+            "count": mode_platform_counts.get(ProductMode.PERFIL, 0),
+            "icon": "person",
+        },
+        {
+            "value": ProductMode.COMPLETA,
+            "label": "Cuenta completa",
+            "count": mode_platform_counts.get(ProductMode.COMPLETA, 0),
+            "icon": "vpn_key",
+        },
+        {
+            "value": ProductMode.LICENCIA,
+            "label": "Licencia",
+            "count": mode_platform_counts.get(ProductMode.LICENCIA, 0),
+            "icon": "vpn_lock",
+        },
+    ]
+
+    ctx = _admin_context(
+        request,
+        title="Control de cuentas",
+        groups=groups,
+        kpis=kpis,
+        status_options=status_options,
+        status=status_filter,
+        mode_options=mode_options,
+        mode=mode_filter,
+        q=q,
+        matched_email=matched_email,
+        show_only=show_only,
+        total_results=len(items),
+    )
+    return render(request, "admin/cuentas/dashboard.html", ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -1504,3 +2233,1625 @@ def replace_blocked_account_view(request):
         selected_product_id=selected_product_id,
     )
     return render(request, "admin/replace_blocked_account.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Bandeja "Necesita acción" — feed unificado
+#
+# A diferencia del dashboard (que muestra contadores agregados por categoría),
+# la bandeja lista TODAS las cosas que necesitan acción del admin en una sola
+# tabla cronológica con razón + prioridad + link directo.
+# ---------------------------------------------------------------------------
+
+_INBOX_PRIORITY = {"red": 0, "orange": 1, "yellow": 2, "blue": 3}
+
+
+def _inbox_collect_items():
+    """Devuelve la lista unificada de items que requieren acción.
+
+    Cada item es un dict con: kind, label, reason, link, age_seconds, priority,
+    icon, ref (texto corto para identificarlo).
+    """
+    from orders.models import Order, OrderItem
+    from support.models import Ticket
+    from catalog.models import ProductReview, StockItem
+    from accounts.models import User
+
+    now = timezone.now()
+    items = []
+
+    def _age_seconds(dt):
+        if not dt:
+            return 0
+        return max(0, int((now - dt).total_seconds()))
+
+    # 1) Pedidos con comprobante Yape sin verificar.
+    for o in (
+        Order.objects.filter(status=Order.Status.VERIFYING)
+        .order_by("-payment_proof_uploaded_at", "-created_at")[:50]
+    ):
+        items.append({
+            "kind": "yape_proof",
+            "label": "Comprobante Yape pendiente",
+            "reason": "Subió comprobante. Revisá si el monto y la referencia coinciden.",
+            "ref": f"#{o.short_uuid} — {o.email or o.phone or 'sin contacto'}",
+            "link": reverse("admin:orders_order_change", args=[o.pk]),
+            "icon": "qr_code_scanner",
+            "priority": "orange",
+            "age_seconds": _age_seconds(o.payment_proof_uploaded_at or o.created_at),
+            "money": float(o.total or 0),
+        })
+
+    # 2) Pedidos en preparación con items sin credenciales/stock vinculado
+    #    (esto NO incluye los YA entregados). Son los pedidos atascados.
+    waiting_qs = (
+        Order.objects.filter(status=Order.Status.PREPARING)
+        .filter(
+            Q(items__delivered_credentials="") & Q(items__stock_item__isnull=True)
+        )
+        .distinct()
+        .order_by("-paid_at")[:50]
+    )
+    for o in waiting_qs:
+        items.append({
+            "kind": "waiting_stock",
+            "label": "Pedido sin entregar",
+            "reason": "Pagó hace rato pero no se le entregaron credenciales aún.",
+            "ref": f"#{o.short_uuid} — {o.email or o.phone or 'sin contacto'}",
+            "link": reverse("admin:orders_order_change", args=[o.pk]),
+            "icon": "inventory_2",
+            "priority": "red",
+            "age_seconds": _age_seconds(o.paid_at or o.created_at),
+            "money": float(o.total or 0),
+        })
+
+    # 3) Tickets de soporte sin responder.
+    for t in (
+        Ticket.objects.filter(
+            status__in=[Ticket.Status.OPEN, Ticket.Status.PENDING_ADMIN]
+        )
+        .select_related("order")
+        .order_by("-updated_at")[:50]
+    ):
+        order_ref = ""
+        if t.order_id:
+            order_ref = f" (pedido #{t.order.short_uuid})"
+        items.append({
+            "kind": "ticket",
+            "label": "Ticket sin responder",
+            "reason": (t.subject or "Soporte: cliente esperando respuesta.")[:140],
+            "ref": f"{t.email or 'anónimo'}{order_ref}",
+            "link": reverse("admin:support_ticket_change", args=[t.pk]),
+            "icon": "support_agent",
+            "priority": "blue",
+            "age_seconds": _age_seconds(t.updated_at or t.created_at),
+            "money": 0.0,
+        })
+
+    # 4) Reseñas pendientes de moderación.
+    for r in (
+        ProductReview.objects.filter(status=ProductReview.Status.PENDING)
+        .select_related("product")
+        .order_by("-created_at")[:30]
+    ):
+        items.append({
+            "kind": "review",
+            "label": "Reseña pendiente",
+            "reason": (r.comment or "Sin comentario.")[:140],
+            "ref": f"{r.product.name if r.product else '—'} — {r.author_name or 'anónimo'}",
+            "link": reverse(
+                "admin:catalog_productreview_change", args=[r.pk]
+            ),
+            "icon": "rate_review",
+            "priority": "blue",
+            "age_seconds": _age_seconds(r.created_at),
+            "money": 0.0,
+        })
+
+    # 5) Distribuidores por aprobar.
+    for u in (
+        User.objects.filter(role="distribuidor", distributor_approved=False)
+        .order_by("-date_joined")[:30]
+    ):
+        items.append({
+            "kind": "distributor",
+            "label": "Distribuidor por aprobar",
+            "reason": "Solicitó cuenta de distribuidor. Validalo y aprobá.",
+            "ref": f"{u.email or u.username}",
+            "link": reverse("admin:accounts_user_change", args=[u.pk]),
+            "icon": "verified_user",
+            "priority": "yellow",
+            "age_seconds": _age_seconds(u.date_joined),
+            "money": 0.0,
+        })
+
+    # 6) Stock que vence en proveedor en ≤3 días (rotar antes de que afecte clientes).
+    for s in (
+        StockItem.objects
+        .filter(
+            status__in=[
+                StockItem.Status.AVAILABLE,
+                StockItem.Status.RESERVED,
+                StockItem.Status.SOLD,
+            ],
+            provider_expires_at__isnull=False,
+            provider_expires_at__lte=now + timedelta(days=3),
+            provider_expires_at__gt=now - timedelta(days=1),
+        )
+        .select_related("product")
+        .order_by("provider_expires_at")[:30]
+    ):
+        days_left = (s.provider_expires_at - now).days
+        items.append({
+            "kind": "stock_expiring",
+            "label": "Cuenta vence en proveedor",
+            "reason": (
+                f"La cuenta original muere en {days_left}d. "
+                "Reponela antes de que afecte clientes."
+            ),
+            "ref": f"{s.product.name} — stock #{s.pk}",
+            "link": reverse("admin:catalog_stockitem_change", args=[s.pk]),
+            "icon": "warning_amber",
+            "priority": "orange" if days_left > 0 else "red",
+            "age_seconds": 0,
+            "money": 0.0,
+        })
+
+    # 7) Items de pedidos vencidos hoy o que vencen hoy (renovación urgente).
+    expiring_today_items = (
+        OrderItem.objects.filter(
+            expires_at__date=now.date(),
+            order__status__in=(
+                Order.Status.PAID,
+                Order.Status.PREPARING,
+                Order.Status.DELIVERED,
+            ),
+        )
+        .select_related("order", "product", "plan")
+        .order_by("expires_at")[:30]
+    )
+    for it in expiring_today_items:
+        items.append({
+            "kind": "renewal_today",
+            "label": "Cuenta vence hoy",
+            "reason": "Cliente puede renovar ahora con magic link. Mandale recordatorio.",
+            "ref": (
+                f"#{it.order.short_uuid} — {it.product_name} — "
+                f"{it.order.email or it.order.phone or 'sin contacto'}"
+            ),
+            "link": reverse("admin_renewals") + "?w=today",
+            "icon": "schedule",
+            "priority": "yellow",
+            "age_seconds": 0,
+            "money": 0.0,
+        })
+
+    # 8) Items reportados como caídos por distribuidores.
+    for it in (
+        OrderItem.objects.filter(reported_broken_at__isnull=False)
+        .filter(order__status__in=(
+            Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+        ))
+        .select_related("order", "product")
+        .order_by("-reported_broken_at")[:30]
+    ):
+        items.append({
+            "kind": "reported_broken",
+            "label": "Cuenta reportada caída",
+            "reason": (
+                it.reported_broken_note or
+                "Distribuidor reporta que la cuenta dejó de funcionar."
+            )[:140],
+            "ref": (
+                f"#{it.order.short_uuid} — {it.product_name} — "
+                f"{it.order.email or 'sin contacto'}"
+            ),
+            "link": reverse("admin:orders_order_change", args=[it.order_id]),
+            "icon": "report",
+            "priority": "red",
+            "age_seconds": _age_seconds(it.reported_broken_at),
+            "money": 0.0,
+        })
+
+    return items
+
+
+@staff_member_required
+def inbox_view(request):
+    """Bandeja unificada de cosas que necesitan acción (single feed)."""
+    kind_filter = (request.GET.get("kind") or "").strip()
+    sort = (request.GET.get("sort") or "priority").strip()
+
+    items = _inbox_collect_items()
+
+    # Stats por tipo (para los chips/filtros arriba).
+    stats = {}
+    for it in items:
+        stats[it["kind"]] = stats.get(it["kind"], 0) + 1
+
+    if kind_filter and kind_filter != "all":
+        items = [it for it in items if it["kind"] == kind_filter]
+
+    if sort == "age":
+        items.sort(key=lambda it: -it["age_seconds"])
+    else:  # priority (red → orange → yellow → blue), luego por edad desc
+        items.sort(
+            key=lambda it: (
+                _INBOX_PRIORITY.get(it["priority"], 99),
+                -it["age_seconds"],
+            )
+        )
+
+    # Tone classes para Tailwind compilado por Unfold.
+    tone = {
+        "red": "border-red-500 bg-red-500/10 text-red-100",
+        "orange": "border-orange-500 bg-orange-500/10 text-orange-100",
+        "yellow": "border-yellow-500 bg-yellow-500/10 text-yellow-100",
+        "blue": "border-blue-500 bg-blue-500/10 text-blue-100",
+    }
+    for it in items:
+        it["classes"] = tone.get(it["priority"], tone["blue"])
+        # Friendly age string.
+        sec = it["age_seconds"]
+        if sec <= 0:
+            it["age_label"] = "ahora"
+        elif sec < 3600:
+            it["age_label"] = f"hace {sec // 60} min"
+        elif sec < 86400:
+            it["age_label"] = f"hace {sec // 3600} h"
+        else:
+            it["age_label"] = f"hace {sec // 86400} d"
+
+    # Lista de chips (tipos disponibles + total).
+    chips = [
+        ("all", "Todo", sum(stats.values()), "list"),
+        ("yape_proof", "Yape", stats.get("yape_proof", 0), "qr_code_scanner"),
+        ("waiting_stock", "Sin entregar", stats.get("waiting_stock", 0), "inventory_2"),
+        ("ticket", "Tickets", stats.get("ticket", 0), "support_agent"),
+        ("review", "Reseñas", stats.get("review", 0), "rate_review"),
+        ("distributor", "Distribuidores", stats.get("distributor", 0), "verified_user"),
+        ("stock_expiring", "Stock por vencer", stats.get("stock_expiring", 0), "warning_amber"),
+        ("renewal_today", "Vencen hoy", stats.get("renewal_today", 0), "schedule"),
+        ("reported_broken", "Caídas reportadas", stats.get("reported_broken", 0), "report"),
+    ]
+
+    ctx = _admin_context(
+        request,
+        title="Bandeja — Necesita acción",
+        items=items,
+        chips=chips,
+        kind_filter=kind_filter or "all",
+        sort=sort,
+        total=sum(stats.values()),
+    )
+    return render(request, "admin/inbox.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Reportes financieros con gráficos (mensual + categorías + tendencia)
+#
+# Vista que extiende el reporte plano con:
+#   - Gráfico de ventas mensuales (12 meses).
+#   - Donut de revenue por categoría.
+#   - Tendencia: este mes vs mes anterior (con %).
+#   - Top 5 clientes por gasto del año.
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def reports_charts_view(request):
+    from orders.models import Order, OrderItem
+
+    paid_statuses = (
+        Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+    )
+    paid_qs = Order.objects.filter(status__in=paid_statuses)
+
+    now = timezone.localtime()
+    today = now.date()
+
+    # ---- Ventas mensuales últimos 12 meses ---------------------------------
+    # Construimos lista de los últimos 12 meses (desde hace 11 meses hasta este).
+    months = []
+    cursor = today.replace(day=1)
+    for _ in range(12):
+        months.append(cursor)
+        # Retroceder 1 mes (sin importar duración).
+        if cursor.month == 1:
+            cursor = cursor.replace(year=cursor.year - 1, month=12)
+        else:
+            cursor = cursor.replace(month=cursor.month - 1)
+    months.reverse()  # del más antiguo al más reciente
+
+    month_buckets = {(m.year, m.month): Decimal("0") for m in months}
+    month_orders = {(m.year, m.month): 0 for m in months}
+    start_first_month = timezone.make_aware(
+        datetime.combine(months[0], datetime.min.time())
+    )
+    for o in paid_qs.filter(paid_at__gte=start_first_month).only("paid_at", "total"):
+        if not o.paid_at:
+            continue
+        local = timezone.localtime(o.paid_at)
+        key = (local.year, local.month)
+        if key in month_buckets:
+            month_buckets[key] += o.total or Decimal("0")
+            month_orders[key] += 1
+
+    month_labels = [m.strftime("%b %y") for m in months]
+    month_revenue = [float(month_buckets[(m.year, m.month)]) for m in months]
+    month_count = [month_orders[(m.year, m.month)] for m in months]
+
+    # ---- Tendencia este mes vs mes anterior --------------------------------
+    this_revenue = month_revenue[-1] if month_revenue else 0.0
+    prev_revenue = month_revenue[-2] if len(month_revenue) >= 2 else 0.0
+    if prev_revenue > 0:
+        trend_pct = (this_revenue - prev_revenue) / prev_revenue * 100
+    elif this_revenue > 0:
+        trend_pct = 100.0
+    else:
+        trend_pct = 0.0
+
+    this_orders = month_count[-1] if month_count else 0
+    prev_orders = month_count[-2] if len(month_count) >= 2 else 0
+
+    # ---- Revenue por categoría (12 meses) ----------------------------------
+    cat_rows = (
+        OrderItem.objects
+        .filter(
+            order__status__in=paid_statuses,
+            order__paid_at__gte=start_first_month,
+        )
+        .values("product__category__name")
+        .annotate(
+            revenue=Sum(F("unit_price") * F("quantity")),
+            units=Sum("quantity"),
+        )
+        .order_by("-revenue")
+    )
+    cat_labels = []
+    cat_data = []
+    cat_units = []
+    for r in cat_rows:
+        cat_labels.append(r["product__category__name"] or "Sin categoría")
+        cat_data.append(float(r["revenue"] or 0))
+        cat_units.append(int(r["units"] or 0))
+
+    # ---- Top 5 clientes (12 meses) ----------------------------------------
+    top_customers = list(
+        paid_qs.filter(paid_at__gte=start_first_month)
+        .values("email")
+        .annotate(
+            spent=Sum("total"),
+            orders=Count("id"),
+        )
+        .order_by("-spent")[:5]
+    )
+
+    # ---- Comparación interanual (Year-over-Year) --------------------------
+    # Mismo mes hace 1 año vs ahora.
+    one_year_ago_month = months[0]
+    yoy_revenue = month_revenue[0] if month_revenue else 0.0
+    if yoy_revenue > 0:
+        yoy_pct = (this_revenue - yoy_revenue) / yoy_revenue * 100
+    elif this_revenue > 0:
+        yoy_pct = 100.0
+    else:
+        yoy_pct = 0.0
+
+    ctx = _admin_context(
+        request,
+        title="Reportes con gráficos",
+        currency_symbol=settings.DEFAULT_CURRENCY_SYMBOL,
+        # Charts
+        sales_chart_json=json.dumps({
+            "labels": month_labels,
+            "revenue": month_revenue,
+            "orders": month_count,
+        }),
+        cat_chart_json=json.dumps({
+            "labels": cat_labels,
+            "data": cat_data,
+        }),
+        # KPIs
+        this_revenue=this_revenue,
+        prev_revenue=prev_revenue,
+        trend_pct=trend_pct,
+        this_orders=this_orders,
+        prev_orders=prev_orders,
+        yoy_revenue=yoy_revenue,
+        yoy_pct=yoy_pct,
+        yoy_label=one_year_ago_month.strftime("%b %y"),
+        # Top customers
+        top_customers=top_customers,
+        # Categorías para tabla complementaria
+        cat_rows=list(zip(cat_labels, cat_data, cat_units)),
+    )
+    return render(request, "admin/reports_charts.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# 2FA setup wizard (UX amigable)
+#
+# Hoy `django-otp` está instalado pero el setup pasa por el changelist de
+# `TOTP devices` (clunky). Esta vista da:
+#   - Estado actual (¿tiene 2FA configurado? ¿está enforced en este request?)
+#   - QR + secret key visibles para escanear con Authenticator
+#   - Verificación del código antes de confirmar
+#   - Generación de 8 backup codes (django-otp StaticTokens)
+#
+# Si el flag ADMIN_2FA_ENFORCED=True, el admin ya pide TOTP en el login.
+# Mientras está en False, esta vista permite preparar el dispositivo SIN
+# riesgo de bloqueo.
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def admin_2fa_setup(request):
+    """Pantalla de setup amigable para registrar TOTP + backup codes."""
+    try:
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
+    except ImportError:  # pragma: no cover
+        messages.error(
+            request,
+            "django-otp no está instalado. Pedile a soporte que lo agregue.",
+        )
+        return redirect("admin:index")
+
+    user = request.user
+    enforced = bool(getattr(settings, "ADMIN_2FA_ENFORCED", False))
+
+    confirmed_totp = TOTPDevice.objects.filter(user=user, confirmed=True).first()
+    pending_totp = TOTPDevice.objects.filter(user=user, confirmed=False).order_by("-id").first()
+    static_dev = StaticDevice.objects.filter(user=user, confirmed=True).first()
+
+    action = request.POST.get("action")
+
+    if request.method == "POST" and action == "create_pending":
+        # Borra cualquier dispositivo no confirmado previo y crea uno nuevo.
+        TOTPDevice.objects.filter(user=user, confirmed=False).delete()
+        TOTPDevice.objects.create(user=user, name="Dispositivo principal", confirmed=False)
+        return redirect(reverse("admin_2fa_setup"))
+
+    if request.method == "POST" and action == "verify":
+        token = (request.POST.get("token") or "").strip()
+        if not pending_totp:
+            messages.error(request, "No hay dispositivo pendiente. Generá uno primero.")
+            return redirect(reverse("admin_2fa_setup"))
+        if not token.isdigit() or len(token) not in (6, 7, 8):
+            messages.error(request, "El código debe ser numérico (6 dígitos).")
+            return redirect(reverse("admin_2fa_setup"))
+        if pending_totp.verify_token(token):
+            pending_totp.confirmed = True
+            pending_totp.save(update_fields=["confirmed"])
+            # Generamos 8 backup codes (StaticTokens) si no había.
+            if not static_dev:
+                static_dev = StaticDevice.objects.create(
+                    user=user, name="Códigos de respaldo", confirmed=True,
+                )
+            else:
+                static_dev.token_set.all().delete()
+            backup_codes = []
+            import secrets as _secrets
+            for _ in range(8):
+                code = _secrets.token_hex(4)  # 8 hex chars
+                StaticToken.objects.create(device=static_dev, token=code)
+                backup_codes.append(code)
+            request.session["jheliz_2fa_backup_codes"] = backup_codes
+            messages.success(
+                request,
+                "2FA activado correctamente. Guardá tus códigos de respaldo abajo.",
+            )
+            return redirect(reverse("admin_2fa_setup"))
+        else:
+            messages.error(request, "El código no coincide. Probá de nuevo.")
+            return redirect(reverse("admin_2fa_setup"))
+
+    if request.method == "POST" and action == "regen_backup":
+        if not confirmed_totp:
+            messages.error(request, "Primero activá tu TOTP.")
+            return redirect(reverse("admin_2fa_setup"))
+        if not static_dev:
+            static_dev = StaticDevice.objects.create(
+                user=user, name="Códigos de respaldo", confirmed=True,
+            )
+        else:
+            static_dev.token_set.all().delete()
+        backup_codes = []
+        import secrets as _secrets
+        for _ in range(8):
+            code = _secrets.token_hex(4)
+            StaticToken.objects.create(device=static_dev, token=code)
+            backup_codes.append(code)
+        request.session["jheliz_2fa_backup_codes"] = backup_codes
+        messages.success(request, "Códigos regenerados. Los anteriores ya no sirven.")
+        return redirect(reverse("admin_2fa_setup"))
+
+    if request.method == "POST" and action == "remove":
+        TOTPDevice.objects.filter(user=user).delete()
+        StaticDevice.objects.filter(user=user).delete()
+        request.session.pop("jheliz_2fa_backup_codes", None)
+        messages.success(request, "2FA desactivado para tu cuenta.")
+        return redirect(reverse("admin_2fa_setup"))
+
+    # GET: armamos el contexto.
+    qr_provisioning_uri = None
+    secret_b32 = None
+    if pending_totp:
+        # config_url devuelve otpauth://totp/?secret=...&issuer=...
+        qr_provisioning_uri = pending_totp.config_url
+        # El "secret" base32 está en la config_url; lo extraemos para
+        # mostrar también en texto por si la cámara no lee el QR.
+        try:
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(qr_provisioning_uri).query)
+            secret_b32 = (qs.get("secret") or [None])[0]
+        except Exception:  # pragma: no cover
+            secret_b32 = None
+
+    backup_codes = request.session.pop("jheliz_2fa_backup_codes", None)
+
+    ctx = _admin_context(
+        request,
+        title="Seguridad — 2FA",
+        enforced=enforced,
+        confirmed_totp=confirmed_totp,
+        pending_totp=pending_totp,
+        static_dev=static_dev,
+        qr_provisioning_uri=qr_provisioning_uri,
+        secret_b32=secret_b32,
+        backup_codes=backup_codes,
+    )
+    return render(request, "admin/security_2fa.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Bulk delivery — entregar en masa pedidos en preparación con stock disponible
+# ---------------------------------------------------------------------------
+
+def _bulk_deliver_order(order, actor=None):
+    """Auto-asigna stock disponible a todos los items del pedido y entrega.
+
+    Devuelve ``(delivered, missing_items)`` donde ``missing_items`` es la lista
+    de items que no tuvieron stock disponible y por ende el pedido NO se
+    entregó (queda en PREPARING sin tocar).
+    """
+    from catalog.models import StockItem
+    from orders import emails
+    from orders.models import Order, OrderItem
+
+    items: list[OrderItem] = list(
+        order.items.select_related("product", "plan", "stock_item").all()
+    )
+    if not items:
+        return False, []
+
+    missing: list[OrderItem] = []
+    plan: list[tuple[OrderItem, StockItem | None]] = []
+
+    with transaction.atomic():
+        order_locked = (
+            Order.objects.select_for_update().filter(pk=order.pk).first()
+        )
+        if order_locked is None or order_locked.status != Order.Status.PREPARING:
+            # Alguien más ya movió el pedido; no lo tocamos.
+            return False, []
+
+        for item in items:
+            existing = item.stock_item
+            if existing is not None and existing.status == StockItem.Status.SOLD:
+                plan.append((item, None))
+                continue
+            if existing is not None and existing.status in {
+                StockItem.Status.AVAILABLE, StockItem.Status.RESERVED,
+            }:
+                stock = (
+                    StockItem.objects.select_for_update()
+                    .filter(
+                        pk=existing.pk,
+                        status__in=[StockItem.Status.AVAILABLE, StockItem.Status.RESERVED],
+                    ).first()
+                )
+                if stock:
+                    plan.append((item, stock))
+                    continue
+
+            plan_id = item.plan_id
+            stock = (
+                StockItem.objects.select_for_update()
+                .filter(status=StockItem.Status.AVAILABLE, plan_id=plan_id)
+                .order_by("id")
+                .first()
+            )
+            if stock is None:
+                missing.append(item)
+                continue
+            plan.append((item, stock))
+
+        if missing:
+            return False, missing
+
+        for item, stock in plan:
+            if stock is None:
+                continue
+            stock.status = StockItem.Status.SOLD
+            stock.sold_at = timezone.now()
+            stock.save(update_fields=["status", "sold_at"])
+            item.stock_item = stock
+            item.delivered_credentials = item.delivered_credentials or stock.credentials
+            item.save(update_fields=["stock_item", "delivered_credentials"])
+
+        order_locked.status = Order.Status.DELIVERED
+        order_locked.delivered_at = timezone.now()
+        order_locked.paid_at = order_locked.paid_at or order_locked.delivered_at
+        order_locked.save(update_fields=["status", "delivered_at", "paid_at"])
+
+    transaction.on_commit(lambda: _send_delivered_email(order_locked.pk))
+    return True, []
+
+
+def _send_delivered_email(order_id: int):
+    from orders import emails
+    from orders.models import Order
+
+    order = Order.objects.filter(pk=order_id).first()
+    if order is not None:
+        emails.send_order_delivered(order)
+
+
+@staff_member_required
+def bulk_delivery_view(request):
+    """Lista todos los pedidos PREPARING sin entregar con info de stock disponible."""
+    from django.db.models import Count
+    from catalog.models import StockItem
+    from orders.models import Order
+
+    orders = list(
+        Order.objects.filter(status=Order.Status.PREPARING)
+        .select_related("user")
+        .prefetch_related("items__product", "items__plan", "items__stock_item")
+        .order_by("-paid_at", "-created_at")[:150]
+    )
+
+    plan_ids = set()
+    for order in orders:
+        for item in order.items.all():
+            if item.plan_id:
+                plan_ids.add(item.plan_id)
+
+    avail_by_plan: dict[int, int] = {}
+    if plan_ids:
+        rows = (
+            StockItem.objects.filter(status=StockItem.Status.AVAILABLE, plan_id__in=plan_ids)
+            .values("plan_id")
+            .annotate(avail=Count("id"))
+        )
+        avail_by_plan = {r["plan_id"]: r["avail"] for r in rows}
+
+    rows = []
+    total_deliverable = 0
+    for order in orders:
+        items_info = []
+        order_deliverable = True
+        for item in order.items.all():
+            has_cred = bool(
+                item.stock_item_id and item.stock_item and item.stock_item.status == "sold"
+            ) or bool(item.delivered_credentials)
+            avail = avail_by_plan.get(item.plan_id, 0) if item.plan_id else 0
+            items_info.append({
+                "item": item,
+                "avail": avail,
+                "has_cred": has_cred,
+            })
+            if not has_cred and avail <= 0:
+                order_deliverable = False
+        if order_deliverable:
+            total_deliverable += 1
+        rows.append({
+            "order": order,
+            "items": items_info,
+            "deliverable": order_deliverable,
+        })
+
+    ctx = _admin_context(
+        request,
+        title="Entrega en masa",
+        rows=rows,
+        deliverable_count=total_deliverable,
+        total_count=len(rows),
+    )
+    return render(request, "admin/bulk_delivery.html", ctx)
+
+
+@staff_member_required
+@require_POST
+def bulk_deliver_one(request, order_id: int):
+    from orders.models import Order
+
+    order = get_object_or_404(Order, pk=order_id, status=Order.Status.PREPARING)
+    delivered, missing = _bulk_deliver_order(order, actor=request.user)
+    if delivered:
+        messages.success(request, f"Pedido #{order.short_uuid} entregado.")
+    else:
+        if missing:
+            names = ", ".join(f"{it.product_name} ({it.plan_name})" for it in missing)
+            messages.warning(
+                request,
+                f"Pedido #{order.short_uuid} no se pudo entregar: falta stock para {names}.",
+            )
+        else:
+            messages.info(
+                request,
+                f"Pedido #{order.short_uuid} ya no estaba en preparación.",
+            )
+    return redirect("admin_bulk_delivery")
+
+
+@staff_member_required
+@require_POST
+def bulk_deliver_all(request):
+    from orders.models import Order
+
+    orders = list(
+        Order.objects.filter(status=Order.Status.PREPARING)
+        .order_by("paid_at", "created_at")[:100]
+    )
+    delivered = 0
+    skipped = 0
+    for order in orders:
+        ok, _missing = _bulk_deliver_order(order, actor=request.user)
+        if ok:
+            delivered += 1
+        else:
+            skipped += 1
+    messages.success(
+        request,
+        f"{delivered} pedido(s) entregado(s) · {skipped} omitido(s) por falta de stock.",
+    )
+    return redirect("admin_bulk_delivery")
+
+
+# ---------------------------------------------------------------------------
+# Audit log viewer
+#
+# `auditlog` registra cada create/update/delete de los modelos rastreados
+# (Order, OrderItem, PaymentSettings, StockItem, Product, Plan), incluyendo
+# actor, IP, timestamp y diff de campos. Esta vista expone esa información
+# en una página filtrable para revisar quién cambió qué y cuándo, sin tener
+# que entrar al admin de auditlog (que es muy crudo).
+# ---------------------------------------------------------------------------
+
+_AUDIT_ACTION_LABELS = {
+    0: ("Creó", "create", "add_circle", "green"),
+    1: ("Editó", "update", "edit", "blue"),
+    2: ("Eliminó", "delete", "delete", "red"),
+    3: ("Accedió", "access", "visibility", "yellow"),
+}
+
+_AUDIT_TONE_CLASSES = {
+    "green": "border-green-500 bg-green-500/20 text-green-100",
+    "blue": "border-blue-500 bg-blue-500/20 text-blue-100",
+    "red": "border-red-500 bg-red-500/20 text-red-100",
+    "yellow": "border-yellow-500 bg-yellow-500/20 text-yellow-100",
+    "gray": "border-gray-500 bg-gray-500/20 text-gray-200",
+}
+
+
+def _parse_audit_changes(entry) -> list[dict]:
+    """Convierte el JSON `changes` de auditlog en una lista de diffs legibles.
+
+    Cada item: {field, old, new}. Trunca valores muy largos para no romper
+    el layout de la tabla.
+    """
+    raw = getattr(entry, "changes", None)
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (ValueError, TypeError):
+            return []
+    if not isinstance(raw, dict):
+        return []
+    diffs = []
+    for field, change in raw.items():
+        if isinstance(change, list) and len(change) == 2:
+            old, new = change
+        elif isinstance(change, dict):
+            old = change.get("old")
+            new = change.get("new")
+        else:
+            old = None
+            new = change
+        diffs.append({
+            "field": field,
+            "old": _truncate_for_display(old),
+            "new": _truncate_for_display(new),
+        })
+    return diffs
+
+
+def _truncate_for_display(value, limit: int = 200) -> str:
+    s = "" if value is None else str(value)
+    if len(s) > limit:
+        return s[: limit - 1] + "…"
+    return s
+
+
+@staff_member_required
+def auditlog_view(request):
+    """Listado paginado del audit log con filtros.
+
+    Filtros vía querystring:
+      - ``model``: ``app_label.model`` (ej. ``orders.order``).
+      - ``action``: ``create`` / ``update`` / ``delete`` / ``access``.
+      - ``actor``: id numérico del usuario que hizo el cambio.
+      - ``q``: búsqueda en ``object_repr`` o ``object_pk`` (LIKE).
+      - ``days``: ventana de los últimos N días (default 30).
+    """
+    from auditlog.models import LogEntry
+    from django.contrib.contenttypes.models import ContentType
+    from accounts.models import User
+
+    try:
+        days = max(1, min(int(request.GET.get("days", "30")), 365))
+    except (TypeError, ValueError):
+        days = 30
+    cutoff = timezone.now() - timedelta(days=days)
+
+    qs = (
+        LogEntry.objects.filter(timestamp__gte=cutoff)
+        .select_related("content_type", "actor")
+        .order_by("-timestamp")
+    )
+
+    model_filter = (request.GET.get("model") or "").strip().lower()
+    if model_filter and "." in model_filter:
+        app_label, model = model_filter.split(".", 1)
+        ct = ContentType.objects.filter(app_label=app_label, model=model).first()
+        if ct:
+            qs = qs.filter(content_type=ct)
+
+    action_filter = (request.GET.get("action") or "").strip().lower()
+    action_value_map = {
+        "create": LogEntry.Action.CREATE,
+        "update": LogEntry.Action.UPDATE,
+        "delete": LogEntry.Action.DELETE,
+        "access": getattr(LogEntry.Action, "ACCESS", 3),
+    }
+    if action_filter in action_value_map:
+        qs = qs.filter(action=action_value_map[action_filter])
+
+    actor_filter = (request.GET.get("actor") or "").strip()
+    if actor_filter.isdigit():
+        qs = qs.filter(actor_id=int(actor_filter))
+
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(
+            Q(object_repr__icontains=q) | Q(object_pk__icontains=q)
+        )
+
+    # Paginación simple (no usamos django Paginator para no traer dependencias
+    # nuevas de template; basta con limit + offset por página).
+    try:
+        page = max(1, int(request.GET.get("page", "1")))
+    except (TypeError, ValueError):
+        page = 1
+    per_page = 50
+    total = qs.count()
+    entries = list(qs[(page - 1) * per_page : page * per_page])
+
+    # Decorar cada entrada con el label del action, tono e icono, además del
+    # diff parseado para mostrar inline (las primeras 3 líneas).
+    rows = []
+    for entry in entries:
+        action_id = entry.action
+        label, slug, icon, tone = _AUDIT_ACTION_LABELS.get(
+            action_id, ("?", "other", "help", "gray")
+        )
+        diffs = _parse_audit_changes(entry)
+        rows.append({
+            "entry": entry,
+            "action_label": label,
+            "action_slug": slug,
+            "action_icon": icon,
+            "action_classes": _AUDIT_TONE_CLASSES[tone],
+            "model_label": (
+                f"{entry.content_type.app_label}.{entry.content_type.model}"
+                if entry.content_type_id else "?"
+            ),
+            "diffs": diffs,
+            "diff_preview": diffs[:3],
+            "diff_more": max(0, len(diffs) - 3),
+        })
+
+    # Opciones para los selects de filtro: solo modelos efectivamente
+    # registrados en auditlog (los que aparecen en LogEntry).
+    model_options_qs = (
+        LogEntry.objects.filter(timestamp__gte=cutoff)
+        .values("content_type__app_label", "content_type__model")
+        .distinct()
+        .order_by("content_type__app_label", "content_type__model")
+    )
+    model_options = [
+        {
+            "value": f"{r['content_type__app_label']}.{r['content_type__model']}",
+            "label": f"{r['content_type__app_label']}.{r['content_type__model']}",
+        }
+        for r in model_options_qs
+        if r["content_type__app_label"] and r["content_type__model"]
+    ]
+
+    actor_options = list(
+        User.objects.filter(is_staff=True)
+        .order_by("username")
+        .values("id", "username", "email")[:50]
+    )
+
+    has_prev = page > 1
+    has_next = page * per_page < total
+
+    ctx = _admin_context(
+        request,
+        title="Auditoría",
+        rows=rows,
+        total=total,
+        page=page,
+        per_page=per_page,
+        has_prev=has_prev,
+        has_next=has_next,
+        model_filter=model_filter,
+        action_filter=action_filter,
+        actor_filter=actor_filter,
+        q=q,
+        days=days,
+        model_options=model_options,
+        actor_options=actor_options,
+    )
+    return render(request, "admin/auditlog.html", ctx)
+
+
+@staff_member_required
+def auditlog_detail(request, pk: int):
+    """Vista de detalle de una entrada: diff completo del objeto cambiado."""
+    from auditlog.models import LogEntry
+
+    entry = get_object_or_404(
+        LogEntry.objects.select_related("content_type", "actor"),
+        pk=pk,
+    )
+    action_id = entry.action
+    label, slug, icon, tone = _AUDIT_ACTION_LABELS.get(
+        action_id, ("?", "other", "help", "gray")
+    )
+    diffs = _parse_audit_changes(entry)
+
+    ctx = _admin_context(
+        request,
+        title=f"Auditoría #{entry.pk}",
+        entry=entry,
+        action_label=label,
+        action_slug=slug,
+        action_icon=icon,
+        action_classes=_AUDIT_TONE_CLASSES[tone],
+        model_label=(
+            f"{entry.content_type.app_label}.{entry.content_type.model}"
+            if entry.content_type_id else "?"
+        ),
+        diffs=diffs,
+    )
+    return render(request, "admin/auditlog_detail.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Notificaciones Web Push (PWA): broadcast desde el admin
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def push_broadcast_view(request):
+    """Form para mandar una notificación push a todos los suscritos.
+
+    Si VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY no están seteados en settings,
+    muestra un cartel guía explicando cómo generarlos.
+    """
+    from accounts.models import PushSubscription
+    from accounts import push as push_module
+
+    subs_qs = PushSubscription.objects.filter(is_enabled=True)
+    n_subs = subs_qs.count()
+    n_subs_total = PushSubscription.objects.count()
+    vapid_ok = push_module._vapid_configured()
+
+    if request.method == "POST" and vapid_ok:
+        title = (request.POST.get("title") or "").strip()
+        body = (request.POST.get("body") or "").strip()
+        url = (request.POST.get("url") or "/").strip()
+        icon = (request.POST.get("icon") or "").strip()
+        only_users = request.POST.get("only_users") == "on"
+        if not title or not body:
+            messages.error(request, "Título y mensaje son obligatorios.")
+        else:
+            target_qs = subs_qs.select_related("user")
+            if only_users:
+                target_qs = target_qs.filter(user__isnull=False)
+            sent, failed = push_module.broadcast(
+                target_qs, title=title, body=body, url=url, icon=icon,
+            )
+            if failed == 0:
+                messages.success(
+                    request,
+                    f"Notificación enviada a {sent} suscriptor{'es' if sent != 1 else ''}.",
+                )
+            else:
+                messages.warning(
+                    request,
+                    f"Notificación: {sent} ok, {failed} fallidas (las fallidas se desactivan al 3er intento).",
+                )
+            return redirect("admin_push_broadcast")
+
+    ctx = _admin_context(
+        request,
+        title="Notificaciones push",
+        n_subs=n_subs,
+        n_subs_total=n_subs_total,
+        vapid_ok=vapid_ok,
+        recent_subs=list(subs_qs.select_related("user").order_by("-created_at")[:20]),
+    )
+    return render(request, "admin/push_broadcast.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Dashboard avanzado (analítica profunda)
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def advanced_dashboard_view(request):
+    """Analítica profunda del negocio: heatmap horario, cohortes de retención,
+    funnel de conversión, performance de distribuidores, tasa de renovación.
+
+    Complementa /reports/ y /reports/charts/ que ya muestran totales y top
+    productos. Acá se enfocan métricas que requieren cómputo y dan insights
+    accionables (ej. en qué hora/día tener soporte activo, cuántos clientes
+    repiten compra).
+    """
+    from accounts.models import Role
+    from orders.models import Order, OrderItem
+
+    paid_statuses = (
+        Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
+    )
+    paid_qs = Order.objects.filter(status__in=paid_statuses)
+    now = timezone.localtime()
+    today = now.date()
+
+    # =====================================================================
+    # 1. HEATMAP horario (24 hrs × 7 días) — últimos 90 días
+    # =====================================================================
+    start_90 = timezone.now() - timedelta(days=90)
+    # Estructura: heatmap[day_of_week][hour] = count
+    heatmap = [[0 for _ in range(24)] for _ in range(7)]
+    for paid_at in paid_qs.filter(paid_at__gte=start_90).values_list("paid_at", flat=True):
+        if not paid_at:
+            continue
+        local = timezone.localtime(paid_at)
+        # weekday(): 0 = lunes, 6 = domingo
+        dow = local.weekday()
+        hour = local.hour
+        heatmap[dow][hour] += 1
+    # Para el chart: max value (para escalar la opacidad)
+    heatmap_max = max((max(row) for row in heatmap), default=0)
+    # Top 3 (dow, hour) con más ventas
+    top_slots = []
+    for dow in range(7):
+        for hour in range(24):
+            if heatmap[dow][hour] > 0:
+                top_slots.append((heatmap[dow][hour], dow, hour))
+    top_slots.sort(reverse=True)
+    top_slots = top_slots[:3]
+    dow_names = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+    top_slots_labels = [
+        f"{dow_names[dow]} {hour:02d}:00 — {count} ventas"
+        for count, dow, hour in top_slots
+    ]
+
+    # =====================================================================
+    # 2. COHORTES DE RETENCIÓN (último 6 meses)
+    # =====================================================================
+    # Para cada mes M (cohort), de los emails que compraron en M, ¿qué % volvió
+    # a comprar en M+1, M+2, ..., M+5?
+    cohorts = []
+    cursor = today.replace(day=1)
+    cohort_months = []
+    for _ in range(6):
+        cohort_months.append(cursor)
+        if cursor.month == 1:
+            cursor = cursor.replace(year=cursor.year - 1, month=12)
+        else:
+            cursor = cursor.replace(month=cursor.month - 1)
+    cohort_months.reverse()  # del más antiguo al más reciente
+
+    # Para cada cohort, identificamos los emails que compraron por primera vez
+    # en ese mes, y vemos cuántos volvieron en los meses siguientes.
+    six_months_ago = timezone.make_aware(
+        datetime.combine(cohort_months[0], datetime.min.time())
+    )
+    # Mapa email -> primer mes (year, month)
+    first_purchase = {}
+    # Mapa email -> set de meses con compras
+    purchase_months = {}
+    for email, paid_at in paid_qs.filter(paid_at__gte=six_months_ago, email__gt="").values_list("email", "paid_at"):
+        if not paid_at or not email:
+            continue
+        local = timezone.localtime(paid_at)
+        month_key = (local.year, local.month)
+        purchase_months.setdefault(email, set()).add(month_key)
+        # Buscamos el primer mes para este email globalmente.
+        if email not in first_purchase or month_key < first_purchase[email]:
+            first_purchase[email] = month_key
+
+    for idx, m in enumerate(cohort_months):
+        cohort_key = (m.year, m.month)
+        cohort_emails = [e for e, fp in first_purchase.items() if fp == cohort_key]
+        n_cohort = len(cohort_emails)
+        retention_row = []
+        for offset in range(6):
+            # Mes M + offset
+            target_month = m
+            for _ in range(offset):
+                if target_month.month == 12:
+                    target_month = target_month.replace(year=target_month.year + 1, month=1)
+                else:
+                    target_month = target_month.replace(month=target_month.month + 1)
+            target_key = (target_month.year, target_month.month)
+            if offset == 0:
+                # 100% del cohort por definición.
+                retention_row.append(100 if n_cohort > 0 else 0)
+            else:
+                # Solo computamos si el target_month ya pasó.
+                target_first_day = target_month
+                if target_first_day > today:
+                    retention_row.append(None)
+                else:
+                    returners = sum(
+                        1 for e in cohort_emails
+                        if target_key in purchase_months.get(e, set())
+                    )
+                    pct = round((returners / n_cohort) * 100) if n_cohort > 0 else 0
+                    retention_row.append(pct)
+        cohorts.append({
+            "label": m.strftime("%b %y"),
+            "size": n_cohort,
+            "row": retention_row,
+        })
+
+    # =====================================================================
+    # 3. FUNNEL DE CONVERSIÓN (últimos 30 días)
+    # =====================================================================
+    last_30 = timezone.now() - timedelta(days=30)
+    funnel_qs = Order.objects.filter(created_at__gte=last_30)
+    funnel_counts = {
+        "creados": funnel_qs.count(),
+        "verificando": funnel_qs.filter(status=Order.Status.VERIFYING).count(),
+        "pagados": funnel_qs.filter(
+            status__in=(Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED),
+        ).count(),
+        "entregados": funnel_qs.filter(status=Order.Status.DELIVERED).count(),
+        "cancelados": funnel_qs.filter(
+            status__in=(Order.Status.CANCELED, Order.Status.FAILED),
+        ).count(),
+    }
+    # Tasa de conversión total (creados → entregados).
+    if funnel_counts["creados"] > 0:
+        conversion_rate = round(
+            funnel_counts["entregados"] / funnel_counts["creados"] * 100, 1
+        )
+        # Tasa de pago (creados → pagados) – descarta pendientes.
+        payment_rate = round(
+            funnel_counts["pagados"] / funnel_counts["creados"] * 100, 1
+        )
+    else:
+        conversion_rate = 0.0
+        payment_rate = 0.0
+
+    # =====================================================================
+    # 4. PERFORMANCE DE DISTRIBUIDORES (últimos 30 días)
+    # =====================================================================
+    from accounts.models import User
+    distri_perf = list(
+        User.objects.filter(role=Role.DISTRIBUIDOR, distributor_approved=True)
+        .annotate(
+            orders_30d=Count(
+                "orders", filter=Q(
+                    orders__status__in=paid_statuses,
+                    orders__paid_at__gte=last_30,
+                ),
+                distinct=True,
+            ),
+            revenue_30d=Sum(
+                "orders__total", filter=Q(
+                    orders__status__in=paid_statuses,
+                    orders__paid_at__gte=last_30,
+                ),
+            ),
+        )
+        .order_by("-revenue_30d")[:10]
+    )
+    distri_total_30d = sum(
+        (d.revenue_30d or Decimal("0") for d in distri_perf), Decimal("0")
+    )
+
+    # =====================================================================
+    # 5. TASA DE RENOVACIÓN (heurística: clientes con 2+ pedidos del mismo prod)
+    # =====================================================================
+    # Tomamos OrderItems de los últimos 6 meses agrupados por (email, product).
+    # Si hay 2+ entradas, el cliente "renovó" ese producto.
+    repeat_rows = (
+        OrderItem.objects
+        .filter(
+            order__status__in=paid_statuses,
+            order__paid_at__gte=six_months_ago,
+            order__email__gt="",
+        )
+        .values("order__email", "product_name")
+        .annotate(c=Count("id"))
+        .filter(c__gte=2)
+    )
+    n_repeat_pairs = repeat_rows.count()
+    n_unique_pairs = (
+        OrderItem.objects
+        .filter(
+            order__status__in=paid_statuses,
+            order__paid_at__gte=six_months_ago,
+            order__email__gt="",
+        )
+        .values("order__email", "product_name")
+        .distinct()
+        .count()
+    )
+    if n_unique_pairs > 0:
+        renewal_rate = round((n_repeat_pairs / n_unique_pairs) * 100, 1)
+    else:
+        renewal_rate = 0.0
+
+    # =====================================================================
+    # 6. COMPARATIVAS (esta semana vs anterior, este mes vs anterior)
+    # =====================================================================
+    today_dt = timezone.localtime()
+
+    def _revenue_in(start_dt, end_dt):
+        agg = paid_qs.filter(
+            paid_at__gte=start_dt, paid_at__lt=end_dt,
+        ).aggregate(rev=Sum("total"), n=Count("id"))
+        return float(agg["rev"] or 0), agg["n"] or 0
+
+    week_start = today_dt - timedelta(days=today_dt.weekday())
+    week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+    last_week_start = week_start - timedelta(days=7)
+    this_week_rev, this_week_n = _revenue_in(week_start, today_dt + timedelta(days=1))
+    last_week_rev, last_week_n = _revenue_in(last_week_start, week_start)
+
+    def _pct(curr, prev):
+        if prev > 0:
+            return round((curr - prev) / prev * 100, 1)
+        if curr > 0:
+            return 100.0
+        return 0.0
+
+    week_trend = _pct(this_week_rev, last_week_rev)
+
+    month_start = today_dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month_start.month == 1:
+        last_month_start = month_start.replace(year=month_start.year - 1, month=12)
+    else:
+        last_month_start = month_start.replace(month=month_start.month - 1)
+    this_month_rev, this_month_n = _revenue_in(month_start, today_dt + timedelta(days=1))
+    last_month_rev, last_month_n = _revenue_in(last_month_start, month_start)
+    month_trend = _pct(this_month_rev, last_month_rev)
+
+    ctx = _admin_context(
+        request,
+        title="Dashboard avanzado",
+        currency_symbol=settings.DEFAULT_CURRENCY_SYMBOL,
+        # Heatmap
+        heatmap=heatmap,
+        heatmap_max=heatmap_max,
+        heatmap_json=json.dumps(heatmap),
+        top_slots_labels=top_slots_labels,
+        # Cohortes
+        cohorts=cohorts,
+        # Funnel
+        funnel_counts=funnel_counts,
+        conversion_rate=conversion_rate,
+        payment_rate=payment_rate,
+        # Distri
+        distri_perf=distri_perf,
+        distri_total_30d=distri_total_30d,
+        # Renovaciones
+        renewal_rate=renewal_rate,
+        n_repeat_pairs=n_repeat_pairs,
+        n_unique_pairs=n_unique_pairs,
+        # Comparativas
+        this_week_rev=this_week_rev, last_week_rev=last_week_rev,
+        this_week_n=this_week_n, last_week_n=last_week_n,
+        week_trend=week_trend,
+        this_month_rev=this_month_rev, last_month_rev=last_month_rev,
+        this_month_n=this_month_n, last_month_n=last_month_n,
+        month_trend=month_trend,
+    )
+    return render(request, "admin/advanced_dashboard.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Crear pedido rápido (registro express de venta ya pagada)
+# ---------------------------------------------------------------------------
+
+@staff_member_required
+def quick_order_create(request):
+    """Vista express para registrar una venta ya cerrada.
+
+    El admin viene acá cuando un cliente ya pagó por fuera (Yape directo,
+    efectivo, transferencia) y necesita registrar la venta + entregar el
+    stock en un solo paso. Reduce el flujo de "crear pedido > agregar item
+    > marcar pagado > entregar credenciales" a un único formulario.
+    """
+    from django.contrib.auth import get_user_model
+    from catalog.models import Plan, Product, StockItem
+    from orders.models import Order, OrderItem
+    from orders import emails as order_emails
+    from orders import telegram as order_telegram
+
+    User = get_user_model()
+
+    plans_qs = (
+        Plan.objects.filter(is_active=True, product__is_active=True)
+        .select_related("product")
+        .order_by("product__name", "duration_days")
+    )
+
+    if request.method == "POST":
+        # ---- Lectura del POST -------------------------------------------
+        email = (request.POST.get("email") or "").strip().lower()
+        full_name = (request.POST.get("full_name") or "").strip()
+        phone = (request.POST.get("phone") or "").strip()
+        plan_id = request.POST.get("plan_id") or ""
+        quantity_raw = request.POST.get("quantity") or "1"
+        payment_method = (request.POST.get("payment_method") or "manual").strip()
+        paid_at_raw = (request.POST.get("paid_at") or "").strip()
+        notes = (request.POST.get("notes") or "").strip()
+        auto_deliver = request.POST.get("auto_deliver") == "on"
+        manual_credentials = (request.POST.get("manual_credentials") or "").strip()
+        send_email = request.POST.get("send_email") == "on"
+
+        errors = []
+        if not email or "@" not in email:
+            errors.append("Email del cliente inválido o vacío.")
+        if not plan_id:
+            errors.append("Tenés que elegir un plan.")
+        try:
+            quantity = max(1, min(20, int(quantity_raw)))
+        except (TypeError, ValueError):
+            errors.append("Cantidad inválida.")
+            quantity = 1
+
+        plan = None
+        if plan_id:
+            plan = plans_qs.filter(pk=plan_id).first()
+            if plan is None:
+                errors.append("El plan elegido no existe o está inactivo.")
+
+        # paid_at: si el admin no la setea, usamos ahora.
+        paid_at = timezone.now()
+        if paid_at_raw:
+            try:
+                paid_at_naive = datetime.fromisoformat(paid_at_raw)
+                if timezone.is_naive(paid_at_naive):
+                    paid_at = timezone.make_aware(paid_at_naive)
+                else:
+                    paid_at = paid_at_naive
+            except ValueError:
+                errors.append("Fecha de pago inválida (usa AAAA-MM-DDTHH:MM).")
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
+            return _quick_order_render(
+                request, plans_qs,
+                preset={
+                    "email": email,
+                    "full_name": full_name,
+                    "phone": phone,
+                    "plan_id": plan_id,
+                    "quantity": quantity_raw,
+                    "payment_method": payment_method,
+                    "paid_at": paid_at_raw,
+                    "notes": notes,
+                    "auto_deliver": auto_deliver,
+                    "manual_credentials": manual_credentials,
+                    "send_email": send_email,
+                },
+            )
+
+        # ---- Get or create cliente --------------------------------------
+        with transaction.atomic():
+            user = User.objects.filter(email__iexact=email).first()
+            created_user = False
+            if user is None:
+                # Username único: usamos el email truncado (Django permite
+                # username con `@`).
+                base_username = email[:150]
+                username = base_username
+                suffix = 1
+                while User.objects.filter(username=username).exists():
+                    suffix += 1
+                    username = f"{base_username[:140]}-{suffix}"
+                first_name = full_name.split(" ", 1)[0] if full_name else ""
+                last_name = full_name.split(" ", 1)[1] if " " in full_name else ""
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                )
+                # Password aleatorio (cliente lo resetea con "olvidé mi clave").
+                user.set_unusable_password()
+                user.save(update_fields=["password"])
+                created_user = True
+            else:
+                # Actualizamos teléfono si vino y el user no tenía.
+                if phone and not user.phone:
+                    user.phone = phone
+                    user.save(update_fields=["phone"])
+
+            # ---- Crear order ------------------------------------------------
+            unit_price = plan.price_for(user)
+            order = Order.objects.create(
+                user=user,
+                email=email,
+                phone=phone or user.phone,
+                channel=Order.Channel.MANUAL,
+                status=Order.Status.PAID,
+                payment_provider=payment_method,
+                paid_at=paid_at,
+                notes=notes,
+            )
+            item = OrderItem.objects.create(
+                order=order,
+                product=plan.product,
+                plan=plan,
+                product_name=plan.product.name,
+                plan_name=plan.name,
+                unit_price=unit_price,
+                quantity=quantity,
+            )
+            order.recompute_total()
+
+            # ---- Auto-entrega opcional --------------------------------------
+            delivered = False
+            if auto_deliver:
+                # El signal post_save de OrderItem ya pudo haber reservado
+                # un StockItem (status=RESERVED) automáticamente. Lo usamos
+                # si está disponible; si no, buscamos uno AVAILABLE.
+                item.refresh_from_db()
+                stock = None
+                if item.stock_item_id:
+                    candidate = (
+                        StockItem.objects.select_for_update()
+                        .filter(
+                            pk=item.stock_item_id,
+                            status__in=[
+                                StockItem.Status.AVAILABLE,
+                                StockItem.Status.RESERVED,
+                            ],
+                        )
+                        .first()
+                    )
+                    if candidate is not None:
+                        stock = candidate
+                if stock is None:
+                    stock = (
+                        StockItem.objects.select_for_update()
+                        .filter(
+                            product_id=plan.product_id,
+                            status=StockItem.Status.AVAILABLE,
+                        )
+                        .filter(
+                            Q(plan_id=plan.pk) | Q(plan__isnull=True)
+                        )
+                        .order_by("created_at")
+                        .first()
+                    )
+                now = timezone.now()
+                if stock is not None:
+                    stock.status = StockItem.Status.SOLD
+                    stock.sold_at = now
+                    stock.save(update_fields=["status", "sold_at"])
+                    item.stock_item = stock
+                    item.delivered_credentials = stock.credentials
+                    if plan.duration_days and not item.expires_at:
+                        item.expires_at = now + timedelta(days=plan.duration_days)
+                    item.save(update_fields=[
+                        "stock_item", "delivered_credentials", "expires_at",
+                    ])
+                    delivered = True
+                elif manual_credentials:
+                    # Prioridad 2: credenciales escritas a mano.
+                    item.delivered_credentials = manual_credentials
+                    if plan.duration_days and not item.expires_at:
+                        item.expires_at = now + timedelta(days=plan.duration_days)
+                    item.save(update_fields=["delivered_credentials", "expires_at"])
+                    delivered = True
+
+                if delivered:
+                    order.status = Order.Status.DELIVERED
+                    order.delivered_at = now
+                    order.save(update_fields=["status", "delivered_at"])
+
+        # ---- Notificaciones (fuera de la transacción) ---------------------
+        if delivered and send_email:
+            try:
+                order_emails.send_order_delivered(order)
+            except Exception:
+                # No bloqueamos: queda registrado en EmailLog si falla.
+                pass
+
+        try:
+            label = "creado" if not delivered else "creado + entregado"
+            order_telegram.notify_admin(
+                f"📝 Pedido manual {label}: #{order.short_uuid} · "
+                f"{plan.product.name} {plan.name} · S/ {order.total} · {email}"
+                + (" (cliente nuevo)" if created_user else "")
+            )
+        except Exception:
+            pass
+
+        if delivered:
+            messages.success(
+                request,
+                f"Pedido #{order.short_uuid} registrado y entregado. "
+                + ("Email enviado al cliente." if send_email else "")
+            )
+        elif auto_deliver and not delivered:
+            messages.warning(
+                request,
+                f"Pedido #{order.short_uuid} registrado, pero NO se entregó: "
+                "no hay stock disponible para ese plan ni cargaste credenciales "
+                "manuales. Entregalo desde el detalle del pedido."
+            )
+        else:
+            messages.success(
+                request,
+                f"Pedido #{order.short_uuid} registrado como pagado. "
+                "Entregalo cuando quieras desde el detalle."
+            )
+
+        # Después de crear, volvemos al detalle del pedido.
+        return redirect(
+            "admin:orders_order_change", object_id=order.pk
+        )
+
+    return _quick_order_render(request, plans_qs)
+
+
+def _quick_order_render(request, plans_qs, preset=None):
+    """Renderiza el formulario de pedido rápido."""
+    preset = preset or {}
+    # Agrupamos planes por producto para el select.
+    plans_by_product: dict[str, list] = {}
+    for plan in plans_qs:
+        plans_by_product.setdefault(plan.product.name, []).append(plan)
+
+    ctx = _admin_context(
+        request,
+        title="Crear pedido rápido",
+        plans_by_product=plans_by_product,
+        preset=preset,
+        payment_methods=[
+            ("manual", "Manual / efectivo"),
+            ("yape", "Yape"),
+            ("plin", "Plin"),
+            ("transferencia", "Transferencia bancaria"),
+            ("mercadopago", "Mercado Pago"),
+        ],
+        now_local=timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+    )
+    return render(request, "admin/orders/quick_create.html", ctx)

@@ -36,7 +36,7 @@ from catalog.models import Category, Plan, Product, StockItem
 
 
 def _make_order_item(creds: str = "") -> OrderItem:
-    cat = Category.objects.create(name="Streaming", slug="streaming")
+    cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
     product = Product.objects.create(
         name="Netflix Premium", slug="netflix-premium", category=cat
     )
@@ -358,7 +358,7 @@ class MercadoPagoWebhookFallbackTests(TestCase):
 # ----- PR D -----
 
 def _make_setup():
-    cat = Category.objects.create(name="Streaming", slug="streaming")
+    cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
     product = Product.objects.create(
         name="Netflix Premium", slug="netflix-premium", category=cat
     )
@@ -513,7 +513,7 @@ from orders.models import Coupon  # noqa: E402
 
 class CouponTests(TestCase):
     def setUp(self):
-        self.cat = Category.objects.create(name="Streaming", slug="streaming")
+        self.cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.product = Product.objects.create(
             name="Netflix Premium", slug="netflix-premium", category=self.cat,
             is_active=True, requires_customer_profile_data=False,
@@ -602,7 +602,7 @@ class OrderTimelineTests(TestCase):
     """Validación de Order.get_timeline() — bitácora combinando fuentes."""
 
     def setUp(self):
-        cat = Category.objects.create(name="Streaming", slug="streaming-t")
+        cat = Category.objects.create(name="Streaming-t", slug="streaming-t")
         product = Product.objects.create(
             name="Netflix", slug="netflix-timeline", category=cat,
         )
@@ -687,7 +687,7 @@ class YapeInboxTests(TestCase):
         self.admin = User.objects.create_user(
             username="staff-inbox", password="x", is_staff=True, is_superuser=True,
         )
-        cat = Category.objects.create(name="Streaming", slug="streaming-inbox")
+        cat = Category.objects.create(name="Streaming-inbox", slug="streaming-inbox")
         self.product = Product.objects.create(
             name="Netflix", slug="netflix-inbox", category=cat,
         )
@@ -833,14 +833,14 @@ class OrdersKanbanTests(TestCase):
 
 
 class GlobalSearchTests(TestCase):
-    """Endpoint /jheliz-admin/search/ con y sin ?full=1."""
+    """Endpoint /panel-jheliz-2026/search/ con y sin ?full=1."""
 
     def setUp(self):
         User = get_user_model()
         self.admin = User.objects.create_user(
             username="staff-search", password="x", is_staff=True, is_superuser=True,
         )
-        cat = Category.objects.create(name="Streaming", slug="streaming-search")
+        cat = Category.objects.create(name="Streaming-search", slug="streaming-search")
         self.product = Product.objects.create(
             name="Netflix Premium Buscable", slug="netflix-buscable", category=cat,
         )
@@ -945,7 +945,7 @@ class ReplaceAccountCredentialsTests(TestCase):
         self.distri.distributor_approved = True
         self.distri.save()
 
-        cat = Category.objects.create(name="Streaming", slug="streaming-rep")
+        cat = Category.objects.create(name="Streaming-rep", slug="streaming-rep")
         self.product = Product.objects.create(
             name="Amazon", slug="amazon-rep", category=cat,
         )
@@ -1154,7 +1154,7 @@ class CartBulkTests(TestCase):
         self.cliente = User.objects.create_user(
             username="cart_cli", password="x", email="cli@example.com", role="cliente",
         )
-        self.cat = Category.objects.create(name="Streaming", slug="streaming-bulk")
+        self.cat = Category.objects.create(name="Streaming-bulk", slug="streaming-bulk")
         self.prod = Product.objects.create(
             category=self.cat, name="Netflix", slug="netflix-bulk",
             is_active=True, requires_customer_profile_data=True,
@@ -1342,7 +1342,7 @@ class DistributorExpiryReminderTests(TestCase):
 
 class ProductWhatsappPitchTests(TestCase):
     def setUp(self):
-        cat = Category.objects.create(name="Streaming", slug="streaming-pitch")
+        cat = Category.objects.create(name="Streaming-pitch", slug="streaming-pitch")
         self.product = Product.objects.create(
             category=cat, name="Netflix", slug="netflix-pitch",
             short_description="Plan Premium 4K compartido", icon="🎬",
@@ -2310,7 +2310,8 @@ class TelegramAdminCommandsTests(TestCase):
 
     def test_daily_summary_text_runs(self):
         text = _telegram.daily_summary_text()
-        self.assertIn("Resumen diario", text)
+        # El header puede estar en mayúsculas ("RESUMEN DIARIO") o no.
+        self.assertIn("resumen diario", text.lower())
 
 
 @_override_settings(
@@ -2341,6 +2342,10 @@ class TelegramYapeCallbackTests(TestCase):
     TELEGRAM_BOT_TOKEN="dummy-token",
     TELEGRAM_ADMIN_CHAT_ID="999",
     TELEGRAM_CHANNEL_ID="@jhelizservicetv",
+    # Estos tests verifican el legacy auto-anuncio en la signal de Product.
+    # En producción la publicación es 100% manual (TELEGRAM_AUTO_PUBLISH=False),
+    # pero acá lo forzamos para mantener la cobertura.
+    TELEGRAM_AUTO_PUBLISH=True,
 )
 class TelegramChannelTests(TestCase):
     def setUp(self):
@@ -2348,7 +2353,7 @@ class TelegramChannelTests(TestCase):
         # (la señal post_save publica al canal).
         self._call_patcher = patch("orders.telegram._call", return_value={"ok": True})
         self._call_patcher.start()
-        cat = Category.objects.create(name="Streaming")
+        cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.product = Product.objects.create(
             name="Netflix Premium",
             category=cat,
@@ -2366,7 +2371,9 @@ class TelegramChannelTests(TestCase):
         self.assertIn("Netflix Premium", text)
         self.assertIn("15.00", text)
         self.assertIn("1 mes", text)
-        self.assertTrue(text.startswith("🆕"))
+        # Header del anuncio nuevo (cliente final)
+        self.assertIn("NUEVO", text)
+        self.assertIn("🎬", text)
 
     def test_announce_product_calls_send(self):
         with patch("orders.telegram._call") as call:
@@ -2418,18 +2425,78 @@ class TelegramChannelTests(TestCase):
         self.assertIn("&lt;Premium&gt;", text)
         self.assertIn("Combo &amp; oferta", text)
 
+    def test_format_product_includes_stock_count_when_available(self):
+        """Si el producto tiene stock, el anuncio lo muestra (fix bug "0 cuentas")."""
+        from catalog.models import StockItem
+        plan = self.product.plans.first()
+        # 5 cuentas atadas al plan + 2 genéricas del producto.
+        for i in range(5):
+            StockItem.objects.create(
+                product=self.product, plan=plan,
+                credentials=f"cred{i}", status=StockItem.Status.AVAILABLE,
+            )
+        for i in range(2):
+            StockItem.objects.create(
+                product=self.product, plan=None,
+                credentials=f"gen{i}", status=StockItem.Status.AVAILABLE,
+            )
+        text = _telegram.format_product_announcement(self.product, kind="restock")
+        # El total del producto (7) debe aparecer como banner.
+        self.assertIn("7 cuentas listas", text)
+        # El plan-specific (5 + 2 genéricas = 7) debe mostrarse.
+        self.assertIn("7 disponibles", text)
+        self.assertIn("VOLVIÓ EL STOCK", text)
+
+    def test_format_product_omits_stock_banner_when_empty(self):
+        """Sin stock cargado no debe inventar 'X cuentas listas'."""
+        text = _telegram.format_product_announcement(self.product, kind="new")
+        self.assertNotIn("cuentas listas", text)
+        self.assertNotIn("Quedan solo", text)
+
+
+class PlanAvailableStockTests(TestCase):
+    """Plan.available_stock incluye los StockItems genéricos (plan=None)."""
+
+    def setUp(self):
+        from catalog.models import Category, Plan, Product, StockItem
+        cat = Category.objects.create(name="Streaming-pa", slug="streaming-pa")
+        self.product = Product.objects.create(
+            name="Disney+", category=cat, slug="disney-pa", is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("12.00"), is_active=True,
+        )
+        # 3 atados al plan + 4 genéricos del producto.
+        for i in range(3):
+            StockItem.objects.create(
+                product=self.product, plan=self.plan,
+                credentials=f"plan{i}", status=StockItem.Status.AVAILABLE,
+            )
+        for i in range(4):
+            StockItem.objects.create(
+                product=self.product, plan=None,
+                credentials=f"gen{i}", status=StockItem.Status.AVAILABLE,
+            )
+
+    def test_available_stock_combines_plan_and_generic(self):
+        self.assertEqual(self.plan.available_stock, 7)
+
 
 @_override_settings(
     TELEGRAM_BOT_TOKEN="dummy-token",
     TELEGRAM_ADMIN_CHAT_ID="999",
     TELEGRAM_CHANNEL_ID="@distrib_chan",
     TELEGRAM_CUSTOMER_CHANNEL_ID="@cust_chan",
+    # Igual que en TelegramChannelTests, forzamos el auto-anuncio aquí
+    # para verificar el comportamiento de la signal (en producción es manual).
+    TELEGRAM_AUTO_PUBLISH=True,
 )
 class TelegramMultiChannelTests(TestCase):
     def setUp(self):
         self._call_patcher = patch("orders.telegram._call", return_value={"ok": True})
         self._call_patcher.start()
-        cat = Category.objects.create(name="Streaming")
+        cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
         self.product = Product.objects.create(
             name="Netflix Premium",
             category=cat,
@@ -2521,3 +2588,808 @@ class TelegramMultiChannelTests(TestCase):
             _telegram.announce_coupon(coupon)
         chat_ids = [c.kwargs.get("chat_id") for c in call.call_args_list]
         self.assertEqual(chat_ids, ["@cust_chan"])
+
+
+# ---------------------------------------------------------------------------
+# Combo builder: auto-descuento por armar un carrito con varios productos.
+# ---------------------------------------------------------------------------
+
+
+_BASIC_STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
+
+@override_settings(STORAGES=_BASIC_STORAGES)
+class ComboBuilderTests(TestCase):
+    def setUp(self):
+        self.cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
+        self.p1 = Product.objects.create(
+            category=self.cat, name="Netflix", slug="netflix",
+            is_active=True,
+        )
+        self.p2 = Product.objects.create(
+            category=self.cat, name="Disney+", slug="disney",
+            is_active=True,
+        )
+        self.p3 = Product.objects.create(
+            category=self.cat, name="Spotify", slug="spotify",
+            is_active=True,
+        )
+        self.plan1 = Plan.objects.create(
+            product=self.p1, name="1 mes",
+            price_customer=Decimal("20.00"),
+        )
+        self.plan2 = Plan.objects.create(
+            product=self.p2, name="1 mes",
+            price_customer=Decimal("15.00"),
+        )
+        self.plan3 = Plan.objects.create(
+            product=self.p3, name="1 mes",
+            price_customer=Decimal("10.00"),
+        )
+
+    def _cart_for(self, user=None):
+        from orders.cart import Cart
+        from django.test import RequestFactory
+        from django.contrib.sessions.backends.db import SessionStore
+
+        rf = RequestFactory()
+        request = rf.get("/")
+        session = SessionStore()
+        session.create()
+        request.session = session
+        request.user = user if user else None
+        cart = Cart(request)
+        cart.clear()
+        return cart
+
+    def test_single_product_has_no_combo_discount(self):
+        cart = self._cart_for()
+        cart.add(self.plan1, quantity=1)
+        self.assertEqual(cart.distinct_product_count(), 1)
+        self.assertEqual(cart.combo_discount_for(None), Decimal("0.00"))
+
+    def test_two_distinct_products_apply_10pct(self):
+        cart = self._cart_for()
+        cart.add(self.plan1, quantity=1)
+        cart.add(self.plan2, quantity=1)
+        self.assertEqual(cart.distinct_product_count(), 2)
+        subtotal = cart.subtotal_for(None)
+        discount = cart.combo_discount_for(None)
+        self.assertEqual(subtotal, Decimal("35.00"))
+        self.assertEqual(discount, Decimal("3.50"))  # 10% de 35
+        self.assertEqual(cart.total_for(None), Decimal("31.50"))
+
+    def test_three_distinct_products_apply_15pct(self):
+        cart = self._cart_for()
+        cart.add(self.plan1, quantity=1)
+        cart.add(self.plan2, quantity=1)
+        cart.add(self.plan3, quantity=1)
+        self.assertEqual(cart.distinct_product_count(), 3)
+        subtotal = cart.subtotal_for(None)
+        self.assertEqual(subtotal, Decimal("45.00"))
+        self.assertEqual(cart.combo_discount_for(None), Decimal("6.75"))
+        self.assertEqual(cart.total_for(None), Decimal("38.25"))
+
+    def test_two_same_product_is_not_a_combo(self):
+        cart = self._cart_for()
+        cart.add(self.plan1, quantity=2)
+        self.assertEqual(cart.distinct_product_count(), 1)
+        self.assertEqual(cart.combo_discount_for(None), Decimal("0.00"))
+
+    def test_distributor_gets_no_combo_discount(self):
+        User = get_user_model()
+        user = User.objects.create(
+            username="distri",
+            role="distribuidor",
+            distributor_approved=True,
+        )
+        self.assertTrue(user.is_distributor)
+        cart = self._cart_for(user=user)
+        cart.add(self.plan1, quantity=1)
+        cart.add(self.plan2, quantity=1)
+        self.assertEqual(cart.combo_discount_for(user), Decimal("0.00"))
+
+    def test_combo_builder_page_renders(self):
+        resp = self.client.get(reverse("catalog:combo_builder"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Armá tu combo")
+
+    def test_combo_add_adds_plans_to_cart_and_redirects(self):
+        resp = self.client.post(
+            reverse("catalog:combo_add"),
+            {"plan_id": [str(self.plan1.pk), str(self.plan2.pk)]},
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse("orders:cart"), resp["Location"])
+
+    def test_combo_add_without_plans_redirects_back(self):
+        resp = self.client.post(reverse("catalog:combo_add"), {})
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse("catalog:combo_builder"), resp["Location"])
+
+
+class PWATests(TestCase):
+    def test_manifest_served(self):
+        resp = self.client.get(reverse("pwa-manifest"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/json", resp["Content-Type"])
+        data = resp.json()
+        self.assertEqual(data["short_name"], "Jheliz")
+        self.assertEqual(data["display"], "standalone")
+        # Los shortcuts de la app deben incluir el combo builder.
+        shortcut_urls = [s["url"] for s in data.get("shortcuts", [])]
+        self.assertIn("/combos/", shortcut_urls)
+
+    def test_service_worker_served(self):
+        resp = self.client.get(reverse("pwa-service-worker"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("application/javascript", resp["Content-Type"])
+        self.assertEqual(resp["Service-Worker-Allowed"], "/")
+        body = resp.content.decode()
+        self.assertIn("addEventListener('install'", body)
+        self.assertIn("addEventListener('fetch'", body)
+
+
+class AdvancedDashboardTests(TestCase):
+    """Vista del dashboard avanzado: heatmap, cohortes, funnel, distri perf,
+    tasa de renovación. Sólo asserts smoke + métricas básicas — no asumimos
+    el orden ni el formato exacto de cada celda."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staff-dash", password="x",
+            is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="Streaming-Dash", slug="streaming-dash")
+        self.product = Product.objects.create(
+            name="Netflix Dash", slug="netflix-dash", category=cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"),
+        )
+        self.client = Client()
+        self.client.force_login(self.staff)
+        self.url = reverse("admin_advanced_dashboard")
+
+    def _make_paid_order(self, email, paid_at):
+        from orders.models import Order, OrderItem
+        order = Order.objects.create(
+            email=email, total=Decimal("15.00"),
+            status=Order.Status.DELIVERED,
+            paid_at=paid_at, delivered_at=paid_at,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=self.plan.price_customer, quantity=1,
+        )
+        return order
+
+    def test_renders_dashboard(self):
+        # Sin datos también debe renderizar sin crashear.
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Dashboard avanzado")
+        self.assertContains(resp, "Hora pico de ventas")
+        self.assertContains(resp, "Cohortes de retención")
+        self.assertContains(resp, "Funnel de conversión")
+        self.assertContains(resp, "Tasa de renovación")
+
+    def test_renewal_rate_with_repeat_buyer(self):
+        # Un cliente con 2 pedidos del mismo producto → tasa = 100%.
+        now = timezone.now()
+        self._make_paid_order("repeat@x.com", now - timedelta(days=60))
+        self._make_paid_order("repeat@x.com", now - timedelta(days=2))
+        self._make_paid_order("once@x.com", now - timedelta(days=10))
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        # 1 par repetido / 2 pares únicos = 50% (locale es: usa coma decimal).
+        body = resp.content.decode()
+        self.assertTrue(
+            "50,0%" in body or "50.0%" in body,
+            "Esperaba ver 50% de tasa de renovación en el dashboard"
+        )
+
+    def test_funnel_shows_orders(self):
+        from orders.models import Order
+        Order.objects.create(
+            email="pending@x.com", total=Decimal("10"),
+            status=Order.Status.PENDING,
+        )
+        self._make_paid_order("delivered@x.com", timezone.now())
+        resp = self.client.get(self.url)
+        self.assertContains(resp, "Pagados")
+        self.assertContains(resp, "Entregados")
+
+    def test_requires_staff(self):
+        self.client.logout()
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 302)
+
+
+class QuickOrderCreateTests(TestCase):
+    """Vista express de pedido rápido en el admin: crea cliente + pedido +
+    item + (opcional) entrega de stock + email — todo en un POST."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staff-quick", password="x",
+            email="staff-quick@example.com",
+            is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="Streaming-Quick", slug="streaming-quick")
+        self.product = Product.objects.create(
+            name="Netflix Quick", slug="netflix-quick", category=cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"),
+        )
+        self.client = Client()
+        self.client.force_login(self.staff)
+        self.url = reverse("admin_quick_order_create")
+
+    def test_get_renders_form(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Crear pedido rápido")
+        self.assertContains(resp, "Netflix Quick")
+
+    def test_creates_user_order_and_assigns_stock(self):
+        from orders.models import Order
+        from catalog.models import StockItem as Stock
+
+        Stock.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: ya@quick.com\nContraseña: shhh",
+        )
+        resp = self.client.post(self.url, {
+            "email": "nuevo-cliente@example.com",
+            "full_name": "Nuevo Cliente",
+            "phone": "+51999000111",
+            "plan_id": str(self.plan.pk),
+            "quantity": "1",
+            "payment_method": "yape",
+            "auto_deliver": "on",
+            "send_email": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.get(email="nuevo-cliente@example.com")
+        self.assertEqual(order.status, Order.Status.DELIVERED)
+        self.assertEqual(order.payment_provider, "yape")
+        self.assertIsNotNone(order.paid_at)
+        self.assertIsNotNone(order.delivered_at)
+        item = order.items.get()
+        self.assertEqual(item.unit_price, Decimal("15.00"))
+        self.assertIsNotNone(item.stock_item_id)
+        self.assertIn("Correo:", item.delivered_credentials)
+        self.assertIsNotNone(item.expires_at)
+        # Cliente fue creado
+        User = get_user_model()
+        u = User.objects.get(email__iexact="nuevo-cliente@example.com")
+        self.assertEqual(u.phone, "+51999000111")
+        self.assertEqual(u.first_name, "Nuevo")
+
+    def test_creates_order_pending_when_no_stock_and_no_manual(self):
+        from orders.models import Order
+
+        # Sin stock + sin credenciales manuales pero con auto_deliver on:
+        # crea el pedido como PAID (no DELIVERED) y avisa al admin.
+        resp = self.client.post(self.url, {
+            "email": "sin-stock@example.com",
+            "plan_id": str(self.plan.pk),
+            "quantity": "1",
+            "payment_method": "manual",
+            "auto_deliver": "on",
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.get(email="sin-stock@example.com")
+        self.assertEqual(order.status, Order.Status.PAID)
+        self.assertIsNone(order.delivered_at)
+
+    def test_uses_existing_user_when_email_matches(self):
+        from orders.models import Order
+        User = get_user_model()
+        existing = User.objects.create_user(
+            username="existing-cli", password="x",
+            email="existing@example.com", phone="",
+        )
+        resp = self.client.post(self.url, {
+            "email": "existing@example.com",
+            "phone": "+51900000000",
+            "plan_id": str(self.plan.pk),
+            "payment_method": "yape",
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.get(email="existing@example.com")
+        self.assertEqual(order.user_id, existing.pk)
+        existing.refresh_from_db()
+        self.assertEqual(existing.phone, "+51900000000")
+
+    def test_manual_credentials_used_when_no_stock(self):
+        from orders.models import Order
+
+        creds = "Correo: manual@x.com\nContraseña: manualpass"
+        resp = self.client.post(self.url, {
+            "email": "manual@example.com",
+            "plan_id": str(self.plan.pk),
+            "payment_method": "manual",
+            "auto_deliver": "on",
+            "manual_credentials": creds,
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.get(email="manual@example.com")
+        self.assertEqual(order.status, Order.Status.DELIVERED)
+        item = order.items.get()
+        self.assertEqual(item.delivered_credentials, creds)
+        self.assertIsNone(item.stock_item_id)
+
+    def test_requires_staff(self):
+        self.client.logout()
+        resp = self.client.get(self.url)
+        # Redirect to admin login.
+        self.assertEqual(resp.status_code, 302)
+
+    def test_email_validation(self):
+        resp = self.client.post(self.url, {
+            "email": "no-valido",
+            "plan_id": str(self.plan.pk),
+        })
+        # Re-render con error (200, no redirect).
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Email del cliente inválido")
+
+
+class BrevoEmailBackendTests(TestCase):
+    """Verifica que el backend HTTP de Brevo arma el JSON correctamente."""
+
+    def _msg(self, *, content_html: bool = True):
+        from django.core.mail import EmailMessage
+        msg = EmailMessage(
+            subject="Asunto de prueba",
+            body="<p>Hola</p>" if content_html else "Hola plano",
+            from_email="Jheliz <ecomercejheliz@gmail.com>",
+            to=["dest@example.com", "Otro <dos@example.com>"],
+            cc=["cc@example.com"],
+            reply_to=["responder@example.com"],
+        )
+        if content_html:
+            msg.content_subtype = "html"
+        return msg
+
+    def test_build_payload_html(self):
+        from orders.brevo_backend import BrevoEmailBackend
+        payload = BrevoEmailBackend(api_key="x").\
+            _build_payload(self._msg(content_html=True))
+        self.assertEqual(
+            payload["sender"],
+            {"email": "ecomercejheliz@gmail.com", "name": "Jheliz"},
+        )
+        self.assertEqual(payload["to"], [
+            {"email": "dest@example.com"},
+            {"email": "dos@example.com", "name": "Otro"},
+        ])
+        self.assertEqual(payload["cc"], [{"email": "cc@example.com"}])
+        self.assertEqual(payload["replyTo"], {"email": "responder@example.com"})
+        self.assertEqual(payload["subject"], "Asunto de prueba")
+        self.assertIn("htmlContent", payload)
+        self.assertNotIn("textContent", payload)
+
+    def test_build_payload_plain(self):
+        from orders.brevo_backend import BrevoEmailBackend
+        payload = BrevoEmailBackend(api_key="x").\
+            _build_payload(self._msg(content_html=False))
+        self.assertIn("textContent", payload)
+        self.assertNotIn("htmlContent", payload)
+
+    def test_send_messages_posts_to_brevo(self):
+        from unittest.mock import MagicMock, patch
+        from orders.brevo_backend import BrevoEmailBackend, BREVO_ENDPOINT
+
+        backend = BrevoEmailBackend(api_key="xkeysib-fake")
+        msg = self._msg(content_html=True)
+
+        fake_resp = MagicMock(status_code=201, text='{"messageId":"a"}')
+        with patch("orders.brevo_backend.requests.Session") as Session:
+            session_inst = Session.return_value
+            session_inst.post.return_value = fake_resp
+            sent = backend.send_messages([msg])
+
+        self.assertEqual(sent, 1)
+        session_inst.post.assert_called_once()
+        args, kwargs = session_inst.post.call_args
+        self.assertEqual(args[0], BREVO_ENDPOINT)
+        self.assertEqual(kwargs["json"]["sender"]["email"],
+                         "ecomercejheliz@gmail.com")
+
+    def test_missing_api_key_raises(self):
+        from orders.brevo_backend import BrevoEmailBackend
+        from django.core.mail import EmailMessage
+        backend = BrevoEmailBackend(api_key="", fail_silently=False)
+        msg = EmailMessage(
+            subject="x", body="y", from_email="a@b.com", to=["c@d.com"],
+        )
+        with self.assertRaises(RuntimeError):
+            backend.send_messages([msg])
+
+    def test_missing_api_key_fail_silently(self):
+        from orders.brevo_backend import BrevoEmailBackend
+        from django.core.mail import EmailMessage
+        backend = BrevoEmailBackend(api_key="", fail_silently=True)
+        msg = EmailMessage(
+            subject="x", body="y", from_email="a@b.com", to=["c@d.com"],
+        )
+        self.assertEqual(backend.send_messages([msg]), 0)
+
+    def test_api_error_returns_zero_when_fail_silently(self):
+        from unittest.mock import MagicMock, patch
+        from orders.brevo_backend import BrevoEmailBackend
+        backend = BrevoEmailBackend(api_key="x", fail_silently=True)
+        fake_resp = MagicMock(status_code=400, text="bad")
+        with patch("orders.brevo_backend.requests.Session") as Session:
+            Session.return_value.post.return_value = fake_resp
+            sent = backend.send_messages([self._msg()])
+        self.assertEqual(sent, 0)
+
+
+class CheckoutWalletPaymentTests(TestCase):
+    """Tests para el método de pago 'wallet' en /checkout/."""
+
+    def setUp(self):
+        from accounts.models import Role
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            username="distri-wallet", email="dw@example.com", password="pwd12345",
+            role=Role.DISTRIBUIDOR, distributor_approved=True,
+        )
+        self.client.force_login(self.user)
+        cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
+        self.product = Product.objects.create(
+            name="Netflix Premium", slug="netflix-premium-w", category=cat
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), price_distributor=Decimal("12.00"),
+        )
+
+    def _add_to_cart(self):
+        # Inyecta una linea directo a la sesion (mas estable que pasar por el form).
+        session = self.client.session
+        from orders.cart import CART_SESSION_KEY
+        session[CART_SESSION_KEY] = [{
+            "plan_id": self.plan.pk,
+            "quantity": 1,
+            "profile_name": "",
+            "pin": "",
+            "notes": "",
+        }]
+        session.save()
+
+    def test_wallet_option_shown_when_user_has_balance(self):
+        from accounts import wallet
+        from django.urls import reverse
+        wallet.deposit(self.user, Decimal("100.00"), reference="test")
+        self._add_to_cart()
+        resp = self.client.get(reverse("orders:checkout"))
+        self.assertEqual(resp.status_code, 200)
+        # El context expone el saldo
+        self.assertTrue(resp.context["wallet_available"])
+        self.assertEqual(resp.context["wallet_balance"], Decimal("100.00"))
+        self.assertTrue(resp.context["wallet_enough"])
+
+    def test_wallet_option_hidden_when_no_balance(self):
+        # Sin recarga previa el saldo es 0.
+        self._add_to_cart()
+        resp = self.client.get(reverse("orders:checkout"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.context["wallet_available"])
+
+    def _checkout_post_data(self, **overrides):
+        data = {
+            "full_name": "Distri Test",
+            "email": "dw@example.com",
+            "phone": "+51999000111",
+            "payment_method": "wallet",
+            "accept_terms": "on",
+        }
+        data.update(overrides)
+        return data
+
+    def test_wallet_pay_creates_paid_order_and_debits_balance(self):
+        from accounts import wallet
+        from orders.models import Order
+        wallet.deposit(self.user, Decimal("50.00"), reference="seed")
+        self._add_to_cart()
+        resp = self.client.post(reverse("orders:checkout"), self._checkout_post_data())
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.filter(email__iexact="dw@example.com").latest("created_at")
+        self.assertEqual(order.payment_provider, "wallet")
+        self.assertEqual(order.status, Order.Status.PAID)
+        self.assertIsNotNone(order.paid_at)
+        # Saldo descontado
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("50.00") - order.total)
+
+    def test_wallet_pay_rejected_when_insufficient(self):
+        from accounts import wallet
+        from orders.models import Order
+        wallet.deposit(self.user, Decimal("5.00"), reference="seed-low")
+        self._add_to_cart()
+        # plan 1 mes vale 15 → 5 saldo insuficiente
+        resp = self.client.post(reverse("orders:checkout"), self._checkout_post_data(), follow=False)
+        # Redirige a /checkout/ con mensaje de error.
+        self.assertEqual(resp.status_code, 302)
+        # No se creó el pedido
+        self.assertFalse(Order.objects.filter(email__iexact="dw@example.com", payment_provider="wallet").exists())
+        # Saldo no cambió
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.wallet_balance, Decimal("5.00"))
+
+    def test_wallet_pay_blocked_for_anonymous(self):
+        self.client.logout()
+        self._add_to_cart()
+        # POST anónimo con method=wallet redirige al login (la opción ni siquiera
+        # debería aparecer en el form, pero alguien podría forzar el POST).
+        resp = self.client.post(
+            reverse("orders:checkout"),
+            self._checkout_post_data(full_name="Anon Test", email="anon@example.com"),
+            follow=False,
+        )
+        # 302 al login o al checkout — pero NUNCA un pedido creado vía wallet.
+        from orders.models import Order
+        self.assertFalse(Order.objects.filter(payment_provider="wallet").exists())
+
+
+class GuestCheckoutAutoUserTests(TestCase):
+    """Compradores anónimos: auto-creación de User cliente al hacer checkout."""
+
+    def setUp(self):
+        cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
+        self.product = Product.objects.create(
+            name="Netflix Premium", slug="netflix-premium-guest", category=cat,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), price_distributor=Decimal("12.00"),
+        )
+
+    def _add_to_cart(self):
+        session = self.client.session
+        from orders.cart import CART_SESSION_KEY
+        session[CART_SESSION_KEY] = [{
+            "plan_id": self.plan.pk,
+            "quantity": 1,
+            "profile_name": "",
+            "pin": "",
+            "notes": "",
+        }]
+        session.save()
+
+    def _post_checkout(self, email="guest@example.com", full_name="Juan Pérez", phone="+51999111222"):
+        # Usamos mercadopago: aunque no esté configurado en tests, la vista
+        # igual crea el Order y muestra un warning (no rebota antes como yape).
+        return self.client.post(
+            reverse("orders:checkout"),
+            {
+                "full_name": full_name,
+                "email": email,
+                "phone": phone,
+                "payment_method": "mercadopago",
+                "accept_terms": "on",
+            },
+        )
+
+    def test_guest_checkout_creates_cliente_user(self):
+        from accounts.models import Role
+        User = get_user_model()
+        self._add_to_cart()
+        resp = self._post_checkout(email="newbuyer@example.com", full_name="Roger Prime")
+        self.assertEqual(resp.status_code, 302)
+
+        order = Order.objects.filter(email__iexact="newbuyer@example.com").latest("created_at")
+        self.assertIsNotNone(order.user)
+        self.assertEqual(order.user.email, "newbuyer@example.com")
+        self.assertEqual(order.user.role, Role.CLIENTE)
+        self.assertFalse(order.user.has_usable_password())
+        self.assertEqual(order.user.first_name, "Roger")
+        self.assertEqual(order.user.last_name, "Prime")
+        self.assertEqual(order.user.phone, "+51999111222")
+        # Aparece en la sección "Clientes" del admin (proxy filtra role=cliente).
+        from accounts.models import Customer
+        self.assertTrue(Customer.objects.filter(pk=order.user.pk).exists())
+
+    def test_guest_checkout_reuses_existing_user_by_email(self):
+        User = get_user_model()
+        existing = User.objects.create_user(
+            username="oldbuyer", email="repeat@example.com", password="pwd12345",
+        )
+        self._add_to_cart()
+        resp = self._post_checkout(email="repeat@example.com", full_name="Repeat Buyer")
+        self.assertEqual(resp.status_code, 302)
+
+        order = Order.objects.filter(email__iexact="repeat@example.com").latest("created_at")
+        self.assertEqual(order.user_id, existing.pk)
+        # Email casing no debe duplicar.
+        self.assertEqual(User.objects.filter(email__iexact="repeat@example.com").count(), 1)
+
+    def test_guest_checkout_reuse_is_case_insensitive(self):
+        User = get_user_model()
+        User.objects.create_user(
+            username="cased", email="Mixed@Example.com", password="pwd12345",
+        )
+        self._add_to_cart()
+        resp = self._post_checkout(email="mixed@example.com")
+        self.assertEqual(resp.status_code, 302)
+        # No se creó un User duplicado con casing distinto.
+        self.assertEqual(User.objects.filter(email__iexact="mixed@example.com").count(), 1)
+
+    def test_username_collision_appends_suffix(self):
+        """Dos compradores con local-part igual pero dominio distinto no chocan."""
+        User = get_user_model()
+        self._add_to_cart()
+        self._post_checkout(email="john@gmail.com", full_name="John One")
+        self._add_to_cart()
+        self._post_checkout(email="john@yahoo.com", full_name="John Two")
+        usernames = list(
+            User.objects.filter(email__in=["john@gmail.com", "john@yahoo.com"])
+            .order_by("id").values_list("username", flat=True)
+        )
+        self.assertEqual(len(usernames), 2)
+        # Primer username = "john", segundo = "john.2".
+        self.assertEqual(usernames[0], "john")
+        self.assertEqual(usernames[1], "john.2")
+
+    def test_authenticated_checkout_unchanged(self):
+        """Si el comprador está logueado, no se auto-crea otro User."""
+        from accounts.models import Role
+        User = get_user_model()
+        u = User.objects.create_user(
+            username="loggedbuyer", email="logged@example.com", password="pwd12345",
+            role=Role.CLIENTE,
+        )
+        self.client.force_login(u)
+        self._add_to_cart()
+        resp = self._post_checkout(email="logged@example.com", full_name="Logged Buyer")
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.filter(email__iexact="logged@example.com").latest("created_at")
+        self.assertEqual(order.user_id, u.pk)
+        # No se creó un User adicional.
+        self.assertEqual(User.objects.filter(email__iexact="logged@example.com").count(), 1)
+
+
+class BackfillGuestUsersCommandTests(TestCase):
+    """`python manage.py backfill_guest_users` vincula pedidos guest viejos."""
+
+    def setUp(self):
+        cat = Category.objects.get_or_create(slug="streaming", defaults={"name": "Streaming"})[0]
+        product = Product.objects.create(
+            name="Netflix Premium", slug="netflix-premium-backfill", category=cat,
+        )
+        Plan.objects.create(
+            product=product, name="1 mes", duration_days=30,
+            price_customer=Decimal("15.00"), price_distributor=Decimal("12.00"),
+        )
+        # Pedidos legacy guest (user=None).
+        self.o1 = Order.objects.create(
+            email="legacy1@example.com", total=Decimal("8.00"), phone="+51999000001",
+            notes="Nombre comprador: Cliente Uno",
+        )
+        self.o2 = Order.objects.create(
+            email="legacy2@example.com", total=Decimal("12.00"),
+            notes="Nombre comprador: Cliente Dos",
+        )
+        # Pedido sin email — el comando lo debe ignorar.
+        self.o3 = Order.objects.create(email="", total=Decimal("5.00"))
+
+    def test_backfill_creates_and_links_users(self):
+        from accounts.models import Role
+        User = get_user_model()
+        call_command("backfill_guest_users", stdout=StringIO())
+
+        self.o1.refresh_from_db()
+        self.o2.refresh_from_db()
+        self.o3.refresh_from_db()
+        self.assertIsNotNone(self.o1.user)
+        self.assertEqual(self.o1.user.email, "legacy1@example.com")
+        self.assertEqual(self.o1.user.role, Role.CLIENTE)
+        self.assertEqual(self.o1.user.first_name, "Cliente")
+        self.assertEqual(self.o1.user.last_name, "Uno")
+        self.assertIsNotNone(self.o2.user)
+        # Sin email no se vincula.
+        self.assertIsNone(self.o3.user)
+        # Roles correctos.
+        self.assertEqual(
+            User.objects.filter(role=Role.CLIENTE).count(), 2,
+        )
+
+    def test_backfill_dry_run_writes_nothing(self):
+        out = StringIO()
+        call_command("backfill_guest_users", "--dry-run", stdout=out)
+        self.o1.refresh_from_db()
+        self.o2.refresh_from_db()
+        self.assertIsNone(self.o1.user)
+        self.assertIsNone(self.o2.user)
+        self.assertIn("[dry-run]", out.getvalue())
+
+    def test_backfill_is_idempotent(self):
+        User = get_user_model()
+        call_command("backfill_guest_users", stdout=StringIO())
+        count_after_first = User.objects.count()
+        # Segunda ejecución no debe crear más Users (todos los Orders ya tienen user).
+        call_command("backfill_guest_users", stdout=StringIO())
+        self.assertEqual(User.objects.count(), count_after_first)
+
+
+class OrderItemAdminChangelistDesignTests(TestCase):
+    """Verifica el rediseño con chips de /panel-jheliz-2026/orders/orderitem/."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="staffoitems", password="x",
+            is_staff=True, is_superuser=True,
+        )
+        cat = Category.objects.create(name="OI-cat", slug="oi-cat")
+        product = Product.objects.create(
+            category=cat, name="Netflix OI", slug="netflix-oi", is_active=True,
+        )
+        plan = Plan.objects.create(
+            product=product, name="1 mes", duration_days=30,
+            price_customer=Decimal("8.00"),
+        )
+        order = Order.objects.create(
+            email="cliente@example.com", phone="+51999111222",
+            total=Decimal("8.00"), status=Order.Status.DELIVERED,
+        )
+        OrderItem.objects.create(
+            order=order, product=product, plan=plan,
+            product_name=product.name, plan_name=plan.name,
+            unit_price=Decimal("8.00"), quantity=1,
+            requested_profile_name="Jostin", requested_pin="0519",
+        )
+        # Item con datos de "cliente final revendido"
+        order2 = Order.objects.create(
+            email="distri@example.com", phone="+51999333444",
+            total=Decimal("8.00"), status=Order.Status.PENDING,
+        )
+        OrderItem.objects.create(
+            order=order2, product=product, plan=plan,
+            product_name=product.name, plan_name=plan.name,
+            unit_price=Decimal("8.00"), quantity=2,
+            requested_profile_name="Anderson", requested_pin="4596",
+            final_customer_name="Juan Cliente Final",
+            final_customer_whatsapp="+51988111222",
+        )
+
+    def test_changelist_renders_chips(self):
+        self.client.force_login(self.staff)
+        resp = self.client.get("/panel-jheliz-2026/orders/orderitem/")
+        self.assertEqual(resp.status_code, 200)
+        # Producto + categoría
+        self.assertContains(resp, "Netflix OI")
+        self.assertContains(resp, "OI-cat")
+        # Perfil + PIN como chips
+        self.assertContains(resp, "Jostin")
+        self.assertContains(resp, "PIN 0519")
+        self.assertContains(resp, "Anderson")
+        self.assertContains(resp, "PIN 4596")
+        # Cliente final revendido como chip
+        self.assertContains(resp, "Juan Cliente Final")
+        self.assertContains(resp, "+51988111222")
+        # Estado del pedido como chip
+        self.assertContains(resp, "Entregado")
+        self.assertContains(resp, "Pendiente de pago")
+        # Total + cantidad chips
+        self.assertContains(resp, "S/ 8.00")
+        self.assertContains(resp, "S/ 16.00")  # 8 * 2 del segundo item
+        self.assertContains(resp, "x2")
+        # Plan chip
+        self.assertContains(resp, "1 mes")
+        # CSS de chips
+        self.assertContains(resp, "jh-chip")
