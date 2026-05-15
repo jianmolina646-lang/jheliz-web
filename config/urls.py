@@ -83,6 +83,11 @@ urlpatterns = [
         name="admin_locked_logins",
     ),
     path(
+        "panel-jheliz-2026/mp-diagnose/",
+        admin_views.mp_diagnose_view,
+        name="admin_mp_diagnose",
+    ),
+    path(
         "panel-jheliz-2026/locked-logins/<int:pk>/unlock/",
         admin_views.unlock_login,
         name="admin_unlock_login",

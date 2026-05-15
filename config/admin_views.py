@@ -3835,3 +3835,111 @@ def unlock_all_logins(request):
         request, f"Desbloqueados todos los intentos fallidos ({n} registros)."
     )
     return redirect("admin_locked_logins")
+
+
+# ---------------------------------------------------------------------------
+# Diagnóstico de Mercado Pago
+#
+# Permite al admin probar la integración con MP sin hacer un pedido real.
+# Crea una preferencia de prueba y muestra la respuesta completa (incluido
+# el campo `cause` que detalla por qué MP rechaza). Si la prueba sale OK,
+# significa que MP responde bien y el problema está en otro lado (stock,
+# datos del item, etc.).
+# ---------------------------------------------------------------------------
+
+
+@staff_member_required
+def mp_diagnose_view(request):
+    """Página de diagnóstico de Mercado Pago para el admin."""
+    from decimal import Decimal as _Decimal
+
+    from orders import mercadopago_client as _mp
+
+    configured = _mp.is_configured()
+    token_present = bool(getattr(settings, "MERCADOPAGO_ACCESS_TOKEN", "") or "")
+    webhook_secret_present = bool(getattr(settings, "MERCADOPAGO_WEBHOOK_SECRET", "") or "")
+    token_kind = ""
+    token_preview = ""
+    if token_present:
+        raw = settings.MERCADOPAGO_ACCESS_TOKEN
+        if raw.startswith("APP_USR-"):
+            token_kind = "Producción (APP_USR-)"
+        elif raw.startswith("TEST-"):
+            token_kind = "Sandbox / Test (TEST-)"
+        else:
+            token_kind = "Formato no estándar"
+        token_preview = raw[:10] + "…" + raw[-4:] if len(raw) > 16 else "(corto)"
+
+    result = None
+    error = None
+    raw_response = None
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        if action == "test_preference":
+            try:
+                if not configured:
+                    raise _mp.MercadoPagoError(
+                        "MERCADOPAGO_ACCESS_TOKEN no está configurado en .env."
+                    )
+                import mercadopago as _sdk_mod
+                sdk = _sdk_mod.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+
+                # back_urls solo si la URL es pública (no localhost).
+                test_back = request.build_absolute_uri("/")
+                def _is_public(u: str) -> bool:
+                    return u.startswith("https://") and "127.0.0.1" not in u and "localhost" not in u
+
+                preference_data = {
+                    "items": [{
+                        "id": "diag-1",
+                        "title": "Diagnóstico Jheliz · prueba",
+                        "quantity": 1,
+                        "unit_price": 1.0,
+                        "currency_id": settings.DEFAULT_CURRENCY or "PEN",
+                    }],
+                    "external_reference": "diag-test",
+                }
+                if _is_public(test_back):
+                    preference_data["back_urls"] = {
+                        "success": test_back,
+                        "pending": test_back,
+                        "failure": test_back,
+                    }
+                    preference_data["auto_return"] = "approved"
+
+                api_result = sdk.preference().create(preference_data)
+                raw_response = api_result
+                status = api_result.get("status", 0)
+                resp = api_result.get("response", {})
+                if status >= 400:
+                    error = (
+                        f"MP respondió status={status}. "
+                        f"message={resp.get('message') or '(vacío)'}. "
+                        f"cause={resp.get('cause') or []}"
+                    )
+                else:
+                    result = {
+                        "preference_id": resp.get("id"),
+                        "init_point": resp.get("init_point"),
+                        "sandbox_init_point": resp.get("sandbox_init_point"),
+                    }
+            except _mp.MercadoPagoError as exc:
+                error = str(exc)
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("MP diagnose: SDK crashed")
+                error = f"{exc.__class__.__name__}: {exc}"
+
+    ctx = _admin_context(
+        request,
+        title="Diagnóstico Mercado Pago",
+        configured=configured,
+        token_present=token_present,
+        token_kind=token_kind,
+        token_preview=token_preview,
+        webhook_secret_present=webhook_secret_present,
+        default_currency=settings.DEFAULT_CURRENCY,
+        result=result,
+        error=error,
+        raw_response=raw_response,
+    )
+    return render(request, "admin/mp_diagnose.html", ctx)
