@@ -730,3 +730,35 @@ class LockedLoginsAdminTests(TestCase):
         self.assertIn(resp.status_code, (302, 403))
         # No se borró.
         self.assertTrue(AccessAttempt.objects.filter(pk=a.pk).exists())
+
+
+class MPDiagnoseAdminTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.admin = User.objects.create_superuser(
+            username="mp_admin", email="mp@x.com", password="pw12345!",
+        )
+
+    def test_page_renders_for_staff(self):
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("admin_mp_diagnose"))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        self.assertIn("Diagn", body)  # "Diagnóstico"
+        self.assertIn("Probar Mercado Pago", body)
+
+    def test_anon_blocked(self):
+        resp = self.client.get(reverse("admin_mp_diagnose"))
+        self.assertIn(resp.status_code, (302, 403))
+
+    @override_settings(MERCADOPAGO_ACCESS_TOKEN="")
+    def test_post_without_token_shows_error(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(
+            reverse("admin_mp_diagnose"), {"action": "test_preference"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode("utf-8")
+        self.assertIn("Mercado Pago fall", body)
+        self.assertIn("no est", body.lower())  # "no está configurado"

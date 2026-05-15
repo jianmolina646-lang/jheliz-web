@@ -389,12 +389,24 @@ def checkout(request):
             # habilitado, así puede pagar de inmediato. Si tampoco hay Yape,
             # mostramos el detalle del pedido con instrucciones claras.
             mp_failed = False
+            mp_error_msg = ""
             if mercadopago_client.is_configured():
                 try:
                     preference = mercadopago_client.create_preference(request, order)
-                except mercadopago_client.MercadoPagoError:
+                except mercadopago_client.MercadoPagoError as mp_exc:
                     logger.exception("Mercado Pago preference failed")
                     mp_failed = True
+                    mp_error_msg = str(mp_exc)[:300]
+                    # Persistimos el error en las notas del pedido para que el
+                    # admin vea exactamente qué dijo MP sin tener que ir a logs.
+                    try:
+                        order.notes = (
+                            (order.notes or "")
+                            + f"\n[MP ERROR] {mp_error_msg}"
+                        )[:2000]
+                        order.save(update_fields=["notes"])
+                    except Exception:  # noqa: BLE001
+                        pass
                 else:
                     order.payment_provider = "mercadopago"
                     order.payment_reference = preference.get("id", "")
@@ -418,9 +430,10 @@ def checkout(request):
                 return redirect("orders:yape_payment", uuid=order.uuid)
 
             if mp_failed:
+                detail = f" ({mp_error_msg})" if mp_error_msg else ""
                 messages.error(
                     request,
-                    "No pudimos iniciar el pago con Mercado Pago. "
+                    "No pudimos iniciar el pago con Mercado Pago" + detail + ". "
                     "Tu pedido quedó registrado y un asesor te escribirá por WhatsApp "
                     "con un link alternativo.",
                 )
