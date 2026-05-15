@@ -762,3 +762,41 @@ class MPDiagnoseAdminTests(TestCase):
         body = resp.content.decode("utf-8")
         self.assertIn("Mercado Pago fall", body)
         self.assertIn("no est", body.lower())  # "no está configurado"
+
+
+class UserAdminUnlockActionTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.admin = User.objects.create_superuser(
+            username="adm_ul", email="adm_ul@x.com", password="pw12345!",
+        )
+        self.client.force_login(self.admin)
+        self.target = User.objects.create_user(
+            username="locked_user", email="locked@x.com", password="pw12345!",
+        )
+        from axes.models import AccessAttempt
+        AccessAttempt.objects.create(
+            username="locked_user", ip_address="1.1.1.1",
+            failures_since_start=20, user_agent="ua",
+        )
+        AccessAttempt.objects.create(
+            username="locked@x.com", ip_address="2.2.2.2",
+            failures_since_start=20, user_agent="ua",
+        )
+
+    def test_action_clears_attempts_by_username_and_email(self):
+        from axes.models import AccessAttempt
+
+        url = reverse("admin:accounts_user_changelist")
+        resp = self.client.post(url, {
+            "action": "unlock_login_action",
+            "_selected_action": [str(self.target.pk)],
+        }, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            AccessAttempt.objects.filter(
+                username__in=["locked_user", "locked@x.com"]
+            ).count(),
+            0,
+        )
