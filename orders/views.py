@@ -383,27 +383,48 @@ def checkout(request):
                 order.save(update_fields=["payment_provider"])
                 return redirect("orders:yape_payment", uuid=order.uuid)
 
-            # Default: Mercado Pago
+            # Default: Mercado Pago. Si falla (token vencido, cuenta sin
+            # habilitar, error transitorio del SDK), no dejamos al cliente
+            # tirado en una pantalla genérica: lo mandamos a Yape si está
+            # habilitado, así puede pagar de inmediato. Si tampoco hay Yape,
+            # mostramos el detalle del pedido con instrucciones claras.
+            mp_failed = False
             if mercadopago_client.is_configured():
                 try:
                     preference = mercadopago_client.create_preference(request, order)
-                except mercadopago_client.MercadoPagoError as exc:
+                except mercadopago_client.MercadoPagoError:
                     logger.exception("Mercado Pago preference failed")
-                    messages.error(
-                        request,
-                        f"No pudimos iniciar el pago: {exc}. Te contactaremos por correo.",
-                    )
-                    return redirect("orders:detail", uuid=order.uuid)
+                    mp_failed = True
+                else:
+                    order.payment_provider = "mercadopago"
+                    order.payment_reference = preference.get("id", "")
+                    order.save(update_fields=["payment_provider", "payment_reference"])
 
-                order.payment_provider = "mercadopago"
-                order.payment_reference = preference.get("id", "")
-                order.save(update_fields=["payment_provider", "payment_reference"])
+                    init_point = preference.get("init_point")
+                    sandbox_init = preference.get("sandbox_init_point")
+                    target = init_point if not settings.DEBUG else (sandbox_init or init_point)
+                    if target:
+                        return redirect(target)
 
-                init_point = preference.get("init_point")
-                sandbox_init = preference.get("sandbox_init_point")
-                target = init_point if not settings.DEBUG else (sandbox_init or init_point)
-                if target:
-                    return redirect(target)
+            if mp_failed and yape_available:
+                # Failover automático a Yape — el cliente igual puede pagar.
+                order.payment_provider = "yape"
+                order.save(update_fields=["payment_provider"])
+                messages.warning(
+                    request,
+                    "Mercado Pago no respondió en este momento. "
+                    "Te redirigimos a pagar con Yape para que no esperes.",
+                )
+                return redirect("orders:yape_payment", uuid=order.uuid)
+
+            if mp_failed:
+                messages.error(
+                    request,
+                    "No pudimos iniciar el pago con Mercado Pago. "
+                    "Tu pedido quedó registrado y un asesor te escribirá por WhatsApp "
+                    "con un link alternativo.",
+                )
+                return redirect("orders:detail", uuid=order.uuid)
 
             messages.warning(
                 request,

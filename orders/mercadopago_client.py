@@ -161,18 +161,44 @@ def create_preference(request, order: "Order") -> dict:
     if _is_public(webhook_url):
         preference_data["notification_url"] = webhook_url
 
-    result = sdk.preference().create(preference_data)
+    try:
+        result = sdk.preference().create(preference_data)
+    except Exception as exc:  # noqa: BLE001 — el SDK lanza excepciones genéricas
+        logger.exception("Mercado Pago SDK raised while creating preference")
+        raise MercadoPagoError(
+            f"No pudimos contactar a Mercado Pago ({exc.__class__.__name__})."
+        ) from exc
     response = result.get("response", {})
-    if result.get("status", 500) >= 400:
-        logger.error("Mercado Pago preference error: %s", response)
-        raise MercadoPagoError(response.get("message", "Error al crear la preferencia."))
+    status = result.get("status", 500)
+    if status >= 400:
+        # Loggeamos la respuesta COMPLETA. Mercado Pago suele incluir un
+        # campo `cause` con el detalle real del problema (por ejemplo:
+        # back_urls inválido, currency_id no soportado, item sin precio).
+        logger.error(
+            "Mercado Pago preference error (status=%s): response=%s request=%s",
+            status, response, preference_data,
+        )
+        msg = response.get("message")
+        if not msg:
+            cause = response.get("cause") or []
+            if cause and isinstance(cause, list) and isinstance(cause[0], dict):
+                msg = cause[0].get("description") or cause[0].get("code")
+        if not msg:
+            msg = "Error al crear la preferencia."
+        raise MercadoPagoError(str(msg))
 
     return response
 
 
 def fetch_payment(payment_id: str) -> dict:
     sdk = _sdk()
-    result = sdk.payment().get(payment_id)
+    try:
+        result = sdk.payment().get(payment_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Mercado Pago SDK raised while fetching payment")
+        raise MercadoPagoError(
+            f"No pudimos consultar el pago ({exc.__class__.__name__})."
+        ) from exc
     response = result.get("response", {})
     if result.get("status", 500) >= 400:
         logger.error("Mercado Pago payment fetch error: %s", response)

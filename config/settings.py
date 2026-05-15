@@ -584,12 +584,26 @@ FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default="")
 # ---------------------------------------------------------------------------
 # django-axes: bloqueo por intentos fallidos de login
 # ---------------------------------------------------------------------------
-AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=3, cast=int)
-AXES_COOLOFF_TIME = config("AXES_COOLOFF_TIME_HOURS", default=24, cast=int)  # horas
-AXES_LOCKOUT_PARAMETERS = ["ip_address", "username"]
-AXES_RESET_ON_SUCCESS = True
+#
+# IMPORTANTE: los defaults anteriores (3 intentos / 24h) eran demasiado
+# agresivos y bloqueaban a clientes que escribían mal su contraseña 2-3
+# veces. Ajustados a 10 intentos / 1 hora — sigue siendo seguro contra
+# fuerza bruta automatizada pero ya no maltrata a usuarios honestos.
+AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=10, cast=int)
+AXES_COOLOFF_TIME = config(
+    # Acepta horas en decimales (0.5 = 30 min) para poder bajarlo más sin
+    # tener que migrar a otra unidad si más adelante hace falta.
+    "AXES_COOLOFF_TIME_HOURS", default=1.0, cast=float,
+)
+# Lockout sólo por (ip, username): un atacante que prueba varias contraseñas
+# del mismo usuario es lo único que queremos frenar. Así NO bloqueamos a
+# clientes detrás del mismo NAT/ISP cuando alguien más se equivoca.
+AXES_LOCKOUT_PARAMETERS = [["ip_address", "username"]]
 AXES_LOCKOUT_TEMPLATE = None  # usa el formulario default con mensaje de error
 AXES_VERBOSE = False
+# Cuando un cliente "se desloguea" tras un login exitoso, NO debe quedar con
+# contador residual de intentos fallidos.
+AXES_RESET_ON_SUCCESS = True
 
 # Notificaciones (email + Telegram) cuando alguien inicia sesión en el admin.
 # Útil para detectar rápido un acceso indebido — si recibes un correo de
