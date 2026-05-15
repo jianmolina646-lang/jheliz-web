@@ -3755,3 +3755,83 @@ def _quick_order_render(request, plans_qs, preset=None):
         now_local=timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
     )
     return render(request, "admin/orders/quick_create.html", ctx)
+
+
+# ---------------------------------------------------------------------------
+# Desbloqueo de logins (django-axes)
+#
+# Cuando un cliente o el propio admin se equivoca de contraseña X veces,
+# django-axes los bloquea. Esta vista permite al admin desbloquear desde
+# el panel sin pedir un comando SSH ni esperar el cooloff.
+# ---------------------------------------------------------------------------
+
+
+@staff_member_required
+def locked_logins_view(request):
+    """Lista intentos fallidos (potencialmente bloqueados) y permite limpiar."""
+    from django.conf import settings as _settings
+    from axes.models import AccessAttempt
+
+    threshold = int(getattr(_settings, "AXES_FAILURE_LIMIT", 10))
+
+    attempts = list(
+        AccessAttempt.objects.order_by("-attempt_time")[:200]
+    )
+    rows = []
+    locked_count = 0
+    for a in attempts:
+        is_locked = (a.failures_since_start or 0) >= threshold
+        if is_locked:
+            locked_count += 1
+        rows.append({
+            "pk": a.pk,
+            "username": (a.username or "").strip() or "(sin usuario)",
+            "ip_address": a.ip_address or "—",
+            "failures": a.failures_since_start or 0,
+            "user_agent": (a.user_agent or "")[:120],
+            "attempt_time": a.attempt_time,
+            "is_locked": is_locked,
+        })
+
+    ctx = _admin_context(
+        request,
+        title="Logins bloqueados",
+        rows=rows,
+        locked_count=locked_count,
+        total_attempts=len(rows),
+        threshold=threshold,
+        cooloff_hours=getattr(_settings, "AXES_COOLOFF_TIME", 1),
+    )
+    return render(request, "admin/locked_logins.html", ctx)
+
+
+@staff_member_required
+@require_POST
+def unlock_login(request, pk: int):
+    """Borra UN registro de AccessAttempt (desbloquea ese usuario+IP)."""
+    from django.contrib import messages
+    from axes.models import AccessAttempt
+
+    attempt = AccessAttempt.objects.filter(pk=pk).first()
+    if attempt is None:
+        messages.warning(request, "Ese registro ya no existe.")
+    else:
+        label = f"{attempt.username or '?'} desde {attempt.ip_address or '?'}"
+        attempt.delete()
+        messages.success(request, f"Desbloqueado: {label}.")
+    return redirect("admin_locked_logins")
+
+
+@staff_member_required
+@require_POST
+def unlock_all_logins(request):
+    """Borra TODOS los registros de AccessAttempt (todos quedan desbloqueados)."""
+    from django.contrib import messages
+    from axes.models import AccessAttempt
+
+    n = AccessAttempt.objects.count()
+    AccessAttempt.objects.all().delete()
+    messages.success(
+        request, f"Desbloqueados todos los intentos fallidos ({n} registros)."
+    )
+    return redirect("admin_locked_logins")

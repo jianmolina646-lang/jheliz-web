@@ -1,0 +1,103 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content_title %}<h1>🔓 Logins bloqueados</h1>{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+    <p class="text-sm text-gray-500 dark:text-gray-400">
+        Lista de intentos fallidos de login recientes. Después de
+        <b>{{ threshold }}</b> fallos contra el mismo usuario+IP, queda bloqueado
+        por <b>{{ cooloff_hours }}</b> hora(s). Acá podés desbloquear manual
+        sin esperar el cooloff.
+    </p>
+
+    <div class="flex flex-wrap items-center gap-3">
+        <div class="rounded-xl px-4 py-3 bg-red-500/15 border border-red-500/40">
+            <div class="text-xs uppercase tracking-wider text-red-300">Bloqueados ahora</div>
+            <div class="text-2xl font-bold text-white">{{ locked_count }}</div>
+        </div>
+        <div class="rounded-xl px-4 py-3 bg-white/5 border border-white/10">
+            <div class="text-xs uppercase tracking-wider text-gray-400">Intentos totales (últimos 200)</div>
+            <div class="text-2xl font-bold text-white">{{ total_attempts }}</div>
+        </div>
+
+        {% if total_attempts %}
+        <form method="post" action="{% url 'admin_unlock_all_logins' %}"
+              onsubmit="return confirm('¿Borrar TODOS los intentos fallidos? Todos los usuarios bloqueados quedarán libres.');"
+              class="ml-auto">
+            {% csrf_token %}
+            <button type="submit"
+                    class="px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-violet-500 text-white font-semibold hover:opacity-90 transition">
+                Desbloquear todos
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if not rows %}
+        <div class="rounded-xl p-8 text-center bg-white/5 border border-white/10">
+            <div class="text-4xl">🎉</div>
+            <div class="text-lg font-semibold text-white mt-2">No hay intentos fallidos</div>
+            <div class="text-sm text-gray-400">Nadie está bloqueado ahora mismo.</div>
+        </div>
+    {% else %}
+        <div class="overflow-x-auto rounded-xl border border-white/10 bg-white/[0.02]">
+            <table class="w-full text-sm">
+                <thead class="bg-white/5 text-left text-xs uppercase tracking-wider text-gray-300">
+                    <tr>
+                        <th class="px-4 py-3">Estado</th>
+                        <th class="px-4 py-3">Usuario</th>
+                        <th class="px-4 py-3">IP</th>
+                        <th class="px-4 py-3 text-center">Fallos</th>
+                        <th class="px-4 py-3">Último intento</th>
+                        <th class="px-4 py-3">User-Agent</th>
+                        <th class="px-4 py-3 text-right">Acción</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5">
+                    {% for r in rows %}
+                    <tr class="{% if r.is_locked %}bg-red-500/5{% endif %} hover:bg-white/[0.04]">
+                        <td class="px-4 py-3">
+                            {% if r.is_locked %}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/20 text-red-300 border border-red-500/40">
+                                    🔒 Bloqueado
+                                </span>
+                            {% else %}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/40">
+                                    ⚠️ Con fallos
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 font-mono text-white">{{ r.username }}</td>
+                        <td class="px-4 py-3 font-mono text-gray-300">{{ r.ip_address }}</td>
+                        <td class="px-4 py-3 text-center font-bold {% if r.is_locked %}text-red-300{% else %}text-yellow-300{% endif %}">
+                            {{ r.failures }} / {{ threshold }}
+                        </td>
+                        <td class="px-4 py-3 text-gray-400">{{ r.attempt_time|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-3 text-xs text-gray-500 max-w-xs truncate" title="{{ r.user_agent }}">{{ r.user_agent }}</td>
+                        <td class="px-4 py-3 text-right">
+                            <form method="post" action="{% url 'admin_unlock_login' r.pk %}"
+                                  onsubmit="return confirm('¿Desbloquear a {{ r.username|escapejs }} desde {{ r.ip_address|escapejs }}?');"
+                                  class="inline">
+                                {% csrf_token %}
+                                <button type="submit"
+                                        class="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-300 border border-green-500/40 text-xs font-semibold hover:bg-green-500/30 transition">
+                                    Desbloquear
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    <div class="text-xs text-gray-500 mt-2">
+        💡 Tip: si querés evitar que se bloqueen tan rápido, podés cambiar
+        <code>AXES_FAILURE_LIMIT</code> y <code>AXES_COOLOFF_TIME_HOURS</code>
+        en el <code>.env</code> del servidor.
+    </div>
+</div>
+{% endblock %}
