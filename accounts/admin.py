@@ -108,7 +108,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     )
     list_filter = ("role", "distributor_approved", "is_staff", "is_active")
     search_fields = ("username", "email", "first_name", "last_name", "phone", "telegram_username")
-    actions = ["approve_distributor", "revoke_distributor"]
+    actions = ["approve_distributor", "revoke_distributor", "unlock_login_action"]
     list_per_page = 50
 
     fieldsets = BaseUserAdmin.fieldsets + JHELIZ_FIELDSETS_EXTRA
@@ -190,6 +190,23 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
         count = queryset.update(distributor_approved=False)
         self.message_user(request, f"{count} distribuidores desaprobados.")
 
+    @admin.action(description="🔓 Desbloquear inicio de sesión")
+    def unlock_login_action(self, request, queryset):
+        from axes.models import AccessAttempt
+
+        usernames = [u for u in queryset.values_list("username", flat=True) if u]
+        emails = [e for e in queryset.values_list("email", flat=True) if e]
+        keys = list({*usernames, *emails})
+        if not keys:
+            self.message_user(request, "No hay usuarios válidos en la selección.")
+            return
+        deleted, _ = AccessAttempt.objects.filter(username__in=keys).delete()
+        self.message_user(
+            request,
+            f"Desbloqueados {queryset.count()} usuarios "
+            f"(se eliminaron {deleted} registros de intentos fallidos).",
+        )
+
 
 # ---------------------------------------------------------------------------
 # Cliente
@@ -234,6 +251,24 @@ class CustomerAdmin(ModelAdmin):
         }),
     )
     list_per_page = 50
+    actions = ["unlock_login_action"]
+
+    @admin.action(description="🔓 Desbloquear inicio de sesión")
+    def unlock_login_action(self, request, queryset):
+        from axes.models import AccessAttempt
+
+        usernames = [u for u in queryset.values_list("username", flat=True) if u]
+        emails = [e for e in queryset.values_list("email", flat=True) if e]
+        keys = list({*usernames, *emails})
+        if not keys:
+            self.message_user(request, "No hay clientes válidos en la selección.")
+            return
+        deleted, _ = AccessAttempt.objects.filter(username__in=keys).delete()
+        self.message_user(
+            request,
+            f"Desbloqueados {queryset.count()} clientes "
+            f"(se eliminaron {deleted} registros de intentos fallidos).",
+        )
 
     def get_queryset(self, request):
         qs = super().get_queryset(request).filter(role=Role.CLIENTE)
@@ -381,7 +416,7 @@ class DistributorAdmin(ModelAdmin):
         "username", "email", "first_name", "last_name",
         "phone", "telegram_username",
     )
-    actions = ["approve_distributor", "revoke_distributor"]
+    actions = ["approve_distributor", "revoke_distributor", "unlock_login_action"]
     readonly_fields = (
         "date_joined", "last_login", "wallet_balance",
         "stats_panel", "orders_summary", "platforms_summary",
@@ -608,6 +643,23 @@ class DistributorAdmin(ModelAdmin):
     def revoke_distributor(self, request, queryset):
         count = queryset.update(distributor_approved=False)
         self.message_user(request, f"{count} distribuidor(es) desaprobado(s).")
+
+    @admin.action(description="🔓 Desbloquear inicio de sesión")
+    def unlock_login_action(self, request, queryset):
+        from axes.models import AccessAttempt
+
+        usernames = [u for u in queryset.values_list("username", flat=True) if u]
+        emails = [e for e in queryset.values_list("email", flat=True) if e]
+        keys = list({*usernames, *emails})
+        if not keys:
+            self.message_user(request, "No hay distribuidores válidos en la selección.")
+            return
+        deleted, _ = AccessAttempt.objects.filter(username__in=keys).delete()
+        self.message_user(
+            request,
+            f"Desbloqueados {queryset.count()} distribuidores "
+            f"(se eliminaron {deleted} registros de intentos fallidos).",
+        )
 
 
 # ---------------------------------------------------------------------------
