@@ -227,6 +227,10 @@ PASSWORD_RESET_TIMEOUT = 60 * 60 * 24
 MERCADOPAGO_ACCESS_TOKEN = config("MERCADOPAGO_ACCESS_TOKEN", default="")
 MERCADOPAGO_PUBLIC_KEY = config("MERCADOPAGO_PUBLIC_KEY", default="")
 MERCADOPAGO_WEBHOOK_SECRET = config("MERCADOPAGO_WEBHOOK_SECRET", default="")
+# Permite ocultar Mercado Pago como método de pago del checkout sin tener
+# que borrar credenciales (útil para mantener la herramienta de diagnóstico
+# operativa mientras se decide habilitar/deshabilitar MP frente al cliente).
+MERCADOPAGO_CHECKOUT_ENABLED = config("MERCADOPAGO_CHECKOUT_ENABLED", default=True, cast=bool)
 
 # Web Push notifications (VAPID).
 # Para generar el par de claves:
