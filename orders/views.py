@@ -326,6 +326,7 @@ def checkout(request):
 
     payment_settings = PaymentSettings.load()
     yape_available = bool(payment_settings.yape_enabled and payment_settings.yape_qr)
+    mp_checkout_enabled = bool(getattr(settings, "MERCADOPAGO_CHECKOUT_ENABLED", True))
 
     user_balance = Decimal("0")
     wallet_available = False
@@ -337,6 +338,19 @@ def checkout(request):
         form = CheckoutForm(request.POST)
         if form.is_valid():
             method = form.cleaned_data["payment_method"]
+            if method == "mercadopago" and not mp_checkout_enabled:
+                if yape_available:
+                    messages.info(
+                        request,
+                        "Mercado Pago no est\u00e1 disponible. Te llevamos a pagar con Yape.",
+                    )
+                    method = "yape"
+                else:
+                    messages.error(
+                        request,
+                        "Mercado Pago no est\u00e1 disponible en este momento.",
+                    )
+                    return redirect("orders:checkout")
             if method == "yape" and not yape_available:
                 messages.error(request, "Yape no est\u00e1 disponible en este momento.")
                 return redirect("orders:checkout")
@@ -448,15 +462,25 @@ def checkout(request):
         form = CheckoutForm(initial=initial)
 
     # Construir choices del payment_method dinámicamente según disponibilidad.
-    # Filtramos yape si no hay QR configurado y wallet si el usuario no tiene saldo.
+    # Filtramos yape si no hay QR configurado, wallet si el usuario no tiene
+    # saldo, y mercadopago si MERCADOPAGO_CHECKOUT_ENABLED está en False.
     available_methods = []
     for value, label in CheckoutForm.PAYMENT_METHODS:
         if value == "yape" and not yape_available:
             continue
         if value == "wallet" and not wallet_available:
             continue
+        if value == "mercadopago" and not mp_checkout_enabled:
+            continue
         available_methods.append((value, label))
     form.fields["payment_method"].choices = available_methods
+    # Si MP está deshabilitado y el initial sigue siendo "mercadopago", el
+    # radio queda sin opción seleccionada por defecto. Forzamos yape como
+    # default para que el cliente no tenga que clickear nada.
+    if not mp_checkout_enabled and yape_available:
+        form.fields["payment_method"].initial = "yape"
+        if not form.is_bound:
+            form.initial["payment_method"] = "yape"
 
     subtotal = cart.subtotal_for(request.user)
     discount = cart.discount_for(request.user)

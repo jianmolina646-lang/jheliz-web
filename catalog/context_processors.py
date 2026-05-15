@@ -158,7 +158,10 @@ def site_context(request):
         "CURRENCY_CODE": settings.DEFAULT_CURRENCY,
         "WHATSAPP_NUMBER": settings.WHATSAPP_NUMBER,
         "TELEGRAM_USERNAME": settings.TELEGRAM_USERNAME,
-        "MERCADOPAGO_ENABLED": bool(settings.MERCADOPAGO_ACCESS_TOKEN),
+        "MERCADOPAGO_ENABLED": bool(
+            settings.MERCADOPAGO_ACCESS_TOKEN
+            and getattr(settings, "MERCADOPAGO_CHECKOUT_ENABLED", True)
+        ),
         "nav_categories": Category.objects.filter(is_active=True)[:12],
         "cart_count": cart_count,
         "cart_subtotal": cart_subtotal,
