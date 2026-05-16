@@ -45,7 +45,7 @@
   {% endif %}
 
   <div class="mt-6 text-sm text-white/60">
-    Pedido <span class="font-mono">#{{ order.short_uuid }}</span> · Total {{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}
+    Pedido <span class="font-mono">#{{ order.display_number }}</span> · Total {{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}
   </div>
 
   <div class="mt-6 flex flex-wrap gap-3 justify-center">

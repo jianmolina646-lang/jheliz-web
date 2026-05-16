@@ -162,7 +162,7 @@
               <td>
                 <a href="{% url 'admin:orders_order_change' e.item.order.pk %}"
                    style="color:#a5b4fc;text-decoration:none;">
-                  #{{ e.item.order.short_uuid }}
+                  #{{ e.item.order.display_number }}
                 </a>
                 <div style="color:#94a3b8;font-size:12px;">{{ e.item.order.email|default:"(invitado)" }}</div>
               </td>

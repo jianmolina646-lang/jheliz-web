@@ -80,13 +80,13 @@ def manual_adjust(user, amount: Decimal, reference: str = "") -> WalletTransacti
 
 def charge_for_order(user, amount: Decimal, order) -> WalletTransaction:
     """Debitar saldo para pagar un pedido."""
-    ref = f"Pedido #{order.short_uuid}" if hasattr(order, "short_uuid") else f"Pedido #{order.pk}"
+    ref = f"Pedido #{order.display_number}" if hasattr(order, "display_number") else f"Pedido #{order.pk}"
     return _debit(user, amount, WalletTransaction.Kind.COMPRA, reference=ref)
 
 
 def refund_order(user, amount: Decimal, order) -> WalletTransaction:
     """Reembolsar al wallet (orden cancelada o devuelta)."""
-    ref = f"Reembolso pedido #{order.short_uuid}" if hasattr(order, "short_uuid") else f"Reembolso pedido #{order.pk}"
+    ref = f"Reembolso pedido #{order.display_number}" if hasattr(order, "display_number") else f"Reembolso pedido #{order.pk}"
     return _credit(user, amount, WalletTransaction.Kind.REEMBOLSO, reference=ref)
 
 

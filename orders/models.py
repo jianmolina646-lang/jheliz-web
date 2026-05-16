@@ -299,6 +299,18 @@ class Order(models.Model):
         return str(self.uuid)[:8]
 
     @property
+    def display_number(self) -> str:
+        """Numero amigable visible al cliente / operador, tipo JH-0042.
+
+        Usa el PK (autoincrement) para que sea secuencial y facil de
+        dictar. El UUID interno sigue siendo el identificador de URL,
+        asi que esto no afecta enlaces ni seguridad.
+        """
+        if not self.pk:
+            return self.short_uuid.upper()
+        return f"JH-{self.pk:04d}"
+
+    @property
     def subtotal(self) -> Decimal:
         return sum(
             (item.unit_price * item.quantity for item in self.items.all()),

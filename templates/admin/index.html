@@ -350,7 +350,7 @@
                             {{ it.product_name }} — {{ it.plan_name }}
                         </div>
                         <div class="text-xs text-amber-200/80">
-                            #{{ it.order.short_uuid }} · {% firstof it.order.email it.order.user.email "—" %}
+                            #{{ it.order.display_number }} · {% firstof it.order.email it.order.user.email "—" %}
                         </div>
                     </div>
                     <div class="text-xs font-semibold text-amber-300 ml-4 whitespace-nowrap">
@@ -456,7 +456,7 @@
                     <a href="{% url 'admin:orders_order_change' o.pk %}" class="flex items-center justify-between px-5 py-3 hover:bg-base-50 dark:hover:bg-base-800/50 transition">
                         <div class="min-w-0">
                             <div class="text-sm font-medium text-base-900 dark:text-white truncate">
-                                #{{ o.short_uuid }} · {% firstof o.email o.user.email "—" %}
+                                #{{ o.display_number }} · {% firstof o.email o.user.email "—" %}
                             </div>
                             <div class="text-xs text-base-500 dark:text-base-400">
                                 {{ o.created_at|date:"d M H:i" }} · {{ o.get_status_display }}

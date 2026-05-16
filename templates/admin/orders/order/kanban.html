@@ -159,9 +159,9 @@
             <div class="jh-col-body">
                 {% for order in col.orders %}
                 <a class="jh-tile" href="{% url 'admin:orders_order_change' order.pk %}"
-                   title="Abrir pedido #{{ order.short_uuid }}">
+                   title="Abrir pedido #{{ order.display_number }}">
                     <div class="jh-t-row">
-                        <span class="jh-t-id">#{{ order.short_uuid }}</span>
+                        <span class="jh-t-id">#{{ order.display_number }}</span>
                         <span class="jh-t-total">{{ order.currency }} {{ order.total }}</span>
                     </div>
                     <div class="jh-t-customer">

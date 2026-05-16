@@ -190,7 +190,7 @@
       {% for o in orders %}
         <a href="{% url 'orders:detail' o.uuid %}" class="surface rounded-xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 hover:border-zinc-600 transition">
           <div class="min-w-0">
-            <div class="text-[11px] text-zinc-500 font-mono">#{{ o.short_uuid }} · {{ o.created_at|date:"d/m/Y H:i" }}</div>
+            <div class="text-[11px] text-zinc-500 font-mono">#{{ o.display_number }} · {{ o.created_at|date:"d/m/Y H:i" }}</div>
             <div class="font-display font-semibold mt-0.5 truncate">
               {% for it in o.items.all %}{{ it.product_name }} — {{ it.plan_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
             </div>

@@ -81,7 +81,7 @@ class Command(BaseCommand):
                         if dry_run:
                             self.stdout.write(
                                 f"[dry] Stock #{stock.pk} ({stock.product.name}) "
-                                f"\u2192 SOLD por pedido #{item.order.short_uuid}"
+                                f"\u2192 SOLD por pedido #{item.order.display_number}"
                             )
                         else:
                             stock.status = StockItem.Status.SOLD
@@ -117,7 +117,7 @@ class Command(BaseCommand):
                     self.stdout.write(
                         f"[dry] Vincular Stock #{candidate.pk} "
                         f"({candidate.product.name}) a pedido "
-                        f"#{item.order.short_uuid} y marcar SOLD"
+                        f"#{item.order.display_number} y marcar SOLD"
                     )
                 else:
                     candidate.status = StockItem.Status.SOLD

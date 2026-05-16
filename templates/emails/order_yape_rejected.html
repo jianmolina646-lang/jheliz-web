@@ -2,7 +2,7 @@
 {% load humanize %}
 {% block body %}
   <h2 style="margin:0 0 8px 0;font-size:20px;">Necesitamos otro comprobante</h2>
-  <p>No pudimos validar el comprobante que subiste para el pedido <strong>#{{ order.short_uuid }}</strong>.</p>
+  <p>No pudimos validar el comprobante que subiste para el pedido <strong>#{{ order.display_number }}</strong>.</p>
   {% if order.payment_rejection_reason %}
     <p style="background:#3f1d1d;border:1px solid #b91c1c;color:#fecaca;padding:10px 14px;border-radius:8px;">
       <strong>Motivo:</strong> {{ order.payment_rejection_reason }}

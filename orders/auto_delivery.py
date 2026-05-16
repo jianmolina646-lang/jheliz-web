@@ -160,7 +160,7 @@ def auto_deliver_distributor_order(
         try:
             telegram.notify_admin(
                 "\u26a0\ufe0f Pedido distribuidor "
-                f"#{order.short_uuid} sin stock para: "
+                f"#{order.display_number} sin stock para: "
                 + ", ".join(missing)
                 + ". Cargá stock o entregalo manual desde el admin."
             )

@@ -27,7 +27,7 @@
         <span>Estado: <span class="text-primary-300">{{ ticket.get_status_display }}</span></span>
         {% if ticket.order %}
           <span>·</span>
-          <span>Pedido <a href="{% url 'admin:orders_order_change' ticket.order.pk %}" class="text-primary-300 hover:underline">#{{ ticket.order.short_uuid }}</a></span>
+          <span>Pedido <a href="{% url 'admin:orders_order_change' ticket.order.pk %}" class="text-primary-300 hover:underline">#{{ ticket.order.display_number }}</a></span>
         {% endif %}
       </div>
     </div>

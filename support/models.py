@@ -120,7 +120,7 @@ class ReplyTemplate(models.Model):
         if order is None and ticket is not None:
             order = ticket.order
         if order:
-            ctx["pedido"] = order.short_uuid if hasattr(order, "short_uuid") else str(order.pk)
+            ctx["pedido"] = order.display_number if hasattr(order, "display_number") else str(order.pk)
             ctx["telefono"] = getattr(order, "phone", "") or ""
             first_item = order.items.first() if hasattr(order, "items") else None
             if first_item:

@@ -213,7 +213,7 @@ def format_new_order(order) -> str:
     when = _fmt_datetime(getattr(order, "created_at", None))
 
     lines = [
-        f"🛒 <b>NUEVO PEDIDO</b>  ·  #{order.short_uuid}",
+        f"🛒 <b>NUEVO PEDIDO</b>  ·  #{order.display_number}",
         "",
         f"👤 <i>{_escape(email)}</i>{phone_line}",
         f"💰 {_fmt_money(order)}  ·  {_escape(order.get_status_display())}",
@@ -246,7 +246,7 @@ def format_yape_proof(order) -> str:
     when = _fmt_datetime(getattr(order, "created_at", None))
 
     lines = [
-        f"💸 <b>COMPROBANTE YAPE</b>  ·  #{order.short_uuid}",
+        f"💸 <b>COMPROBANTE YAPE</b>  ·  #{order.display_number}",
         "",
         f"👤 <i>{_escape(email)}</i>{phone_line}",
         f"💰 {_fmt_money(order)}",
@@ -842,7 +842,7 @@ def _cmd_pedido(chat_id: int | str, rest: str) -> None:
         return
     send_message(
         chat_id,
-        f"Pedido <b>#{order.short_uuid}</b>\n"
+        f"Pedido <b>#{order.display_number}</b>\n"
         f"Estado: <b>{order.get_status_display()}</b>\n"
         f"Total: {order.currency} {order.total}\n"
         f"https://ecormecejhelizstore.com/pedidos/{order.uuid}/",
@@ -877,7 +877,7 @@ def _cmd_hoy(chat_id: int | str) -> None:
     lines = [f"<b>Pedidos de hoy ({len(items)})</b>", ""]
     for o in items:
         lines.append(
-            f"• #{o.short_uuid} · {o.get_status_display()} · "
+            f"• #{o.display_number} · {o.get_status_display()} · "
             f"{o.currency} {o.total} · {o.email or 'sin correo'}"
         )
     lines.append("")
@@ -906,7 +906,7 @@ def _cmd_cliente(chat_id: int | str, rest: str) -> None:
     ]
     for o in items:
         lines.append(
-            f"• #{o.short_uuid} · {o.get_status_display()} · "
+            f"• #{o.display_number} · {o.get_status_display()} · "
             f"{o.currency} {o.total} · {o.created_at:%d/%m %H:%M}"
         )
     send_message(chat_id, "\n".join(lines))

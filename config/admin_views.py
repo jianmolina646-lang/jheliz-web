@@ -650,7 +650,7 @@ def notifications_count(request):
             "id": f"order-verifying-{order.pk}",
             "kind": "yape_proof",
             "icon": "hourglass_top",
-            "title": f"Comprobante por aprobar · #{order.short_uuid} · {_format_money(order.total, order.currency)}",
+            "title": f"Comprobante por aprobar · #{order.display_number} · {_format_money(order.total, order.currency)}",
             "subtitle": _order_subtitle(order),
             "url": reverse("admin:orders_order_change", args=[order.pk]),
             "created_at": ts.isoformat() if ts else None,
@@ -663,7 +663,7 @@ def notifications_count(request):
             "id": f"order-preparing-{order.pk}",
             "kind": "preparing",
             "icon": "inventory",
-            "title": f"Pedido en preparación · #{order.short_uuid} · {_format_money(order.total, order.currency)}",
+            "title": f"Pedido en preparación · #{order.display_number} · {_format_money(order.total, order.currency)}",
             "subtitle": _order_subtitle(order),
             "url": reverse("admin:orders_order_change", args=[order.pk]),
             "created_at": ts.isoformat() if ts else None,
@@ -1864,7 +1864,7 @@ def customer_detail(request, email: str):
             "icon": "shopping_bag",
             "color": _ORDER_COLORS.get(o.status, "#94a3b8"),
             "when": o.created_at,
-            "title": f"Pedido #{o.short_uuid} — {o.get_status_display()}",
+            "title": f"Pedido #{o.display_number} — {o.get_status_display()}",
             "detail": f"{o.currency} {o.total} · {o.channel}",
             "link": reverse("admin:orders_order_change", args=[o.pk]),
         })
@@ -1958,7 +1958,7 @@ def _ticket_template_vars(ticket) -> dict:
     telefono = ""
     producto = ""
     if order:
-        pedido = order.short_uuid if hasattr(order, "short_uuid") else str(order.pk)
+        pedido = order.display_number if hasattr(order, "display_number") else str(order.pk)
         telefono = getattr(order, "phone", "") or ""
         first_item = order.items.first() if hasattr(order, "items") else None
         if first_item:
@@ -2174,7 +2174,7 @@ def _inbox_collect_items():
             "kind": "yape_proof",
             "label": "Comprobante Yape pendiente",
             "reason": "Subió comprobante. Revisá si el monto y la referencia coinciden.",
-            "ref": f"#{o.short_uuid} — {o.email or o.phone or 'sin contacto'}",
+            "ref": f"#{o.display_number} — {o.email or o.phone or 'sin contacto'}",
             "link": reverse("admin:orders_order_change", args=[o.pk]),
             "icon": "qr_code_scanner",
             "priority": "orange",
@@ -2197,7 +2197,7 @@ def _inbox_collect_items():
             "kind": "waiting_stock",
             "label": "Pedido sin entregar",
             "reason": "Pagó hace rato pero no se le entregaron credenciales aún.",
-            "ref": f"#{o.short_uuid} — {o.email or o.phone or 'sin contacto'}",
+            "ref": f"#{o.display_number} — {o.email or o.phone or 'sin contacto'}",
             "link": reverse("admin:orders_order_change", args=[o.pk]),
             "icon": "inventory_2",
             "priority": "red",
@@ -2215,7 +2215,7 @@ def _inbox_collect_items():
     ):
         order_ref = ""
         if t.order_id:
-            order_ref = f" (pedido #{t.order.short_uuid})"
+            order_ref = f" (pedido #{t.order.display_number})"
         items.append({
             "kind": "ticket",
             "label": "Ticket sin responder",
@@ -2316,7 +2316,7 @@ def _inbox_collect_items():
             "label": "Cuenta vence hoy",
             "reason": "Cliente puede renovar ahora con magic link. Mandale recordatorio.",
             "ref": (
-                f"#{it.order.short_uuid} — {it.product_name} — "
+                f"#{it.order.display_number} — {it.product_name} — "
                 f"{it.order.email or it.order.phone or 'sin contacto'}"
             ),
             "link": reverse("admin_renewals") + "?w=today",
@@ -2343,7 +2343,7 @@ def _inbox_collect_items():
                 "Distribuidor reporta que la cuenta dejó de funcionar."
             )[:140],
             "ref": (
-                f"#{it.order.short_uuid} — {it.product_name} — "
+                f"#{it.order.display_number} — {it.product_name} — "
                 f"{it.order.email or 'sin contacto'}"
             ),
             "link": reverse("admin:orders_order_change", args=[it.order_id]),
@@ -2869,18 +2869,18 @@ def bulk_deliver_one(request, order_id: int):
     order = get_object_or_404(Order, pk=order_id, status=Order.Status.PREPARING)
     delivered, missing = _bulk_deliver_order(order, actor=request.user)
     if delivered:
-        messages.success(request, f"Pedido #{order.short_uuid} entregado.")
+        messages.success(request, f"Pedido #{order.display_number} entregado.")
     else:
         if missing:
             names = ", ".join(f"{it.product_name} ({it.plan_name})" for it in missing)
             messages.warning(
                 request,
-                f"Pedido #{order.short_uuid} no se pudo entregar: falta stock para {names}.",
+                f"Pedido #{order.display_number} no se pudo entregar: falta stock para {names}.",
             )
         else:
             messages.info(
                 request,
-                f"Pedido #{order.short_uuid} ya no estaba en preparación.",
+                f"Pedido #{order.display_number} ya no estaba en preparación.",
             )
     return redirect("admin_bulk_delivery")
 
@@ -3697,7 +3697,7 @@ def quick_order_create(request):
         try:
             label = "creado" if not delivered else "creado + entregado"
             order_telegram.notify_admin(
-                f"📝 Pedido manual {label}: #{order.short_uuid} · "
+                f"📝 Pedido manual {label}: #{order.display_number} · "
                 f"{plan.product.name} {plan.name} · S/ {order.total} · {email}"
                 + (" (cliente nuevo)" if created_user else "")
             )
@@ -3707,20 +3707,20 @@ def quick_order_create(request):
         if delivered:
             messages.success(
                 request,
-                f"Pedido #{order.short_uuid} registrado y entregado. "
+                f"Pedido #{order.display_number} registrado y entregado. "
                 + ("Email enviado al cliente." if send_email else "")
             )
         elif auto_deliver and not delivered:
             messages.warning(
                 request,
-                f"Pedido #{order.short_uuid} registrado, pero NO se entregó: "
+                f"Pedido #{order.display_number} registrado, pero NO se entregó: "
                 "no hay stock disponible para ese plan ni cargaste credenciales "
                 "manuales. Entregalo desde el detalle del pedido."
             )
         else:
             messages.success(
                 request,
-                f"Pedido #{order.short_uuid} registrado como pagado. "
+                f"Pedido #{order.display_number} registrado como pagado. "
                 "Entregalo cuando quieras desde el detalle."
             )
 
