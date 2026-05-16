@@ -2,8 +2,21 @@
 {% load humanize %}
 {% block title %}Pedido #{{ order.short_uuid }} — {{ SITE_NAME }}{% endblock %}
 {% block content %}
-<h1 class="text-3xl font-extrabold">Pedido #{{ order.short_uuid }}</h1>
-<p class="text-white/60 text-sm">Creado {{ order.created_at|date:"d/m/Y H:i" }} · Estado: <span class="text-jheliz-300">{{ order.get_status_display }}</span></p>
+<div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+  <div>
+    <h1 class="text-3xl font-extrabold">Pedido #{{ order.short_uuid }}</h1>
+    <p class="text-white/60 text-sm">Creado {{ order.created_at|date:"d/m/Y H:i" }} · Estado: <span class="text-jheliz-300">{{ order.get_status_display }}</span></p>
+  </div>
+  {% if order.status == 'delivered' or order.status == 'preparing' or order.status == 'paid' %}
+    <a href="{% url 'orders:receipt_pdf' uuid=order.uuid %}" target="_blank"
+       class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-400/40 bg-emerald-500/10 text-emerald-200 font-semibold text-sm hover:bg-emerald-500/20 transition self-start sm:self-auto">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4">
+        <path d="M12 3a1 1 0 0 1 1 1v9.586l3.293-3.293a1 1 0 0 1 1.414 1.414l-5 5a1 1 0 0 1-1.414 0l-5-5a1 1 0 0 1 1.414-1.414L11 13.586V4a1 1 0 0 1 1-1zm-7 16a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z"/>
+      </svg>
+      Descargar recibo PDF
+    </a>
+  {% endif %}
+</div>
 
 {% if order.status == 'pending' and order.payment_provider == 'yape' %}
   <div class="mt-5 rounded-2xl border border-fuchsia-400/30 bg-fuchsia-500/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

@@ -29,7 +29,7 @@ def _log(*, order, subject: str, kind: str = "other", error: str = "") -> None:
         pass
 
 
-def _send(order, subject: str, template: str, kind: str = "other") -> None:
+def _send(order, subject: str, template: str, kind: str = "other", *, attach_receipt: bool = False) -> None:
     if not order.email:
         return
     context = {
@@ -49,6 +49,14 @@ def _send(order, subject: str, template: str, kind: str = "other") -> None:
         to=[order.email],
     )
     message.content_subtype = "html"
+    if attach_receipt:
+        try:
+            from .receipts import generate_receipt_pdf, receipt_filename
+            pdf_bytes = generate_receipt_pdf(order)
+            message.attach(receipt_filename(order), pdf_bytes, "application/pdf")
+        except Exception as exc:  # noqa: BLE001
+            # No bloqueamos el envio del correo si el PDF falla.
+            _log(order=order, subject=f"[receipt-attach-fail] {subject}", kind=kind, error=str(exc)[:500])
     error_msg = ""
     try:
         message.send(fail_silently=False)
@@ -69,7 +77,8 @@ def send_order_preparing(order) -> None:
 
 def send_order_delivered(order) -> None:
     _send(order, f"Tu pedido #{order.short_uuid} est\u00e1 listo",
-          "emails/order_delivered.html", kind="order_delivered")
+          "emails/order_delivered.html", kind="order_delivered",
+          attach_receipt=True)
 
 
 def send_yape_proof_received(order) -> None:
