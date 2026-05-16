@@ -21,5 +21,6 @@ urlpatterns = [
     path("<uuid:uuid>/gracias/", views.checkout_return, name="checkout_return"),
     path("<uuid:uuid>/yape/", views.yape_payment, name="yape_payment"),
     path("<uuid:uuid>/binance/", views.binance_payment, name="binance_payment"),
+    path("<uuid:uuid>/recibo.pdf", views.order_receipt_pdf, name="receipt_pdf"),
     path("<uuid:uuid>/", views.order_detail, name="detail"),
 ]

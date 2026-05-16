@@ -710,6 +710,21 @@ def order_detail(request, uuid):
     return render(request, "orders/detail.html", {"order": order})
 
 
+def order_receipt_pdf(request, uuid):
+    """Descarga directa del recibo PDF del pedido (no oficial SUNAT)."""
+    order = get_object_or_404(Order, uuid=uuid)
+    if order.user_id:
+        if not request.user.is_authenticated:
+            return redirect("accounts:login")
+        if order.user_id != request.user.id and not request.user.is_staff:
+            raise Http404
+    from .receipts import generate_receipt_pdf, receipt_filename
+    pdf_bytes = generate_receipt_pdf(order)
+    resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+    resp["Content-Disposition"] = f'inline; filename="{receipt_filename(order)}"'
+    return resp
+
+
 def checkout_return(request, uuid):
     """Pantalla a la que vuelve el cliente desde Mercado Pago."""
     order = get_object_or_404(Order, uuid=uuid)
