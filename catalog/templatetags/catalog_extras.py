@@ -4,6 +4,7 @@ Si un producto no tiene imagen, generamos un fondo bonito a partir de un hash
 estable del slug — el mismo producto siempre tiene el mismo color.
 """
 import hashlib
+from decimal import Decimal, InvalidOperation
 
 from django import template
 from django.utils.safestring import mark_safe
@@ -74,3 +75,25 @@ def cheapest_plan_for(product, user):
     if product is None:
         return None
     return product.cheapest_visible_plan(user)
+
+
+@register.filter
+def to_usd(value, rate):
+    """Convierte un monto en PEN a USD usando la tasa indicada.
+
+    Uso en templates:
+        {{ plan.price_customer|to_usd:USD_EXCHANGE_RATE|floatformat:2 }}
+
+    Devuelve `Decimal` redondeado a 2 decimales o `None` si la tasa no es
+    válida (así el template puede esconder el equivalente con `{% if %}`).
+    """
+    if value in (None, "") or rate in (None, ""):
+        return None
+    try:
+        value_d = Decimal(str(value))
+        rate_d = Decimal(str(rate))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    if rate_d <= 0:
+        return None
+    return (value_d / rate_d).quantize(Decimal("0.01"))

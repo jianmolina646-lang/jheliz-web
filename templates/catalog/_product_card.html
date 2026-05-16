@@ -47,10 +47,16 @@
             {% if user.is_distributor %}
               <div class="text-[11px] font-semibold uppercase tracking-wider text-jheliz-400">Mayorista desde</div>
               <div class="text-xl font-display font-bold text-white tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
+              {% with usd_price=plan.price_distributor|to_usd:USD_EXCHANGE_RATE %}
+                {% if usd_price %}<div class="text-[11px] text-emerald-300/80">≈ USD {{ usd_price|floatformat:2|intcomma }}</div>{% endif %}
+              {% endwith %}
               <div class="text-[11px] text-zinc-500 line-through">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
             {% else %}
               <div class="text-[11px] uppercase tracking-wider text-zinc-500">Desde</div>
               <div class="text-xl font-display font-bold text-white tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+              {% with usd_price=plan.price_customer|to_usd:USD_EXCHANGE_RATE %}
+                {% if usd_price %}<div class="text-[11px] text-emerald-300/80">≈ USD {{ usd_price|floatformat:2|intcomma }}</div>{% endif %}
+              {% endwith %}
             {% endif %}
           {% else %}
             <div class="text-xs text-zinc-500">Pronto disponible</div>

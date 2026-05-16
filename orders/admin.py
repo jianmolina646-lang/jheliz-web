@@ -345,7 +345,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     @display(description="Acciones rápidas")
     def display_actions(self, obj: Order):
         buttons = []
-        if obj.status == Order.Status.VERIFYING and obj.payment_provider == "yape":
+        if obj.status == Order.Status.VERIFYING and obj.payment_provider in {"yape", "binance"}:
             buttons.append(format_html(
                 '<a href="{}" class="jh-btn jh-btn--success">\u2713 Confirmar</a>',
                 reverse("admin:orders_order_confirm_yape", args=[obj.pk]),
@@ -619,7 +619,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
 
     def confirm_yape_view(self, request, pk: int):
         order = get_object_or_404(Order, pk=pk)
-        if order.payment_provider != "yape" or not order.payment_proof:
+        if order.payment_provider not in {"yape", "binance"} or not order.payment_proof:
             self.message_user(
                 request,
                 "Este pedido no tiene comprobante Yape para confirmar.",
@@ -665,8 +665,8 @@ class OrderAdmin(ExportMixin, ModelAdmin):
 
     def reject_yape_view(self, request, pk: int):
         order = get_object_or_404(Order, pk=pk)
-        if order.payment_provider != "yape":
-            self.message_user(request, "Este pedido no es Yape.", level=messages.WARNING)
+        if order.payment_provider not in {"yape", "binance"}:
+            self.message_user(request, "Este pedido no es Yape ni Binance.", level=messages.WARNING)
             return self._back(request, order)
         if request.method == "POST":
             reason = (request.POST.get("reason") or "").strip()
@@ -817,7 +817,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         auto_delivered = 0
         skipped = 0
         for order in queryset:
-            if order.payment_provider != "yape":
+            if order.payment_provider not in {"yape", "binance"}:
                 skipped += 1
                 continue
             if not order.payment_proof:
@@ -855,7 +855,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     def reject_yape_payment(self, request, queryset):
         updated = 0
         for order in queryset:
-            if order.payment_provider != "yape":
+            if order.payment_provider not in {"yape", "binance"}:
                 continue
             if not order.payment_rejection_reason:
                 order.payment_rejection_reason = (
@@ -912,6 +912,20 @@ class PaymentSettingsAdmin(ModelAdmin):
     fieldsets = (
         ("Yape", {
             "fields": ("yape_enabled", "yape_holder_name", "yape_phone", "yape_qr", "yape_instructions"),
+        }),
+        ("Binance Pay", {
+            "fields": ("binance_enabled", "binance_holder_name", "binance_pay_id", "binance_qr", "binance_instructions"),
+            "description": (
+                "Pago manual con Binance Pay. El cliente verá el QR + Pay ID en checkout, "
+                "pagará desde su app Binance y subirá el comprobante (mismo flujo que Yape)."
+            ),
+        }),
+        ("Tipo de cambio USD", {
+            "fields": ("usd_exchange_rate",),
+            "description": (
+                "Solo para mostrar el equivalente en dólares al lado de cada precio. "
+                "No afecta el cobro real, que sigue siendo en soles."
+            ),
         }),
     )
     readonly_fields = ("updated_at",)
