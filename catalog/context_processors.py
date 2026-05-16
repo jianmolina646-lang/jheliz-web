@@ -27,6 +27,26 @@ def _round_label(value: int, floor: int = 1000) -> str:
     return f"{rounded}+"
 
 
+def _usd_rate() -> Decimal:
+    """Devuelve el tipo de cambio USD configurado en PaymentSettings.
+
+    Cachea 5 min para no pegarle a la DB en cada request. Si la tabla no
+    existe aún (migración pendiente) o la conversión falla, devuelve el
+    default razonable (3.78) — solo se usa para mostrar precios duales,
+    no para cobrar.
+    """
+    cached = cache.get("jh_usd_exchange_rate")
+    if cached is not None:
+        return cached
+    try:
+        from orders.models import PaymentSettings  # import diferido para evitar ciclos
+        rate = PaymentSettings.load().usd_exchange_rate or Decimal("3.78")
+    except Exception:
+        rate = Decimal("3.78")
+    cache.set("jh_usd_exchange_rate", rate, 300)
+    return rate
+
+
 def _canonical_url(request) -> str:
     """URL canónica estable para SEO (Google Search Console).
 
@@ -156,6 +176,7 @@ def site_context(request):
         "SITE_TAGLINE": settings.SITE_TAGLINE,
         "CURRENCY_SYMBOL": settings.DEFAULT_CURRENCY_SYMBOL,
         "CURRENCY_CODE": settings.DEFAULT_CURRENCY,
+        "USD_EXCHANGE_RATE": _usd_rate(),
         "WHATSAPP_NUMBER": settings.WHATSAPP_NUMBER,
         "TELEGRAM_USERNAME": settings.TELEGRAM_USERNAME,
         "MERCADOPAGO_ENABLED": bool(

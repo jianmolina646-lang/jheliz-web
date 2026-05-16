@@ -34,6 +34,36 @@ class PaymentSettings(models.Model):
         "Instrucciones extra", blank=True,
         help_text="Texto adicional bajo el QR (ej: horario, verificación extra).",
     )
+
+    # --- Binance Pay (manual) ---
+    binance_enabled = models.BooleanField("Binance Pay activo", default=False)
+    binance_holder_name = models.CharField(
+        "Titular Binance", max_length=120, blank=True,
+        help_text="Nombre que aparece en tu cuenta de Binance.",
+    )
+    binance_pay_id = models.CharField(
+        "Binance Pay ID", max_length=80, blank=True,
+        help_text="Tu Pay ID de Binance (lo encuentras en la app Binance → Pay → recibir).",
+    )
+    binance_qr = models.ImageField(
+        "QR de Binance Pay", upload_to="payments/binance/", blank=True,
+        help_text="Captura o export del QR de Binance Pay para que el cliente lo escanee.",
+    )
+    binance_instructions = models.TextField(
+        "Instrucciones extra Binance", blank=True,
+        help_text="Texto adicional bajo el QR (ej: red recomendada, comisiones, soporte USDT, etc.).",
+    )
+
+    # --- Tipo de cambio USD para mostrar precios duales ---
+    usd_exchange_rate = models.DecimalField(
+        "Tipo de cambio (1 USD = X PEN)",
+        max_digits=8, decimal_places=4, default=Decimal("3.7800"),
+        help_text=(
+            "Cuántos PEN equivalen a 1 USD. Se usa solo para mostrar el equivalente "
+            "en dólares al lado de cada precio. No afecta el cobro real (que sigue siendo en PEN)."
+        ),
+    )
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

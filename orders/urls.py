@@ -20,5 +20,6 @@ urlpatterns = [
     path("webhooks/telegram/<str:secret>/", views.telegram_webhook, name="telegram_webhook"),
     path("<uuid:uuid>/gracias/", views.checkout_return, name="checkout_return"),
     path("<uuid:uuid>/yape/", views.yape_payment, name="yape_payment"),
+    path("<uuid:uuid>/binance/", views.binance_payment, name="binance_payment"),
     path("<uuid:uuid>/", views.order_detail, name="detail"),
 ]

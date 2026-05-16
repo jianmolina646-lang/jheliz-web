@@ -326,6 +326,10 @@ def checkout(request):
 
     payment_settings = PaymentSettings.load()
     yape_available = bool(payment_settings.yape_enabled and payment_settings.yape_qr)
+    binance_available = bool(
+        payment_settings.binance_enabled
+        and (payment_settings.binance_qr or payment_settings.binance_pay_id)
+    )
     mp_checkout_enabled = bool(getattr(settings, "MERCADOPAGO_CHECKOUT_ENABLED", True))
 
     user_balance = Decimal("0")
@@ -353,6 +357,9 @@ def checkout(request):
                     return redirect("orders:checkout")
             if method == "yape" and not yape_available:
                 messages.error(request, "Yape no est\u00e1 disponible en este momento.")
+                return redirect("orders:checkout")
+            if method == "binance" and not binance_available:
+                messages.error(request, "Binance Pay no est\u00e1 disponible en este momento.")
                 return redirect("orders:checkout")
             if method == "wallet" and not request.user.is_authenticated:
                 messages.error(request, "Necesitás iniciar sesión para pagar con saldo.")
@@ -396,6 +403,11 @@ def checkout(request):
                 order.payment_provider = "yape"
                 order.save(update_fields=["payment_provider"])
                 return redirect("orders:yape_payment", uuid=order.uuid)
+
+            if method == "binance":
+                order.payment_provider = "binance"
+                order.save(update_fields=["payment_provider"])
+                return redirect("orders:binance_payment", uuid=order.uuid)
 
             # Default: Mercado Pago. Si falla (token vencido, cuenta sin
             # habilitar, error transitorio del SDK), no dejamos al cliente
@@ -468,6 +480,8 @@ def checkout(request):
     for value, label in CheckoutForm.PAYMENT_METHODS:
         if value == "yape" and not yape_available:
             continue
+        if value == "binance" and not binance_available:
+            continue
         if value == "wallet" and not wallet_available:
             continue
         if value == "mercadopago" and not mp_checkout_enabled:
@@ -498,6 +512,7 @@ def checkout(request):
         "total": cart_total,
         "coupon": cart.get_coupon(),
         "yape_available": yape_available,
+        "binance_available": binance_available,
         "wallet_available": wallet_available,
         "wallet_balance": user_balance,
         "wallet_enough": wallet_available and user_balance >= cart_total,
@@ -543,6 +558,53 @@ def yape_payment(request, uuid):
         "order": order,
         "form": form,
         "settings": payment_settings,
+    })
+
+
+def binance_payment(request, uuid):
+    """Pantalla para subir comprobante de Binance Pay (mismo flujo que Yape)."""
+    order = get_object_or_404(Order, uuid=uuid)
+    payment_settings = PaymentSettings.load()
+
+    if order.user_id and request.user.is_authenticated and order.user_id != request.user.id:
+        if not request.user.is_staff:
+            raise Http404
+
+    if order.status not in {Order.Status.PENDING, Order.Status.VERIFYING}:
+        return redirect("orders:detail", uuid=order.uuid)
+
+    if request.method == "POST":
+        form = YapeProofForm(request.POST, request.FILES)
+        if form.is_valid():
+            order.payment_proof = form.cleaned_data["proof"]
+            order.payment_proof_uploaded_at = timezone.now()
+            order.status = Order.Status.VERIFYING
+            order.payment_provider = "binance"
+            order.payment_rejection_reason = ""
+            order.save(update_fields=[
+                "payment_proof", "payment_proof_uploaded_at",
+                "status", "payment_provider", "payment_rejection_reason",
+            ])
+            emails.send_yape_proof_received(order)
+            telegram.notify_admin_about_yape(order)
+            messages.success(
+                request,
+                "Recibimos tu comprobante de Binance. En menos de 30 minutos lo verificamos y te avisamos por correo.",
+            )
+            return redirect("orders:detail", uuid=order.uuid)
+    else:
+        form = YapeProofForm()
+
+    # Calculo del equivalente en USD para mostrar al cliente.
+    usd_amount = None
+    if payment_settings.usd_exchange_rate and payment_settings.usd_exchange_rate > 0:
+        usd_amount = (order.total / payment_settings.usd_exchange_rate).quantize(Decimal("0.01"))
+
+    return render(request, "orders/binance_payment.html", {
+        "order": order,
+        "form": form,
+        "settings": payment_settings,
+        "usd_amount": usd_amount,
     })
 
 

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Pagar con Binance Pay — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <h1 class="text-3xl font-extrabold">Paga tu pedido con Binance Pay</h1>
+  <p class="text-white/60 mt-1">
+    Pedido <span class="font-mono">#{{ order.short_uuid }}</span> · Total
+    <span class="font-bold text-white">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</span>
+    {% if usd_amount %}
+      <span class="text-emerald-300 ml-1">(≈ USD {{ usd_amount|floatformat:2|intcomma }})</span>
+    {% endif %}
+  </p>
+
+  {% if order.payment_rejection_reason %}
+  <div class="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 text-red-200 p-4 text-sm">
+    <strong>No pudimos validar tu comprobante anterior:</strong><br>
+    {{ order.payment_rejection_reason }}
+  </div>
+  {% endif %}
+
+  <div class="grid md:grid-cols-2 gap-6 mt-8">
+    <div class="card-glass rounded-2xl p-6 text-center">
+      <h2 class="text-lg font-bold inline-flex items-center gap-2 justify-center">
+        <span class="inline-flex items-center justify-center w-7 h-7 rounded-md bg-[#F0B90B] text-black font-black text-base">B</span>
+        1. Escanea el QR de Binance Pay
+      </h2>
+      <p class="text-white/60 text-sm mt-1">Abre tu app Binance → Pay → Escanear</p>
+
+      {% if settings.binance_qr %}
+      <div class="mt-4 bg-white rounded-2xl p-4 inline-block" id="binance-qr-wrapper">
+        <img
+          src="{{ settings.binance_qr.url }}"
+          alt="QR Binance Pay {{ SITE_NAME }}"
+          class="w-64 h-64 object-contain"
+          loading="eager"
+          decoding="async"
+          referrerpolicy="same-origin"
+          onerror="document.getElementById('binance-qr-wrapper').classList.add('hidden'); document.getElementById('binance-qr-fallback').classList.remove('hidden');"
+        >
+      </div>
+      <div id="binance-qr-fallback" class="hidden mt-4 rounded-2xl border border-white/15 bg-black/30 p-5 text-left text-sm space-y-3">
+        <p class="text-white/80">
+          No pudimos cargar la imagen del QR en este dispositivo. Podés pagar
+          con el Pay ID de abajo igualmente.
+        </p>
+        <p>
+          <a href="{{ settings.binance_qr.url }}" target="_blank" rel="noopener" class="underline text-amber-300">
+            Abrir QR en una pestaña nueva
+          </a>
+        </p>
+      </div>
+      {% endif %}
+
+      <div class="mt-4 text-sm space-y-2">
+        {% if settings.binance_holder_name %}
+        <div><span class="text-white/60">Titular:</span> <strong>{{ settings.binance_holder_name }}</strong></div>
+        {% endif %}
+
+        {% if settings.binance_pay_id %}
+        <div class="rounded-xl bg-black/30 border border-white/10 px-4 py-3 mx-auto inline-flex flex-col gap-1">
+          <span class="text-[10px] uppercase tracking-wider text-white/50 font-semibold">Binance Pay ID</span>
+          <span class="inline-flex items-center gap-2 justify-center">
+            <code class="font-mono text-amber-300 text-lg select-all" id="binance-pay-id">{{ settings.binance_pay_id }}</code>
+            <button type="button"
+                    onclick="navigator.clipboard.writeText('{{ settings.binance_pay_id|escapejs }}').then(()=>{this.textContent='✓'; setTimeout(()=>this.textContent='Copiar', 1500);});"
+                    class="text-[11px] px-2 py-1 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 transition">
+              Copiar
+            </button>
+          </span>
+        </div>
+        {% endif %}
+
+        <div class="text-base mt-3">
+          Monto a transferir:
+          <strong class="text-amber-300">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</strong>
+          {% if usd_amount %}
+            <div class="text-emerald-300 text-sm mt-1">≈ USD {{ usd_amount|floatformat:2|intcomma }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if settings.binance_instructions %}
+      <p class="text-xs text-white/60 mt-4 whitespace-pre-line">{{ settings.binance_instructions }}</p>
+      {% endif %}
+    </div>
+
+    <div class="card-glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold">2. Sube el comprobante</h2>
+      <p class="text-white/60 text-sm mt-1">
+        Captura la pantalla de Binance Pay donde aparece la transferencia confirmada
+        (con monto, fecha y el destinatario / Pay ID).
+      </p>
+      <form method="post" enctype="multipart/form-data" class="mt-4 space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm text-white/70 mb-2">Captura del comprobante *</label>
+          {{ form.proof }}
+          {% if form.proof.help_text %}<p class="text-xs text-white/50 mt-1">{{ form.proof.help_text }}</p>{% endif %}
+          {% if form.proof.errors %}<p class="text-xs text-red-300 mt-1">{{ form.proof.errors|join:", " }}</p>{% endif %}
+        </div>
+        <button type="submit" class="w-full btn-primary text-white font-semibold py-3 rounded-xl">
+          Enviar comprobante
+        </button>
+        <p class="text-xs text-white/60 text-center">
+          Tras enviarlo verificamos tu pago en menos de 30 minutos y te avisamos por correo.
+        </p>
+      </form>
+      <div class="mt-6 pt-6 border-t border-white/10 text-xs text-white/60">
+        ¿Tienes problemas? Escríbenos por WhatsApp al
+        {% if WHATSAPP_NUMBER %}<a class="text-amber-300 font-semibold" href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+' }}?text=Hola,%20pedido%20%23{{ order.short_uuid }}%20(Binance)">{{ WHATSAPP_NUMBER }}</a>{% else %}nuestro soporte{% endif %}.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

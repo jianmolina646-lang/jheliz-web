@@ -485,9 +485,15 @@
           <div class="text-right">
             {% if user.is_distributor and plan.price_distributor %}
               <div class="text-lg font-display font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
+              {% with usd_p=plan.price_distributor|to_usd:USD_EXCHANGE_RATE %}
+                {% if usd_p %}<div class="text-[11px] text-emerald-300/80">≈ USD {{ usd_p|floatformat:2|intcomma }}</div>{% endif %}
+              {% endwith %}
               <div class="text-[11px] text-jheliz-400 font-medium">Distribuidor</div>
             {% else %}
               <div class="text-lg font-display font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+              {% with usd_p=plan.price_customer|to_usd:USD_EXCHANGE_RATE %}
+                {% if usd_p %}<div class="text-[11px] text-emerald-300/80">≈ USD {{ usd_p|floatformat:2|intcomma }}</div>{% endif %}
+              {% endwith %}
             {% endif %}
           </div>
         </label>

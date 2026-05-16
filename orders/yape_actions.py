@@ -22,8 +22,10 @@ class YapeActionResult:
 
 
 def confirm_yape_payment(order: Order) -> YapeActionResult:
-    if order.payment_provider != "yape" or not order.payment_proof:
-        return YapeActionResult(False, "Este pedido no tiene comprobante Yape.")
+    # Aceptamos también Binance Pay porque comparte el flujo de comprobante
+    # manual: el cliente sube captura y el admin confirma desde la misma acción.
+    if order.payment_provider not in {"yape", "binance"} or not order.payment_proof:
+        return YapeActionResult(False, "Este pedido no tiene comprobante Yape ni Binance.")
     from .auto_delivery import auto_deliver_distributor_order
 
     now = timezone.now()
@@ -50,8 +52,8 @@ def confirm_yape_payment(order: Order) -> YapeActionResult:
 
 
 def reject_yape_payment(order: Order, reason: str) -> YapeActionResult:
-    if order.payment_provider != "yape":
-        return YapeActionResult(False, "Este pedido no es Yape.")
+    if order.payment_provider not in {"yape", "binance"}:
+        return YapeActionResult(False, "Este pedido no es Yape ni Binance.")
     reason = (reason or "").strip()
     if not reason:
         reason = (
