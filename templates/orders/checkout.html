@@ -156,7 +156,7 @@
       <div class="text-right">
         <span class="font-display text-2xl font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }}</span>
         {% with usd_total=total|to_usd:USD_EXCHANGE_RATE %}
-          {% if usd_total %}<div class="text-xs text-emerald-300/80 mt-0.5">≈ USD {{ usd_total|floatformat:2|intcomma }}</div>{% endif %}
+          {% if usd_total %}<div class="text-xs text-emerald-300 font-semibold mt-0.5">≈ USD {{ usd_total|floatformat:2|intcomma }}</div>{% endif %}
         {% endwith %}
       </div>
     </div>
