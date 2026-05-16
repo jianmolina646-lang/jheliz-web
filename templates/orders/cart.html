@@ -104,7 +104,7 @@
         <div class="text-right shrink-0 flex flex-col items-end gap-1">
           <div class="font-display font-bold text-zinc-100 tracking-tight">{{ CURRENCY_SYMBOL }} {{ line.subtotal_for_user|floatformat:2|intcomma }}</div>
           {% with usd_sub=line.subtotal_for_user|to_usd:USD_EXCHANGE_RATE %}
-            {% if usd_sub %}<div class="text-[11px] text-emerald-300/80">≈ USD {{ usd_sub|floatformat:2|intcomma }}</div>{% endif %}
+            {% if usd_sub %}<div class="text-xs text-emerald-300 font-semibold">≈ USD {{ usd_sub|floatformat:2|intcomma }}</div>{% endif %}
           {% endwith %}
           {% if user.is_distributor %}
             <form method="post" action="{% url 'orders:cart_duplicate_line' line.index %}">
@@ -222,7 +222,7 @@
       <div class="text-right">
         <span class="font-display text-2xl font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }}</span>
         {% with usd_total=total|to_usd:USD_EXCHANGE_RATE %}
-          {% if usd_total %}<div class="text-xs text-emerald-300/80 mt-0.5">≈ USD {{ usd_total|floatformat:2|intcomma }}</div>{% endif %}
+          {% if usd_total %}<div class="text-xs text-emerald-300 font-semibold mt-0.5">≈ USD {{ usd_total|floatformat:2|intcomma }}</div>{% endif %}
         {% endwith %}
       </div>
     </div>

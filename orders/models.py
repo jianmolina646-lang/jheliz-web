@@ -55,12 +55,20 @@ class PaymentSettings(models.Model):
     )
 
     # --- Tipo de cambio USD para mostrar precios duales ---
+    usd_rate_auto = models.BooleanField(
+        "Usar TC automático de Binance P2P",
+        default=True,
+        help_text=(
+            "Si está activo, jalamos el precio promedio USDT/PEN del P2P de Binance "
+            "cada 30 min. Si la API falla, caemos al TC manual de abajo."
+        ),
+    )
     usd_exchange_rate = models.DecimalField(
-        "Tipo de cambio (1 USD = X PEN)",
+        "Tipo de cambio manual (1 USD = X PEN)",
         max_digits=8, decimal_places=4, default=Decimal("3.7800"),
         help_text=(
-            "Cuántos PEN equivalen a 1 USD. Se usa solo para mostrar el equivalente "
-            "en dólares al lado de cada precio. No afecta el cobro real (que sigue siendo en PEN)."
+            "Solo se usa si el TC automático está desactivado o si la API de Binance "
+            "falla. No afecta el cobro real (que sigue siendo en PEN)."
         ),
     )
 

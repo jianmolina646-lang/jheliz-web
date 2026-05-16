@@ -28,19 +28,25 @@ def _round_label(value: int, floor: int = 1000) -> str:
 
 
 def _usd_rate() -> Decimal:
-    """Devuelve el tipo de cambio USD configurado en PaymentSettings.
+    """Devuelve el tipo de cambio USD para mostrar precios duales.
 
-    Cachea 5 min para no pegarle a la DB en cada request. Si la tabla no
-    existe aún (migración pendiente) o la conversión falla, devuelve el
-    default razonable (3.78) — solo se usa para mostrar precios duales,
-    no para cobrar.
+    Si en PaymentSettings está activo ``usd_rate_auto``, jala el promedio
+    P2P USDT/PEN de Binance (cacheado 30 min). Si falla la API o el flag
+    está apagado, usa el valor manual. Cachea 5 min para no pegarle a la
+    DB ni a Binance en cada request.
     """
     cached = cache.get("jh_usd_exchange_rate")
     if cached is not None:
         return cached
     try:
         from orders.models import PaymentSettings  # import diferido para evitar ciclos
-        rate = PaymentSettings.load().usd_exchange_rate or Decimal("3.78")
+        settings_obj = PaymentSettings.load()
+        rate = None
+        if getattr(settings_obj, "usd_rate_auto", False):
+            from orders.binance_rate import fetch_binance_usdt_pen_rate
+            rate = fetch_binance_usdt_pen_rate()
+        if not rate:
+            rate = settings_obj.usd_exchange_rate or Decimal("3.78")
     except Exception:
         rate = Decimal("3.78")
     cache.set("jh_usd_exchange_rate", rate, 300)

@@ -921,9 +921,11 @@ class PaymentSettingsAdmin(ModelAdmin):
             ),
         }),
         ("Tipo de cambio USD", {
-            "fields": ("usd_exchange_rate",),
+            "fields": ("usd_rate_auto", "usd_exchange_rate"),
             "description": (
                 "Solo para mostrar el equivalente en dólares al lado de cada precio. "
+                "Si \"TC automático\" está activo, jalamos el promedio del P2P de Binance "
+                "(USDT/PEN) cada 30 min. Si la API falla, usamos el TC manual de abajo. "
                 "No afecta el cobro real, que sigue siendo en soles."
             ),
         }),
