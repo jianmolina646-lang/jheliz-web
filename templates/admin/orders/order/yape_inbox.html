@@ -155,13 +155,13 @@
         <article class="jh-card" id="order-{{ order.pk }}">
             <a class="jh-card-proof" href="{{ order.payment_proof.url }}" target="_blank" rel="noopener"
                title="Abrir imagen original">
-                <img src="{{ order.payment_proof.url }}" alt="Comprobante Yape #{{ order.short_uuid }}" />
+                <img src="{{ order.payment_proof.url }}" alt="Comprobante Yape #{{ order.display_number }}" />
             </a>
             <div class="jh-card-body">
                 <div class="jh-card-row">
                     <span class="k">Pedido</span>
                     <a class="v" href="{% url 'admin:orders_order_change' order.pk %}"
-                       title="Ver detalle del pedido">#{{ order.short_uuid }}</a>
+                       title="Ver detalle del pedido">#{{ order.display_number }}</a>
                 </div>
                 <div class="jh-card-row">
                     <span class="k">Cliente</span>
@@ -206,7 +206,7 @@
             <div class="jh-card-actions">
                 <a class="jh-btn approve"
                    href="{% url 'admin:orders_order_confirm_yape' order.pk %}"
-                   data-confirm="¿Confirmar el pago Yape del pedido #{{ order.short_uuid }}?">
+                   data-confirm="¿Confirmar el pago Yape del pedido #{{ order.display_number }}?">
                     <span class="material-symbols-outlined" style="font-size:18px">verified</span>
                     Aprobar
                 </a>

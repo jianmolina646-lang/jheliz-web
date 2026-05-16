@@ -64,7 +64,7 @@ class Command(BaseCommand):
             total_orders += 1
             if dry:
                 self.stdout.write(
-                    f"[dry-run] Pedido #{order.short_uuid} "
+                    f"[dry-run] Pedido #{order.display_number} "
                     f"(creado {order.created_at:%Y-%m-%d %H:%M}) "
                     f"tiene {count} reserva(s) que se liberarían."
                 )
@@ -73,7 +73,7 @@ class Command(BaseCommand):
             released = release_reservations_for_order(order)
             total_released += released
             self.stdout.write(
-                f"Pedido #{order.short_uuid}: liberadas {released} reserva(s)."
+                f"Pedido #{order.display_number}: liberadas {released} reserva(s)."
             )
 
         self.stdout.write(self.style.SUCCESS(

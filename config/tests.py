@@ -133,7 +133,7 @@ class NotificationsBellEndpointTests(TestCase):
         self.assertEqual(item["id"], f"order-verifying-{order.pk}")
         self.assertEqual(item["kind"], "yape_proof")
         # Título contiene short uuid + monto.
-        self.assertIn(order.short_uuid, item["title"])
+        self.assertIn(order.display_number, item["title"])
         self.assertIn("49.90", item["title"])
         # Subtítulo lleva el correo del cliente para identificarlo de un vistazo.
         self.assertIn("comprador@example.com", item["subtitle"])

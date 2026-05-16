@@ -6,7 +6,7 @@
     <p>Quedan menos de <strong>24 horas</strong> antes de que pierdas el acceso. Renueva con un solo click — mismo precio, mismo perfil.</p>
   {% else %}
     <h2 style="margin:0 0 8px 0;font-size:20px;">Tu suscripción vence en {{ days_left }} días</h2>
-    <p>Tu pedido <strong>#{{ order.short_uuid }}</strong> está por vencer. Renueva con anticipación para no quedarte sin servicio.</p>
+    <p>Tu pedido <strong>#{{ order.display_number }}</strong> está por vencer. Renueva con anticipación para no quedarte sin servicio.</p>
   {% endif %}
   {% for it in items %}
     <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:14px 16px;border-radius:12px;margin:12px 0;">

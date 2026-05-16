@@ -29,7 +29,7 @@ class OrderResource(resources.ModelResource):
 
     customer_email = Field(attribute="email", column_name="email")
     customer_name = Field(column_name="cliente")
-    short_id = Field(attribute="short_uuid", column_name="id_corto")
+    short_id = Field(attribute="display_number", column_name="id_corto")
     items_summary = Field(column_name="items")
     subtotal = Field(attribute="subtotal", column_name="subtotal")
     discount = Field(attribute="discount_amount", column_name="descuento")
@@ -158,15 +158,17 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     resource_classes = (OrderResource,)
     export_form_class = SelectableFieldsExportForm
     list_display = (
-        "short_uuid", "display_customer", "display_products",
+        "display_number", "display_customer", "display_products",
         "display_status", "channel",
         "payment_provider", "total", "display_actions", "created_at",
     )
-    list_display_links = ("short_uuid", "display_customer")
+    list_display_links = ("display_number", "display_customer")
     list_filter = ("status", "channel", "payment_provider", "created_at")
     search_fields = (
         "uuid", "email", "phone", "telegram_username", "payment_reference",
         "user__username", "user__email",
+        # Buscar por id numerico (matchea JH-0042, jh-0042 o 42 — ver get_search_results).
+        "id",
         # Buscar pedidos por nombre del producto, perfil solicitado o
         # nombre del cliente final cargado en el item.
         "items__product_name", "items__plan_name",
@@ -275,7 +277,30 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         }),
     )
 
+    # ---- Búsqueda: soporta "JH-0042", "jh-42", o solo "42" ----
+    def get_search_results(self, request, queryset, search_term):
+        term = (search_term or "").strip()
+        # Si parece un display_number (JH-xxxx) o solo numeros, agregamos
+        # un OR por pk para que matchee. Django default solo busca exact en
+        # campos enteros, asi que esto lo hace mas amigable.
+        import re
+        m = re.match(r"^\s*#?\s*(?:jh[\s\-_]*)?0*(\d+)\s*$", term, re.IGNORECASE)
+        if m:
+            pk = int(m.group(1))
+            qs1, may1 = super().get_search_results(request, queryset, search_term)
+            qs2 = self.model.objects.filter(pk=pk)
+            return (qs1 | qs2).distinct(), may1
+        return super().get_search_results(request, queryset, search_term)
+
     # ---- Columnas decoradas -------------------------------------------------
+
+    @display(description="N° pedido", ordering="id")
+    def display_number(self, obj: Order):
+        return format_html(
+            '<span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;'
+            'font-weight:600;color:#ec4899;">#{}</span>',
+            obj.display_number,
+        )
 
     @display(description="Cliente")
     def display_customer(self, obj: Order):
@@ -638,7 +663,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             self.message_user(
                 request,
                 f"Pago Yape confirmado y cuenta entregada autom\u00e1ticamente "
-                f"al distribuidor de #{order.short_uuid}. Stock descontado.",
+                f"al distribuidor de #{order.display_number}. Stock descontado.",
                 level=messages.SUCCESS,
             )
             return redirect("admin:orders_order_changelist")
@@ -651,14 +676,14 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         if missing:
             self.message_user(
                 request,
-                f"Pago Yape confirmado para #{order.short_uuid}, pero falta stock "
+                f"Pago Yape confirmado para #{order.display_number}, pero falta stock "
                 f"para: {', '.join(missing)}. Carg\u00e1 stock o entreg\u00e1 manual.",
                 level=messages.WARNING,
             )
         else:
             self.message_user(
                 request,
-                f"Pago Yape confirmado para #{order.short_uuid}. Se notific\u00f3 al cliente.",
+                f"Pago Yape confirmado para #{order.display_number}. Se notific\u00f3 al cliente.",
                 level=messages.SUCCESS,
             )
         return redirect("admin:orders_order_deliver", pk=order.pk)
@@ -681,7 +706,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             emails.send_yape_proof_rejected(order)
             self.message_user(
                 request,
-                f"Comprobante Yape rechazado para #{order.short_uuid}. Se notificó al cliente.",
+                f"Comprobante Yape rechazado para #{order.display_number}. Se notificó al cliente.",
                 level=messages.WARNING,
             )
             # Si el rechazo vino de la bandeja, volver a la bandeja.
@@ -693,7 +718,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             **self.admin_site.each_context(request),
             "order": order,
             "opts": self.model._meta,
-            "title": f"Rechazar comprobante Yape — #{order.short_uuid}",
+            "title": f"Rechazar comprobante Yape — #{order.display_number}",
         }
         return TemplateResponse(request, "admin/orders/order/reject_yape.html", context)
 
@@ -750,7 +775,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
                 transaction.on_commit(lambda: emails.send_order_delivered(order))
                 self.message_user(
                     request,
-                    f"Pedido #{order.short_uuid} entregado. Email con credenciales enviado.",
+                    f"Pedido #{order.display_number} entregado. Email con credenciales enviado.",
                     level=messages.SUCCESS,
                 )
                 return redirect("admin:orders_order_changelist")
@@ -761,7 +786,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             "order": order,
             "form": form,
             "opts": self.model._meta,
-            "title": f"Entregar credenciales — #{order.short_uuid}",
+            "title": f"Entregar credenciales — #{order.display_number}",
         }
         return TemplateResponse(request, "admin/orders/order/deliver.html", context)
 
@@ -770,7 +795,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         emails.send_order_delivered(order)
         self.message_user(
             request,
-            f"Credenciales reenviadas al cliente de #{order.short_uuid}.",
+            f"Credenciales reenviadas al cliente de #{order.display_number}.",
             level=messages.SUCCESS,
         )
         return self._back(request, order)

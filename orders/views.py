@@ -47,7 +47,7 @@ def renew_item(request, item_id: int):
         return redirect(item.plan.product.get_absolute_url() if item.plan else "catalog:products")
 
     cart = Cart(request)
-    cart.add(plan=item.plan, quantity=1, profile_name="", pin="", notes=f"Renovación de #{item.order.short_uuid}")
+    cart.add(plan=item.plan, quantity=1, profile_name="", pin="", notes=f"Renovación de #{item.order.display_number}")
     messages.success(request, f"{item.product_name} agregado para renovar.")
     return redirect("orders:cart")
 
@@ -75,7 +75,7 @@ def renew_by_token(request, token: str):
         quantity=1,
         profile_name=item.requested_profile_name or "",
         pin=item.requested_pin or "",
-        notes=f"Renovación de #{item.order.short_uuid}",
+        notes=f"Renovación de #{item.order.display_number}",
     )
     messages.success(
         request,

@@ -359,7 +359,7 @@ class CustomerAdmin(ModelAdmin):
         for o in orders:
             url = reverse("admin:orders_order_change", args=[o.pk])
             rows.append([
-                format_html('<a href="{}">#{}</a>', url, o.short_uuid),
+                format_html('<a href="{}">#{}</a>', url, o.display_number),
                 o.created_at.strftime("%d %b %Y"),
                 chip(o.get_status_display(), tone=_order_tone(o.status)),
                 f"{o.currency} {o.total}",
@@ -556,7 +556,7 @@ class DistributorAdmin(ModelAdmin):
         for o in orders:
             url = reverse("admin:orders_order_change", args=[o.pk])
             rows.append([
-                format_html('<a href="{}">#{}</a>', url, o.short_uuid),
+                format_html('<a href="{}">#{}</a>', url, o.display_number),
                 o.created_at.strftime("%d %b %Y"),
                 chip(o.get_status_display(), tone=_order_tone(o.status)),
                 f"{o.currency} {o.total}",

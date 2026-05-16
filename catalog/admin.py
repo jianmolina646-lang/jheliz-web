@@ -721,7 +721,7 @@ class StockItemAdmin(ModelAdmin):
                 )
                 for oi in linked:
                     affected_orders.append(
-                        f"#{oi.order.short_uuid} ({oi.product_name})"
+                        f"#{oi.order.display_number} ({oi.product_name})"
                     )
                 # Desvincular para que el flujo de reserva pueda asignar
                 # otro stock disponible si lo hay.

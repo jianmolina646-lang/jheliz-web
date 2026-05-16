@@ -7,7 +7,7 @@
 <div class="max-w-3xl mx-auto">
   <h1 class="text-3xl font-extrabold">Paga tu pedido con Yape</h1>
   <p class="text-white/60 mt-1">
-    Pedido <span class="font-mono">#{{ order.short_uuid }}</span> · Total
+    Pedido <span class="font-mono">#{{ order.display_number }}</span> · Total
     <span class="font-bold text-white">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</span>
   </p>
 
@@ -91,7 +91,7 @@
       </form>
       <div class="mt-6 pt-6 border-t border-white/10 text-xs text-white/60">
         ¿Tienes problemas? Escríbenos por WhatsApp al
-        {% if WHATSAPP_NUMBER %}<a class="text-fuchsia-300 font-semibold" href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+' }}?text=Hola,%20pedido%20%23{{ order.short_uuid }}">{{ WHATSAPP_NUMBER }}</a>{% else %}nuestro soporte{% endif %}.
+        {% if WHATSAPP_NUMBER %}<a class="text-fuchsia-300 font-semibold" href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+' }}?text=Hola,%20pedido%20%23{{ order.display_number }}">{{ WHATSAPP_NUMBER }}</a>{% else %}nuestro soporte{% endif %}.
       </div>
     </div>
   </div>

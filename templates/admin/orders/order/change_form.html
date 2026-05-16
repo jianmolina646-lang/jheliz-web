@@ -241,7 +241,7 @@ fieldset.module > h2::before {
     </a>
     <div class="jh-sticky-header__main">
         <div class="jh-sticky-header__title">
-            <span class="jh-sticky-header__id">#{{ original.short_uuid }}</span>
+            <span class="jh-sticky-header__id">#{{ original.display_number }}</span>
             <span>{% firstof original.user.get_full_name original.email original.phone "Cliente" %}</span>
         </div>
         <div class="jh-sticky-header__sub">
@@ -326,7 +326,7 @@ fieldset.module > h2::before {
 <div class="jh-sticky-bar">
     <div class="jh-info">
         <span class="jh-status-dot {{ original.status }}"></span>
-        <span><strong>#{{ original.short_uuid }}</strong></span>
+        <span><strong>#{{ original.display_number }}</strong></span>
         <span class="hidden sm:inline" style="color:#94a3b8">·</span>
         <span class="hidden sm:inline">{{ original.get_status_display }}</span>
         <span class="hidden md:inline" style="color:#94a3b8">·</span>
@@ -341,7 +341,7 @@ fieldset.module > h2::before {
     {% if original.status == "verifying" and original.payment_provider == "yape" %}
     <a class="jh-action success"
        href="{% url 'admin:orders_order_confirm_yape' original.pk %}"
-       data-confirm="¿Confirmar el pago Yape de #{{ original.short_uuid }}?"
+       data-confirm="¿Confirmar el pago Yape de #{{ original.display_number }}?"
        title="Confirmar pago Yape y pasar a En preparación">
         <span class="material-symbols-outlined">verified</span>
         Confirmar Yape
@@ -385,7 +385,7 @@ fieldset.module > h2::before {
 
     {% if original.phone %}
     <a class="jh-action whatsapp"
-       href="https://wa.me/{{ original.phone|cut:'+'|cut:' '|cut:'-' }}?text=Hola%21%20Te%20escribimos%20de%20Jheliz%20por%20tu%20pedido%20%23{{ original.short_uuid }}."
+       href="https://wa.me/{{ original.phone|cut:'+'|cut:' '|cut:'-' }}?text=Hola%21%20Te%20escribimos%20de%20Jheliz%20por%20tu%20pedido%20%23{{ original.display_number }}."
        target="_blank" rel="noopener"
        title="Abrir WhatsApp con el cliente">
         <span class="material-symbols-outlined">chat</span>
@@ -395,7 +395,7 @@ fieldset.module > h2::before {
 
     {% if original.email %}
     <a class="jh-action"
-       href="mailto:{{ original.email }}?subject=Pedido%20%23{{ original.short_uuid }}%20-%20Jheliz"
+       href="mailto:{{ original.email }}?subject=Pedido%20%23{{ original.display_number }}%20-%20Jheliz"
        title="Enviar email manual">
         <span class="material-symbols-outlined">mail</span>
         Email

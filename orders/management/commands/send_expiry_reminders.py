@@ -125,7 +125,7 @@ class Command(BaseCommand):
             order = items[0].order
             tag = "distri" if for_distributor else "cliente"
             self.stdout.write(
-                f"  → ventana {days_left}d ({tag}): pedido #{order.short_uuid} "
+                f"  → ventana {days_left}d ({tag}): pedido #{order.display_number} "
                 f"({order.email}) — {len(items)} item(s)"
             )
             if dry_run:

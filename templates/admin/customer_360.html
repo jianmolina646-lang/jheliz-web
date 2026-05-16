@@ -128,7 +128,7 @@
             <li style="border-top:1px solid rgba(255,255,255,.05);padding-top:8px;">
               <a href="{% url 'admin:orders_order_change' o.pk %}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;color:inherit;text-decoration:none;">
                 <div style="min-width:0;">
-                  <div class="jh2-table__strong">#{{ o.short_uuid }}</div>
+                  <div class="jh2-table__strong">#{{ o.display_number }}</div>
                   <div class="jh2-table__muted">{{ o.get_status_display }} · {{ o.created_at|date:"d M" }}</div>
                 </div>
                 <span class="jh2-mono" style="color:#6ee7b7;font-weight:600;">{{ o.currency }} {{ o.total }}</span>

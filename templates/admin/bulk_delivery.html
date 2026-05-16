@@ -50,7 +50,7 @@
                 <tr class="border-b border-gray-800/60 hover:bg-gray-800/30">
                     <td class="py-3 px-4 align-top">
                         <a href="{% url 'admin:orders_order_change' row.order.pk %}" class="text-primary-300 hover:underline font-mono text-xs">
-                            #{{ row.order.short_uuid }}
+                            #{{ row.order.display_number }}
                         </a>
                         <div class="text-xs text-gray-500">
                             {{ row.order.paid_at|default:row.order.created_at|date:"d M H:i" }}

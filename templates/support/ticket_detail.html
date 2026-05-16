@@ -9,7 +9,7 @@
       <div class="text-xs text-white/60 mt-1">
         Estado: <span class="text-jheliz-300">{{ ticket.get_status_display }}</span>
         {% if ticket.order %}
-          · Pedido <a href="{% url 'orders:detail' ticket.order.uuid %}" class="text-jheliz-300">#{{ ticket.order.short_uuid }}</a>
+          · Pedido <a href="{% url 'orders:detail' ticket.order.uuid %}" class="text-jheliz-300">#{{ ticket.order.display_number }}</a>
         {% endif %}
       </div>
     </div>

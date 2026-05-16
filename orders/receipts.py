@@ -224,7 +224,7 @@ def generate_receipt_pdf(order: "Order") -> bytes:
         buf, pagesize=A4,
         leftMargin=15 * mm, rightMargin=15 * mm,
         topMargin=38 * mm, bottomMargin=24 * mm,
-        title=f"Recibo Pedido {order.short_uuid}",
+        title=f"Recibo Pedido {order.display_number}",
         author=(site.site_name if site else "Jheliz Store"),
         subject="Recibo de compra",
     )
@@ -252,7 +252,7 @@ def generate_receipt_pdf(order: "Order") -> bytes:
 
     info_left = [
         [Paragraph("N° DE PEDIDO", styles["label"])],
-        [Paragraph(f"#{order.short_uuid.upper()}", styles["value"])],
+        [Paragraph(f"#{order.display_number.upper()}", styles["value"])],
         [Spacer(1, 4)],
         [Paragraph("FECHA", styles["label"])],
         [Paragraph(fecha, styles["small_dark"])],
@@ -450,4 +450,4 @@ def generate_receipt_pdf(order: "Order") -> bytes:
 
 
 def receipt_filename(order: "Order") -> str:
-    return f"recibo_jheliz_{order.short_uuid}.pdf"
+    return f"recibo_jheliz_{order.display_number}.pdf"

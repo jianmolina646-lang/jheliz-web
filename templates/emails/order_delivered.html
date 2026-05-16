@@ -1,7 +1,7 @@
 {% extends "emails/_base.html" %}
 {% load humanize %}
 {% block body %}
-  <h2 style="margin:0 0 8px 0;font-size:20px;">¡Tu pedido #{{ order.short_uuid }} está listo!</h2>
+  <h2 style="margin:0 0 8px 0;font-size:20px;">¡Tu pedido #{{ order.display_number }} está listo!</h2>
   <p>Aquí tienes los datos de acceso. Consérvalos:</p>
   {% for it in items %}
     <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:14px 16px;border-radius:12px;margin:12px 0;">

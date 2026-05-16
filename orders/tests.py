@@ -725,7 +725,7 @@ class YapeInboxTests(TestCase):
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("admin:orders_order_yape_inbox"))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, ok.short_uuid)
+        self.assertContains(resp, ok.display_number)
         # Etiqueta de "1 pendiente" (len(orders)==1)
         self.assertContains(resp, "1 pendiente")
 
@@ -798,11 +798,11 @@ class OrdersKanbanTests(TestCase):
         self.client.force_login(self.admin)
         # default 30 días: el viejo no aparece
         resp = self.client.get(reverse("admin:orders_order_kanban"))
-        self.assertNotContains(resp, f"#{old.short_uuid}")
-        self.assertContains(resp, f"#{recent.short_uuid}")
+        self.assertNotContains(resp, f"#{old.display_number}")
+        self.assertContains(resp, f"#{recent.display_number}")
         # 90 días: aparecen ambos
         resp = self.client.get(reverse("admin:orders_order_kanban") + "?days=90")
-        self.assertContains(resp, f"#{old.short_uuid}")
+        self.assertContains(resp, f"#{old.display_number}")
 
     def test_kanban_invalid_days_falls_back_to_default(self):
         self.client.force_login(self.admin)
@@ -828,8 +828,8 @@ class OrdersKanbanTests(TestCase):
         b = self._order(Order.Status.PREPARING)
         self.client.force_login(self.admin)
         resp = self.client.get(reverse("admin:orders_order_kanban"))
-        self.assertContains(resp, f"#{a.short_uuid}")
-        self.assertContains(resp, f"#{b.short_uuid}")
+        self.assertContains(resp, f"#{a.display_number}")
+        self.assertContains(resp, f"#{b.display_number}")
 
 
 class GlobalSearchTests(TestCase):

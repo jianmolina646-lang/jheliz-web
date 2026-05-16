@@ -66,28 +66,28 @@ def _send(order, subject: str, template: str, kind: str = "other", *, attach_rec
 
 
 def send_order_received(order) -> None:
-    _send(order, f"Recibimos tu pedido #{order.short_uuid} \u2014 {settings.SITE_NAME}",
+    _send(order, f"Recibimos tu pedido #{order.display_number} \u2014 {settings.SITE_NAME}",
           "emails/order_received.html", kind="order_received")
 
 
 def send_order_preparing(order) -> None:
-    _send(order, f"Estamos preparando tu pedido #{order.short_uuid}",
+    _send(order, f"Estamos preparando tu pedido #{order.display_number}",
           "emails/order_preparing.html", kind="order_preparing")
 
 
 def send_order_delivered(order) -> None:
-    _send(order, f"Tu pedido #{order.short_uuid} est\u00e1 listo",
+    _send(order, f"Tu pedido #{order.display_number} est\u00e1 listo",
           "emails/order_delivered.html", kind="order_delivered",
           attach_receipt=True)
 
 
 def send_yape_proof_received(order) -> None:
-    _send(order, f"Recibimos tu comprobante Yape \u2014 pedido #{order.short_uuid}",
+    _send(order, f"Recibimos tu comprobante Yape \u2014 pedido #{order.display_number}",
           "emails/order_yape_received.html", kind="yape_received")
 
 
 def send_yape_proof_rejected(order) -> None:
-    _send(order, f"Necesitamos otro comprobante \u2014 pedido #{order.short_uuid}",
+    _send(order, f"Necesitamos otro comprobante \u2014 pedido #{order.display_number}",
           "emails/order_yape_rejected.html", kind="yape_rejected")
 
 
@@ -113,15 +113,15 @@ def send_expiry_reminder(order, items, days_left: int, *, for_distributor: bool 
     if for_distributor:
         body = render_to_string("emails/order_expiring_distribuidor.html", context)
         if days_left <= 1:
-            subject = f"⚠️ Cuenta de tu cliente vence mañana — #{order.short_uuid}"
+            subject = f"⚠️ Cuenta de tu cliente vence mañana — #{order.display_number}"
         else:
-            subject = f"Tu cuenta vence en {days_left} días — #{order.short_uuid}"
+            subject = f"Tu cuenta vence en {days_left} días — #{order.display_number}"
     else:
         body = render_to_string("emails/order_expiring.html", context)
         if days_left <= 1:
-            subject = f"Tu suscripci\u00f3n vence ma\u00f1ana \u2014 #{order.short_uuid}"
+            subject = f"Tu suscripci\u00f3n vence ma\u00f1ana \u2014 #{order.display_number}"
         else:
-            subject = f"Tu suscripci\u00f3n vence en {days_left} d\u00edas \u2014 #{order.short_uuid}"
+            subject = f"Tu suscripci\u00f3n vence en {days_left} d\u00edas \u2014 #{order.display_number}"
     message = EmailMessage(
         subject=subject,
         body=body,
@@ -163,7 +163,7 @@ def send_account_credentials_updated(item, *, is_distributor: bool) -> None:
         else "emails/account_credentials_updated_cliente.html"
     )
     body = render_to_string(template, context)
-    subject = f"Actualizamos tu cuenta de {item.product_name} \u2014 #{order.short_uuid}"
+    subject = f"Actualizamos tu cuenta de {item.product_name} \u2014 #{order.display_number}"
     message = EmailMessage(
         subject=subject,
         body=body,
@@ -238,7 +238,7 @@ def send_review_requests(order) -> None:
         "WHATSAPP_NUMBER": settings.WHATSAPP_NUMBER,
     }
     body = render_to_string("emails/review_request.html", context)
-    subject = f"\u00bfQu\u00e9 te pareci\u00f3 tu compra? \u2014 #{order.short_uuid}"
+    subject = f"\u00bfQu\u00e9 te pareci\u00f3 tu compra? \u2014 #{order.display_number}"
     message = EmailMessage(
         subject=subject,
         body=body,

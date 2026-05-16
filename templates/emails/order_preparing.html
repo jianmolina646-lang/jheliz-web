@@ -1,7 +1,7 @@
 {% extends "emails/_base.html" %}
 {% load humanize %}
 {% block body %}
-  <h2 style="margin:0 0 8px 0;font-size:20px;">Estamos preparando tu pedido #{{ order.short_uuid }}</h2>
+  <h2 style="margin:0 0 8px 0;font-size:20px;">Estamos preparando tu pedido #{{ order.display_number }}</h2>
   <p>¡Pago confirmado! Ahora estamos creando tu perfil con el nombre y PIN que indicaste.</p>
   <ul style="padding-left:18px;">
     {% for it in items %}

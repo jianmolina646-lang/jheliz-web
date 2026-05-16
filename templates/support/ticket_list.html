@@ -21,7 +21,7 @@
               <span class="text-[10px] px-2 py-0.5 rounded-full bg-jheliz-500/20 border border-jheliz-400/40 text-jheliz-200">Respondido</span>
             {% endif %}
           </div>
-          <div class="text-xs text-white/60">Actualizado {{ t.updated_at|date:"d/m/Y H:i" }}{% if t.order %} · Pedido #{{ t.order.short_uuid }}{% endif %}</div>
+          <div class="text-xs text-white/60">Actualizado {{ t.updated_at|date:"d/m/Y H:i" }}{% if t.order %} · Pedido #{{ t.order.display_number }}{% endif %}</div>
         </div>
         <span class="text-xs px-2 py-1 rounded-full border
           {% if t.status == 'resolved' or t.status == 'closed' %}text-emerald-300 border-emerald-400/40 bg-emerald-400/10

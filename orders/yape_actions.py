@@ -33,7 +33,7 @@ def confirm_yape_payment(order: Order) -> YapeActionResult:
     if delivered:
         return YapeActionResult(
             True,
-            f"Pago confirmado y cuenta entregada al distribuidor de #{order.short_uuid}.",
+            f"Pago confirmado y cuenta entregada al distribuidor de #{order.display_number}.",
         )
 
     order.status = Order.Status.PREPARING
@@ -43,11 +43,11 @@ def confirm_yape_payment(order: Order) -> YapeActionResult:
     if missing:
         return YapeActionResult(
             True,
-            f"Pago confirmado para #{order.short_uuid}. Falta stock para: {', '.join(missing)}.",
+            f"Pago confirmado para #{order.display_number}. Falta stock para: {', '.join(missing)}.",
         )
     return YapeActionResult(
         True,
-        f"Pago confirmado para #{order.short_uuid}. Cliente notificado.",
+        f"Pago confirmado para #{order.display_number}. Cliente notificado.",
     )
 
 
@@ -69,5 +69,5 @@ def reject_yape_payment(order: Order, reason: str) -> YapeActionResult:
         pass
     return YapeActionResult(
         True,
-        f"Comprobante rechazado para #{order.short_uuid}. Motivo enviado al cliente.",
+        f"Comprobante rechazado para #{order.display_number}. Motivo enviado al cliente.",
     )
