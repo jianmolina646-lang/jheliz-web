@@ -199,15 +199,20 @@ def _notify_admins_new_code_request(request, code_request: CodeRequest) -> None:
     Esto deja el rollover Telegram → Discord sin downtime.
     """
     # --- Discord (canal #codigos) -------------------------------------------
+    discord_handled = False
     try:
         from discord_bot import notifications as dn
 
-        dn.notify_new_code_request(request, code_request)
+        if dn.is_backoffice_configured():
+            dn.notify_new_code_request(request, code_request)
+            discord_handled = True
     except Exception:
         # Nunca fallar la petición del cliente por errores de Discord.
-        pass
+        discord_handled = False
 
-    # --- Telegram (fallback DM al admin) ------------------------------------
+    # --- Telegram (solo si Discord no se hizo cargo) ------------------------
+    if discord_handled:
+        return
     try:
         from orders import telegram as tg
     except Exception:

@@ -79,7 +79,23 @@ class Command(BaseCommand):
             text = "\n".join(lines)
             self.stdout.write(text.replace("<b>", "").replace("</b>", ""))
             if not dry_run:
-                if telegram.is_configured():
+                # Si Discord está configurado, mandamos a #alertas con un
+                # embed por producto. Si no, caemos al path Telegram.
+                routed_to_discord = False
+                try:
+                    from discord_bot import notifications as dn
+
+                    if dn.is_backoffice_configured():
+                        for plan, available in below:
+                            dn.notify_stock_low(
+                                product_name=f"{plan.product.name} — {plan.name}",
+                                total=available,
+                                threshold=plan.low_stock_threshold,
+                            )
+                        routed_to_discord = True
+                except Exception:
+                    routed_to_discord = False
+                if not routed_to_discord and telegram.is_configured():
                     telegram.notify_admin(text)
                 Plan.objects.filter(pk__in=[p.pk for p, _ in below]).update(
                     low_stock_alert_sent_at=now
