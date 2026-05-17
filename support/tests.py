@@ -268,6 +268,33 @@ class CodeRequestViewsTests(TestCase):
         self.assertEqual(data["code"], "1234")
         self.assertIn("sesión", data["code_type"].lower())
 
+    def test_other_requires_note(self):
+        """Si el cliente elige "Otro", la nota tiene que tener >=10 chars."""
+        # Sin nota -> debería fallar
+        resp = self._post_create(requested_code_type="other", note="")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "elegiste &quot;Otro&quot;")
+        self.assertEqual(CodeRequest.objects.count(), 0)
+
+        # Nota muy corta -> también falla
+        resp = self._post_create(requested_code_type="other", note="ayuda")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(CodeRequest.objects.count(), 0)
+
+        # Nota suficiente -> pasa
+        resp = self._post_create(
+            requested_code_type="other",
+            note="pide código en mi Smart TV LG",
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(CodeRequest.objects.count(), 1)
+
+    def test_login_type_does_not_require_note(self):
+        """Para tipos de código distintos a "Otro", la nota sigue siendo opcional."""
+        resp = self._post_create(requested_code_type="login", note="")
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(CodeRequest.objects.count(), 1)
+
     def test_rate_limit_blocks_repeated_requests(self):
         # Crea 3 en la ventana y el 4º debería fallar por rate limit.
         for _ in range(3):

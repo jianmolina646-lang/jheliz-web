@@ -55,10 +55,16 @@
         {{ form.order_number.errors }}
       </div>
     </div>
-    <div>
-      <label class="block text-sm text-white/70 mb-1">Detalle adicional (opcional)</label>
+    <div data-note-field>
+      <label class="block text-sm text-white/70 mb-1">
+        <span data-note-label-default>Detalle adicional (opcional)</span>
+        <span data-note-label-required class="hidden">Explica qué código necesitas <span class="text-fuchsia-400">*</span></span>
+      </label>
       {{ form.note }}
-      <p class="text-xs text-white/50 mt-1">Ej: "El código me lo pide desde mi Smart TV LG", "Estoy de viaje en Lima", etc.</p>
+      <p class="text-xs text-white/50 mt-1">
+        <span data-note-hint-default>Ej: "El código me lo pide desde mi Smart TV LG", "Estoy de viaje en Lima", etc.</span>
+        <span data-note-hint-required class="hidden text-amber-300">Como elegiste "Otro", contanos brevemente qué necesitas (mínimo 10 caracteres) para poder ayudarte.</span>
+      </p>
       {{ form.note.errors }}
     </div>
     <div class="flex gap-2 pt-2">
@@ -72,6 +78,36 @@
     <p>ℹ️ <strong>Solo entregamos</strong> códigos de inicio de sesión, códigos de activación de TV / dispositivo, "Estoy de viaje" / Hogar y el link de restablecer contraseña de Netflix.</p>
     <p>⚠️ No enviamos códigos que permitan cambiar el correo o la contraseña de la cuenta, por seguridad.</p>
   </div>
+
+  <script>
+    (function () {
+      const select = document.getElementById('id_requested_code_type');
+      if (!select) return;
+      const labelDefault = document.querySelector('[data-note-label-default]');
+      const labelRequired = document.querySelector('[data-note-label-required]');
+      const hintDefault = document.querySelector('[data-note-hint-default]');
+      const hintRequired = document.querySelector('[data-note-hint-required]');
+      const note = document.getElementById('id_note');
+      function sync() {
+        const isOther = select.value === 'other';
+        labelDefault?.classList.toggle('hidden', isOther);
+        labelRequired?.classList.toggle('hidden', !isOther);
+        hintDefault?.classList.toggle('hidden', isOther);
+        hintRequired?.classList.toggle('hidden', !isOther);
+        if (note) {
+          if (isOther) {
+            note.setAttribute('required', 'required');
+            note.setAttribute('minlength', '10');
+          } else {
+            note.removeAttribute('required');
+            note.removeAttribute('minlength');
+          }
+        }
+      }
+      select.addEventListener('change', sync);
+      sync();
+    })();
+  </script>
 
   {% if is_distributor and recent %}
     <div class="mt-8">

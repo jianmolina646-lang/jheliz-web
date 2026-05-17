@@ -89,3 +89,16 @@ class CodeRequestForm(forms.ModelForm):
         self.fields["note"].widget.attrs.setdefault(
             "placeholder", "Ej: pide código desde un Smart TV LG",
         )
+
+    def clean(self):
+        """Si el cliente eligio "Otro", la nota explicativa es obligatoria."""
+        cleaned = super().clean()
+        code_type = cleaned.get("requested_code_type")
+        note = (cleaned.get("note") or "").strip()
+        if code_type == "other" and len(note) < 10:
+            self.add_error(
+                "note",
+                "Si elegiste \"Otro\", contanos en al menos 10 caracteres "
+                "qué código necesitás para poder ayudarte.",
+            )
+        return cleaned
