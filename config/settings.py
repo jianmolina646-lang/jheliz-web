@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "orders.apps.OrdersConfig",
     "support.apps.SupportConfig",
     "blog.apps.BlogConfig",
+    "discord_bot.apps.DiscordBotConfig",
     "livechat.apps.LivechatConfig",
 ]
 
@@ -271,6 +272,23 @@ TELEGRAM_CUSTOMER_CHANNEL_ID = config("TELEGRAM_CUSTOMER_CHANNEL_ID", default=""
 # el admin (acción "📢 Publicar en Telegram" o botón en el change form).
 # Esto da al admin control total sobre qué y cuándo se anuncia.
 TELEGRAM_AUTO_PUBLISH = config("TELEGRAM_AUTO_PUBLISH", default=False, cast=bool)
+
+# Discord bot (opcional)
+# Bot que reemplaza a Telegram para el back-office: pedidos nuevos, Yape,
+# pedidos de codigo, distribuidores, soporte. Telegram queda solo para el
+# canal publico de anuncios (Jheliz|Avisos).
+DISCORD_BOT_TOKEN = config("DISCORD_BOT_TOKEN", default="")
+# ID del servidor Discord (guild) — numero largo. Se obtiene en Discord con
+# click derecho sobre el nombre del servidor → "Copiar ID del servidor"
+# (requiere Modo desarrollador activado en Ajustes → Avanzado).
+DISCORD_GUILD_ID = config("DISCORD_GUILD_ID", default="")
+# IDs de canales (se autocompletan despues con la primera ejecucion del
+# comando ``discord_setup``, pero se pueden override aca via .env si querés).
+DISCORD_CHANNEL_PEDIDOS = config("DISCORD_CHANNEL_PEDIDOS", default="")
+DISCORD_CHANNEL_YAPE = config("DISCORD_CHANNEL_YAPE", default="")
+DISCORD_CHANNEL_CODIGOS = config("DISCORD_CHANNEL_CODIGOS", default="")
+DISCORD_CHANNEL_ALERTAS = config("DISCORD_CHANNEL_ALERTAS", default="")
+DISCORD_CHANNEL_ADMIN = config("DISCORD_CHANNEL_ADMIN", default="")
 
 # Brand
 SITE_NAME = "Jheliz"

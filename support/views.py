@@ -191,12 +191,23 @@ def _resolve_order(order_number: str):
 
 
 def _notify_admins_new_code_request(request, code_request: CodeRequest) -> None:
-    """Notifica al admin por DM del bot (privado), no al canal de distribuidor.
+    """Notifica al back-office cuando entra un pedido de código.
 
-    Los pedidos de codigo son privados (incluyen el email de la cuenta) y solo
-    el admin responde, asi que se mandan al chat directo con el bot via
-    ``TELEGRAM_ADMIN_CHAT_ID`` en vez de al canal publico de distribuidores.
+    Destino principal: canal #codigos del servidor Discord (si está
+    configurado). Como fallback (o en paralelo si ambos están activos),
+    sigue mandando DM al bot de Telegram via ``TELEGRAM_ADMIN_CHAT_ID``.
+    Esto deja el rollover Telegram → Discord sin downtime.
     """
+    # --- Discord (canal #codigos) -------------------------------------------
+    try:
+        from discord_bot import notifications as dn
+
+        dn.notify_new_code_request(request, code_request)
+    except Exception:
+        # Nunca fallar la petición del cliente por errores de Discord.
+        pass
+
+    # --- Telegram (fallback DM al admin) ------------------------------------
     try:
         from orders import telegram as tg
     except Exception:
