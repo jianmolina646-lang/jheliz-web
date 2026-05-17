@@ -305,6 +305,7 @@ urlpatterns = [
         support_views.code_request_distrib_status,
         name="code_distrib_status",
     ),
+    path("discord/", include("discord_bot.urls", namespace="discord_bot")),
     path("cuenta/", include("accounts.urls", namespace="accounts")),
     path("pedidos/", include("orders.urls", namespace="orders")),
     path("soporte/", include("support.urls", namespace="support")),

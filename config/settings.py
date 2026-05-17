@@ -289,6 +289,14 @@ DISCORD_CHANNEL_YAPE = config("DISCORD_CHANNEL_YAPE", default="")
 DISCORD_CHANNEL_CODIGOS = config("DISCORD_CHANNEL_CODIGOS", default="")
 DISCORD_CHANNEL_ALERTAS = config("DISCORD_CHANNEL_ALERTAS", default="")
 DISCORD_CHANNEL_ADMIN = config("DISCORD_CHANNEL_ADMIN", default="")
+# Public Key del bot (Discord Developer Portal → General Information).
+# Necesaria solo si querés activar los slash commands (`/buscar`,
+# `/pendientes`, `/entregar`, `/stock`) — Discord firma cada interacción
+# con esta llave y nosotros la verificamos antes de procesarla.
+DISCORD_PUBLIC_KEY = config("DISCORD_PUBLIC_KEY", default="")
+# Application ID del bot (mismo que Client ID — número largo). Solo se
+# usa para registrar los slash commands desde manage.py.
+DISCORD_APPLICATION_ID = config("DISCORD_APPLICATION_ID", default="")
 
 # Brand
 SITE_NAME = "Jheliz"
