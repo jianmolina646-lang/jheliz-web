@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% load humanize %}
+{% load humanize i18n %}
 
 {% block above_content %}
 {% if recent_purchases %}
-<div class="border-y hairline overflow-hidden bg-white/[0.02]" aria-label="Compras recientes">
+<div class="border-y hairline overflow-hidden bg-white/[0.02]" aria-label="{% trans "Compras recientes" %}">
   <div class="max-w-6xl mx-auto px-6 py-2 flex items-center gap-3 text-xs text-zinc-400 overflow-hidden">
     <span class="inline-flex items-center gap-1.5 shrink-0 text-emerald-400 font-semibold">
       <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-      EN VIVO
+      {% trans "EN VIVO" %}
     </span>
     <div class="ticker-track flex gap-8 whitespace-nowrap" style="animation: ticker 35s linear infinite;">
       {% for p in recent_purchases %}{% for _ in "12" %}
         <span class="inline-flex items-center gap-1.5">
           <span class="text-zinc-200 font-medium">{{ p.name }}</span>
-          compró <span class="text-zinc-200">{{ p.product }}</span>
+          {% trans "compró" %} <span class="text-zinc-200">{{ p.product }}</span>
           <span class="text-zinc-600">· {{ p.when|naturaltime }}</span>
         </span>
       {% endfor %}{% endfor %}
@@ -188,34 +188,33 @@
   <div class="max-w-4xl mx-auto relative z-10" data-reveal>
     <span class="hero-eyebrow badge-glow">
       <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-      Entrega inmediata · Soporte 24/7 en Perú
+      {% trans "Entrega inmediata · Soporte 24/7 en Perú" %}
     </span>
 
     {# Live pulse counter — pedidos entregados hoy. SOCIAL_PROOF.today_orders #}
     {% if SOCIAL_PROOF.today_orders %}
     <div class="hero-live-pulse mt-4" role="status" aria-live="polite">
       <span class="hero-live-pulse__dot" aria-hidden="true"></span>
-      <span class="hero-live-pulse__label">EN VIVO</span>
+      <span class="hero-live-pulse__label">{% trans "EN VIVO" %}</span>
       <span class="hero-live-pulse__sep">·</span>
       <span class="hero-live-pulse__value">{{ SOCIAL_PROOF.today_orders }}</span>
-      <span class="hero-live-pulse__text">{% if SOCIAL_PROOF.today_orders == 1 %}pedido entregado hoy{% else %}pedidos entregados hoy{% endif %}</span>
+      <span class="hero-live-pulse__text">{% if SOCIAL_PROOF.today_orders == 1 %}{% trans "pedido entregado hoy" %}{% else %}{% trans "pedidos entregados hoy" %}{% endif %}</span>
     </div>
     {% endif %}
     <h1 class="hero-title mt-7">
-      Streaming &amp; licencias<br>
-      <span class="hero-italic text-zinc-300">al mejor</span>
-      <span class="text-grad">precio del 2026</span>
+      {% trans "Streaming" %} &amp; {% trans "licencias" %}<br>
+      <span class="hero-italic text-zinc-300">{% trans "al mejor" %}</span>
+      <span class="text-grad">{% trans "precio del 2026" %}</span>
     </h1>
     <p class="mt-7 text-base md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-      Netflix, Disney+, HBO Max, Prime, Crunchyroll, Windows, Office y más.
-      Pago con Mercado Pago o Yape; cuenta en tu correo en minutos.
+      {% trans "Netflix, Disney+, HBO Max, Prime, Crunchyroll, Windows, Office y más. Pago con Yape o Binance Pay; cuenta en tu correo en minutos." %}
     </p>
     <div class="mt-9 flex flex-wrap gap-3 justify-center">
       <a href="{% url 'catalog:products' %}" class="btn btn-primary btn-lg btn-neon">
-        Explorar catálogo
+        {% trans "Explorar catálogo" %}
         <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
       </a>
-      <a href="{% url 'catalog:distributor' %}" class="btn btn-secondary btn-lg" style="border-radius:9999px">Soy distribuidor</a>
+      <a href="{% url 'catalog:distributor' %}" class="btn btn-secondary btn-lg" style="border-radius:9999px">{% trans "Soy distribuidor" %}</a>
     </div>
 
     <!-- Trust badges 2026 — confianza, pagos, sello, SSL -->

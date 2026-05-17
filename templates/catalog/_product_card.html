@@ -1,4 +1,4 @@
-{% load humanize %}
+{% load humanize i18n %}
 {% load catalog_extras %}
 <a href="{{ product.get_absolute_url }}" class="surface surface-lift rounded-2xl overflow-hidden hover:border-zinc-600 transition block group relative product-card" data-reveal>
   <!-- Banner ilustrado del producto ----------------------------------- -->
@@ -20,10 +20,10 @@
     <!-- Badges sobre el banner -->
     <div class="absolute top-3 right-3 flex flex-col gap-1 items-end">
       {% if product.is_featured %}
-        <span class="badge-modern badge-modern--top"><span>⭐</span> Top</span>
+        <span class="badge-modern badge-modern--top"><span>⭐</span> {% trans "Top" %}</span>
       {% endif %}
       {% if product.is_new %}
-        <span class="badge-modern badge-modern--nuevo"><span>✨</span> Nuevo</span>
+        <span class="badge-modern badge-modern--nuevo"><span>✨</span> {% trans "Nuevo" %}</span>
       {% endif %}
     </div>
 
@@ -45,21 +45,21 @@
         {% with plan=product|cheapest_plan_for:user %}
           {% if plan %}
             {% if user.is_distributor %}
-              <div class="text-[11px] font-semibold uppercase tracking-wider text-jheliz-400">Mayorista desde</div>
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-jheliz-400">{% trans "Mayorista desde" %}</div>
               <div class="text-xl font-display font-bold text-white tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
               {% with usd_price=plan.price_distributor|to_usd:USD_EXCHANGE_RATE %}
                 {% if usd_price %}<div class="text-xs text-emerald-300 font-semibold">≈ USD {{ usd_price|floatformat:2|intcomma }}</div>{% endif %}
               {% endwith %}
               <div class="text-[11px] text-zinc-500 line-through">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
             {% else %}
-              <div class="text-[11px] uppercase tracking-wider text-zinc-500">Desde</div>
+              <div class="text-[11px] uppercase tracking-wider text-zinc-500">{% trans "Desde" %}</div>
               <div class="text-xl font-display font-bold text-white tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
               {% with usd_price=plan.price_customer|to_usd:USD_EXCHANGE_RATE %}
                 {% if usd_price %}<div class="text-xs text-emerald-300 font-semibold">≈ USD {{ usd_price|floatformat:2|intcomma }}</div>{% endif %}
               {% endwith %}
             {% endif %}
           {% else %}
-            <div class="text-xs text-zinc-500">Pronto disponible</div>
+            <div class="text-xs text-zinc-500">{% trans "Pronto disponible" %}</div>
           {% endif %}
         {% endwith %}
       </div>
@@ -68,7 +68,7 @@
           <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:11px;height:11px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           <span class="text-zinc-300">{{ product.rating }}</span>
         </div>
-        {% if product.sold_badge %}<div class="mt-1">{{ product.sold_badge }} vendidos</div>{% endif %}
+        {% if product.sold_badge %}<div class="mt-1">{% blocktrans with n=product.sold_badge %}{{ n }} vendidos{% endblocktrans %}</div>{% endif %}
       </div>
     </div>
 
@@ -76,10 +76,10 @@
       <span class="inline-flex items-center gap-1.5 text-emerald-400 shrink-0">
         {% if product.delivery_is_instant %}
           <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          Inmediata
+          {% trans "Inmediata" %}
         {% else %}
           <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          Manual
+          {% trans "Manual" %}
         {% endif %}
       </span>
 
@@ -87,26 +87,26 @@
         {% if stock == 0 %}
           <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-zinc-700/70 text-zinc-200 border border-zinc-500/40">
             <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
-            Sin stock
+            {% trans "Sin stock" %}
           </span>
         {% elif urgency == 'critical' %}
           <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-200 border border-rose-400/50">
             <span class="w-1.5 h-1.5 rounded-full bg-rose-300 animate-pulse"></span>
-            Quedan {{ stock }}
+            {% blocktrans with n=stock %}Quedan {{ n }}{% endblocktrans %}
           </span>
         {% elif urgency == 'low' %}
           <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/50">
-            🔥 Quedan {{ stock }}
+            🔥 {% blocktrans with n=stock %}Quedan {{ n }}{% endblocktrans %}
           </span>
         {% else %}
           <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-400/40">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
-            {{ stock }} en stock
+            {% blocktrans with n=stock %}{{ n }} en stock{% endblocktrans %}
           </span>
         {% endif %}
       {% endwith %}
       <span class="text-zinc-400 group-hover:text-jheliz-400 transition inline-flex items-center gap-1">
-        Ver
+        {% trans "Ver" %}
         <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
       </span>
     </div>
