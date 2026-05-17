@@ -30,6 +30,10 @@ def _order_status_transitions(sender, instance: Order, **kwargs):
     if old == new:
         return
 
+    # Avisar a Discord (post-save sería más correcto, pero el cambio de
+    # estado ya está en `instance` y no necesitamos esperar al save).
+    instance._previous_status = old  # type: ignore[attr-defined]
+
     now = timezone.now()
 
     if new == Order.Status.PREPARING and old in {Order.Status.PAID, Order.Status.PENDING, Order.Status.VERIFYING}:
@@ -59,6 +63,26 @@ def _order_status_transitions(sender, instance: Order, **kwargs):
             # No bloqueamos la transición si falla la liberación;
             # un cron / management command la puede arreglar después.
             pass
+
+
+@receiver(post_save, sender=Order)
+def _notify_discord_on_status_change(sender, instance: Order, created, **kwargs):
+    """Postea cambio de estado al thread de Discord del pedido."""
+    if created:
+        return
+    prev = getattr(instance, "_previous_status", None)
+    if not prev or prev == instance.status:
+        return
+    try:
+        from discord_bot import notifications as dn
+
+        dn.notify_order_status_change(instance, prev)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            "No se pudo notificar a Discord el cambio %s -> %s",
+            prev, instance.status,
+        )
 
 
 @receiver(post_save, sender=Coupon)

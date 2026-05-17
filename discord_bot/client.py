@@ -184,6 +184,40 @@ def send_embed(
     return send_message(channel_id, embeds=[embed], components=components)
 
 
+def start_thread_from_message(
+    channel_id: str | int,
+    message_id: str | int,
+    name: str,
+    *,
+    auto_archive_minutes: int = 10080,  # 7 días
+) -> dict | None:
+    """Convierte un mensaje en el primer mensaje de un thread.
+
+    Devuelve el thread, cuyo ``id`` se usa como channel_id para posts
+    posteriores dentro del thread.
+    """
+    payload = {
+        "name": name[:100],
+        "auto_archive_duration": auto_archive_minutes,
+    }
+    result = _call(
+        "POST",
+        f"/channels/{channel_id}/messages/{message_id}/threads",
+        json=payload,
+    )
+    return result if isinstance(result, dict) else None
+
+
+def archive_thread(thread_id: str | int) -> dict | None:
+    """Marca el thread como archivado (se colapsa en la UI)."""
+    result = _call(
+        "PATCH",
+        f"/channels/{thread_id}",
+        json={"archived": True, "locked": False},
+    )
+    return result if isinstance(result, dict) else None
+
+
 def edit_message(
     channel_id: str | int,
     message_id: str | int,
