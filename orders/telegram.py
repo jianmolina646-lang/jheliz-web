@@ -261,10 +261,38 @@ def format_yape_proof(order) -> str:
 
 
 def notify_admin_about_order(order) -> None:
+    """Notifica al back-office cuando entra un pedido nuevo.
+
+    Si Discord está configurado para el back-office, ruta a Discord
+    (crea un thread por pedido en `#pedidos-nuevos`). Caso contrario,
+    sigue usando Telegram como antes.
+    """
+    try:
+        from discord_bot import notifications as dn
+
+        if dn.is_backoffice_configured():
+            dn.notify_new_order(order)
+            return
+    except Exception:
+        # Si Discord falla, caemos al path Telegram para no perder el aviso.
+        pass
     notify_admin(format_new_order(order), buttons=order_action_buttons(order))
 
 
 def notify_admin_about_yape(order) -> None:
+    """Notifica un comprobante de Yape/Binance recibido.
+
+    Ruta a Discord (`#yape-pendientes` + thread del pedido) si el bot
+    está configurado, sino sigue con Telegram.
+    """
+    try:
+        from discord_bot import notifications as dn
+
+        if dn.is_backoffice_configured():
+            dn.notify_yape_pending(order)
+            return
+    except Exception:
+        pass
     notify_admin(format_yape_proof(order), buttons=order_action_buttons(order))
 
 
