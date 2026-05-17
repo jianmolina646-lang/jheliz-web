@@ -1,90 +1,415 @@
-# SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
-# This file is distributed under the same license as the PACKAGE package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
-#, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PACKAGE VERSION\n"
+"Project-Id-Version: jheliz 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-09 14:55-0500\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
+"POT-Creation-Date: 2026-05-17 04:05-0500\n"
+"PO-Revision-Date: 2026-05-17 04:05-0500\n"
+"Last-Translator: Jheliz Store <support@jhelizstore.com>\n"
+"Language-Team: Portuguese <pt@jhelizstore.com>\n"
+"Language: pt\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-#: templates/admin/index.html:5
-msgid "Django site admin"
-msgstr "Administração do site Django"
 
-#: templates/base.html:240
-msgid "Inicio"
-msgstr "Início"
-
-#: templates/base.html:241 templates/base.html:304
-msgid "Productos"
-msgstr "Produtos"
-
-#: templates/base.html:248 templates/base.html:305
-msgid "Distribuidor"
-msgstr "Distribuidor"
-
-#: templates/base.html:250 templates/base.html:306
-msgid "Tutoriales"
-msgstr "Tutoriais"
-
-#: templates/base.html:265
-msgid "Salir"
-msgstr "Sair"
-
-#: templates/base.html:268 templates/base.html:352
 msgid "Ingresar"
 msgstr "Entrar"
 
-#: templates/base.html:269
+msgid "¿No tienes cuenta?"
+msgstr "Não tem uma conta?"
+
 msgid "Crear cuenta"
 msgstr "Criar conta"
 
-#: templates/base.html:302
+msgid "Entrar"
+msgstr "Entrar"
+
+msgid "¿Olvidaste tu contraseña?"
+msgstr "Esqueceu sua senha?"
+
+msgid "Django site admin"
+msgstr "Painel administrativo"
+
+#, python-format
+msgid "Netflix, Disney+ y Office en Perú ✦ desde S/ 7 — %(site)s"
+msgstr "Netflix, Disney+ e Office ✦ a partir de $2 — %(site)s"
+
+msgid "🎬 Cuentas premium con entrega en 2 min, pago con Yape o Binance Pay, garantía 30 días. +5 000 entregas. Desde S/ 7."
+msgstr "🎬 Contas premium entregues em 2 minutos. Pague com Yape ou Binance Pay. Garantia de 30 dias. +5.000 entregas. A partir de $2."
+
+msgid "Inicio"
+msgstr "Início"
+
+msgid "Productos"
+msgstr "Produtos"
+
+msgid "Combo"
+msgstr "Combo"
+
+msgid "Panel distribuidor"
+msgstr "Painel do revendedor"
+
+msgid "Distribuidor"
+msgstr "Revendedor"
+
+msgid "Tutoriales"
+msgstr "Tutoriais"
+
+msgid "Salir"
+msgstr "Sair"
+
+msgid "Soporte real, entrega inmediata"
+msgstr "Suporte real, entrega imediata"
+
+msgid "¿Listo para tu próximo plan?"
+msgstr "Pronto para o seu próximo plano?"
+
+msgid "Mirá el catálogo, armá tu combo y pagá con Yape o Binance Pay. Entrega en minutos, garantía 30 días."
+msgstr "Veja o catálogo, monte seu combo e pague com Yape ou Binance Pay. Entrega em minutos. Garantia de 30 dias."
+
+msgid "Ver catálogo"
+msgstr "Ver catálogo"
+
+msgid "Escribinos"
+msgstr "Fale conosco"
+
+msgid "Cuentas y licencias con entrega inmediata y soporte real."
+msgstr "Contas e licenças com entrega imediata e suporte real."
+
 msgid "Tienda"
 msgstr "Loja"
 
-#: templates/base.html:310
+msgid "Armar combo"
+msgstr "Montar combo"
+
 msgid "Ayuda"
 msgstr "Ajuda"
 
-#: templates/base.html:312
-msgid "Garantía"
-msgstr "Garantia"
+msgid "Garantía 30 días"
+msgstr "Garantia de 30 dias"
 
-#: templates/base.html:331
+msgid "Estado del servicio"
+msgstr "Status do serviço"
+
+msgid "Verificador de códigos"
+msgstr "Verificador de códigos"
+
 msgid "Legal"
 msgstr "Legal"
 
-#: templates/base.html:345
+msgid "Términos"
+msgstr "Termos"
+
+msgid "Privacidad"
+msgstr "Privacidade"
+
+msgid "Cookies"
+msgstr "Cookies"
+
+msgid "Libro de reclamaciones"
+msgstr "Livro de reclamações"
+
 msgid "Cuenta"
 msgstr "Conta"
 
-#: templates/base.html:348
 msgid "Mi cuenta"
 msgstr "Minha conta"
 
-#: templates/base.html:349
 msgid "Mi perfil"
 msgstr "Meu perfil"
 
-#: templates/base.html:350
+msgid "Mi wallet"
+msgstr "Minha carteira"
+
 msgid "Soporte"
 msgstr "Suporte"
 
-#: templates/base.html:353
 msgid "Registrarme"
-msgstr "Cadastrar-me"
+msgstr "Cadastrar"
 
-#: templates/partials/lang_country_picker.html:14
+msgid "Ser distribuidor"
+msgstr "Ser revendedor"
+
+msgid "Aceptamos"
+msgstr "Aceitamos"
+
+msgid "Tienda verificada"
+msgstr "Loja verificada"
+
+msgid "Entrega < 5 min"
+msgstr "Entrega < 5 min"
+
+msgid "Todos los derechos reservados."
+msgstr "Todos os direitos reservados."
+
+msgid "Hecho en Perú"
+msgstr "Feito no Peru"
+
+msgid "Pagos con"
+msgstr "Pagamentos com"
+
+msgid "Top"
+msgstr "Top"
+
+msgid "Nuevo"
+msgstr "Novo"
+
+msgid "Mayorista desde"
+msgstr "Atacado desde"
+
+msgid "Desde"
+msgstr "Desde"
+
+msgid "Pronto disponible"
+msgstr "Em breve"
+
+#, python-format
+msgid "%(n)s vendidos"
+msgstr "%(n)s vendidos"
+
+msgid "Inmediata"
+msgstr "Imediata"
+
+msgid "Manual"
+msgstr "Manual"
+
+msgid "Sin stock"
+msgstr "Sem estoque"
+
+#, python-format
+msgid "Quedan %(n)s"
+msgstr "Restam %(n)s"
+
+#, python-format
+msgid "%(n)s en stock"
+msgstr "%(n)s em estoque"
+
+msgid "Ver"
+msgstr "Ver"
+
+msgid "Compras recientes"
+msgstr "Compras recentes"
+
+msgid "EN VIVO"
+msgstr "AO VIVO"
+
+msgid "compró"
+msgstr "comprou"
+
+msgid "Entrega inmediata · Soporte 24/7 en Perú"
+msgstr "Entrega imediata · Suporte 24/7"
+
+msgid "pedido entregado hoy"
+msgstr "pedido entregue hoje"
+
+msgid "pedidos entregados hoy"
+msgstr "pedidos entregues hoje"
+
+msgid "Streaming"
+msgstr "Streaming"
+
+msgid "licencias"
+msgstr "licenças"
+
+msgid "al mejor"
+msgstr "ao melhor"
+
+msgid "precio del 2026"
+msgstr "preço de 2026"
+
+msgid "Netflix, Disney+, HBO Max, Prime, Crunchyroll, Windows, Office y más. Pago con Yape o Binance Pay; cuenta en tu correo en minutos."
+msgstr "Netflix, Disney+, HBO Max, Prime, Crunchyroll, Windows, Office e muito mais. Pague com Yape ou Binance Pay; conta no seu e-mail em minutos."
+
+msgid "Explorar catálogo"
+msgstr "Explorar catálogo"
+
+msgid "Soy distribuidor"
+msgstr "Sou revendedor"
+
+msgid "Carrito"
+msgstr "Carrinho"
+
+msgid "Pasos del checkout"
+msgstr "Etapas do checkout"
+
+msgid "Datos &amp; pago"
+msgstr "Dados &amp; pagamento"
+
+msgid "Confirmación"
+msgstr "Confirmação"
+
+msgid "Tu carrito"
+msgstr "Seu carrinho"
+
+msgid "Revisa los datos de cada perfil antes de pagar. Para Netflix, Disney+, Prime: crearemos el perfil con el nombre y PIN que indiques."
+msgstr "Confira os dados de cada perfil antes de pagar. Para Netflix, Disney+, Prime criaremos o perfil com o nome e PIN que você indicar."
+
+#, python-format
+msgid "¿Eliminar &quot;%(name)s&quot; del carrito?"
+msgstr "Remover &quot;%(name)s&quot; do carrinho?"
+
+#, python-format
+msgid "Eliminar %(name)s del carrito"
+msgstr "Remover %(name)s do carrinho"
+
+msgid "Eliminar del carrito"
+msgstr "Remover do carrinho"
+
+#, python-format
+msgid "cantidad %(q)s"
+msgstr "quantidade %(q)s"
+
+msgid "Perfil"
+msgstr "Perfil"
+
+msgid "Notas"
+msgstr "Notas"
+
+msgid "Falta completar perfil y PIN antes de pagar."
+msgstr "Preencha nome do perfil e PIN antes de pagar."
+
+msgid "Editar datos de esta línea"
+msgstr "Editar dados desta linha"
+
+msgid "Nombre del perfil"
+msgstr "Nome do perfil"
+
+msgid "Ej: Juan"
+msgstr "Ex.: João"
+
+msgid "PIN (4 dígitos)"
+msgstr "PIN (4 dígitos)"
+
+msgid "(opcional)"
+msgstr "(opcional)"
+
+msgid "Ej: idioma español"
+msgstr "Ex.: idioma preferido"
+
+msgid "Cantidad"
+msgstr "Quantidade"
+
+msgid "Guardar línea"
+msgstr "Salvar"
+
+msgid "+1 igual"
+msgstr "+1 igual"
+
+msgid "Eliminar"
+msgstr "Remover"
+
+msgid "¿Vaciar todo el carrito? Esta acción no se puede deshacer."
+msgstr "Esvaziar todo o carrinho? Esta ação não pode ser desfeita."
+
+msgid "Vaciar carrito"
+msgstr "Esvaziar carrinho"
+
+msgid "Resumen"
+msgstr "Resumo"
+
+msgid "Subtotal"
+msgstr "Subtotal"
+
+msgid "Quitar"
+msgstr "Remover"
+
+msgid "Descuento"
+msgstr "Desconto"
+
+msgid "¿Tienes un código de descuento?"
+msgstr "Tem um código de desconto?"
+
+msgid "Ej. NAVIDAD15"
+msgstr "Ex. NATAL15"
+
+msgid "Aplicar"
+msgstr "Aplicar"
+
+#, python-format
+msgid "Combo %(n)s productos · -%(p)s%%"
+msgstr "Combo %(n)s produtos · -%(p)s%%"
+
+msgid "Agregá otra plataforma y ahorrá"
+msgstr "Adicione outra plataforma e economize"
+
+#, python-format
+msgid "hasta 15%%"
+msgstr "até 15%%"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "Ir a pagar"
+msgstr "Ir para o pagamento"
+
+msgid "Pagos con Yape o Binance Pay."
+msgstr "Pague com Yape ou Binance Pay."
+
+msgid "Tu carrito está vacío"
+msgstr "Seu carrinho está vazio"
+
+msgid "Elegí tu próximo plan de streaming o licencia. Entrega en minutos, garantía 30 días."
+msgstr "Escolha seu próximo plano de streaming ou licença. Entrega em minutos. Garantia de 30 dias."
+
+msgid "Ver catálogo completo"
+msgstr "Ver catálogo completo"
+
+msgid "Armar combo y ahorrar"
+msgstr "Montar combo e economizar"
+
+msgid "Garantías Jheliz"
+msgstr "Garantias Jheliz"
+
+msgid "Recomendados para vos"
+msgstr "Recomendados para você"
+
+msgid "Los más pedidos esta semana"
+msgstr "Os mais pedidos desta semana"
+
+msgid "Ver todos"
+msgstr "Ver todos"
+
+msgid "Finalizar compra"
+msgstr "Finalizar compra"
+
+msgid "Revisa tu pedido, elige cómo pagar y completa tus datos."
+msgstr "Revise seu pedido, escolha a forma de pagamento e preencha seus dados."
+
+msgid "Tus datos"
+msgstr "Seus dados"
+
+msgid "Método de pago"
+msgstr "Forma de pagamento"
+
+msgid "Escanea QR y sube comprobante"
+msgstr "Escaneie o QR e envie o comprovante"
+
+msgid "Saldo wallet"
+msgstr "Saldo da carteira"
+
+msgid "disponible"
+msgstr "disponível"
+
+msgid "insuficiente"
+msgstr "insuficiente"
+
+msgid "Paga con USDT, BNB o crypto · QR"
+msgstr "Pague com USDT, BNB ou cripto · QR"
+
+msgid "Tarjeta, Yape, PagoEfectivo"
+msgstr "Cartão, Yape, PagoEfectivo"
+
+msgid "Pago seguro SSL"
+msgstr "Pagamento seguro SSL"
+
+msgid "Continuar"
+msgstr "Continuar"
+
+msgid "Ningún método de pago está configurado. Tu pedido se registrará y te contactaremos."
+msgstr "Nenhuma forma de pagamento configurada. Seu pedido será registrado e entraremos em contato."
+
+msgid "Cupón"
+msgstr "Cupom"
+
 msgid "Idioma"
 msgstr "Idioma"

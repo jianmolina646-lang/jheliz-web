@@ -1,26 +1,26 @@
 {% extends "base.html" %}
-{% load humanize catalog_extras %}
+{% load humanize catalog_extras i18n %}
 
-{% block title %}Carrito — {{ SITE_NAME }}{% endblock %}
+{% block title %}{% trans "Carrito" %} — {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
 <div class="mb-6" data-reveal>
-  <ol class="ck-progress mb-6" aria-label="Pasos del checkout">
+  <ol class="ck-progress mb-6" aria-label='{% trans "Pasos del checkout" %}'>
     <li class="ck-progress__step is-active" aria-current="step">
       <span class="ck-progress__dot"><span class="ck-progress__num">1</span></span>
-      <span class="ck-progress__label">Carrito</span>
+      <span class="ck-progress__label">{% trans "Carrito" %}</span>
     </li>
     <li class="ck-progress__step">
       <span class="ck-progress__dot"><span class="ck-progress__num">2</span></span>
-      <span class="ck-progress__label">Datos &amp; pago</span>
+      <span class="ck-progress__label">{% trans "Datos &amp; pago" %}</span>
     </li>
     <li class="ck-progress__step">
       <span class="ck-progress__dot"><span class="ck-progress__num">3</span></span>
-      <span class="ck-progress__label">Confirmación</span>
+      <span class="ck-progress__label">{% trans "Confirmación" %}</span>
     </li>
   </ol>
-  <h1 class="font-display text-3xl md:text-4xl font-bold tracking-tight">Tu carrito</h1>
-  <p class="text-zinc-400 mt-2 max-w-2xl">Revisa los datos de cada perfil antes de pagar. Para Netflix, Disney+, Prime: crearemos el perfil con el nombre y PIN que indiques.</p>
+  <h1 class="font-display text-3xl md:text-4xl font-bold tracking-tight">{% trans "Tu carrito" %}</h1>
+  <p class="text-zinc-400 mt-2 max-w-2xl">{% trans "Revisa los datos de cada perfil antes de pagar. Para Netflix, Disney+, Prime: crearemos el perfil con el nombre y PIN que indiques." %}</p>
 </div>
 
 {% if messages %}
@@ -40,12 +40,12 @@
       {# Botón eliminar prominente arriba a la derecha de cada producto #}
       <form method="post" action="{% url 'orders:cart_remove' line.index %}"
             class="absolute top-2.5 right-2.5"
-            onsubmit="return confirm('¿Eliminar &quot;{{ line.plan.product.name|escapejs }}&quot; del carrito?');">
+            onsubmit="return confirm('{% blocktrans with name=line.plan.product.name|escapejs %}¿Eliminar &quot;{{ name }}&quot; del carrito?{% endblocktrans %}');">
         {% csrf_token %}
         <button type="submit"
                 class="w-9 h-9 rounded-full flex items-center justify-center text-zinc-400 hover:text-red-300 hover:bg-red-500/10 transition"
-                aria-label="Eliminar {{ line.plan.product.name }} del carrito"
-                title="Eliminar del carrito">
+                aria-label='{% blocktrans with name=line.plan.product.name %}Eliminar {{ name }} del carrito{% endblocktrans %}'
+                title='{% trans "Eliminar del carrito" %}'>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"/>
             <line x1="6" y1="6" x2="18" y2="18"/>
@@ -58,45 +58,45 @@
         </div>
         <div class="flex-1 min-w-0">
           <div class="font-display font-semibold text-zinc-100">{{ line.plan.product.name }}</div>
-          <div class="text-zinc-500 text-xs mt-0.5">{{ line.plan.name }} · cantidad {{ line.quantity }}</div>
+          <div class="text-zinc-500 text-xs mt-0.5">{{ line.plan.name }} · {% blocktrans with q=line.quantity %}cantidad {{ q }}{% endblocktrans %}</div>
           {% if line.profile_name or line.pin or line.notes %}
             <div class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-              {% if line.profile_name %}<div class="surface-soft rounded-md px-2.5 py-1.5"><span class="text-zinc-500">Perfil</span> · <span class="text-zinc-200">{{ line.profile_name }}</span></div>{% endif %}
+              {% if line.profile_name %}<div class="surface-soft rounded-md px-2.5 py-1.5"><span class="text-zinc-500">{% trans "Perfil" %}</span> · <span class="text-zinc-200">{{ line.profile_name }}</span></div>{% endif %}
               {% if line.pin %}<div class="surface-soft rounded-md px-2.5 py-1.5"><span class="text-zinc-500">PIN</span> · <span class="text-zinc-200">{{ line.pin }}</span></div>{% endif %}
-              {% if line.notes %}<div class="surface-soft rounded-md px-2.5 py-1.5 sm:col-span-3"><span class="text-zinc-500">Notas</span> · <span class="text-zinc-200">{{ line.notes }}</span></div>{% endif %}
+              {% if line.notes %}<div class="surface-soft rounded-md px-2.5 py-1.5 sm:col-span-3"><span class="text-zinc-500">{% trans "Notas" %}</span> · <span class="text-zinc-200">{{ line.notes }}</span></div>{% endif %}
             </div>
           {% elif needs_profile %}
-            <div class="mt-3 text-xs text-amber-400">⚠️ Falta completar perfil y PIN antes de pagar.</div>
+            <div class="mt-3 text-xs text-amber-400">⚠️ {% trans "Falta completar perfil y PIN antes de pagar." %}</div>
           {% endif %}
 
           <details class="mt-3 cart-line-edit">
             <summary class="cursor-pointer text-xs text-jheliz-300 hover:text-jheliz-200 transition select-none inline-flex items-center gap-1">
-              ✏️ Editar datos de esta línea
+              ✏️ {% trans "Editar datos de esta línea" %}
             </summary>
             <form method="post" action="{% url 'orders:cart_update_line' line.index %}" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {% csrf_token %}
               {% if needs_profile %}
                 <label class="text-xs text-zinc-400">
-                  Nombre del perfil
-                  <input type="text" name="profile_name" value="{{ line.profile_name }}" maxlength="60" class="field mt-1" placeholder="Ej: Juan">
+                  {% trans "Nombre del perfil" %}
+                  <input type="text" name="profile_name" value="{{ line.profile_name }}" maxlength="60" class="field mt-1" placeholder='{% trans "Ej: Juan" %}'>
                 </label>
                 <label class="text-xs text-zinc-400">
-                  PIN (4 dígitos)
+                  {% trans "PIN (4 dígitos)" %}
                   <input type="text" name="pin" value="{{ line.pin }}" maxlength="8" inputmode="numeric" pattern="[0-9]*" class="field mt-1" placeholder="1234">
                 </label>
               {% endif %}
               <label class="text-xs text-zinc-400 sm:col-span-2">
-                Notas <span class="text-zinc-600">(opcional)</span>
-                <input type="text" name="notes" value="{{ line.notes }}" maxlength="200" class="field mt-1" placeholder="Ej: idioma español">
+                {% trans "Notas" %} <span class="text-zinc-600">{% trans "(opcional)" %}</span>
+                <input type="text" name="notes" value="{{ line.notes }}" maxlength="200" class="field mt-1" placeholder='{% trans "Ej: idioma español" %}'>
               </label>
               {% if not needs_profile %}
                 <label class="text-xs text-zinc-400">
-                  Cantidad
+                  {% trans "Cantidad" %}
                   <input type="number" name="quantity" value="{{ line.quantity }}" min="1" max="50" class="field mt-1" style="width:6rem">
                 </label>
               {% endif %}
               <div class="sm:col-span-2 flex items-center gap-2 mt-1">
-                <button type="submit" class="btn btn-primary text-xs" style="padding:0.4rem 0.8rem">Guardar línea</button>
+                <button type="submit" class="btn btn-primary text-xs" style="padding:0.4rem 0.8rem">{% trans "Guardar línea" %}</button>
               </div>
             </form>
           </details>
@@ -111,16 +111,16 @@
               {% csrf_token %}
               <button class="text-xs text-emerald-400 hover:text-emerald-300 transition inline-flex items-center gap-1">
                 <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                +1 igual
+                {% trans "+1 igual" %}
               </button>
             </form>
           {% endif %}
           <form method="post" action="{% url 'orders:cart_remove' line.index %}"
-                onsubmit="return confirm('¿Eliminar &quot;{{ line.plan.product.name|escapejs }}&quot; del carrito?');">
+                onsubmit="return confirm('{% blocktrans with name=line.plan.product.name|escapejs %}¿Eliminar &quot;{{ name }}&quot; del carrito?{% endblocktrans %}');">
             {% csrf_token %}
             <button class="text-xs text-red-400/80 hover:text-red-300 hover:bg-red-500/10 transition inline-flex items-center gap-1 px-2 py-1 rounded-md">
               <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-              Eliminar
+              {% trans "Eliminar" %}
             </button>
           </form>
         </div>
@@ -130,22 +130,22 @@
     {% endfor %}
 
     <form method="post" action="{% url 'orders:cart_clear' %}"
-          onsubmit="return confirm('¿Vaciar todo el carrito? Esta acción no se puede deshacer.');">
+          onsubmit='return confirm("{% trans "¿Vaciar todo el carrito? Esta acción no se puede deshacer." %}");'>
       {% csrf_token %}
       <button class="text-sm text-zinc-400 hover:text-red-300 hover:bg-red-500/10 transition mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-        Vaciar carrito
+        {% trans "Vaciar carrito" %}
       </button>
     </form>
   </div>
 
   <aside class="surface rounded-xl p-6 h-max lg:sticky lg:top-20">
-    <h2 class="font-display text-base font-bold tracking-tight">Resumen</h2>
+    <h2 class="font-display text-base font-bold tracking-tight">{% trans "Resumen" %}</h2>
     <div class="mt-4 flex justify-between text-sm text-zinc-400">
-      <span>Productos</span><span class="text-zinc-200">{{ lines|length }}</span>
+      <span>{% trans "Productos" %}</span><span class="text-zinc-200">{{ lines|length }}</span>
     </div>
     <div class="mt-2 flex justify-between text-sm text-zinc-400">
-      <span>Subtotal</span><span class="text-zinc-200">{{ CURRENCY_SYMBOL }} {{ subtotal|floatformat:2|intcomma }}</span>
+      <span>{% trans "Subtotal" %}</span><span class="text-zinc-200">{{ CURRENCY_SYMBOL }} {{ subtotal|floatformat:2|intcomma }}</span>
     </div>
 
     {# ---- Bloque de cupón ---- #}
@@ -161,18 +161,18 @@
           </div>
           <form method="post" action="{% url 'orders:cart_remove_coupon' %}">
             {% csrf_token %}
-            <button class="text-xs text-zinc-500 hover:text-red-400 transition">Quitar</button>
+            <button class="text-xs text-zinc-500 hover:text-red-400 transition">{% trans "Quitar" %}</button>
           </form>
         </div>
         <div class="mt-2 flex justify-between text-sm">
-          <span class="text-pink-300">Descuento</span>
+          <span class="text-pink-300">{% trans "Descuento" %}</span>
           <span class="text-pink-300">−{{ CURRENCY_SYMBOL }} {{ discount|floatformat:2|intcomma }}</span>
         </div>
       {% else %}
         <details class="text-sm">
           <summary class="cursor-pointer text-zinc-400 hover:text-zinc-200 transition select-none">
             <svg class="icon inline-block" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>
-            ¿Tienes un código de descuento?
+            {% trans "¿Tienes un código de descuento?" %}
           </summary>
           <form method="post" action="{% url 'orders:cart_apply_coupon' %}" class="mt-3 flex gap-2">
             {% csrf_token %}
@@ -180,12 +180,12 @@
               type="text"
               name="code"
               value="{% if coupon %}{{ coupon.code }}{% endif %}"
-              placeholder="Ej. NAVIDAD15"
+              placeholder='{% trans "Ej. NAVIDAD15" %}'
               class="form-input flex-1 uppercase"
               maxlength="40"
               autocomplete="off"
             />
-            <button class="btn btn-soft text-sm">Aplicar</button>
+            <button class="btn btn-soft text-sm">{% trans "Aplicar" %}</button>
           </form>
           {% if coupon_error %}
             <p class="text-xs text-red-400 mt-2">{{ coupon_error }}</p>
@@ -200,7 +200,7 @@
         <div class="flex items-center justify-between text-sm">
           <span class="inline-flex items-center gap-1 text-emerald-300">
             <span>🎁</span>
-            Combo {{ distinct_products }} productos · -{{ combo_percent_int }}%
+            {% blocktrans with n=distinct_products p=combo_percent_int %}Combo {{ n }} productos · -{{ p }}%{% endblocktrans %}
           </span>
           <span class="text-emerald-300 font-semibold">−{{ CURRENCY_SYMBOL }} {{ combo_discount|floatformat:2|intcomma }}</span>
         </div>
@@ -210,15 +210,15 @@
         <a href="{% url 'catalog:combo_builder' %}" class="flex items-center justify-between gap-2 p-2.5 rounded-xl hover:bg-pink-500/5 transition group">
           <span class="text-xs text-zinc-400">
             <span class="text-base mr-1">💡</span>
-            Agregá otra plataforma y ahorrá <span class="text-emerald-400 font-semibold">hasta 15%</span>
+            {% trans "Agregá otra plataforma y ahorrá" %} <span class="text-emerald-400 font-semibold">{% trans "hasta 15%" %}</span>
           </span>
-          <span class="text-xs text-pink-300 font-semibold group-hover:text-pink-200">Armar combo →</span>
+          <span class="text-xs text-pink-300 font-semibold group-hover:text-pink-200">{% trans "Armar combo" %} →</span>
         </a>
       </div>
     {% endif %}
 
     <div class="mt-3 pt-4 border-t hairline flex justify-between items-baseline">
-      <span class="text-sm text-zinc-400">Total</span>
+      <span class="text-sm text-zinc-400">{% trans "Total" %}</span>
       <div class="text-right">
         <span class="font-display text-2xl font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }}</span>
         {% with usd_total=total|to_usd:USD_EXCHANGE_RATE %}
@@ -227,10 +227,10 @@
       </div>
     </div>
     <a href="{% url 'orders:checkout' %}" class="btn btn-primary btn-lg btn-block mt-5">
-      Ir a pagar
+      {% trans "Ir a pagar" %}
       <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
     </a>
-    <p class="text-xs text-zinc-500 mt-3 text-center">Pagos con Mercado Pago (Visa, Mastercard, Yape, Plin).</p>
+    <p class="text-xs text-zinc-500 mt-3 text-center">{% trans "Pagos con Yape o Binance Pay." %}</p>
   </aside>
 </div>
 {% else %}
@@ -245,23 +245,23 @@
         <path d="M37 22v10M32 27h10" opacity=".75"/>
       </svg>
     </div>
-    <h2 class="cart-empty__title">Tu carrito está vacío</h2>
-    <p class="cart-empty__sub">Elegí tu próximo plan de streaming o licencia. Entrega en minutos, garantía 30 días.</p>
+    <h2 class="cart-empty__title">{% trans "Tu carrito está vacío" %}</h2>
+    <p class="cart-empty__sub">{% trans "Elegí tu próximo plan de streaming o licencia. Entrega en minutos, garantía 30 días." %}</p>
 
     <div class="cart-empty__cta">
       <a href="{% url 'catalog:products' %}" class="btn btn-primary btn-lg inline-flex">
-        Ver catálogo completo
+        {% trans "Ver catálogo completo" %}
         <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
       </a>
       <a href="{% url 'catalog:combo_builder' %}" class="btn btn-soft btn-lg inline-flex">
-        <span aria-hidden="true">🎁</span> Armar combo y ahorrar
+        <span aria-hidden="true">🎁</span> {% trans "Armar combo y ahorrar" %}
       </a>
     </div>
 
-    <ul class="cart-empty__trust" aria-label="Garantías Jheliz">
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg> Garantía 30 días</li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg> Entrega &lt; 5 min</li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg> Yape · Plin · MP</li>
+    <ul class="cart-empty__trust" aria-label='{% trans "Garantías Jheliz" %}'>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg> {% trans "Garantía 30 días" %}</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg> {% trans "Entrega < 5 min" %}</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg> Yape · Binance Pay</li>
     </ul>
   </div>
 
@@ -269,10 +269,10 @@
   <div class="cart-empty__suggested" data-reveal>
     <div class="flex items-end justify-between mb-4">
       <div>
-        <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Recomendados para vos</p>
-        <h3 class="font-display text-xl font-bold mt-1">Los más pedidos esta semana</h3>
+        <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">{% trans "Recomendados para vos" %}</p>
+        <h3 class="font-display text-xl font-bold mt-1">{% trans "Los más pedidos esta semana" %}</h3>
       </div>
-      <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition hidden sm:inline">Ver todos →</a>
+      <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition hidden sm:inline">{% trans "Ver todos" %} →</a>
     </div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" data-reveal-stagger>
       {% for p in suggested_products %}
