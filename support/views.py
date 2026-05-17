@@ -191,17 +191,19 @@ def _resolve_order(order_number: str):
 
 
 def _notify_admins_new_code_request(request, code_request: CodeRequest) -> None:
-    """Notifica al canal de distribuidor por Telegram si está configurado."""
+    """Notifica al admin por DM del bot (privado), no al canal de distribuidor.
+
+    Los pedidos de codigo son privados (incluyen el email de la cuenta) y solo
+    el admin responde, asi que se mandan al chat directo con el bot via
+    ``TELEGRAM_ADMIN_CHAT_ID`` en vez de al canal publico de distribuidores.
+    """
     try:
         from orders import telegram as tg
     except Exception:
         return
-    if not hasattr(tg, "channel_is_configured"):
+    if not hasattr(tg, "notify_admin"):
         return
     try:
-        audience = getattr(tg, "AUDIENCE_DISTRIB", "distrib")
-        if not tg.channel_is_configured(audience):
-            return
         admin_url = request.build_absolute_uri(
             reverse(
                 "admin:support_coderequest_change",
@@ -222,10 +224,7 @@ def _notify_admins_new_code_request(request, code_request: CodeRequest) -> None:
         if code_request.note:
             text += f"\nNota: {code_request.note[:140]}"
         buttons = [[{"text": "Responder ahora", "url": admin_url}]]
-        # post solo al canal de distribuidor — no al público
-        chat_id = tg._distrib_channel_id() if hasattr(tg, "_distrib_channel_id") else None
-        if chat_id:
-            tg._post_one_channel(chat_id, text, buttons=buttons, photo_url=None)
+        tg.notify_admin(text, buttons=buttons)
     except Exception:
         # Nunca fallar la petición del cliente por errores de Telegram.
         return
