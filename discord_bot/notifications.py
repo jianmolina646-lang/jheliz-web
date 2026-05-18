@@ -66,6 +66,9 @@ def _channel(name: str) -> str:
         "codigos": getattr(settings, "DISCORD_CHANNEL_CODIGOS", ""),
         "alertas": getattr(settings, "DISCORD_CHANNEL_ALERTAS", ""),
         "admin": getattr(settings, "DISCORD_CHANNEL_ADMIN", ""),
+        "dashboard": getattr(settings, "DISCORD_CHANNEL_DASHBOARD", ""),
+        "incidencias": getattr(settings, "DISCORD_CHANNEL_INCIDENCIAS", ""),
+        "logs": getattr(settings, "DISCORD_CHANNEL_LOGS", ""),
     }
     return str(mapping.get(name, "") or "")
 
@@ -300,7 +303,15 @@ def _build_order_embed(order, *, title_prefix: str = "🛒") -> dict[str, Any]:
 
 
 def _order_admin_buttons(order) -> list[dict]:
-    """Botones link al admin para acciones sobre el pedido."""
+    """Botones para acciones sobre el pedido.
+
+    Devuelve hasta 2 filas:
+      Fila 1 (link buttons) — Ver en admin · Entregar en formulario admin.
+      Fila 2 (action buttons) — Marcar entregado · En preparación · Rechazar.
+        Estos botones envían un click al webhook (``custom_id`` tipo
+        ``order:<accion>:<pk>``); el handler valida la identidad del
+        clicker contra ``DISCORD_ADMIN_USER_IDS`` y muta el pedido.
+    """
     base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://ecormecejhelizstore.com"
     admin_path = "/" + str(
         getattr(settings, "ADMIN_URL_PATH", "panel-jheliz-2026"),
@@ -308,11 +319,40 @@ def _order_admin_buttons(order) -> list[dict]:
     view_url = f"{base}{admin_path}/orders/order/{order.pk}/change/"
     deliver_url = f"{base}{admin_path}/orders/order/{order.pk}/deliver/"
 
-    row = [client.link_button("Ver en admin", view_url, emoji="🔍")]
-    # Solo mostrar "Entregar" si el pedido aún no está entregado.
-    if order.status not in ("delivered", "refunded", "cancelled", "rejected"):
-        row.append(client.link_button("Entregar", deliver_url, emoji="📦"))
-    return [client.action_row(*row[:5])]
+    rows: list[dict] = []
+    closed_statuses = ("delivered", "refunded", "cancelled", "rejected")
+
+    link_row = [client.link_button("Ver en admin", view_url, emoji="🔍")]
+    if order.status not in closed_statuses:
+        link_row.append(client.link_button("Entregar en admin", deliver_url, emoji="📦"))
+    rows.append(client.action_row(*link_row[:5]))
+
+    # Botones interactivos sólo si el pedido aún se puede mover.
+    if order.status not in closed_statuses:
+        action_row = [
+            client.action_button(
+                "Marcar entregado",
+                f"order:deliver:{order.pk}",
+                style=client.BUTTON_SUCCESS,
+                emoji="✅",
+            ),
+        ]
+        if order.status in ("pending", "verifying", "paid"):
+            action_row.append(client.action_button(
+                "En preparación",
+                f"order:preparing:{order.pk}",
+                style=client.BUTTON_PRIMARY,
+                emoji="🛠️",
+            ))
+        action_row.append(client.action_button(
+            "Rechazar",
+            f"order:reject:{order.pk}",
+            style=client.BUTTON_DANGER,
+            emoji="❌",
+        ))
+        rows.append(client.action_row(*action_row[:5]))
+
+    return rows[:5]
 
 
 def notify_new_order(order) -> dict | None:

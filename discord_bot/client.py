@@ -239,13 +239,21 @@ def edit_message(
     return result if isinstance(result, dict) else None
 
 
-# ---------- Helpers UI: botones link ----------
+# ---------- Helpers UI: botones link / acción ----------
+
+# Estilos válidos para botones tipo 2 (action buttons).
+BUTTON_PRIMARY = 1
+BUTTON_SECONDARY = 2
+BUTTON_SUCCESS = 3
+BUTTON_DANGER = 4
+BUTTON_LINK = 5
+
 
 def link_button(label: str, url: str, emoji: str | None = None) -> dict:
     """Devuelve un button-link listo para meter dentro de ``components``."""
     btn: dict[str, Any] = {
         "type": 2,
-        "style": 5,  # link
+        "style": BUTTON_LINK,
         "label": label[:80],
         "url": url,
     }
@@ -254,6 +262,73 @@ def link_button(label: str, url: str, emoji: str | None = None) -> dict:
     return btn
 
 
+def action_button(
+    label: str,
+    custom_id: str,
+    *,
+    style: int = BUTTON_SECONDARY,
+    emoji: str | None = None,
+    disabled: bool = False,
+) -> dict:
+    """Devuelve un botón con ``custom_id`` que vuelve por el webhook.
+
+    Usa ``custom_id`` para identificar la acción al recibir el click; el
+    router del webhook lo parsea (``action:argument``) y dispara la
+    operación correspondiente.
+    """
+    btn: dict[str, Any] = {
+        "type": 2,
+        "style": style,
+        "label": label[:80],
+        "custom_id": custom_id[:100],
+    }
+    if emoji:
+        btn["emoji"] = {"name": emoji}
+    if disabled:
+        btn["disabled"] = True
+    return btn
+
+
 def action_row(*buttons: dict) -> dict:
     """Agrupa hasta 5 botones en una fila para enviar como ``components``."""
     return {"type": 1, "components": list(buttons)[:5]}
+
+
+# ---------- Helpers de administración de canales ----------
+
+def pin_message(channel_id: str | int, message_id: str | int) -> bool:
+    """Pinea un mensaje en el canal. Devuelve True si tuvo éxito."""
+    result = _call(
+        "PUT", f"/channels/{channel_id}/pins/{message_id}", json={},
+    )
+    return result is not None
+
+
+def edit_channel(
+    channel_id: str | int,
+    *,
+    name: str | None = None,
+    topic: str | None = None,
+    parent_id: str | None = None,
+    position: int | None = None,
+) -> dict | None:
+    """Modifica nombre / tópico / categoría / posición de un canal."""
+    payload: dict[str, Any] = {}
+    if name is not None:
+        payload["name"] = name[:100]
+    if topic is not None:
+        payload["topic"] = topic[:1024]
+    if parent_id is not None:
+        payload["parent_id"] = str(parent_id)
+    if position is not None:
+        payload["position"] = int(position)
+    if not payload:
+        return None
+    result = _call("PATCH", f"/channels/{channel_id}", json=payload)
+    return result if isinstance(result, dict) else None
+
+
+def list_pinned_messages(channel_id: str | int) -> list[dict]:
+    """Lista los mensajes pinneados de un canal (sin paginación)."""
+    result = _call("GET", f"/channels/{channel_id}/pins")
+    return result if isinstance(result, list) else []

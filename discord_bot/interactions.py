@@ -1,4 +1,4 @@
-"""Dispatcher de slash commands de Discord.
+"""Dispatcher de slash commands y botones de Discord.
 
 Discord postea un JSON a nuestro webhook (`/discord/interactions/`) cuando
 alguien usa un slash command o aprieta un botón. La firma se verifica con
@@ -11,6 +11,14 @@ Comandos implementados:
 - ``/pendientes`` — lista los últimos 10 pedidos esperando acción.
 - ``/entregar <numero>`` — abre el formulario de entrega del admin.
 - ``/stock <producto>`` — muestra stock disponible de un plan.
+- ``/stats [periodo]`` — métricas (hoy, ayer, semana, mes).
+- ``/cliente <email>`` — perfil 360° de un cliente.
+
+Botones interactivos (custom_id ``order:<accion>:<pk>``):
+
+- ``order:deliver`` — marca el pedido como entregado.
+- ``order:preparing`` — pasa el pedido a "en preparación".
+- ``order:reject`` — rechaza el pedido.
 
 Patrón: ``handle_interaction(payload)`` recibe el body parseado y devuelve
 un dict listo para responder a Discord (mismo formato que el endpoint
@@ -82,6 +90,36 @@ COMMAND_DEFINITIONS = [
                 "description": "Nombre o slug del producto",
                 "type": 3,
                 "required": False,
+            },
+        ],
+    },
+    {
+        "name": "stats",
+        "description": "Métricas del negocio (ventas, pedidos, conversión).",
+        "options": [
+            {
+                "name": "periodo",
+                "description": "hoy / ayer / semana / mes",
+                "type": 3,
+                "required": False,
+                "choices": [
+                    {"name": "Hoy", "value": "hoy"},
+                    {"name": "Ayer", "value": "ayer"},
+                    {"name": "Semana", "value": "semana"},
+                    {"name": "Mes", "value": "mes"},
+                ],
+            },
+        ],
+    },
+    {
+        "name": "cliente",
+        "description": "Perfil 360° de un cliente por email.",
+        "options": [
+            {
+                "name": "email",
+                "description": "Email del cliente",
+                "type": 3,
+                "required": True,
             },
         ],
     },
@@ -284,12 +322,262 @@ def _cmd_stock(data: dict) -> dict[str, Any]:
     return _ephemeral(embeds=[embed])
 
 
+def _period_range(period: str):
+    """Devuelve (inicio, fin, label) para 'hoy' / 'ayer' / 'semana' / 'mes'."""
+    from datetime import timedelta
+    from django.utils import timezone
+
+    now = timezone.localtime()
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    period = (period or "hoy").lower()
+    if period == "ayer":
+        start = today - timedelta(days=1)
+        end = today
+        label = "Ayer"
+    elif period == "semana":
+        start = today - timedelta(days=7)
+        end = now
+        label = "Últimos 7 días"
+    elif period == "mes":
+        start = today - timedelta(days=30)
+        end = now
+        label = "Últimos 30 días"
+    else:
+        start = today
+        end = now
+        label = "Hoy"
+    return start, end, label
+
+
+def _cmd_stats(data: dict) -> dict[str, Any]:
+    from django.db.models import Count, Sum
+    from orders.models import Order
+
+    options = _options_dict(data.get("options", []))
+    period = (options.get("periodo") or "hoy").strip().lower()
+    start, end, label = _period_range(period)
+
+    qs = Order.objects.filter(created_at__gte=start, created_at__lt=end)
+    total = qs.count()
+    by_status = dict(qs.values_list("status").annotate(n=Count("id")))
+
+    paid_qs = qs.filter(
+        status__in=(
+            Order.Status.PAID,
+            Order.Status.PREPARING,
+            Order.Status.DELIVERED,
+        ),
+    )
+    revenue_pen = paid_qs.filter(currency="PEN").aggregate(s=Sum("total"))["s"] or 0
+    revenue_usd = paid_qs.filter(currency="USD").aggregate(s=Sum("total"))["s"] or 0
+
+    delivered = by_status.get(Order.Status.DELIVERED, 0)
+    pendientes = sum(
+        by_status.get(s, 0) for s in (
+            Order.Status.PENDING, Order.Status.VERIFYING,
+            Order.Status.PAID, Order.Status.PREPARING,
+        )
+    )
+
+    conv_str = "—"
+    if total:
+        conv_pct = (delivered / total) * 100
+        conv_str = f"{conv_pct:.0f}%"
+
+    from orders.models import OrderItem
+    top_items = list(
+        OrderItem.objects.filter(order__in=paid_qs)
+        .values("product_name")
+        .annotate(qty=Sum("quantity"))
+        .order_by("-qty")[:3]
+    )
+
+    fields = [
+        {"name": "📈 Pedidos", "value": f"**{total}** totales · {delivered} entregados · {pendientes} pendientes", "inline": False},
+        {"name": "💰 Facturación", "value": f"**PEN {revenue_pen}** · USD {revenue_usd}", "inline": True},
+        {"name": "🎯 Conversión", "value": f"**{conv_str}** (entregados/totales)", "inline": True},
+    ]
+    if top_items:
+        top_str = "\n".join(
+            f"`{i+1}.` **{it['product_name'][:30]}** — {it['qty']}"
+            for i, it in enumerate(top_items)
+        )
+        fields.append({"name": "🏆 Top productos", "value": top_str, "inline": False})
+
+    embed = {
+        "title": f"📊 Stats · {label}",
+        "color": 0x22C55E,
+        "fields": fields,
+        "footer": {"text": f"Período: {start.strftime('%d/%m %H:%M')} → {end.strftime('%d/%m %H:%M')}"},
+    }
+    return _ephemeral(embeds=[embed])
+
+
+def _cmd_cliente(data: dict) -> dict[str, Any]:
+    from django.db.models import Count, Max, Sum
+    from orders.models import Order
+
+    options = _options_dict(data.get("options", []))
+    email = (options.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        return _ephemeral("Email inválido. Pasá un email tipo `cliente@correo.com`.")
+
+    qs = Order.objects.filter(email__iexact=email)
+    if not qs.exists():
+        return _ephemeral(f"Sin pedidos para `{email}`.")
+
+    paid_qs = qs.filter(
+        status__in=(
+            Order.Status.PAID,
+            Order.Status.PREPARING,
+            Order.Status.DELIVERED,
+        ),
+    )
+    stats = qs.aggregate(
+        n=Count("id"),
+        last=Max("created_at"),
+    )
+    revenue_pen = paid_qs.filter(currency="PEN").aggregate(s=Sum("total"))["s"] or 0
+    revenue_usd = paid_qs.filter(currency="USD").aggregate(s=Sum("total"))["s"] or 0
+
+    last = stats["last"]
+    last_str = f"<t:{int(last.timestamp())}:R>" if last else "—"
+
+    history_lines: list[str] = []
+    for o in qs.order_by("-created_at")[:5]:
+        history_lines.append(_format_order_line(o))
+
+    fields = [
+        {"name": "📧 Email", "value": f"`{email}`", "inline": False},
+        {"name": "📦 Pedidos", "value": f"**{stats['n']}** totales", "inline": True},
+        {"name": "🕒 Último", "value": last_str, "inline": True},
+        {"name": "💰 Gastado", "value": f"PEN {revenue_pen} · USD {revenue_usd}", "inline": True},
+        {"name": "🧾 Historial", "value": ("\n".join(history_lines) or "—")[:1024], "inline": False},
+    ]
+    embed = {
+        "title": "👤 Cliente 360°",
+        "color": 0xA855F7,
+        "fields": fields,
+    }
+    return _ephemeral(embeds=[embed])
+
+
 _DISPATCHER = {
     "buscar": _cmd_buscar,
     "pendientes": _cmd_pendientes,
     "entregar": _cmd_entregar,
     "stock": _cmd_stock,
+    "stats": _cmd_stats,
+    "cliente": _cmd_cliente,
 }
+
+
+# ---------------------------------------------------------------------
+# Botones (MESSAGE_COMPONENT)
+# ---------------------------------------------------------------------
+
+def _is_admin_user(user_id: str) -> bool:
+    """¿El usuario que clickeó está autorizado a mutar pedidos?"""
+    if not user_id:
+        return False
+    from django.conf import settings
+
+    allowed = getattr(settings, "DISCORD_ADMIN_USER_IDS", "") or ""
+    ids = {x.strip() for x in str(allowed).split(",") if x.strip()}
+    if not ids:
+        # Si la allowlist está vacía, no permitimos clicks (seguro por
+        # defecto). Para habilitarla hay que setear DISCORD_ADMIN_USER_IDS
+        # en el .env con tu user ID de Discord.
+        return False
+    return str(user_id) in ids
+
+
+def _user_id_from_payload(payload: dict) -> str:
+    """Discord manda el user en ``member.user.id`` (guild) o ``user.id`` (DM)."""
+    member = payload.get("member") or {}
+    user = (member.get("user") or {}) or payload.get("user") or {}
+    return str(user.get("id", "")) if isinstance(user, dict) else ""
+
+
+# Mapping action → (nuevo_status, etiqueta, color hex)
+_ORDER_ACTIONS: dict[str, tuple[str, str, int]] = {
+    "deliver": ("delivered", "✅ Entregado", 0x22C55E),
+    "preparing": ("preparing", "🛠️ En preparación", 0xA855F7),
+    "reject": ("rejected", "❌ Rechazado", 0xEF4444),
+}
+
+
+def _do_order_action(action: str, order_pk: int, user_id: str) -> dict[str, Any]:
+    """Aplica la acción al pedido. Devuelve la respuesta a Discord."""
+    if not _is_admin_user(user_id):
+        return _ephemeral(
+            "🚫 No estás autorizado para mutar pedidos desde Discord. "
+            "Configurá `DISCORD_ADMIN_USER_IDS` en el `.env` con tu user ID."
+        )
+
+    target = _ORDER_ACTIONS.get(action)
+    if not target:
+        return _ephemeral(f"Acción desconocida: `{action}`.")
+    new_status, label, color = target
+
+    from django.utils import timezone
+    from orders.models import Order
+
+    try:
+        order = Order.objects.get(pk=order_pk)
+    except Order.DoesNotExist:
+        return _ephemeral(f"No encontré el pedido `#{order_pk}`.")
+
+    if order.status == new_status:
+        return _ephemeral(f"Pedido `#{order.display_number}` ya está en estado **{label}**.")
+
+    closed = ("delivered", "refunded", "cancelled", "rejected")
+    if order.status in closed and new_status not in closed:
+        return _ephemeral(
+            f"No se puede reabrir un pedido en estado final "
+            f"(`{order.get_status_display()}`)."
+        )
+
+    prev_status = order.status
+    order.status = new_status
+    update_fields = ["status"]
+    if new_status == "delivered":
+        order.delivered_at = timezone.now()
+        update_fields.append("delivered_at")
+    order.save(update_fields=update_fields)
+
+    # Disparar avisos hacia el thread del pedido (si existe).
+    try:
+        from discord_bot import notifications as dn
+
+        dn.notify_order_status_change(order, prev_status=prev_status)
+    except Exception:
+        logger.exception("No pude postear el cambio de estado en Discord")
+
+    embed = {
+        "title": f"{label} · `#{order.display_number}`",
+        "description": f"Estado anterior: `{prev_status}` → ahora: `{new_status}`",
+        "color": color,
+    }
+    return _ephemeral(embeds=[embed])
+
+
+def _handle_component(payload: dict) -> dict[str, Any]:
+    """Procesa un click de botón (MESSAGE_COMPONENT)."""
+    data = payload.get("data", {}) or {}
+    custom_id = str(data.get("custom_id", ""))
+    user_id = _user_id_from_payload(payload)
+
+    parts = custom_id.split(":")
+    if len(parts) >= 3 and parts[0] == "order":
+        action = parts[1]
+        try:
+            order_pk = int(parts[2])
+        except ValueError:
+            return _ephemeral(f"PK de pedido inválido en `{custom_id}`.")
+        return _do_order_action(action, order_pk, user_id)
+
+    return _ephemeral(f"Botón sin handler: `{custom_id}`.")
 
 
 # ---------------------------------------------------------------------
@@ -315,7 +603,12 @@ def handle_interaction(payload: dict) -> dict[str, Any]:
             logger.exception("Error ejecutando /%s", name)
             return _ephemeral("Ocurrió un error procesando el comando. Mirá los logs.")
 
-    # Botones / modales podrían venir aquí en el futuro.
+    if itype == INTERACTION_MESSAGE_COMPONENT:
+        try:
+            return _handle_component(payload)
+        except Exception:
+            logger.exception("Error procesando botón")
+            return _ephemeral("Ocurrió un error procesando el botón. Mirá los logs.")
     return _ephemeral("Tipo de interacción no soportado todavía.")
 
 
