@@ -289,6 +289,13 @@ DISCORD_CHANNEL_YAPE = config("DISCORD_CHANNEL_YAPE", default="")
 DISCORD_CHANNEL_CODIGOS = config("DISCORD_CHANNEL_CODIGOS", default="")
 DISCORD_CHANNEL_ALERTAS = config("DISCORD_CHANNEL_ALERTAS", default="")
 DISCORD_CHANNEL_ADMIN = config("DISCORD_CHANNEL_ADMIN", default="")
+DISCORD_CHANNEL_DASHBOARD = config("DISCORD_CHANNEL_DASHBOARD", default="")
+DISCORD_CHANNEL_INCIDENCIAS = config("DISCORD_CHANNEL_INCIDENCIAS", default="")
+DISCORD_CHANNEL_LOGS = config("DISCORD_CHANNEL_LOGS", default="")
+# IDs de usuarios Discord autorizados a usar botones de acción
+# (separados por coma). Si está vacío, los botones se desactivan por
+# seguridad.
+DISCORD_ADMIN_USER_IDS = config("DISCORD_ADMIN_USER_IDS", default="")
 # Public Key del bot (Discord Developer Portal → General Information).
 # Necesaria solo si querés activar los slash commands (`/buscar`,
 # `/pendientes`, `/entregar`, `/stock`) — Discord firma cada interacción
