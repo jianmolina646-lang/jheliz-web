@@ -363,3 +363,85 @@ class TelegramRoutingTests(TestCase):
             tg.notify_admin_about_order(o)
             discord_fn.assert_not_called()
             tg_fn.assert_called_once()
+
+
+class AdminTextRoutingTests(TestCase):
+    """``orders.telegram.notify_admin`` (texto libre) debe ir a Discord cuando
+    está configurado, y a Telegram cuando no — para que login alerts, daily
+    summary y demás avisos sueltos también pasen a Discord."""
+
+    @override_settings(
+        DISCORD_BOT_TOKEN="fake-token",
+        DISCORD_CHANNEL_PEDIDOS="1001",
+        DISCORD_CHANNEL_ADMIN="1006",
+    )
+    def test_admin_text_routes_to_discord_when_configured(self):
+        from orders import telegram as tg
+        with patch("discord_bot.notifications.notify_admin_text") as discord_fn, \
+             patch.object(tg, "_call") as tg_call:
+            tg.notify_admin("hola", buttons=[[{"text": "ir", "url": "https://x"}]])
+            discord_fn.assert_called_once()
+            args, kwargs = discord_fn.call_args
+            self.assertEqual(args[0], "hola")
+            self.assertEqual(kwargs.get("buttons"), [[{"text": "ir", "url": "https://x"}]])
+            tg_call.assert_not_called()
+
+    @override_settings(
+        DISCORD_BOT_TOKEN="",
+        DISCORD_CHANNEL_PEDIDOS="",
+        TELEGRAM_BOT_TOKEN="t",
+        TELEGRAM_ADMIN_CHAT_ID="42",
+    )
+    def test_admin_text_falls_back_to_telegram_when_discord_off(self):
+        from orders import telegram as tg
+        with patch("discord_bot.notifications.notify_admin_text") as discord_fn, \
+             patch.object(tg, "send_message") as send_msg:
+            tg.notify_admin("hola")
+            discord_fn.assert_not_called()
+            send_msg.assert_called_once()
+
+    @override_settings(
+        DISCORD_BOT_TOKEN="fake-token",
+        DISCORD_CHANNEL_PEDIDOS="1001",
+        DISCORD_CHANNEL_ADMIN="1006",
+    )
+    def test_admin_text_uses_telegram_if_discord_raises(self):
+        from orders import telegram as tg
+        with patch("discord_bot.notifications.notify_admin_text",
+                   side_effect=RuntimeError("network")), \
+             patch.object(tg, "send_message") as send_msg, \
+             patch.object(tg, "_admin_chat_id", return_value="42"), \
+             patch.object(tg, "is_configured", return_value=True):
+            tg.notify_admin("hola")
+            send_msg.assert_called_once()
+
+
+class CleanHtmlAndButtonsTests(TestCase):
+    def test_clean_html_converts_b_i_a_code(self):
+        from discord_bot.notifications import _clean_html
+        text = '<b>negrita</b> <i>cursiva</i> <code>abc</code> <a href="https://x.com">link</a>'
+        self.assertEqual(
+            _clean_html(text),
+            "**negrita** *cursiva* `abc` [link](https://x.com)",
+        )
+
+    def test_clean_html_strips_unknown_tags(self):
+        from discord_bot.notifications import _clean_html
+        self.assertEqual(_clean_html("<span>x</span><br/>y"), "xy")
+
+    def test_buttons_to_components_builds_link_buttons(self):
+        from discord_bot.notifications import _buttons_to_components
+        rows = _buttons_to_components([
+            [{"text": "Ver", "url": "https://x"}],
+            [{"text": "B", "url": "https://b"}, {"text": "ignored"}],
+        ])
+        self.assertIsNotNone(rows)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["components"][0]["label"], "Ver")
+        # B se mantiene, el segundo (sin url) se descarta
+        self.assertEqual(len(rows[1]["components"]), 1)
+
+    def test_buttons_to_components_returns_none_for_empty(self):
+        from discord_bot.notifications import _buttons_to_components
+        self.assertIsNone(_buttons_to_components(None))
+        self.assertIsNone(_buttons_to_components([]))

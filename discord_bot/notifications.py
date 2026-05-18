@@ -91,14 +91,67 @@ def notify_test(channel_key: str = "admin", message: str = "🔔 Test de conexi�
     return client.send_message(cid, message)
 
 
-def notify_admin_generic(text: str) -> dict | None:
-    """Envía un mensaje libre al canal #admin (fallback)."""
+def notify_admin_generic(text: str, *, buttons: Any = None) -> dict | None:
+    """Envía un mensaje libre al canal #admin (fallback).
+
+    ``buttons`` acepta el mismo formato que ``orders.telegram.notify_admin``
+    (``list[list[{"text", "url"}]]``) y los convierte en filas de botones
+    link nativos de Discord.
+    """
     if not client.is_configured():
         return None
     cid = _channel("admin")
     if not cid:
         return None
-    return client.send_message(cid, text[:1900])
+    return client.send_message(
+        cid,
+        _clean_html(text)[:1900],
+        components=_buttons_to_components(buttons),
+    )
+
+
+# Alias estable para que callers de Telegram → Discord no se enteren del rename.
+notify_admin_text = notify_admin_generic
+
+
+def _clean_html(text: str) -> str:
+    """Quita tags HTML básicos que vienen del path Telegram (``<b>``, ``<i>``).
+
+    Discord no entiende HTML pero sí markdown — convertimos lo común para
+    que el mensaje se vea ordenado al ser ruteado desde ``orders.telegram``.
+    """
+    if not text:
+        return ""
+    import re
+
+    out = text
+    out = re.sub(r"<\s*b\s*>(.*?)<\s*/\s*b\s*>", r"**\1**", out, flags=re.S | re.I)
+    out = re.sub(r"<\s*i\s*>(.*?)<\s*/\s*i\s*>", r"*\1*", out, flags=re.S | re.I)
+    out = re.sub(r"<\s*code\s*>(.*?)<\s*/\s*code\s*>", r"`\1`", out, flags=re.S | re.I)
+    out = re.sub(r"<\s*a [^>]*href=[\"']([^\"']+)[\"'][^>]*>(.*?)<\s*/\s*a\s*>", r"[\2](\1)", out, flags=re.S | re.I)
+    out = re.sub(r"<[^>]+>", "", out)  # cualquier otro tag
+    return out
+
+
+def _buttons_to_components(buttons: Any) -> list[dict] | None:
+    """Convierte botones estilo Telegram (rows de ``{text, url}``) a Discord."""
+    if not buttons:
+        return None
+    rows: list[dict] = []
+    for row in buttons:
+        try:
+            link_buttons = [
+                client.link_button(str(b.get("text", "")), str(b.get("url", "")))
+                for b in row
+                if (b.get("text") and b.get("url"))
+            ]
+        except AttributeError:
+            continue
+        if link_buttons:
+            rows.append(client.action_row(*link_buttons[:5]))
+        if len(rows) >= 5:
+            break
+    return rows or None
 
 
 # ---------- Pedidos de código ----------

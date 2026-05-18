@@ -142,6 +142,24 @@ def get_webhook_info() -> dict:
 # ---------- Notificaciones admin ----------
 
 def notify_admin(text: str, buttons: Iterable[Iterable[dict]] | None = None) -> dict | None:
+    """Notifica al admin (canal #admin de Discord o DM de Telegram).
+
+    Si Discord está configurado para el back-office, ruta a Discord. Si no,
+    cae al path Telegram. De esta manera, una vez que el bot de Discord
+    está activo el admin queda totalmente liberado de Telegram (que pasa
+    a usarse sólo para el canal público `Jheliz|Avisos`).
+    """
+    # --- Discord (canal #admin) -------------------------------------------
+    try:
+        from discord_bot import notifications as dn
+
+        if dn.is_backoffice_configured():
+            dn.notify_admin_text(text, buttons=buttons)
+            return None
+    except Exception:
+        logger.exception("Falló el ruteo a Discord; usando Telegram")
+
+    # --- Telegram (DM admin, original) ------------------------------------
     chat_id = _admin_chat_id()
     if not (is_configured() and chat_id):
         return None
