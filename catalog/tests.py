@@ -1250,3 +1250,56 @@ class PlanAdminChangelistDesignTests(TestCase):
         # Chips de precios ambos
         self.assertContains(resp, "S/ 35.00")
         self.assertContains(resp, "S/ 55.00")
+
+
+class CachePerLanguageTests(TestCase):
+    """Bug fix: el cache de `cache_for_anon` ahora incluye el idioma activo
+    en la key. Antes, el primer visitante anónimo "envenenaba" el cache para
+    todos los demás idiomas (cliente desde India que cambiaba a inglés veía
+    igual la versión cacheada en español).
+    """
+
+    def test_cache_key_includes_active_language(self):
+        """La cache key cambia según el idioma activo: dos visitas al
+        mismo path con distinta cookie de idioma generan keys distintas."""
+        from unittest.mock import patch, MagicMock
+        from django.core.cache import cache as core_cache
+        from django.test import RequestFactory
+        from django.contrib.auth.models import AnonymousUser
+        from django.http import HttpResponse
+        from django.utils import translation
+        from catalog.views import cache_for_anon
+
+        core_cache.clear()
+        captured_keys: list[str] = []
+        rf = RequestFactory()
+
+        original_get = core_cache.get
+
+        def spy_get(key, *args, **kwargs):
+            captured_keys.append(key)
+            return original_get(key, *args, **kwargs)
+
+        @cache_for_anon(timeout=60)
+        def dummy(request):
+            lang = translation.get_language()
+            return HttpResponse(f"hello-{lang}")
+
+        with patch.object(core_cache, "get", side_effect=spy_get):
+            # Visita en español
+            req_es = rf.get("/somepath/", SERVER_NAME="example.com")
+            req_es.user = AnonymousUser()
+            translation.activate("es")
+            dummy(req_es)
+            # Visita en inglés (mismo path)
+            req_en = rf.get("/somepath/", SERVER_NAME="example.com")
+            req_en.user = AnonymousUser()
+            translation.activate("en")
+            dummy(req_en)
+            translation.deactivate()
+
+        # Deben haberse intentado dos keys distintas (una por idioma).
+        anon_keys = [k for k in captured_keys if k.startswith("anonview:")]
+        self.assertEqual(len(set(anon_keys)), 2, f"keys={anon_keys}")
+        self.assertTrue(any(":es:" in k for k in anon_keys), anon_keys)
+        self.assertTrue(any(":en:" in k for k in anon_keys), anon_keys)
