@@ -725,10 +725,19 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
+# Cookie de idioma (`django_language`): por default Django la setea como
+# session cookie (sin Max-Age), lo que hace que se pierda cuando el
+# usuario cierra el navegador o cuando un webview agresivo limpia
+# session cookies entre páginas. Forzamos 1 año para que la elección
+# manual del usuario persista.
+LANGUAGE_COOKIE_AGE = 60 * 60 * 24 * 365  # 1 año
+LANGUAGE_COOKIE_SAMESITE = "Lax"
+
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    LANGUAGE_COOKIE_SECURE = True
     # HSTS: 1 año + preload (cumple requisitos de hstspreload.org).
     # Sólo activa preload una vez que estés 100% seguro de que TODOS los
     # subdominios sirven HTTPS. Sacar HSTS preload requiere meses de espera.

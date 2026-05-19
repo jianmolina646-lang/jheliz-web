@@ -212,7 +212,13 @@ def cache_for_anon(timeout=60):
             # mockeados (timezone, banners online/offline, etc.).
             if request.META.get("SERVER_NAME") == "testserver":
                 return view_func(request, *args, **kwargs)
-            cache_key = f"anonview:{request.get_full_path()}"
+            # La key incluye el idioma activo así dos usuarios viendo el
+            # mismo path con distinta cookie de idioma no se pisan el cache
+            # (antes el primer visitante en ES "envenenaba" el cache para
+            # todos los otros idiomas).
+            from django.utils import translation
+            lang = translation.get_language() or "es"
+            cache_key = f"anonview:{lang}:{request.get_full_path()}"
             cached = cache.get(cache_key)
             if cached is not None:
                 return cached

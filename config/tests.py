@@ -401,6 +401,20 @@ class LanguageSwitcherTests(TestCase):
         # La cookie de idioma se setea.
         self.assertEqual(resp.cookies.get("django_language").value, "en")
 
+    def test_language_cookie_persists_one_year(self):
+        """Bug fix: la cookie de idioma debe tener Max-Age (no ser session)
+        para que sobreviva al cierre del navegador / webview agresivo."""
+        resp = self.client.post(
+            reverse("set_language"),
+            {"language": "en", "next": "/"},
+        )
+        cookie = resp.cookies.get("django_language")
+        # Debe tener un Max-Age explícito de aprox 1 año.
+        self.assertTrue(int(cookie["max-age"]) >= 60 * 60 * 24 * 30)
+        # SameSite Lax para que cruce navegaciones desde links externos
+        # (Discord, WhatsApp) sin perder la elección.
+        self.assertIn(str(cookie["samesite"]).lower(), ("lax",))
+
     def test_translates_navbar_in_english(self):
         # Activar inglés via cookie y verificar que el header lo refleja.
         self.client.cookies["django_language"] = "en"
