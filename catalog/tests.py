@@ -1303,3 +1303,43 @@ class CachePerLanguageTests(TestCase):
         self.assertEqual(len(set(anon_keys)), 2, f"keys={anon_keys}")
         self.assertTrue(any(":es:" in k for k in anon_keys), anon_keys)
         self.assertTrue(any(":en:" in k for k in anon_keys), anon_keys)
+
+
+class CookieBannerLayoutTests(TestCase):
+    """Bug fix: el banner de cookies en mobile se montaba sobre el
+    bottom-nav (Inicio/Catálogo/...) y su fondo translúcido dejaba ver
+    el hero detrás haciendo el texto ilegible. Ahora:
+    - Fondo OPACO (gradient sólido `#14101f → #0c0a14`)
+    - Posicionado ARRIBA del bottom-nav (`bottom: calc(96px + safe-area)`)
+    - z-index 80 (por encima del nav que está en 45)
+    """
+
+    def test_banner_renders_above_bottom_nav_with_opaque_bg(self):
+        """El banner usa la nueva clase `.jh-cookie-banner` con bottom
+        offset que despeja el bottom-nav móvil, y su `__inner` tiene un
+        background opaco (no la `.surface` semi-transparente)."""
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        # Clase y data-attrs nuevos
+        self.assertIn('id="jh-cookie-banner"', html)
+        self.assertIn("jh-cookie-banner__inner", html)
+        self.assertIn('data-jh-consent="denied"', html)
+        self.assertIn('data-jh-consent="granted"', html)
+        # CSS: el banner se posiciona por encima del bottom-nav (96px+)
+        self.assertIn("bottom: calc(96px + env(safe-area-inset-bottom))", html)
+        # CSS: fondo opaco (no la .surface translúcida que provocaba el
+        # bleed-through con el hero).
+        self.assertIn("#14101f", html)
+        # Z-index del banner > z-index del bottom-nav (45)
+        self.assertIn("z-index: 80", html)
+
+    def test_banner_uses_translated_strings(self):
+        """Confirma que el banner sigue siendo traducible (no rompimos
+        i18n al refactorizar el template). El test usa el idioma por
+        defecto ("es") así que esperamos el texto en español."""
+        resp = self.client.get("/")
+        html = resp.content.decode()
+        self.assertIn("Usamos cookies", html)
+        self.assertIn("Aceptar todas", html)
+        self.assertIn("Solo esenciales", html)
