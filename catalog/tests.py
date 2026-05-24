@@ -1101,6 +1101,192 @@ class BulkReplaceCredentialsTests(TestCase):
         self.assertIn("passA", self.it_a.credentials)
 
 
+class CuentasEditBuyerTests(TestCase):
+    """Editar nombre del cliente / fecha de una cuenta desde Control de cuentas.
+
+    Cubre el bug que tenía el admin: para corregir el nombre del cliente o
+    la fecha de una cuenta vendida, había que entrar a varias pantallas del
+    admin clásico. Ahora se puede hacer con un solo botón en la lista.
+    """
+
+    def setUp(self):
+        from orders.models import Order, OrderItem
+
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username="ebstaff",
+            email="eb@example.com",
+            password="pwd1234!",
+            is_staff=True,
+        )
+        self.cat = Category.objects.create(name="Streaming-eb", slug="streaming-eb")
+        self.product = Product.objects.create(
+            category=self.cat, name="Netflix EB", slug="netflix-eb", is_active=True,
+        )
+        self.plan = Plan.objects.create(
+            product=self.product, name="1 mes",
+            duration_days=30, price_customer=Decimal("20.00"),
+            is_active=True,
+        )
+        self.item = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: x@y.com\nContraseña: secret",
+            status=StockItem.Status.SOLD,
+        )
+        self.order = Order.objects.create(
+            email="comprador@gmail.com",
+            phone="51999111222",
+            total=Decimal("20.00"),
+            status=Order.Status.DELIVERED,
+            paid_at=timezone.now() - timedelta(days=2),
+        )
+        self.oi = OrderItem.objects.create(
+            order=self.order,
+            product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=Decimal("20.00"), quantity=1,
+            stock_item=self.item,
+        )
+
+    def test_edits_customer_name_and_date(self):
+        """El POST principal actualiza nombre del cliente final + fecha del pedido."""
+        from orders.models import OrderItem
+
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
+            {
+                "customer_name": "María Pérez",
+                "customer_whatsapp": "+51 987 654 321",
+                "sale_date": "2025-12-31T14:30",
+            },
+            follow=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        oi = OrderItem.objects.get(pk=self.oi.pk)
+        self.assertEqual(oi.final_customer_name, "María Pérez")
+        self.assertEqual(oi.final_customer_whatsapp, "+51 987 654 321")
+        self.order.refresh_from_db()
+        # paid_at se guarda en UTC; convertimos a la TZ del proyecto para
+        # comparar contra lo que mandó el admin (que estaba en hora local).
+        local_dt = timezone.localtime(self.order.paid_at)
+        self.assertEqual(local_dt.year, 2025)
+        self.assertEqual(local_dt.month, 12)
+        self.assertEqual(local_dt.day, 31)
+        self.assertEqual(local_dt.hour, 14)
+        self.assertEqual(local_dt.minute, 30)
+
+    def test_edits_buyer_email_normalizes_case(self):
+        """El email del comprador se guarda en lowercase."""
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
+            {"buyer_email": "NuevoCorreo@Gmail.COM"},
+            follow=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.email, "nuevocorreo@gmail.com")
+
+    def test_partial_update_only_changes_provided_fields(self):
+        """Si solo se manda nombre, el resto no se toca."""
+        from orders.models import OrderItem
+
+        original_paid_at = self.order.paid_at
+        original_email = self.order.email
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
+            {"customer_name": "Solo Nombre"},
+            follow=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        oi = OrderItem.objects.get(pk=self.oi.pk)
+        self.assertEqual(oi.final_customer_name, "Solo Nombre")
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.paid_at, original_paid_at)
+        self.assertEqual(self.order.email, original_email)
+
+    def test_invalid_date_returns_error_message(self):
+        """Fechas mal formadas se reportan al usuario sin tocar el pedido."""
+        original_paid_at = self.order.paid_at
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
+            {"sale_date": "no-es-una-fecha"},
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        msgs = [str(m) for m in resp.context["messages"]]
+        self.assertTrue(any("Fecha inválida" in m for m in msgs), msgs)
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.paid_at, original_paid_at)
+
+    def test_accepts_date_only_format(self):
+        """``2025-12-31`` solo (sin hora) también se acepta."""
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
+            {"sale_date": "2025-12-31"},
+            follow=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.order.refresh_from_db()
+        # Convertimos a TZ local para comparar la fecha que mandó el admin.
+        local_dt = timezone.localtime(self.order.paid_at)
+        self.assertEqual(local_dt.year, 2025)
+        self.assertEqual(local_dt.month, 12)
+        self.assertEqual(local_dt.day, 31)
+
+    def test_requires_staff(self):
+        """Un usuario no-staff no puede editar nada."""
+        from orders.models import OrderItem
+
+        User = get_user_model()
+        u = User.objects.create_user(
+            username="ebnostaff", email="np@example.com", password="x",
+        )
+        self.client.force_login(u)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
+            {"customer_name": "no debería entrar"},
+        )
+        self.assertNotEqual(resp.status_code, 200)
+        oi = OrderItem.objects.get(pk=self.oi.pk)
+        self.assertEqual(oi.final_customer_name, "")
+
+    def test_item_without_orderitem_returns_message(self):
+        """Si la cuenta no tiene OrderItem asociado, informa y no rompe."""
+        orphan = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: z@z.com\nContraseña: zzz",
+            status=StockItem.Status.AVAILABLE,
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[orphan.pk]),
+            {"customer_name": "no sirve"},
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        msgs = [str(m) for m in resp.context["messages"]]
+        self.assertTrue(
+            any("no tiene un pedido asociado" in m for m in msgs), msgs,
+        )
+
+    def test_dashboard_renders_edit_button_for_sold_accounts(self):
+        """El botón de editar cliente aparece en el dashboard para cuentas vendidas."""
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_cuentas_dashboard"))
+        self.assertEqual(resp.status_code, 200)
+        # El botón debe estar presente con la clase JS apropiada.
+        self.assertContains(resp, "jh-cc-edit-buyer-btn")
+        # El modal también debe estar renderizado.
+        self.assertContains(resp, 'id="edit-buyer-modal"')
+        self.assertContains(resp, 'name="customer_name"')
+        self.assertContains(resp, 'name="sale_date"')
+
+
 class AdminInboxViewTests(TestCase):
     """Smoke test del feed unificado de bandeja del admin.
 

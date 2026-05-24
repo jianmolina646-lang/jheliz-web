@@ -713,6 +713,19 @@
                       </button>
                     </form>
                   {% endif %}
+                  {% if item.status == 'sold' or item.status == 'reserved' %}
+                    <button type="button"
+                            class="jh-cc-act jh-cc-edit-buyer-btn"
+                            title="Editar nombre del cliente / fecha"
+                            data-item-id="{{ item.pk }}"
+                            data-customer-name="{{ item.buyer_resale_name|default:''|escape }}"
+                            data-customer-whatsapp="{{ item.buyer_resale_whatsapp|default:''|escape }}"
+                            data-buyer-email="{{ item.buyer_email|default:''|escape }}"
+                            data-sale-date="{% if item.sale_date %}{{ item.sale_date|date:'Y-m-d\TH:i' }}{% endif %}"
+                            data-account-label="{{ item.account_text|default:item.label|default:''|truncatechars:60|escape }}">
+                      <span class="material-symbols-outlined">badge</span>
+                    </button>
+                  {% endif %}
                   <a href="{% url 'admin:catalog_stockitem_change' item.pk %}"
                      class="jh-cc-act" title="Ver / editar detalle">
                     <span class="material-symbols-outlined">edit</span>
@@ -867,6 +880,104 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
   </div>
 </div>
 
+{# Modal Edit-Buyer — editar nombre del cliente / fecha / correo de una cuenta entregada. #}
+<div id="edit-buyer-modal"
+     class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+     style="backdrop-filter: blur(4px);">
+  <div class="bg-base-900 border border-base-700 rounded-xl shadow-2xl w-full max-w-lg flex flex-col"
+       style="max-height: 90vh;">
+    <form id="edit-buyer-form" method="post"
+          class="flex flex-col h-full overflow-hidden">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+      <div class="flex items-center justify-between px-5 py-4 border-b border-base-700">
+        <div>
+          <div class="text-xs uppercase tracking-wide text-base-400">Editar cliente / fecha</div>
+          <div id="eb-account-label" class="text-lg font-semibold text-white truncate" style="max-width:32ch;"></div>
+        </div>
+        <button type="button" id="eb-close"
+                class="text-base-400 hover:text-white text-2xl leading-none">×</button>
+      </div>
+
+      <div class="px-5 py-4 space-y-4 overflow-y-auto">
+        <div class="text-xs text-base-300 bg-base-950 border border-base-800 rounded-lg p-3 leading-relaxed">
+          Estos datos se guardan en el pedido asociado a esta cuenta. Sirven
+          para llevar registro de a quién entregaste la cuenta y cuándo —
+          útil para renovaciones y revendedores.
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-base-300 mb-1.5"
+                 for="eb-customer-name">
+            Nombre del cliente
+          </label>
+          <input type="text" id="eb-customer-name" name="customer_name"
+                 maxlength="120"
+                 class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2
+                        focus:border-primary-500 focus:outline-none"
+                 placeholder="Ej. María Pérez">
+          <div class="text-[11px] text-base-400 mt-1">
+            Usalo para el cliente final si revendés la cuenta.
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-base-300 mb-1.5"
+                 for="eb-customer-whatsapp">
+            WhatsApp del cliente
+          </label>
+          <input type="text" id="eb-customer-whatsapp" name="customer_whatsapp"
+                 maxlength="30"
+                 class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2
+                        focus:border-primary-500 focus:outline-none"
+                 placeholder="Ej. +51 987 654 321">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-base-300 mb-1.5"
+                 for="eb-buyer-email">
+            Correo del comprador
+          </label>
+          <input type="email" id="eb-buyer-email" name="buyer_email"
+                 maxlength="254"
+                 class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2
+                        focus:border-primary-500 focus:outline-none"
+                 placeholder="comprador@gmail.com">
+          <div class="text-[11px] text-base-400 mt-1">
+            Es el correo registrado en el pedido (quien pagó / recibió la cuenta).
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-base-300 mb-1.5"
+                 for="eb-sale-date">
+            Fecha de venta / entrega
+          </label>
+          <input type="datetime-local" id="eb-sale-date" name="sale_date"
+                 class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2
+                        focus:border-primary-500 focus:outline-none"
+                 style="color-scheme: dark;">
+          <div class="text-[11px] text-base-400 mt-1">
+            Se guarda como fecha de pago del pedido (paid_at).
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 px-5 py-3 border-t border-base-700 bg-base-900">
+        <button type="button" id="eb-cancel"
+                class="px-4 py-2 rounded-md border border-base-700 hover:bg-base-800 text-base-200 text-sm">
+          Cancelar
+        </button>
+        <button type="submit"
+                class="px-4 py-2 rounded-md bg-primary-500 hover:bg-primary-400 text-white font-semibold text-sm">
+          Guardar cambios
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 (function() {
   const modal = document.getElementById('quick-add-modal');
@@ -951,6 +1062,44 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
     const n = lines.length;
     counter.textContent = n + ' reemplazo' + (n === 1 ? '' : 's') + ' detectado' + (n === 1 ? '' : 's');
     counter.className = n > 0 ? 'text-xs text-violet-300' : 'text-xs text-base-400';
+  });
+})();
+
+(function() {
+  // Modal de edición rápida del cliente / fecha / correo de una cuenta vendida.
+  const modal = document.getElementById('edit-buyer-modal');
+  if (!modal) return;
+  const form = document.getElementById('edit-buyer-form');
+  const closeBtn = document.getElementById('eb-close');
+  const cancelBtn = document.getElementById('eb-cancel');
+  const labelEl = document.getElementById('eb-account-label');
+  const nameInput = document.getElementById('eb-customer-name');
+  const waInput = document.getElementById('eb-customer-whatsapp');
+  const emailInput = document.getElementById('eb-buyer-email');
+  const dateInput = document.getElementById('eb-sale-date');
+
+  function openModal(btn) {
+    const itemId = btn.dataset.itemId;
+    if (!itemId) return;
+    form.action = '/panel-jheliz-2026/control-cuentas/' + itemId + '/edit-buyer/';
+    labelEl.textContent = btn.dataset.accountLabel || ('Cuenta #' + itemId);
+    nameInput.value = btn.dataset.customerName || '';
+    waInput.value = btn.dataset.customerWhatsapp || '';
+    emailInput.value = btn.dataset.buyerEmail || '';
+    dateInput.value = btn.dataset.saleDate || '';
+    modal.classList.remove('hidden');
+    setTimeout(() => nameInput.focus(), 50);
+  }
+  function closeModal() { modal.classList.add('hidden'); }
+
+  document.querySelectorAll('.jh-cc-edit-buyer-btn').forEach(btn => {
+    btn.addEventListener('click', function() { openModal(this); });
+  });
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
   });
 })();
 </script>

@@ -1474,6 +1474,132 @@ def stock_bulk_replace_credentials(request):
     return redirect(next_url)
 
 
+@staff_member_required
+@require_POST
+def cuentas_edit_buyer(request, item_id: int):
+    """Edita los datos del comprador / fecha de una cuenta entregada.
+
+    Pensado para corregir typos o actualizar nombre/whatsapp del cliente
+    final (revendido) y la fecha en que se vendió la cuenta — sin tener que
+    entrar al detalle del pedido en el admin clásico.
+
+    Campos editables (todos opcionales, se aplica solo lo que viene):
+      * ``customer_name``       → ``OrderItem.final_customer_name``
+      * ``customer_whatsapp``   → ``OrderItem.final_customer_whatsapp``
+      * ``buyer_email``         → ``Order.email`` (correo del comprador)
+      * ``sale_date``           → ``Order.paid_at`` (YYYY-MM-DD o YYYY-MM-DDTHH:MM)
+    """
+    from catalog.models import StockItem
+    from orders.models import Order, OrderItem
+
+    item = get_object_or_404(StockItem, pk=item_id)
+    next_url = request.POST.get("next") or reverse("admin_cuentas_dashboard")
+
+    # Tomamos el OrderItem más reciente asociado a esta cuenta (mismo criterio
+    # que la vista del dashboard).
+    oi: OrderItem | None = (
+        OrderItem.objects.filter(stock_item=item)
+        .select_related("order")
+        .order_by("-order__paid_at", "-order__created_at")
+        .first()
+    )
+    if oi is None:
+        messages.error(
+            request,
+            f"Cuenta #{item.pk} no tiene un pedido asociado todavía.",
+        )
+        return redirect(next_url)
+
+    customer_name = (request.POST.get("customer_name") or "").strip()
+    customer_whatsapp = (request.POST.get("customer_whatsapp") or "").strip()
+    buyer_email = (request.POST.get("buyer_email") or "").strip().lower()
+    sale_date_raw = (request.POST.get("sale_date") or "").strip()
+
+    # Limitar a los maxlength de los CharField para evitar 500.
+    customer_name = customer_name[:120]
+    customer_whatsapp = customer_whatsapp[:30]
+    buyer_email = buyer_email[:254]
+
+    changed_oi: list[str] = []
+    if customer_name != (oi.final_customer_name or ""):
+        oi.final_customer_name = customer_name
+        changed_oi.append("final_customer_name")
+    if customer_whatsapp != (oi.final_customer_whatsapp or ""):
+        oi.final_customer_whatsapp = customer_whatsapp
+        changed_oi.append("final_customer_whatsapp")
+    if changed_oi:
+        oi.save(update_fields=changed_oi)
+
+    order = oi.order
+    changed_order: list[str] = []
+    if buyer_email and buyer_email != (order.email or "").lower():
+        order.email = buyer_email
+        changed_order.append("email")
+    if sale_date_raw:
+        parsed = _parse_admin_datetime(sale_date_raw)
+        if parsed is None:
+            messages.error(
+                request,
+                f"Fecha inválida: '{sale_date_raw}'. Usá AAAA-MM-DD o AAAA-MM-DD HH:MM.",
+            )
+            return redirect(next_url)
+        if parsed != order.paid_at:
+            order.paid_at = parsed
+            changed_order.append("paid_at")
+    if changed_order:
+        order.save(update_fields=changed_order)
+
+    if changed_oi or changed_order:
+        bits = []
+        if changed_oi:
+            bits.append("cliente")
+        if "paid_at" in changed_order:
+            bits.append("fecha")
+        if "email" in changed_order:
+            bits.append("correo")
+        messages.success(
+            request,
+            "✓ Cuenta #{pk} actualizada ({fields}).".format(
+                pk=item.pk, fields=" + ".join(bits),
+            ),
+        )
+    else:
+        messages.info(request, "Sin cambios.")
+
+    return redirect(next_url)
+
+
+def _parse_admin_datetime(raw: str):
+    """Parsea fechas que mande el admin desde inputs <input type=datetime-local>
+    o <input type=date>.
+
+    Acepta formatos:
+      * ``2025-12-31`` (date) → 12:00 hora local
+      * ``2025-12-31T14:30`` (datetime-local, ISO sin segundos)
+      * ``2025-12-31 14:30`` (también con espacio)
+      * ``2025-12-31T14:30:00`` (con segundos)
+
+    Devuelve un ``datetime`` aware en la TZ del proyecto, o ``None`` si no
+    se pudo parsear.
+    """
+    from django.utils.dateparse import parse_date, parse_datetime
+
+    s = (raw or "").strip()
+    if not s:
+        return None
+    # Permitimos "T" o " " entre fecha y hora.
+    candidate = s.replace(" ", "T") if "T" not in s and " " in s else s
+    dt = parse_datetime(candidate)
+    if dt is None:
+        d = parse_date(s)
+        if d is None:
+            return None
+        dt = datetime(d.year, d.month, d.day, 12, 0, 0)
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, timezone.get_current_timezone())
+    return dt
+
+
 def _extract_primary_email(text: str) -> str:
     """Devuelve el primer email (lowercase) encontrado en el texto, o ''."""
     import re
