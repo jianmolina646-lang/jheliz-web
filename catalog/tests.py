@@ -1286,6 +1286,25 @@ class CuentasEditBuyerTests(TestCase):
         self.assertContains(resp, 'name="customer_name"')
         self.assertContains(resp, 'name="sale_date"')
 
+    def test_dashboard_renders_mobile_cards_layout(self):
+        """En mobile se renderiza un layout de cards apiladas en paralelo a la tabla."""
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_cuentas_dashboard"))
+        self.assertEqual(resp.status_code, 200)
+        # Ambos contenedores existen (desktop table + mobile cards).
+        self.assertContains(resp, 'jh-cc-table-desktop')
+        self.assertContains(resp, 'jh-cc-cards-mobile')
+        # Cada cuenta tiene un <article class="jh-cc-card">.
+        self.assertContains(resp, 'jh-cc-card')
+        # Las acciones también están renderizadas dentro de la card.
+        self.assertContains(resp, 'jh-cc-card__actions')
+        # El botón de editar cliente aparece DOS veces (uno en table, uno en card).
+        # Buscamos por la clase específica del modal trigger.
+        self.assertGreaterEqual(
+            resp.content.decode().count("jh-cc-edit-buyer-btn"), 2,
+            "El botón de editar cliente debe aparecer en table + card.",
+        )
+
 
 class AdminInboxViewTests(TestCase):
     """Smoke test del feed unificado de bandeja del admin.
