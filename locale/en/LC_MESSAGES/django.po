@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: jheliz 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-19 01:27-0500\n"
+"POT-Creation-Date: 2026-05-24 04:26-0500\n"
 "PO-Revision-Date: 2026-05-17 04:05-0500\n"
 "Last-Translator: Jheliz Store <support@jhelizstore.com>\n"
 "Language-Team: English <en@jhelizstore.com>\n"
@@ -434,6 +434,28 @@ msgstr ""
 
 msgid "Cupón"
 msgstr "Coupon"
+
+msgid "Consentimiento de cookies"
+msgstr "Cookie consent"
+
+msgid "Usamos cookies"
+msgstr "We use cookies"
+
+msgid ""
+"Usamos cookies esenciales para que la web funcione y, si lo aceptas, de "
+"analítica y marketing para mejorarla."
+msgstr ""
+"We use essential cookies so the site works and, if you agree, analytics and "
+"marketing cookies to improve it."
+
+msgid "Política de Cookies"
+msgstr "Cookie Policy"
+
+msgid "Solo esenciales"
+msgstr "Essential only"
+
+msgid "Aceptar todas"
+msgstr "Accept all"
 
 msgid "Idioma"
 msgstr "Language"

@@ -1,44 +1,189 @@
+{% load i18n %}
 {% comment %}
-   Banner de consentimiento de cookies. Persiste la elección 6 meses.
-   Cookie: jh_consent=granted | denied
+   Banner de consentimiento de cookies.
+   Persiste la elección 6 meses (cookie: jh_consent=granted | denied).
+
+   Posicionamiento:
+   - Mobile (<sm 640px): sit por encima del bottom-nav (que ocupa ~88px + safe-area)
+     y con fondo OPACO para que no se traspase con el hero detrás.
+   - Tablet/desktop (>=sm): bottom-right con max-width fija.
 {% endcomment %}
-<div id="jh-cookie-banner" class="hidden fixed bottom-4 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-md z-[80]">
-  <div class="surface rounded-2xl p-5 shadow-2xl border border-white/5">
-    <div class="flex items-start gap-3">
-      <div class="text-2xl">🍪</div>
-      <div class="flex-1">
-        <h3 class="font-display text-sm font-bold text-white">Usamos cookies</h3>
-        <p class="text-xs text-zinc-400 mt-1 leading-relaxed">
+<div id="jh-cookie-banner" class="jh-cookie-banner hidden" role="dialog" aria-live="polite" aria-label="{% trans 'Consentimiento de cookies' %}">
+  <div class="jh-cookie-banner__inner">
+    <div class="jh-cookie-banner__icon" aria-hidden="true">🍪</div>
+    <div class="jh-cookie-banner__body">
+      <h3 class="jh-cookie-banner__title">{% trans "Usamos cookies" %}</h3>
+      <p class="jh-cookie-banner__text">
+        {% blocktrans trimmed %}
           Usamos cookies esenciales para que la web funcione y, si lo aceptas,
-          de analítica y marketing para mejorarla. Más en
-          <a href="/cookies/" class="underline hover:text-white">Política de Cookies</a>.
-        </p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button type="button" data-jh-consent="denied"
-                  class="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition">
-            Solo esenciales
-          </button>
-          <button type="button" data-jh-consent="granted"
-                  class="text-xs px-3 py-1.5 rounded-lg bg-jheliz-500 hover:bg-jheliz-400 text-white font-semibold transition">
-            Aceptar todas
-          </button>
-        </div>
+          de analítica y marketing para mejorarla.
+        {% endblocktrans %}
+        <a href="{% url 'catalog:cookies' %}" class="jh-cookie-banner__link">{% trans "Política de Cookies" %}</a>.
+      </p>
+      <div class="jh-cookie-banner__actions">
+        <button type="button" data-jh-consent="denied" class="jh-cookie-banner__btn jh-cookie-banner__btn--secondary">
+          {% trans "Solo esenciales" %}
+        </button>
+        <button type="button" data-jh-consent="granted" class="jh-cookie-banner__btn jh-cookie-banner__btn--primary">
+          {% trans "Aceptar todas" %}
+        </button>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+  .jh-cookie-banner {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    /* Sit ABOVE the mobile bottom-nav (height ~88px incl. safe-area)
+       so the consent buttons no se montan sobre Inicio/Catálogo/etc. */
+    bottom: calc(96px + env(safe-area-inset-bottom));
+    z-index: 80;
+    max-width: 100%;
+    /* Slide-in suave al aparecer */
+    animation: jhCookieIn .35s cubic-bezier(.22, .61, .36, 1);
+  }
+  .jh-cookie-banner.hidden { display: none; }
+
+  /* En tablet+, anclar a la esquina inferior izquierda con ancho fijo
+     (el bottom-nav móvil no aparece >=768px, así que no hay conflicto). */
+  @media (min-width: 768px) {
+    .jh-cookie-banner {
+      left: 24px;
+      right: auto;
+      bottom: calc(24px + env(safe-area-inset-bottom));
+      max-width: 420px;
+    }
+  }
+
+  .jh-cookie-banner__inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 18px;
+    /* Fondo OPACO para que no se traspase con el contenido detrás. */
+    background: #0e0c14;
+    background: linear-gradient(180deg, #14101f 0%, #0c0a14 100%);
+    border: 1px solid rgba(168, 85, 247, 0.22);
+    box-shadow:
+      0 24px 50px -12px rgba(0, 0, 0, 0.65),
+      0 8px 24px -8px rgba(236, 72, 153, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .jh-cookie-banner__icon {
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.18), rgba(168, 85, 247, 0.18));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  .jh-cookie-banner__body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .jh-cookie-banner__title {
+    margin: 0 0 4px;
+    font-family: 'Geist', 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fafafa;
+    letter-spacing: -0.01em;
+  }
+
+  .jh-cookie-banner__text {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #a1a1aa;
+  }
+
+  .jh-cookie-banner__link {
+    color: #f9a8d4;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .jh-cookie-banner__link:hover { color: #fff; }
+
+  .jh-cookie-banner__actions {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .jh-cookie-banner__btn {
+    flex: 1 1 auto;
+    min-width: 120px;
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background 150ms ease, transform 100ms ease, border-color 150ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .jh-cookie-banner__btn:active { transform: scale(0.98); }
+
+  .jh-cookie-banner__btn--secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: #e4e4e7;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+  .jh-cookie-banner__btn--secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .jh-cookie-banner__btn--primary {
+    background: linear-gradient(135deg, #ec4899, #a855f7);
+    color: #fff;
+    box-shadow: 0 6px 18px -4px rgba(236, 72, 153, 0.5);
+  }
+  .jh-cookie-banner__btn--primary:hover {
+    filter: brightness(1.08);
+  }
+
+  @keyframes jhCookieIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .jh-cookie-banner { animation: none; }
+    .jh-cookie-banner__btn { transition: none; }
+  }
+</style>
+
 <script>
-(function(){
-  function getCookie(n){ var m = document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)')); return m ? decodeURIComponent(m[1]) : null; }
-  function setCookie(n,v,days){
-    var d = new Date(); d.setTime(d.getTime() + days*24*60*60*1000);
-    document.cookie = n+'='+encodeURIComponent(v)+'; expires='+d.toUTCString()+'; path=/; SameSite=Lax';
+(function () {
+  function getCookie(n) {
+    var m = document.cookie.match(new RegExp('(?:^|; )' + n + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  function setCookie(n, v, days) {
+    var d = new Date();
+    d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie = n + '=' + encodeURIComponent(v) +
+      '; expires=' + d.toUTCString() + '; path=/; SameSite=Lax';
   }
   var banner = document.getElementById('jh-cookie-banner');
   if (!banner) return;
-  if (!getCookie('jh_consent')) { banner.classList.remove('hidden'); }
-  banner.querySelectorAll('[data-jh-consent]').forEach(function(btn){
-    btn.addEventListener('click', function(){
+  if (!getCookie('jh_consent')) {
+    banner.classList.remove('hidden');
+  }
+  banner.querySelectorAll('[data-jh-consent]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
       var v = btn.getAttribute('data-jh-consent');
       setCookie('jh_consent', v, 180);
       banner.classList.add('hidden');
