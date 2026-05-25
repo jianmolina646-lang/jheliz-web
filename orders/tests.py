@@ -3393,3 +3393,33 @@ class OrderItemAdminChangelistDesignTests(TestCase):
         self.assertContains(resp, "1 mes")
         # CSS de chips
         self.assertContains(resp, "jh-chip")
+
+
+class OrderChangelistDisplayTotalTests(TestCase):
+    """display_total formatea el total con simbolo de moneda."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.staff = User.objects.create_superuser(
+            username="staff_displaytotal", email="s@e.com", password="pw",
+        )
+
+    def test_changelist_muestra_total_con_simbolo_de_moneda(self):
+        Order.objects.create(
+            email="c@example.com", phone="+51111",
+            total=Decimal("12.50"), currency="PEN",
+            status=Order.Status.PAID,
+        )
+        Order.objects.create(
+            email="d@example.com", phone="+51222",
+            total=Decimal("9.90"), currency="USD",
+            status=Order.Status.PAID,
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin:orders_order_changelist"))
+        self.assertEqual(resp.status_code, 200)
+        # PEN -> "S/"
+        self.assertContains(resp, "S/ 12.50")
+        # USD -> "USD"
+        self.assertContains(resp, "USD 9.90")

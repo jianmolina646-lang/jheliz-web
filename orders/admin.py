@@ -160,7 +160,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     list_display = (
         "display_number", "display_customer", "display_products",
         "display_status", "channel",
-        "payment_provider", "total", "display_actions", "created_at",
+        "payment_provider", "display_total", "display_actions", "created_at",
     )
     list_display_links = ("display_number", "display_customer")
     list_filter = ("status", "channel", "payment_provider", "created_at")
@@ -366,6 +366,18 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     )
     def display_status(self, obj: Order):
         return obj.status, obj.get_status_display()
+
+    @display(description="Total", ordering="total")
+    def display_total(self, obj: Order):
+        # Muestra el total con simbolo de moneda al inicio para que en mobile
+        # se lea claro ("S/ 5.00" / "USD 9.90") sin tener que mirar otra columna.
+        symbol = {"PEN": "S/", "USD": "USD", "EUR": "€"}.get(obj.currency, obj.currency)
+        amount = f"{obj.total:.2f}"
+        return format_html(
+            '<span style="font-variant-numeric:tabular-nums;font-weight:600;'
+            'white-space:nowrap;">{} {}</span>',
+            symbol, amount,
+        )
 
     @display(description="Acciones rápidas")
     def display_actions(self, obj: Order):
