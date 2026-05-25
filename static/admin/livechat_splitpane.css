@@ -475,23 +475,96 @@
 /* Mobile / responsive                                               */
 /* ---------------------------------------------------------------- */
 
+/* Botón "← Volver a la lista" (solo visible en mobile, ver media query). */
+.jh2-livechat__back {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .05);
+    color: #f8fafc;
+    text-decoration: none;
+    transition: background .15s ease;
+    margin-right: 10px;
+}
+.jh2-livechat__back:hover,
+.jh2-livechat__back:focus-visible {
+    background: rgba(244, 114, 182, .18);
+    color: #fbcfe8;
+}
+
 @media (max-width: 768px) {
     .jh2-livechat__shell {
         grid-template-columns: 1fr;
         min-height: auto;
+        /* La sala (right pane) sube hasta ocupar el alto util de la pantalla
+           para que el composer quede pegado al fondo sin scrollear toda la
+           página. */
+        position: relative;
     }
 
-    /* En mobile: si hay sala seleccionada, ocultamos la lista; si no, ocultamos
-       el panel placeholder/conversación. Truco: con el atributo selectivo del
-       div .jh2-livechat alternamos visibilidad. */
+    /* En mobile mostramos UN solo panel a la vez:
+       - Si hay sala seleccionada (.jh2-livechat__shell tiene .jh2-livechat__pane
+         dentro de .jh2-livechat__main) ocultamos la lista.
+       - Si NO hay sala seleccionada (solo se ve el placeholder) ocultamos el
+         panel main para que la lista ocupe toda la pantalla.
+       Usamos :has() (soportado en todos los browsers modernos).
+    */
+    .jh2-livechat__shell:has(.jh2-livechat__pane) .jh2-livechat__list {
+        display: none;
+    }
+    .jh2-livechat__shell:not(:has(.jh2-livechat__pane)) .jh2-livechat__main {
+        display: none;
+    }
+
     .jh2-livechat__list {
-        max-height: 60vh;
+        /* Cuando es la única vista (sin sala seleccionada), se expande full-height */
+        max-height: calc(100vh - 200px);
         border-right: none;
         border-bottom: 1px solid rgba(255, 255, 255, .06);
     }
 
+    /* La conversación + composer ocupan toda la pantalla en mobile. */
+    .jh2-livechat__main {
+        display: flex;
+        flex-direction: column;
+        min-height: calc(100vh - 160px);
+    }
+
+    .jh2-livechat__pane {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+    }
+
     .jh2-livechat__thread {
-        max-height: 50vh;
+        flex: 1;
+        max-height: none;
+        /* Padding al fondo para que el composer sticky no tape el último msg. */
+        padding-bottom: 16px;
+    }
+
+    /* Composer fijo al fondo para que sea siempre accesible (no hay que scrollear
+       para llegar al textarea + send). Margin inferior compensa el bottom-nav del
+       admin si lo hay. */
+    .jh2-livechat__composer {
+        position: sticky;
+        bottom: 0;
+        background: rgba(11, 18, 32, .95);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        padding: 10px 12px;
+        border-top: 1px solid rgba(255, 255, 255, .08);
+        z-index: 5;
+    }
+
+    /* Mostrar el botón "← Volver" solo cuando estamos viendo una sala. */
+    .jh2-livechat__back {
+        display: inline-flex;
     }
 
     .jh2-livechat__send-label {
@@ -500,10 +573,22 @@
 
     .jh2-livechat__header {
         padding: 10px 14px;
+        position: sticky;
+        top: 0;
+        background: rgba(11, 18, 32, .95);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        z-index: 5;
+        border-bottom: 1px solid rgba(255, 255, 255, .08);
     }
 
     .jh2-livechat__header-actions form .jh2-btn {
         padding-inline: 8px;
+    }
+
+    /* Reducir paddings de page-head para ganar espacio vertical. */
+    .jh2-livechat .jh2-page-head {
+        margin-bottom: 8px;
     }
 }
 

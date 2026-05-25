@@ -258,6 +258,19 @@ class AdminChatTests(TestCase):
         self.assertContains(resp, 'id="livechat-thread"')
         self.assertContains(resp, "Hola")
 
+    def test_chat_index_with_room_renders_back_button(self):
+        """En mobile, cuando hay una sala seleccionada, el pane debe tener un
+        boton "Volver" que linkea a la lista de chats. CSS lo esconde en
+        desktop."""
+        room = ChatRoom.objects.create(customer_email="cli@ex.com")
+        resp = self.client.get(
+            reverse("admin_livechat_index") + f"?room={room.pk}",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "jh2-livechat__back")
+        # El href debe apuntar a la index sin ?room=, asi vuelve a la lista.
+        self.assertContains(resp, f'href="{reverse("admin_livechat_index")}"')
+
 
 class TelegramNotifyTests(TestCase):
     """Notificación al admin por Telegram cuando llega un mensaje del cliente."""
