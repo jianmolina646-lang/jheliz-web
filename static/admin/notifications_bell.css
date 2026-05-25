@@ -157,6 +157,22 @@
     color: #f87171;
 }
 
+#jheliz-bell-list .jheliz-bell-item-icon.kind-review {
+    color: #a855f7;
+}
+
+#jheliz-bell-list .jheliz-bell-item-icon.kind-distributor {
+    color: #34d399;
+}
+
+#jheliz-bell-list .jheliz-bell-item-icon.kind-expiring {
+    color: #fb923c;
+}
+
+#jheliz-bell-list .jheliz-bell-item-icon.kind-low_stock {
+    color: #ef4444;
+}
+
 #jheliz-bell-list .jheliz-bell-item-body {
     flex: 1;
     min-width: 0;
