@@ -713,6 +713,13 @@
                         {% if item.buyer_resale_whatsapp %} · {{ item.buyer_resale_whatsapp }}{% endif %}
                       </div>
                     {% endif %}
+                    {% if item.buyer_channel_label or item.buyer_telegram %}
+                      <div class="jh2-table__muted" style="display:flex;align-items:center;gap:4px;font-size:10.5px;">
+                        <span class="material-symbols-outlined" style="font-size:11px;">{% if item.buyer_source_key == 'telegram' %}send{% elif item.buyer_source_key == 'whatsapp' %}chat{% else %}store{% endif %}</span>
+                        {% if item.buyer_channel_label %}{{ item.buyer_channel_label }}{% endif %}
+                        {% if item.buyer_telegram %} · <span style="font-family:ui-monospace,monospace;">@{{ item.buyer_telegram }}</span>{% endif %}
+                      </div>
+                    {% endif %}
                     {% if item.order_uuid %}
                       <div class="jh2-table__muted" style="font-size:10.5px;font-family:ui-monospace,monospace;">
                         #{{ item.order_uuid }}
@@ -767,6 +774,8 @@
                           data-customer-whatsapp="{{ item.buyer_resale_whatsapp|default:''|escape }}"
                           data-buyer-email="{{ item.buyer_email|default:''|escape }}"
                           data-sale-date="{% if item.sale_date %}{{ item.sale_date|date:'Y-m-d\TH:i' }}{% endif %}"
+                          data-source="{{ item.buyer_source_key|default:'' }}"
+                          data-telegram-username="{{ item.buyer_telegram|default:''|escape }}"
                           data-account-label="{{ item.account_text|default:item.label|default:''|truncatechars:60|escape }}">
                     <span class="material-symbols-outlined">badge</span>
                   </button>
@@ -853,6 +862,15 @@
                     </span>
                   </div>
                 {% endif %}
+                {% if item.buyer_channel_label or item.buyer_telegram %}
+                  <div class="jh-cc-card__row jh-cc-card__row--muted">
+                    <span class="material-symbols-outlined">{% if item.buyer_source_key == 'telegram' %}send{% elif item.buyer_source_key == 'whatsapp' %}chat{% else %}store{% endif %}</span>
+                    <span>
+                      {% if item.buyer_channel_label %}Origen: {{ item.buyer_channel_label }}{% endif %}
+                      {% if item.buyer_telegram %} · <span style="font-family:ui-monospace,monospace;">@{{ item.buyer_telegram }}</span>{% endif %}
+                    </span>
+                  </div>
+                {% endif %}
                 {% if item.order_uuid %}
                   <div class="jh-cc-card__row jh-cc-card__row--muted" style="font-family:ui-monospace,monospace;font-size:10.5px;">
                     <span class="material-symbols-outlined">tag</span>
@@ -912,6 +930,8 @@
                     data-customer-whatsapp="{{ item.buyer_resale_whatsapp|default:''|escape }}"
                     data-buyer-email="{{ item.buyer_email|default:''|escape }}"
                     data-sale-date="{% if item.sale_date %}{{ item.sale_date|date:'Y-m-d\TH:i' }}{% endif %}"
+                    data-source="{{ item.buyer_source_key|default:'' }}"
+                    data-telegram-username="{{ item.buyer_telegram|default:''|escape }}"
                     data-account-label="{{ item.account_text|default:item.label|default:''|truncatechars:60|escape }}">
               <span class="material-symbols-outlined">badge</span>
             </button>
@@ -1148,6 +1168,42 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
             Se guarda como fecha de pago del pedido (paid_at).
           </div>
         </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-base-300 mb-1.5"
+                 for="eb-source">
+            Origen de la venta
+          </label>
+          <select id="eb-source" name="source"
+                  class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2
+                         focus:border-primary-500 focus:outline-none">
+            <option value="">— sin cambios —</option>
+            <option value="telegram">📱 Telegram</option>
+            <option value="whatsapp">💬 WhatsApp directo</option>
+            <option value="manual">✏️ Otro / Manual</option>
+          </select>
+          <div class="text-[11px] text-base-400 mt-1">
+            De dónde vino el cliente. Si seleccionás Telegram, llená también el usuario.
+          </div>
+        </div>
+
+        <div id="eb-telegram-wrap">
+          <label class="block text-xs font-semibold text-base-300 mb-1.5"
+                 for="eb-telegram-username">
+            Usuario de Telegram
+          </label>
+          <div class="flex items-center gap-2">
+            <span class="text-base-400 text-sm">@</span>
+            <input type="text" id="eb-telegram-username" name="telegram_username"
+                   maxlength="60"
+                   class="flex-1 rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2
+                          focus:border-primary-500 focus:outline-none"
+                   placeholder="usuario_del_cliente">
+          </div>
+          <div class="text-[11px] text-base-400 mt-1">
+            Sin el @, ej. <code class="text-base-300">marco_lopez</code>.
+          </div>
+        </div>
       </div>
 
       <div class="flex justify-end gap-2 px-5 py-3 border-t border-base-700 bg-base-900">
@@ -1266,6 +1322,17 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
 
   const modeLabel = document.getElementById('eb-mode-label');
   const helperBox = document.getElementById('eb-helper');
+  const sourceSelect = document.getElementById('eb-source');
+  const tgInput = document.getElementById('eb-telegram-username');
+  const tgWrap = document.getElementById('eb-telegram-wrap');
+  function updateTelegramVisibility() {
+    // Mostramos el campo @telegram siempre que el valor seleccionado sea
+    // Telegram o ya haya algo cargado (para no esconderlo al pasar de
+    // edición a otro canal por error).
+    const v = sourceSelect.value;
+    const hasTg = (tgInput.value || '').length > 0;
+    tgWrap.style.display = (v === 'telegram' || hasTg) ? '' : 'none';
+  }
   function openModal(btn) {
     const itemId = btn.dataset.itemId;
     if (!itemId) return;
@@ -1275,6 +1342,9 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
     waInput.value = btn.dataset.customerWhatsapp || '';
     emailInput.value = btn.dataset.buyerEmail || '';
     dateInput.value = btn.dataset.saleDate || '';
+    sourceSelect.value = btn.dataset.source || '';
+    tgInput.value = btn.dataset.telegramUsername || '';
+    updateTelegramVisibility();
     // Modo "register" se usa cuando la cuenta aún no tiene pedido asociado:
     // el backend crea Order + OrderItem y la marca como vendida.
     const mode = btn.dataset.mode || 'edit';
@@ -1288,6 +1358,7 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
     modal.classList.remove('hidden');
     setTimeout(() => nameInput.focus(), 50);
   }
+  sourceSelect.addEventListener('change', updateTelegramVisibility);
   function closeModal() { modal.classList.add('hidden'); }
 
   document.querySelectorAll('.jh-cc-edit-buyer-btn').forEach(btn => {
