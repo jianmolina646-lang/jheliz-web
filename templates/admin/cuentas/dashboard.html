@@ -758,19 +758,18 @@
                       </button>
                     </form>
                   {% endif %}
-                  {% if item.status == 'sold' or item.status == 'reserved' %}
-                    <button type="button"
-                            class="jh-cc-act jh-cc-edit-buyer-btn"
-                            title="Editar nombre del cliente / fecha"
-                            data-item-id="{{ item.pk }}"
-                            data-customer-name="{{ item.buyer_resale_name|default:''|escape }}"
-                            data-customer-whatsapp="{{ item.buyer_resale_whatsapp|default:''|escape }}"
-                            data-buyer-email="{{ item.buyer_email|default:''|escape }}"
-                            data-sale-date="{% if item.sale_date %}{{ item.sale_date|date:'Y-m-d\TH:i' }}{% endif %}"
-                            data-account-label="{{ item.account_text|default:item.label|default:''|truncatechars:60|escape }}">
-                      <span class="material-symbols-outlined">badge</span>
-                    </button>
-                  {% endif %}
+                  <button type="button"
+                          class="jh-cc-act jh-cc-edit-buyer-btn"
+                          title="{% if item.status == 'sold' or item.status == 'reserved' %}Editar nombre del cliente / fecha{% else %}Registrar venta manual{% endif %}"
+                          data-item-id="{{ item.pk }}"
+                          data-mode="{% if item.status == 'sold' or item.status == 'reserved' %}edit{% else %}register{% endif %}"
+                          data-customer-name="{{ item.buyer_resale_name|default:''|escape }}"
+                          data-customer-whatsapp="{{ item.buyer_resale_whatsapp|default:''|escape }}"
+                          data-buyer-email="{{ item.buyer_email|default:''|escape }}"
+                          data-sale-date="{% if item.sale_date %}{{ item.sale_date|date:'Y-m-d\TH:i' }}{% endif %}"
+                          data-account-label="{{ item.account_text|default:item.label|default:''|truncatechars:60|escape }}">
+                    <span class="material-symbols-outlined">badge</span>
+                  </button>
                   <a href="{% url 'admin:catalog_stockitem_change' item.pk %}"
                      class="jh-cc-act" title="Ver / editar detalle">
                     <span class="material-symbols-outlined">edit</span>
@@ -904,19 +903,18 @@
                 </button>
               </form>
             {% endif %}
-            {% if item.status == 'sold' or item.status == 'reserved' %}
-              <button type="button"
-                      class="jh-cc-act jh-cc-edit-buyer-btn"
-                      title="Editar nombre del cliente / fecha"
-                      data-item-id="{{ item.pk }}"
-                      data-customer-name="{{ item.buyer_resale_name|default:''|escape }}"
-                      data-customer-whatsapp="{{ item.buyer_resale_whatsapp|default:''|escape }}"
-                      data-buyer-email="{{ item.buyer_email|default:''|escape }}"
-                      data-sale-date="{% if item.sale_date %}{{ item.sale_date|date:'Y-m-d\TH:i' }}{% endif %}"
-                      data-account-label="{{ item.account_text|default:item.label|default:''|truncatechars:60|escape }}">
-                <span class="material-symbols-outlined">badge</span>
-              </button>
-            {% endif %}
+            <button type="button"
+                    class="jh-cc-act jh-cc-edit-buyer-btn"
+                    title="{% if item.status == 'sold' or item.status == 'reserved' %}Editar nombre del cliente / fecha{% else %}Registrar venta manual{% endif %}"
+                    data-item-id="{{ item.pk }}"
+                    data-mode="{% if item.status == 'sold' or item.status == 'reserved' %}edit{% else %}register{% endif %}"
+                    data-customer-name="{{ item.buyer_resale_name|default:''|escape }}"
+                    data-customer-whatsapp="{{ item.buyer_resale_whatsapp|default:''|escape }}"
+                    data-buyer-email="{{ item.buyer_email|default:''|escape }}"
+                    data-sale-date="{% if item.sale_date %}{{ item.sale_date|date:'Y-m-d\TH:i' }}{% endif %}"
+                    data-account-label="{{ item.account_text|default:item.label|default:''|truncatechars:60|escape }}">
+              <span class="material-symbols-outlined">badge</span>
+            </button>
             <a href="{% url 'admin:catalog_stockitem_change' item.pk %}"
                class="jh-cc-act" title="Ver / editar detalle">
               <span class="material-symbols-outlined">edit</span>
@@ -1081,7 +1079,7 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
 
       <div class="flex items-center justify-between px-5 py-4 border-b border-base-700">
         <div>
-          <div class="text-xs uppercase tracking-wide text-base-400">Editar cliente / fecha</div>
+          <div id="eb-mode-label" class="text-xs uppercase tracking-wide text-base-400">Editar cliente / fecha</div>
           <div id="eb-account-label" class="text-lg font-semibold text-white truncate" style="max-width:32ch;"></div>
         </div>
         <button type="button" id="eb-close"
@@ -1089,7 +1087,7 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
       </div>
 
       <div class="px-5 py-4 space-y-4 overflow-y-auto">
-        <div class="text-xs text-base-300 bg-base-950 border border-base-800 rounded-lg p-3 leading-relaxed">
+        <div id="eb-helper" class="text-xs text-base-300 bg-base-950 border border-base-800 rounded-lg p-3 leading-relaxed">
           Estos datos se guardan en el pedido asociado a esta cuenta. Sirven
           para llevar registro de a quién entregaste la cuenta y cuándo —
           útil para renovaciones y revendedores.
@@ -1266,6 +1264,8 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
   const emailInput = document.getElementById('eb-buyer-email');
   const dateInput = document.getElementById('eb-sale-date');
 
+  const modeLabel = document.getElementById('eb-mode-label');
+  const helperBox = document.getElementById('eb-helper');
   function openModal(btn) {
     const itemId = btn.dataset.itemId;
     if (!itemId) return;
@@ -1275,6 +1275,16 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
     waInput.value = btn.dataset.customerWhatsapp || '';
     emailInput.value = btn.dataset.buyerEmail || '';
     dateInput.value = btn.dataset.saleDate || '';
+    // Modo "register" se usa cuando la cuenta aún no tiene pedido asociado:
+    // el backend crea Order + OrderItem y la marca como vendida.
+    const mode = btn.dataset.mode || 'edit';
+    if (mode === 'register') {
+      modeLabel.textContent = 'Registrar venta manual';
+      helperBox.textContent = 'Esta cuenta todavía no tiene pedido. Llená al menos un dato y al guardar se crea un pedido manual y la cuenta queda marcada como vendida.';
+    } else {
+      modeLabel.textContent = 'Editar cliente / fecha';
+      helperBox.textContent = 'Estos datos se guardan en el pedido asociado a esta cuenta. Sirven para llevar registro de a quién entregaste la cuenta y cuándo — útil para renovaciones y revendedores.';
+    }
     modal.classList.remove('hidden');
     setTimeout(() => nameInput.focus(), 50);
   }

@@ -1477,11 +1477,17 @@ def stock_bulk_replace_credentials(request):
 @staff_member_required
 @require_POST
 def cuentas_edit_buyer(request, item_id: int):
-    """Edita los datos del comprador / fecha de una cuenta entregada.
+    """Edita / registra el comprador y fecha de una cuenta.
 
-    Pensado para corregir typos o actualizar nombre/whatsapp del cliente
-    final (revendido) y la fecha en que se vendió la cuenta — sin tener que
-    entrar al detalle del pedido en el admin clásico.
+    Doble función según el estado de la cuenta:
+
+    1. **Cuenta vendida/reservada con pedido asociado** → actualiza el
+       ``OrderItem`` y ``Order`` existentes (corregir typos, fecha, etc.).
+    2. **Cuenta sin pedido asociado** (típicamente venta manual fuera del
+       checkout — el cliente pagó por WhatsApp/Yape directo) → crea un
+       ``Order`` mínimo de canal ``manual`` + ``OrderItem`` linkeado y
+       marca la cuenta como ``sold``. Esto permite que la venta aparezca
+       en el dashboard como cualquier otra (correo, fecha, "Revendida a").
 
     Campos editables (todos opcionales, se aplica solo lo que viene):
       * ``customer_name``       → ``OrderItem.final_customer_name``
@@ -1495,6 +1501,22 @@ def cuentas_edit_buyer(request, item_id: int):
     item = get_object_or_404(StockItem, pk=item_id)
     next_url = request.POST.get("next") or reverse("admin_cuentas_dashboard")
 
+    customer_name = (request.POST.get("customer_name") or "").strip()[:120]
+    customer_whatsapp = (request.POST.get("customer_whatsapp") or "").strip()[:30]
+    buyer_email = (request.POST.get("buyer_email") or "").strip().lower()[:254]
+    sale_date_raw = (request.POST.get("sale_date") or "").strip()
+
+    # Parseo de la fecha (común a ambos flujos).
+    parsed_date = None
+    if sale_date_raw:
+        parsed_date = _parse_admin_datetime(sale_date_raw)
+        if parsed_date is None:
+            messages.error(
+                request,
+                f"Fecha inválida: '{sale_date_raw}'. Usá AAAA-MM-DD o AAAA-MM-DD HH:MM.",
+            )
+            return redirect(next_url)
+
     # Tomamos el OrderItem más reciente asociado a esta cuenta (mismo criterio
     # que la vista del dashboard).
     oi: OrderItem | None = (
@@ -1503,23 +1525,34 @@ def cuentas_edit_buyer(request, item_id: int):
         .order_by("-order__paid_at", "-order__created_at")
         .first()
     )
+
+    # ── Flujo "venta manual": no hay pedido asociado todavía. ───────────
     if oi is None:
-        messages.error(
+        if not (customer_name or customer_whatsapp or buyer_email or parsed_date):
+            messages.info(
+                request,
+                f"Cuenta #{item.pk} no tiene un pedido asociado. "
+                "Llená al menos un dato para registrarla como venta manual.",
+            )
+            return redirect(next_url)
+        try:
+            _register_manual_sale(
+                item=item,
+                customer_name=customer_name,
+                customer_whatsapp=customer_whatsapp,
+                buyer_email=buyer_email,
+                sale_date=parsed_date,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(next_url)
+        messages.success(
             request,
-            f"Cuenta #{item.pk} no tiene un pedido asociado todavía.",
+            f"✓ Cuenta #{item.pk} registrada como venta manual.",
         )
         return redirect(next_url)
 
-    customer_name = (request.POST.get("customer_name") or "").strip()
-    customer_whatsapp = (request.POST.get("customer_whatsapp") or "").strip()
-    buyer_email = (request.POST.get("buyer_email") or "").strip().lower()
-    sale_date_raw = (request.POST.get("sale_date") or "").strip()
-
-    # Limitar a los maxlength de los CharField para evitar 500.
-    customer_name = customer_name[:120]
-    customer_whatsapp = customer_whatsapp[:30]
-    buyer_email = buyer_email[:254]
-
+    # ── Flujo edición: actualizamos lo que cambió. ──────────────────────
     changed_oi: list[str] = []
     if customer_name != (oi.final_customer_name or ""):
         oi.final_customer_name = customer_name
@@ -1535,17 +1568,9 @@ def cuentas_edit_buyer(request, item_id: int):
     if buyer_email and buyer_email != (order.email or "").lower():
         order.email = buyer_email
         changed_order.append("email")
-    if sale_date_raw:
-        parsed = _parse_admin_datetime(sale_date_raw)
-        if parsed is None:
-            messages.error(
-                request,
-                f"Fecha inválida: '{sale_date_raw}'. Usá AAAA-MM-DD o AAAA-MM-DD HH:MM.",
-            )
-            return redirect(next_url)
-        if parsed != order.paid_at:
-            order.paid_at = parsed
-            changed_order.append("paid_at")
+    if parsed_date is not None and parsed_date != order.paid_at:
+        order.paid_at = parsed_date
+        changed_order.append("paid_at")
     if changed_order:
         order.save(update_fields=changed_order)
 
@@ -1567,6 +1592,75 @@ def cuentas_edit_buyer(request, item_id: int):
         messages.info(request, "Sin cambios.")
 
     return redirect(next_url)
+
+
+def _register_manual_sale(*, item, customer_name, customer_whatsapp,
+                          buyer_email, sale_date):
+    """Crea Order + OrderItem para una venta fuera del checkout y marca la cuenta como vendida.
+
+    El ``Order`` queda en ``Channel.MANUAL`` + ``Status.DELIVERED`` para que
+    no aparezca en ningún flujo de pago/preparación pero sí en reportes y
+    en el dashboard de Control de cuentas.
+
+    Lanza ``ValueError`` si la cuenta no tiene un plan asignado y el
+    producto tampoco tiene planes (no hay forma de armar el OrderItem).
+    """
+    from catalog.models import Plan
+    from orders.models import Order, OrderItem
+
+    plan = item.plan
+    if plan is None:
+        # Fallback: el plan más barato del producto.
+        plan = (
+            Plan.objects.filter(product=item.product, is_active=True)
+            .order_by("price_customer")
+            .first()
+        )
+        if plan is None:
+            plan = (
+                Plan.objects.filter(product=item.product)
+                .order_by("price_customer")
+                .first()
+            )
+    if plan is None:
+        raise ValueError(
+            f"No se puede registrar la venta: el producto «{item.product.name}» "
+            "no tiene planes definidos. Andá al admin del producto y crealo primero.",
+        )
+
+    now = timezone.now()
+    paid_at = sale_date or now
+
+    order = Order.objects.create(
+        email=buyer_email or "",
+        phone=customer_whatsapp or "",
+        channel=Order.Channel.MANUAL,
+        status=Order.Status.DELIVERED,
+        total=plan.price_customer if plan.price_customer else Decimal("0.00"),
+        currency="PEN",
+        paid_at=paid_at,
+        delivered_at=paid_at,
+        notes="Venta registrada manualmente desde Control de cuentas.",
+    )
+    OrderItem.objects.create(
+        order=order,
+        product=item.product,
+        plan=plan,
+        stock_item=item,
+        product_name=item.product.name,
+        plan_name=plan.name,
+        unit_price=plan.price_customer or Decimal("0.00"),
+        quantity=1,
+        final_customer_name=customer_name,
+        final_customer_whatsapp=customer_whatsapp,
+    )
+
+    item.status = item.Status.SOLD
+    update_fields = ["status"]
+    if not item.sold_at:
+        item.sold_at = paid_at
+        update_fields.append("sold_at")
+    item.save(update_fields=update_fields)
 
 
 def _parse_admin_datetime(raw: str):

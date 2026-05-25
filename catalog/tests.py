@@ -1255,8 +1255,9 @@ class CuentasEditBuyerTests(TestCase):
         oi = OrderItem.objects.get(pk=self.oi.pk)
         self.assertEqual(oi.final_customer_name, "")
 
-    def test_item_without_orderitem_returns_message(self):
-        """Si la cuenta no tiene OrderItem asociado, informa y no rompe."""
+    def test_item_without_orderitem_empty_form_shows_hint(self):
+        """Cuenta sin pedido + form vacío → info "llená al menos un dato"."""
+        from orders.models import OrderItem
         orphan = StockItem.objects.create(
             product=self.product, plan=self.plan,
             credentials="Correo: z@z.com\nContraseña: zzz",
@@ -1265,14 +1266,114 @@ class CuentasEditBuyerTests(TestCase):
         self.client.force_login(self.staff)
         resp = self.client.post(
             reverse("admin_cuentas_edit_buyer", args=[orphan.pk]),
-            {"customer_name": "no sirve"},
+            {},  # vacío → no se crea nada
             follow=True,
         )
         self.assertEqual(resp.status_code, 200)
         msgs = [str(m) for m in resp.context["messages"]]
         self.assertTrue(
-            any("no tiene un pedido asociado" in m for m in msgs), msgs,
+            any("Lle" in m and "un dato" in m for m in msgs), msgs,
         )
+        # No se creó pedido.
+        self.assertFalse(OrderItem.objects.filter(stock_item=orphan).exists())
+        # Stock sigue disponible.
+        orphan.refresh_from_db()
+        self.assertEqual(orphan.status, StockItem.Status.AVAILABLE)
+
+    def test_manual_sale_creates_order_and_marks_sold(self):
+        """Cuenta Available + datos → crea Order manual + OrderItem + marca vendida."""
+        from orders.models import Order, OrderItem
+
+        orphan = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: nuevo@x.com\nContraseña: secret",
+            status=StockItem.Status.AVAILABLE,
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[orphan.pk]),
+            {
+                "customer_name": "Cliente Manual",
+                "customer_whatsapp": "+51 911 222 333",
+                "buyer_email": "MANUAL@gmail.com",
+                "sale_date": "2026-05-24T15:30",
+            },
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        msgs = [str(m) for m in resp.context["messages"]]
+        self.assertTrue(
+            any("registrada como venta manual" in m for m in msgs), msgs,
+        )
+
+        # Stock vendida + sold_at = fecha que pasamos
+        orphan.refresh_from_db()
+        self.assertEqual(orphan.status, StockItem.Status.SOLD)
+        self.assertIsNotNone(orphan.sold_at)
+
+        # OrderItem creado con final_customer_name correcto
+        oi = OrderItem.objects.get(stock_item=orphan)
+        self.assertEqual(oi.final_customer_name, "Cliente Manual")
+        self.assertEqual(oi.final_customer_whatsapp, "+51 911 222 333")
+        self.assertEqual(oi.product_id, self.product.pk)
+        self.assertEqual(oi.plan_id, self.plan.pk)
+        self.assertEqual(oi.product_name, self.product.name)
+        self.assertEqual(oi.plan_name, self.plan.name)
+        self.assertEqual(oi.quantity, 1)
+
+        # Order es canal manual + delivered
+        order = oi.order
+        self.assertEqual(order.channel, Order.Channel.MANUAL)
+        self.assertEqual(order.status, Order.Status.DELIVERED)
+        self.assertEqual(order.email, "manual@gmail.com")  # lowercase normalized
+        self.assertEqual(order.phone, "+51 911 222 333")
+        self.assertIsNotNone(order.paid_at)
+        # Fecha respeta lo que pasamos
+        from django.utils import timezone as djtz
+        local_paid = djtz.localtime(order.paid_at)
+        self.assertEqual(local_paid.year, 2026)
+        self.assertEqual(local_paid.month, 5)
+        self.assertEqual(local_paid.day, 24)
+        self.assertEqual(local_paid.hour, 15)
+        self.assertEqual(local_paid.minute, 30)
+
+    def test_manual_sale_only_with_date_still_creates_order(self):
+        """Solo con la fecha (sin nombre/correo) ya se registra venta manual."""
+        from orders.models import OrderItem
+        orphan = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: solo-fecha@x.com\nContraseña: pp",
+            status=StockItem.Status.AVAILABLE,
+        )
+        self.client.force_login(self.staff)
+        self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[orphan.pk]),
+            {"sale_date": "2026-05-20"},
+            follow=True,
+        )
+        orphan.refresh_from_db()
+        self.assertEqual(orphan.status, StockItem.Status.SOLD)
+        self.assertTrue(OrderItem.objects.filter(stock_item=orphan).exists())
+
+    def test_manual_sale_invalid_date_does_not_create_order(self):
+        """Fecha inválida en venta manual → error, no se crea nada."""
+        from orders.models import OrderItem
+        orphan = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: badfecha@x.com\nContraseña: pp",
+            status=StockItem.Status.AVAILABLE,
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[orphan.pk]),
+            {"customer_name": "Pepe", "sale_date": "no-es-fecha"},
+            follow=True,
+        )
+        msgs = [str(m) for m in resp.context["messages"]]
+        self.assertTrue(any("Fecha inv" in m for m in msgs), msgs)
+        self.assertFalse(OrderItem.objects.filter(stock_item=orphan).exists())
+        orphan.refresh_from_db()
+        self.assertEqual(orphan.status, StockItem.Status.AVAILABLE)
 
     def test_dashboard_renders_edit_button_for_sold_accounts(self):
         """El botón de editar cliente aparece en el dashboard para cuentas vendidas."""
