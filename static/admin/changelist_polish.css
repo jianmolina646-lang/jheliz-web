@@ -208,3 +208,152 @@
     transform: none !important;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ *  Mobile cards refresh (≤1024px)
+ *
+ *  Unfold por defecto renderiza cada fila del changelist como una card
+ *  apilada con labels a la izquierda (data-label) y valores a la
+ *  derecha. Funcional, pero queda mucho ruido visual (filas "Select
+ *  Record", labels gigantes, padding generoso, botones a la mitad).
+ *
+ *  Acá compactamos esa card:
+ *    - escondemos el header "SELECT ALL ROWS" (no sirve en mobile)
+ *    - escondemos la fila del checkbox "Select Record" en cada card
+ *    - reducimos paddings + tamaño de labels
+ *    - dejamos los botones de acción a ancho completo y prominentes
+ *    - agregamos una barrita lateral con el color del estado (PR I
+ *      ya pintaba bg-warning/info/danger en la fila de estado).
+ * ------------------------------------------------------------------ */
+@media (max-width: 1023px) {
+  /* Esconder el checkbox de "select all" del thead — en touch no se usa. */
+  #result_list thead th.action-checkbox-column,
+  #result_list thead th:has(input[name="_selected_action"]) {
+    display: none !important;
+  }
+  /* Esconder la fila completa "Select Record" (el <td.action-checkbox>
+     con su label data-label). Es totalmente prescindible en mobile. */
+  #result_list tbody tr td.action-checkbox,
+  #result_list tbody tr td:has(> input.action-select) {
+    display: none !important;
+  }
+
+  /* La card en sí: más respiración pero menos padding interno. */
+  #result_list tbody tr.data-row {
+    margin-bottom: 14px !important;
+    border-radius: 14px !important;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06),
+                0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .dark #result_list tbody tr.data-row {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35),
+                0 1px 2px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Cada fila (td) más compacta. */
+  #result_list tbody tr.data-row td {
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    font-size: 13px;
+    border-bottom-width: 1px !important;
+  }
+  #result_list tbody tr.data-row td:last-child {
+    border-bottom: 0 !important;
+  }
+
+  /* El "label" (data-label) que Unfold renderiza con before:content-[attr(data-label)] */
+  #result_list tbody tr.data-row td::before {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: rgb(var(--color-base-500)) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* El primer td (display_number) lo convertimos en un "header" de la card,
+     con fondo gradient y tipografía más grande. */
+  #result_list tbody tr.data-row td:first-of-type {
+    background: linear-gradient(135deg,
+      rgba(244, 114, 182, 0.10),
+      rgba(168, 85, 247, 0.06));
+    padding-top: 11px !important;
+    padding-bottom: 11px !important;
+    border-bottom: 1px solid rgba(244, 114, 182, 0.15) !important;
+  }
+  .dark #result_list tbody tr.data-row td:first-of-type {
+    background: linear-gradient(135deg,
+      rgba(244, 114, 182, 0.15),
+      rgba(168, 85, 247, 0.10));
+    border-bottom-color: rgba(244, 114, 182, 0.25) !important;
+  }
+  #result_list tbody tr.data-row td:first-of-type::before {
+    display: none;  /* el #JH-XXXX ya es autoexplicativo */
+  }
+  #result_list tbody tr.data-row td:first-of-type > a,
+  #result_list tbody tr.data-row td:first-of-type > div {
+    width: 100%;
+    text-align: center;
+    font-size: 16px !important;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  /* Botones de acciones rápidas: barrita de acciones full-width al final. */
+  #result_list tbody tr.data-row td:has(.jh-actions-row) {
+    background: rgba(0, 0, 0, 0.015);
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+  .dark #result_list tbody tr.data-row td:has(.jh-actions-row) {
+    background: rgba(255, 255, 255, 0.02);
+  }
+  #result_list tbody tr.data-row td:has(.jh-actions-row)::before {
+    display: none;  /* el label "Acciones rápidas" ocupa demasiado */
+  }
+  #result_list tbody tr.data-row .jh-actions-row {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    justify-content: stretch;
+  }
+  #result_list tbody tr.data-row .jh-actions-row .jh-btn {
+    flex: 1 1 calc(50% - 3px);
+    min-height: 38px;
+    justify-content: center;
+    text-align: center;
+    font-weight: 600;
+    padding: 8px 10px !important;
+    font-size: 12.5px !important;
+  }
+  /* Si hay 3 botones (Confirmar + Rechazar + Entregar), distribuir en 2 filas:
+     Confirmar+Rechazar arriba (mismo tamaño), Entregar full-width abajo. */
+  #result_list tbody tr.data-row .jh-actions-row .jh-btn:nth-child(3):last-child {
+    flex: 1 1 100%;
+  }
+
+  /* Pill de estado más vibrante. La columna de estado en Unfold ya viene
+     con bg-* color clases — solo le agregamos peso visual. */
+  #result_list tbody tr.data-row td[class*="bg-"]:not(:first-of-type) > * {
+    font-weight: 600;
+  }
+
+  /* Created_at: como timestamp en gris suave al final, más chico. */
+  #result_list tbody tr.data-row td:last-of-type {
+    font-size: 11.5px !important;
+    color: rgb(var(--color-base-500));
+  }
+}
+
+/* Mobile más chico aun (≤ 480px): apilar Confirmar/Rechazar en filas separadas
+   para que el touch target sea grande. */
+@media (max-width: 480px) {
+  #result_list tbody tr.data-row .jh-actions-row .jh-btn {
+    flex: 1 1 100% !important;
+    min-height: 42px;
+    font-size: 13px !important;
+  }
+}
