@@ -1494,6 +1494,8 @@ def cuentas_edit_buyer(request, item_id: int):
       * ``customer_whatsapp``   → ``OrderItem.final_customer_whatsapp``
       * ``buyer_email``         → ``Order.email`` (correo del comprador)
       * ``sale_date``           → ``Order.paid_at`` (YYYY-MM-DD o YYYY-MM-DDTHH:MM)
+      * ``source``              → ``Order.channel`` ("telegram" / "whatsapp" / "manual")
+      * ``telegram_username``   → ``Order.telegram_username`` (sin @ inicial)
     """
     from catalog.models import StockItem
     from orders.models import Order, OrderItem
@@ -1505,6 +1507,10 @@ def cuentas_edit_buyer(request, item_id: int):
     customer_whatsapp = (request.POST.get("customer_whatsapp") or "").strip()[:30]
     buyer_email = (request.POST.get("buyer_email") or "").strip().lower()[:254]
     sale_date_raw = (request.POST.get("sale_date") or "").strip()
+    source = _normalize_source(request.POST.get("source"))
+    telegram_username = _normalize_telegram_username(
+        request.POST.get("telegram_username"),
+    )
 
     # Parseo de la fecha (común a ambos flujos).
     parsed_date = None
@@ -1528,13 +1534,21 @@ def cuentas_edit_buyer(request, item_id: int):
 
     # ── Flujo "venta manual": no hay pedido asociado todavía. ───────────
     if oi is None:
-        if not (customer_name or customer_whatsapp or buyer_email or parsed_date):
+        if not (customer_name or customer_whatsapp or buyer_email or parsed_date
+                or telegram_username):
             messages.info(
                 request,
                 f"Cuenta #{item.pk} no tiene un pedido asociado. "
                 "Llená al menos un dato para registrarla como venta manual.",
             )
             return redirect(next_url)
+        # Auto-detección: si llenó usuario de Telegram y no eligió canal,
+        # asumimos que la venta vino por Telegram.
+        effective_source = source
+        if effective_source is None and telegram_username:
+            effective_source = "telegram"
+        if effective_source is None:
+            effective_source = "manual"
         try:
             _register_manual_sale(
                 item=item,
@@ -1542,13 +1556,15 @@ def cuentas_edit_buyer(request, item_id: int):
                 customer_whatsapp=customer_whatsapp,
                 buyer_email=buyer_email,
                 sale_date=parsed_date,
+                source=effective_source,
+                telegram_username=telegram_username,
             )
         except ValueError as exc:
             messages.error(request, str(exc))
             return redirect(next_url)
         messages.success(
             request,
-            f"✓ Cuenta #{item.pk} registrada como venta manual.",
+            f"✓ Cuenta #{item.pk} registrada como venta {_SOURCE_LABEL[effective_source]}.",
         )
         return redirect(next_url)
 
@@ -1571,6 +1587,14 @@ def cuentas_edit_buyer(request, item_id: int):
     if parsed_date is not None and parsed_date != order.paid_at:
         order.paid_at = parsed_date
         changed_order.append("paid_at")
+    if source is not None:
+        new_channel = _source_to_channel(source)
+        if new_channel is not None and new_channel != order.channel:
+            order.channel = new_channel
+            changed_order.append("channel")
+    if telegram_username != (order.telegram_username or ""):
+        order.telegram_username = telegram_username
+        changed_order.append("telegram_username")
     if changed_order:
         order.save(update_fields=changed_order)
 
@@ -1582,6 +1606,10 @@ def cuentas_edit_buyer(request, item_id: int):
             bits.append("fecha")
         if "email" in changed_order:
             bits.append("correo")
+        if "channel" in changed_order:
+            bits.append("canal")
+        if "telegram_username" in changed_order:
+            bits.append("telegram")
         messages.success(
             request,
             "✓ Cuenta #{pk} actualizada ({fields}).".format(
@@ -1594,13 +1622,95 @@ def cuentas_edit_buyer(request, item_id: int):
     return redirect(next_url)
 
 
+# Origen "fino" de la venta: lo que mostramos al admin y se guarda en
+# ``Order.notes`` como prefijo. El modelo ``Order.Channel`` solo distingue
+# entre WEB/TELEGRAM/MANUAL, así que para registrar venta-por-WhatsApp vs
+# venta-otro-manual usamos este detalle adicional.
+_SOURCE_TO_CHANNEL = {
+    "telegram": "telegram",
+    "whatsapp": "manual",
+    "manual": "manual",
+}
+_SOURCE_LABEL = {
+    "telegram": "Telegram",
+    "whatsapp": "WhatsApp directo",
+    "manual": "manual",
+}
+
+
+def _normalize_source(raw):
+    """Devuelve la clave de origen (``"telegram"``/``"whatsapp"``/``"manual"``)
+    a partir del value del <select name="source">, o ``None`` si no vino.
+    """
+    value = (raw or "").strip().lower()
+    if value in _SOURCE_TO_CHANNEL:
+        return value
+    return None
+
+
+def _source_to_channel(source):
+    """Mapea la clave de origen a ``Order.Channel``. ``None`` → ``None``."""
+    from orders.models import Order
+
+    if source is None:
+        return None
+    name = _SOURCE_TO_CHANNEL[source]
+    return getattr(Order.Channel, name.upper())
+
+
+def _channel_display(order):
+    """Etiqueta humana del origen de una venta.
+
+    Combina ``Order.channel`` con la primera línea ``Origen: …`` que
+    guardamos en ``notes`` cuando registramos una venta manual desde
+    Control de cuentas, así diferenciamos WhatsApp directo de otros
+    manuales.
+    """
+    from orders.models import Order
+
+    if order.channel == Order.Channel.TELEGRAM:
+        return "Telegram"
+    if order.channel == Order.Channel.WEB:
+        return "Web"
+    # Manual: inspeccionar notas para detalle (WhatsApp directo, etc.).
+    for line in (order.notes or "").splitlines():
+        if line.startswith("Origen:"):
+            return line.partition(":")[2].strip().rstrip(".") or "Manual"
+    return "Manual"
+
+
+def _channel_to_source_key(order):
+    """Devuelve la clave del <select name=\"source\"> para pre-seleccionar.
+
+    ``Telegram`` → ``"telegram"`` · ``Manual`` (notes Origen: WhatsApp) →
+    ``"whatsapp"`` · resto de manuales → ``"manual"`` · web/otros → ``""``.
+    """
+    from orders.models import Order
+
+    if order.channel == Order.Channel.TELEGRAM:
+        return "telegram"
+    if order.channel == Order.Channel.MANUAL:
+        label = _channel_display(order).lower()
+        if "whatsapp" in label:
+            return "whatsapp"
+        return "manual"
+    return ""
+
+
+def _normalize_telegram_username(raw):
+    """Limpia el @username Telegram: sin @ inicial, sin espacios, max 60."""
+    value = (raw or "").strip().lstrip("@")
+    return value[:60]
+
+
 def _register_manual_sale(*, item, customer_name, customer_whatsapp,
-                          buyer_email, sale_date):
+                          buyer_email, sale_date, source=None,
+                          telegram_username=""):
     """Crea Order + OrderItem para una venta fuera del checkout y marca la cuenta como vendida.
 
-    El ``Order`` queda en ``Channel.MANUAL`` + ``Status.DELIVERED`` para que
-    no aparezca en ningún flujo de pago/preparación pero sí en reportes y
-    en el dashboard de Control de cuentas.
+    El ``Order`` queda con ``status=DELIVERED`` y el canal seleccionado
+    (``source``) para que no aparezca en ningún flujo de pago/preparación
+    pero sí en reportes y en el dashboard de Control de cuentas.
 
     Lanza ``ValueError`` si la cuenta no tiene un plan asignado y el
     producto tampoco tiene planes (no hay forma de armar el OrderItem).
@@ -1628,19 +1738,24 @@ def _register_manual_sale(*, item, customer_name, customer_whatsapp,
             "no tiene planes definidos. Andá al admin del producto y crealo primero.",
         )
 
-    now = timezone.now()
-    paid_at = sale_date or now
+    paid_at = sale_date or timezone.now()
+    channel = _source_to_channel(source) or Order.Channel.MANUAL
+
+    note_lines = ["Venta registrada manualmente desde Control de cuentas."]
+    if source and source != "manual":
+        note_lines.append(f"Origen: {_SOURCE_LABEL[source]}.")
 
     order = Order.objects.create(
         email=buyer_email or "",
         phone=customer_whatsapp or "",
-        channel=Order.Channel.MANUAL,
+        telegram_username=telegram_username or "",
+        channel=channel,
         status=Order.Status.DELIVERED,
         total=plan.price_customer if plan.price_customer else Decimal("0.00"),
         currency="PEN",
         paid_at=paid_at,
         delivered_at=paid_at,
-        notes="Venta registrada manualmente desde Control de cuentas.",
+        notes="\n".join(note_lines),
     )
     OrderItem.objects.create(
         order=order,
@@ -1785,6 +1900,10 @@ def cuentas_dashboard(request):
         it.buyer_pin = ""
         it.buyer_resale_name = ""
         it.buyer_resale_whatsapp = ""
+        it.buyer_telegram = ""
+        it.buyer_channel = ""
+        it.buyer_channel_label = ""
+        it.buyer_source_key = ""
         it.sale_date = None
         it.order_uuid = ""
         if it.status in (StockItem.Status.SOLD, StockItem.Status.RESERVED):
@@ -1796,6 +1915,10 @@ def cuentas_dashboard(request):
                 it.buyer_pin = oi.requested_pin or ""
                 it.buyer_resale_name = oi.final_customer_name or ""
                 it.buyer_resale_whatsapp = oi.final_customer_whatsapp or ""
+                it.buyer_telegram = oi.order.telegram_username or ""
+                it.buyer_channel = oi.order.channel or ""
+                it.buyer_channel_label = _channel_display(oi.order)
+                it.buyer_source_key = _channel_to_source_key(oi.order)
                 it.sale_date = oi.order.paid_at or oi.order.created_at
                 it.order_uuid = str(oi.order.uuid)[:8]
 

@@ -1375,6 +1375,120 @@ class CuentasEditBuyerTests(TestCase):
         orphan.refresh_from_db()
         self.assertEqual(orphan.status, StockItem.Status.AVAILABLE)
 
+    def test_manual_sale_telegram_sets_channel_and_username(self):
+        """source=telegram + @user → Order.channel=TELEGRAM y telegram_username guardado."""
+        from orders.models import Order, OrderItem
+
+        orphan = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: tg@x.com\nContraseña: pp",
+            status=StockItem.Status.AVAILABLE,
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[orphan.pk]),
+            {
+                "customer_name": "Cliente TG",
+                "source": "telegram",
+                "telegram_username": "@marco_lopez",  # con @, el backend lo limpia
+            },
+            follow=True,
+        )
+        msgs = [str(m) for m in resp.context["messages"]]
+        self.assertTrue(any("Telegram" in m for m in msgs), msgs)
+        oi = OrderItem.objects.get(stock_item=orphan)
+        self.assertEqual(oi.order.channel, Order.Channel.TELEGRAM)
+        self.assertEqual(oi.order.telegram_username, "marco_lopez")  # sin @
+
+    def test_manual_sale_whatsapp_uses_manual_channel_with_notes(self):
+        """source=whatsapp → Order.channel=MANUAL pero notes guarda 'Origen: WhatsApp'."""
+        from orders.models import Order, OrderItem
+
+        orphan = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: wa@x.com\nContraseña: pp",
+            status=StockItem.Status.AVAILABLE,
+        )
+        self.client.force_login(self.staff)
+        self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[orphan.pk]),
+            {
+                "customer_name": "Cliente WA",
+                "customer_whatsapp": "+51 911 222 333",
+                "source": "whatsapp",
+            },
+            follow=True,
+        )
+        oi = OrderItem.objects.get(stock_item=orphan)
+        self.assertEqual(oi.order.channel, Order.Channel.MANUAL)
+        self.assertIn("WhatsApp", oi.order.notes)
+
+    def test_manual_sale_telegram_inferred_from_username_alone(self):
+        """Si llena @telegram pero no elige canal, se auto-detecta como Telegram."""
+        from orders.models import Order, OrderItem
+
+        orphan = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: auto@x.com\nContraseña: pp",
+            status=StockItem.Status.AVAILABLE,
+        )
+        self.client.force_login(self.staff)
+        self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[orphan.pk]),
+            {"telegram_username": "auto_user"},
+            follow=True,
+        )
+        oi = OrderItem.objects.get(stock_item=orphan)
+        self.assertEqual(oi.order.channel, Order.Channel.TELEGRAM)
+        self.assertEqual(oi.order.telegram_username, "auto_user")
+
+    def test_edit_existing_order_can_update_channel_and_telegram(self):
+        """En modo edición, mandar source+telegram actualiza la Order existente."""
+        from orders.models import Order
+
+        # self.order y self.oi ya existen como un pedido WEB
+        self.client.force_login(self.staff)
+        self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
+            {
+                "source": "telegram",
+                "telegram_username": "@cliente_existente",
+            },
+            follow=True,
+        )
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.channel, Order.Channel.TELEGRAM)
+        self.assertEqual(self.order.telegram_username, "cliente_existente")
+
+    def test_manual_sale_no_source_no_telegram_defaults_to_manual(self):
+        """Sin source y sin @telegram → canal MANUAL (sigue siendo el default)."""
+        from orders.models import Order, OrderItem
+
+        orphan = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: mm@x.com\nContraseña: pp",
+            status=StockItem.Status.AVAILABLE,
+        )
+        self.client.force_login(self.staff)
+        self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[orphan.pk]),
+            {"customer_name": "Default Cliente"},
+            follow=True,
+        )
+        oi = OrderItem.objects.get(stock_item=orphan)
+        self.assertEqual(oi.order.channel, Order.Channel.MANUAL)
+        self.assertEqual(oi.order.telegram_username, "")
+
+    def test_dashboard_renders_source_select_and_telegram_field(self):
+        """El modal incluye el <select name=source> y el input telegram_username."""
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_cuentas_dashboard"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'name="source"')
+        self.assertContains(resp, 'name="telegram_username"')
+        self.assertContains(resp, 'value="telegram"')
+        self.assertContains(resp, 'value="whatsapp"')
+
     def test_dashboard_renders_edit_button_for_sold_accounts(self):
         """El botón de editar cliente aparece en el dashboard para cuentas vendidas."""
         self.client.force_login(self.staff)
