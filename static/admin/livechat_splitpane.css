@@ -504,6 +504,9 @@
            para que el composer quede pegado al fondo sin scrollear toda la
            página. */
         position: relative;
+        /* Importante: el composer envuelve sus botones a una fila aparte;
+           el `overflow: hidden` heredado del estado desktop los corta. */
+        overflow: visible;
     }
 
     /* En mobile mostramos UN solo panel a la vez:
@@ -548,18 +551,46 @@
         padding-bottom: 16px;
     }
 
-    /* Composer fijo al fondo para que sea siempre accesible (no hay que scrollear
-       para llegar al textarea + send). Margin inferior compensa el bottom-nav del
-       admin si lo hay. */
+    /* Composer fijo al fondo: textarea ocupa fila completa, attach + send
+       siempre visibles en una segunda fila debajo.
+       Antes el botton se cortaba porque el textarea (flex:1) consumia toda
+       la fila y los botones quedaban debajo de la vista. */
     .jh2-livechat__composer {
         position: sticky;
         bottom: 0;
         background: rgba(11, 18, 32, .95);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        padding: 10px 12px;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
         border-top: 1px solid rgba(255, 255, 255, .08);
         z-index: 5;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Textarea: full-width arriba; mas chico vertical para dejar espacio a
+       la fila de botones. */
+    .jh2-livechat__composer .jh2-livechat__textarea {
+        flex: 1 1 100%;
+        min-height: 44px;
+        max-height: 110px;
+        font-size: 15px; /* >=16px evita el zoom automático de iOS */
+    }
+
+    /* Fila de botones: attach a la izquierda, send a la derecha. */
+    .jh2-livechat__composer .jh2-livechat__attach {
+        order: 2;
+        width: 42px;
+        height: 42px;
+        flex: 0 0 auto;
+    }
+    .jh2-livechat__composer .jh2-livechat__send {
+        order: 3;
+        margin-left: auto;
+        min-width: 110px;
+        height: 42px;
+        font-size: 14px;
+        font-weight: 600;
     }
 
     /* Mostrar el botón "← Volver" solo cuando estamos viendo una sala. */
@@ -567,8 +598,10 @@
         display: inline-flex;
     }
 
+    /* En mobile sí mostramos el label "Enviar" — hace la accion mas obvia
+       que solo el icono ✈. */
     .jh2-livechat__send-label {
-        display: none;
+        display: inline !important;
     }
 
     .jh2-livechat__header {
