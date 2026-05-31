@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import html
 import logging
+import re
 import time
 from typing import Any, Iterable
 
@@ -271,6 +272,11 @@ def _handle_message(update: dict) -> None:
         _send_email_menu(client)
         return
 
+    # Comandos de admin (solo para el chat del admin).
+    if _is_admin(chat_id) and cmd in ("/clientes", "/asignar", "/quitar"):
+        _handle_admin_command(chat_id, cmd, rest)
+        return
+
     # Los 4 comandos de tipo de código (/codigo /viaje /hogar /clave).
     if cmd in COMMAND_KINDS:
         _cmd_code(client, COMMAND_KINDS[cmd], rest)
@@ -348,9 +354,12 @@ def _send_welcome(client: CodeBotClient) -> None:
                 chat_id,
                 "👋 Hola admin. Acá ves los códigos de las cuentas que te "
                 "asignes a vos mismo.\n\n"
-                "Asigná correos a tus clientes desde el panel: "
-                "<b>Bot de códigos → Clientes de código</b>, activá al cliente "
-                "y agregale sus correos en la tabla de abajo.",
+                "🔧 <b>Comandos de admin</b> (asignás sin tocar la web):\n"
+                "<code>/clientes</code> — lista tus clientes (ID, usuario, correos)\n"
+                "<code>/asignar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — asigna y activa\n"
+                "<code>/quitar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — quita un correo\n\n"
+                "El cliente tiene que mandar <b>/start</b> una vez para aparecer "
+                "en <code>/clientes</code>. También podés asignar desde el panel web.",
             )
             return
         send_message(
@@ -418,6 +427,104 @@ def _send_email_menu(client: CodeBotClient) -> None:
         "Tus correos asignados. Tocá uno y elegí qué necesitás:",
         buttons=_email_buttons(emails),
     )
+
+
+# ---------- Comandos de admin ----------
+
+# Validación simple de correo (suficiente para el panel del bot).
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _resolve_client(token: str) -> CodeBotClient | None:
+    """Encuentra un cliente por chat_id numérico o por @usuario."""
+    token = (token or "").strip()
+    if not token:
+        return None
+    if token.startswith("@"):
+        token = token[1:]
+    qs = CodeBotClient.objects.all()
+    if token.isdigit():
+        return qs.filter(telegram_chat_id=token).first()
+    return qs.filter(telegram_username__iexact=token).first()
+
+
+def _handle_admin_command(chat_id, cmd: str, rest: str) -> None:
+    if cmd == "/clientes":
+        _admin_list_clients(chat_id)
+    elif cmd == "/asignar":
+        _admin_assign(chat_id, rest, add=True)
+    elif cmd == "/quitar":
+        _admin_assign(chat_id, rest, add=False)
+
+
+def _admin_list_clients(chat_id) -> None:
+    clients = CodeBotClient.objects.prefetch_related("emails").order_by("-created_at")
+    if not clients:
+        send_message(chat_id, "Todavía no hay clientes registrados en el bot.")
+        return
+    lines = ["👥 <b>Clientes del bot</b>:"]
+    for c in clients:
+        emails = list(c.emails.values_list("email", flat=True))
+        uname = f"@{c.telegram_username}" if c.telegram_username else "(sin usuario)"
+        estado = "✅" if c.is_active else "⏸"
+        correos = ", ".join(emails) if emails else "—"
+        lines.append(
+            f"\n{estado} <b>{html.escape(c.display_name or 'cliente')}</b> "
+            f"{html.escape(uname)}\n"
+            f"   ID: <code>{html.escape(str(c.telegram_chat_id))}</code>\n"
+            f"   Correos: {html.escape(correos)}"
+        )
+    lines.append(
+        "\n\nUsá <code>/asignar &lt;ID o @usuario&gt; &lt;correo&gt;</code> "
+        "para asignar."
+    )
+    send_message(chat_id, "".join(lines))
+
+
+def _admin_assign(chat_id, rest: str, add: bool) -> None:
+    accion = "asignar" if add else "quitar"
+    parts = rest.split()
+    if len(parts) < 2:
+        send_message(
+            chat_id,
+            f"Uso: <code>/{accion} &lt;ID o @usuario&gt; &lt;correo&gt;</code>\n"
+            f"Ej: <code>/{accion} 12345678 villalimalemon@gmail.com</code>",
+        )
+        return
+    token, email = parts[0], parts[1].strip().lower()
+    if not _EMAIL_RE.match(email):
+        send_message(chat_id, f"⚠️ <b>{html.escape(email)}</b> no parece un correo válido.")
+        return
+    client = _resolve_client(token)
+    if client is None:
+        send_message(
+            chat_id,
+            f"No encontré un cliente con <code>{html.escape(token)}</code>.\n"
+            "El cliente tiene que haber mandado <b>/start</b> al bot primero. "
+            "Mirá <code>/clientes</code> para ver los IDs.",
+        )
+        return
+    label = f"{client.display_name or 'cliente'} (<code>{html.escape(str(client.telegram_chat_id))}</code>)"
+    if add:
+        _obj, created = AssignedEmail.objects.get_or_create(client=client, email=email)
+        if not client.is_active:
+            client.is_active = True
+            client.save(update_fields=["is_active"])
+        if created:
+            send_message(chat_id, f"✅ Asigné <b>{html.escape(email)}</b> a {label} y lo activé.")
+            send_message(
+                client.telegram_chat_id,
+                f"✅ El admin te asignó <b>{html.escape(email)}</b>. "
+                "Ya podés pedir /codigo, /viaje, /hogar o /clave.",
+            )
+        else:
+            send_message(chat_id, f"{label} ya tenía <b>{html.escape(email)}</b> asignado.")
+    else:
+        deleted, _ = AssignedEmail.objects.filter(client=client, email=email).delete()
+        if deleted:
+            send_message(chat_id, f"🗑 Le quité <b>{html.escape(email)}</b> a {label}.")
+        else:
+            send_message(chat_id, f"{label} no tenía <b>{html.escape(email)}</b> asignado.")
 
 
 def _notify_admin_new(client: CodeBotClient) -> None:

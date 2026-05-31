@@ -122,6 +122,74 @@ class AdminWelcomeTests(TestCase):
         self.assertIn("Pasáselo al admin", text)
 
 
+class AdminCommandTests(TestCase):
+    def setUp(self):
+        # Cliente registrado en el bot pero sin correos (no está en la web).
+        self.cliente = CodeBotClient.objects.create(
+            telegram_chat_id="424242", telegram_username="pepe", display_name="Pepe"
+        )
+
+    @mock.patch("codes.bot.send_message")
+    def test_asignar_crea_correo_y_activa(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/asignar", "424242 NUEVA@Gmail.com")
+        self.cliente.refresh_from_db()
+        self.assertTrue(self.cliente.is_active)
+        self.assertEqual(
+            list(self.cliente.emails.values_list("email", flat=True)),
+            ["nueva@gmail.com"],
+        )
+        # Avisa al admin y al cliente.
+        self.assertEqual(msend.call_count, 2)
+
+    @mock.patch("codes.bot.send_message")
+    def test_asignar_por_username(self, _msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/asignar", "@pepe cuenta@gmail.com")
+        self.assertTrue(
+            self.cliente.emails.filter(email="cuenta@gmail.com").exists()
+        )
+
+    @mock.patch("codes.bot.send_message")
+    def test_asignar_cliente_inexistente_avisa(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/asignar", "999999 x@gmail.com")
+        text = msend.call_args[0][1]
+        self.assertIn("No encontré un cliente", text)
+
+    @mock.patch("codes.bot.send_message")
+    def test_quitar_borra_correo(self, _msend):
+        AssignedEmail.objects.create(client=self.cliente, email="del@gmail.com")
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/quitar", "424242 del@gmail.com")
+        self.assertFalse(
+            self.cliente.emails.filter(email="del@gmail.com").exists()
+        )
+
+    @mock.patch("codes.bot.send_message")
+    def test_asignar_correo_invalido(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/asignar", "424242 no-es-correo")
+        text = msend.call_args[0][1]
+        self.assertIn("no parece un correo válido", text)
+
+    @mock.patch("codes.bot.send_message")
+    def test_admin_commands_ignored_for_non_admin(self, msend):
+        # Un cliente cualquiera manda /asignar: no se ejecuta como admin.
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot.process_update(
+                {
+                    "message": {
+                        "chat": {"id": 424242},
+                        "from": {"username": "pepe"},
+                        "text": "/asignar 424242 hack@gmail.com",
+                    }
+                }
+            )
+        # No se asignó nada (no es admin).
+        self.assertFalse(self.cliente.emails.exists())
+
+
 class CmdCodeTests(TestCase):
     def setUp(self):
         self.client_obj = CodeBotClient.objects.create(
