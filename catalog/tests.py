@@ -12,6 +12,7 @@ from catalog.models import (
     Category,
     Plan,
     Product,
+    ProductMode,
     ProductReview,
     PromoBanner,
     StockItem,
@@ -69,7 +70,36 @@ class StockImportDuplicateTests(TestCase):
             name="1 mes",
             price_customer=Decimal("25.00"),
         )
+        # Producto de cuenta completa: aquí sí se deduplica (no se debe
+        # cargar dos veces la misma cuenta entera).
+        self.completa_product = Product.objects.create(
+            category=self.cat,
+            name="Netflix Cuenta Completa",
+            slug="netflix-cuenta-completa",
+            mode=ProductMode.COMPLETA,
+            is_active=True,
+        )
+        self.completa_plan = Plan.objects.create(
+            product=self.completa_product,
+            name="1 mes",
+            price_customer=Decimal("60.00"),
+        )
         self.admin = StockItemAdmin(StockItem, admin_site)
+
+    def test_allows_repeated_email_for_perfil_product(self):
+        # Escenario del usuario: vende perfiles y pega el mismo correo dos
+        # veces (mismo correo+clave, sin perfil). Ambas líneas deben crear
+        # un StockItem (un perfil cada una).
+        created, skipped = self.admin._process_file_with_stats(
+            "mamaniengel78@gmail.com|premium2025\n"
+            "mamaniengel78@gmail.com|premium2025",
+            product=self.product,
+            plan=self.plan,
+        )
+
+        self.assertEqual(created, 2)
+        self.assertEqual(skipped, 0)
+        self.assertEqual(self.product.stock_items.count(), 2)
 
     def test_allows_same_email_when_profile_is_different(self):
         StockItem.objects.create(
@@ -93,10 +123,10 @@ class StockImportDuplicateTests(TestCase):
         self.assertEqual(skipped, 0)
         self.assertEqual(self.product.stock_items.count(), 2)
 
-    def test_rejects_same_email_and_same_profile(self):
+    def test_rejects_same_email_and_same_profile_for_completa(self):
         StockItem.objects.create(
-            product=self.product,
-            plan=self.plan,
+            product=self.completa_product,
+            plan=self.completa_plan,
             credentials=(
                 "Correo: cuenta@netflix.com\n"
                 "Contraseña: secret\n"
@@ -107,18 +137,18 @@ class StockImportDuplicateTests(TestCase):
 
         created, skipped = self.admin._process_file_with_stats(
             "cuenta@netflix.com|otra-clave|Perfil 1|9999",
-            product=self.product,
-            plan=self.plan,
+            product=self.completa_product,
+            plan=self.completa_plan,
         )
 
         self.assertEqual(created, 0)
         self.assertEqual(skipped, 1)
-        self.assertEqual(self.product.stock_items.count(), 1)
+        self.assertEqual(self.completa_product.stock_items.count(), 1)
 
-    def test_rejects_generic_account_when_same_email_already_exists(self):
+    def test_rejects_generic_account_when_same_email_already_exists_for_completa(self):
         StockItem.objects.create(
-            product=self.product,
-            plan=self.plan,
+            product=self.completa_product,
+            plan=self.completa_plan,
             credentials=(
                 "Correo: cuenta@netflix.com\n"
                 "Contraseña: secret\n"
@@ -129,13 +159,13 @@ class StockImportDuplicateTests(TestCase):
 
         created, skipped = self.admin._process_file_with_stats(
             "cuenta@netflix.com|otra-clave",
-            product=self.product,
-            plan=self.plan,
+            product=self.completa_product,
+            plan=self.completa_plan,
         )
 
         self.assertEqual(created, 0)
         self.assertEqual(skipped, 1)
-        self.assertEqual(self.product.stock_items.count(), 1)
+        self.assertEqual(self.completa_product.stock_items.count(), 1)
 
 
 class PromoBannerTests(TestCase):

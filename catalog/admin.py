@@ -16,6 +16,7 @@ from .models import (
     Plan,
     PlatformLanding,
     Product,
+    ProductMode,
     ProductReview,
     PromoBanner,
     Reclamacion,
@@ -825,10 +826,16 @@ class StockItemAdmin(ModelAdmin):
     ) -> tuple[int, int]:
         """Importa stock soportando varios formatos.
 
-        Devuelve ``(created, skipped_duplicates)``. Detecta duplicados por
-        cuenta dentro del mismo producto: para stock compartido permite el
-        mismo correo si cambia el perfil, pero evita repetir la misma
-        combinación correo+perfil (o una cuenta genérica sin perfil).
+        Devuelve ``(created, skipped_duplicates)``. La deduplicación depende
+        del modo del producto:
+
+        - **Perfil (cuenta compartida)**: NO se deduplica. Una misma cuenta
+          (correo+clave) se vende como varios perfiles, así que pegar el
+          mismo correo varias veces crea un StockItem por cada perfil.
+        - **Completa / Licencia**: se detectan duplicados por cuenta dentro
+          del mismo producto (una cuenta completa o licencia no debería
+          cargarse dos veces), permitiendo el mismo correo solo si cambia el
+          perfil.
 
         Formatos soportados:
         1. CSV/TSV con cabecera (separador autodetectado: ``,``, ``;`` o tab).
@@ -842,9 +849,14 @@ class StockItemAdmin(ModelAdmin):
         # perfiles guardamos email -> perfiles ya usados; el perfil vacío
         # representa una cuenta genérica/sin perfil.
         self._existing_profiles_by_email: dict[str, set[str]] = {}
-        existing_qs = StockItem.objects.filter(product=product).only("credentials")
-        for it in existing_qs:
-            self._remember_text_duplicate_keys(it.credentials or "")
+        # Para productos por perfil cada línea es un slot de perfil vendible,
+        # así que desactivamos el skip de duplicados (el usuario vende perfiles
+        # y necesita repetir el mismo correo).
+        self._dedup_enabled = product.mode != ProductMode.PERFIL
+        if self._dedup_enabled:
+            existing_qs = StockItem.objects.filter(product=product).only("credentials")
+            for it in existing_qs:
+                self._remember_text_duplicate_keys(it.credentials or "")
         self._duplicates_skipped = 0
 
         content = content.strip()
@@ -912,6 +924,8 @@ class StockItemAdmin(ModelAdmin):
 
     def _is_duplicate(self, email: str, profile: str = "") -> bool:
         """True si la cuenta/perfil ya existe en stock para este producto."""
+        if not getattr(self, "_dedup_enabled", True):
+            return False
         email_key = (email or "").strip().lower()
         if not email_key:
             return False
