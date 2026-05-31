@@ -57,6 +57,11 @@ def _admin_chat_id() -> str:
     return str(getattr(settings, "TELEGRAM_CODES_ADMIN_CHAT_ID", "") or "")
 
 
+def _is_admin(chat_id) -> bool:
+    admin = _admin_chat_id()
+    return bool(admin) and str(chat_id) == admin
+
+
 def is_configured() -> bool:
     return bool(_token())
 
@@ -116,15 +121,19 @@ def _get_or_create_client(chat_id: str, username: str, name: str) -> tuple[CodeB
         defaults={"telegram_username": username or "", "display_name": name or ""},
     )
     # Mantené el username/nombre actualizados.
-    changed = False
+    update_fields: list[str] = []
     if username and client.telegram_username != username:
         client.telegram_username = username
-        changed = True
+        update_fields.append("telegram_username")
     if name and not client.display_name:
         client.display_name = name
-        changed = True
-    if changed:
-        client.save(update_fields=["telegram_username", "display_name"])
+        update_fields.append("display_name")
+    # El admin queda activo siempre: nunca ve el mensaje de "pasáselo al admin".
+    if _is_admin(chat_id) and not client.is_active:
+        client.is_active = True
+        update_fields.append("is_active")
+    if update_fields:
+        client.save(update_fields=update_fields)
     return client, created
 
 
@@ -322,7 +331,9 @@ def _handle_callback(update: dict) -> None:
 
 def _send_welcome(client: CodeBotClient) -> None:
     chat_id = client.telegram_chat_id
-    if not client.is_active:
+    admin = _is_admin(chat_id)
+    # El mensaje de "pasáselo al admin" es solo para clientes, no para el admin.
+    if not client.is_active and not admin:
         send_message(
             chat_id,
             "👋 ¡Hola! Tu acceso al bot de códigos todavía no está activado.\n\n"
@@ -332,6 +343,16 @@ def _send_welcome(client: CodeBotClient) -> None:
         return
     emails = _assigned_emails(client)
     if not emails:
+        if admin:
+            send_message(
+                chat_id,
+                "👋 Hola admin. Acá ves los códigos de las cuentas que te "
+                "asignes a vos mismo.\n\n"
+                "Asigná correos a tus clientes desde el panel: "
+                "<b>Bot de códigos → Clientes de código</b>, activá al cliente "
+                "y agregale sus correos en la tabla de abajo.",
+            )
+            return
         send_message(
             chat_id,
             "Tu cuenta está activa pero todavía no tenés correos asignados.\n"

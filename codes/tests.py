@@ -101,6 +101,27 @@ class CommandMappingTests(TestCase):
             self.assertIn(kind, bot.KIND_LABELS)
 
 
+class AdminWelcomeTests(TestCase):
+    @mock.patch("codes.bot.send_message")
+    def test_admin_is_auto_active_and_no_pending_message(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            client, _ = bot._get_or_create_client("900", "admin", "Admin")
+            self.assertTrue(client.is_active)
+            bot._send_welcome(client)
+        text = msend.call_args[0][1]
+        self.assertNotIn("Pasáselo al admin", text)
+        self.assertIn("admin", text.lower())
+
+    @mock.patch("codes.bot.send_message")
+    def test_regular_client_still_sees_pending_message(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            client, _ = bot._get_or_create_client("123", "user", "User")
+            self.assertFalse(client.is_active)
+            bot._send_welcome(client)
+        text = msend.call_args[0][1]
+        self.assertIn("Pasáselo al admin", text)
+
+
 class CmdCodeTests(TestCase):
     def setUp(self):
         self.client_obj = CodeBotClient.objects.create(
