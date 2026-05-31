@@ -90,6 +90,41 @@ En https://www.mercadopago.com.pe/developers/panel → tu app JHELIZ → **Webho
 - URL: `https://ecormecejhelizstore.com/pedidos/webhooks/mercadopago/`
 - Eventos: `payment`
 
+### 1.7 Bot de códigos (`@codigosjheliz_bot`)
+
+Bot separado (app `codes`) que entrega códigos de Netflix por IMAP. Corre como
+el servicio `codes_bot` del `docker-compose.yml` (long-polling, `restart: unless-stopped`).
+
+1. Completá en `.env` (ya están en `.env.example`):
+   ```
+   TELEGRAM_CODES_BOT_TOKEN=        # token de @BotFather para @codigosjheliz_bot
+   TELEGRAM_CODES_ADMIN_CHAT_ID=    # tu chat ID (de @userinfobot)
+   CODES_IMAP_HOST=imap.gmail.com
+   CODES_IMAP_PORT=993
+   CODES_IMAP_USER=codigosjheliz@gmail.com
+   CODES_IMAP_PASSWORD=             # contraseña de aplicación de 16 caracteres (NO la normal)
+   CODES_LOOKBACK_MINUTES=30
+   ```
+   La contraseña de aplicación se genera en https://myaccount.google.com/apppasswords
+   (requiere 2FA activado en esa cuenta de Gmail).
+
+2. Levantá el servicio (junto al resto del perfil `bot`):
+   ```bash
+   sudo docker compose --profile bot up -d --build codes_bot
+   ```
+
+3. Verificá que esté corriendo y mirá los logs:
+   ```bash
+   sudo docker compose ps codes_bot
+   sudo docker compose logs -f codes_bot   # debe imprimir "Bot de códigos arrancando…"
+   ```
+
+4. Probalo desde Telegram: mandá `/start` a @codigosjheliz_bot. Como admin
+   tenés `/clientes`, `/asignar <ID o @usuario> <correo>` y `/quitar`.
+
+> Al volver a deployar, `docker compose --profile bot up -d --build` reconstruye
+> y reinicia también `codes_bot`. No necesita nginx (no expone puertos).
+
 ---
 
 ## 2) Si tienes **Hosting compartido** en Hostinger (NO corre Django)
