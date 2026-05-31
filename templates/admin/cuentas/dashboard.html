@@ -1087,6 +1087,17 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
 </div>
 
 {# Modal Edit-Buyer — editar nombre del cliente / fecha / correo de una cuenta entregada. #}
+<style>
+  /* Unfold compila Tailwind escaneando solo sus propios templates, así que
+     algunas utilidades que usa este modal no quedan en el CSS servido:
+     `.max-w-lg`, `.space-y-4` y `.shadow-2xl`. Sin `.max-w-lg` el panel se
+     queda sin ancho máximo y se estira a todo el viewport, dejando las
+     etiquetas y los campos pegados al borde izquierdo. Las definimos acá con
+     los valores estándar de Tailwind, acotadas a este modal. */
+  #edit-buyer-modal .max-w-lg { max-width: 32rem; }
+  #edit-buyer-modal .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+  #edit-buyer-modal .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, .55); }
+</style>
 <div id="edit-buyer-modal"
      class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
      style="backdrop-filter: blur(4px);">
