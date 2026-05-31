@@ -54,5 +54,15 @@ services:
     profiles:
       - bot  # Inicia solo con: docker compose --profile bot up
 
+  codes_bot:
+    build: .
+    command: python manage.py run_codes_bot
+    env_file: .env
+    depends_on:
+      - web
+    restart: unless-stopped
+    profiles:
+      - bot  # Inicia junto al resto con: docker compose --profile bot up
+
 volumes:
   postgres_data:

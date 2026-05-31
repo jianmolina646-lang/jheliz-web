@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "blog.apps.BlogConfig",
     "discord_bot.apps.DiscordBotConfig",
     "livechat.apps.LivechatConfig",
+    "codes.apps.CodesConfig",
 ]
 
 MIDDLEWARE = [
@@ -272,6 +273,23 @@ TELEGRAM_CUSTOMER_CHANNEL_ID = config("TELEGRAM_CUSTOMER_CHANNEL_ID", default=""
 # el admin (acción "📢 Publicar en Telegram" o botón en el change form).
 # Esto da al admin control total sobre qué y cuándo se anuncia.
 TELEGRAM_AUTO_PUBLISH = config("TELEGRAM_AUTO_PUBLISH", default=False, cast=bool)
+
+# ---- Bot de códigos (Telegram) -------------------------------------------
+# Bot SEPARADO del bot principal: los clientes piden el código de Netflix
+# (acceso temporal / actualizar hogar) de las cuentas que el admin les
+# asignó. Lee una casilla central (Gmail) por IMAP a la que se reenvían los
+# correos de Netflix de cada cuenta. Ver app ``codes``.
+TELEGRAM_CODES_BOT_TOKEN = config("TELEGRAM_CODES_BOT_TOKEN", default="")
+# Chat ID del admin del bot de códigos (recibe avisos de altas nuevas).
+TELEGRAM_CODES_ADMIN_CHAT_ID = config("TELEGRAM_CODES_ADMIN_CHAT_ID", default="")
+# Casilla central que recibe (por reenvío) los correos de Netflix.
+CODES_IMAP_HOST = config("CODES_IMAP_HOST", default="imap.gmail.com")
+CODES_IMAP_PORT = config("CODES_IMAP_PORT", default=993, cast=int)
+CODES_IMAP_USER = config("CODES_IMAP_USER", default="")
+# Contraseña de aplicación (Gmail) — NO la contraseña normal de la cuenta.
+CODES_IMAP_PASSWORD = config("CODES_IMAP_PASSWORD", default="")
+# Ventana (minutos) hacia atrás para considerar un correo de Netflix vigente.
+CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=30, cast=int)
 
 # Discord bot (opcional)
 # Bot que reemplaza a Telegram para el back-office: pedidos nuevos, Yape,
