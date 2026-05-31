@@ -28,6 +28,24 @@ logger = logging.getLogger(__name__)
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 
+# Los 4 comandos del cliente -> tipo de correo de Netflix que entregan.
+# Telegram no permite tildes ni mayúsculas en los comandos, así que el
+# comando real es sin tilde (/codigo, /clave) pero el cliente lo escribe igual.
+COMMAND_KINDS: dict[str, str] = {
+    "/codigo": "signin_code",
+    "/viaje": "temp_code",
+    "/hogar": "household",
+    "/clave": "password_reset",
+}
+
+# Etiqueta corta de cada tipo, para botones y mensajes.
+KIND_LABELS: dict[str, str] = {
+    "signin_code": "🔑 Código de inicio de sesión",
+    "temp_code": "✈️ Código de acceso temporal (viaje)",
+    "household": "🏠 Actualizar Hogar",
+    "password_reset": "🔒 Restablecer contraseña",
+}
+
 
 # ---------- Configuración ----------
 
@@ -114,8 +132,27 @@ def _assigned_emails(client: CodeBotClient) -> list[str]:
     return list(client.emails.values_list("email", flat=True))
 
 
-def _email_buttons(emails: list[str]) -> list[list[dict]]:
-    return [[{"text": e, "callback_data": f"code:{e}"}] for e in emails]
+def _email_buttons(emails: list[str], kind: str | None = None) -> list[list[dict]]:
+    """Botones para elegir un correo.
+
+    El ``callback_data`` usa el índice del correo (no el correo entero) para
+    no pasarse del límite de 64 bytes de Telegram. Si se pasa ``kind``, al
+    tocar el botón se entrega ese tipo directamente; si no, se muestra el
+    selector de tipo (``pick:<idx>``).
+    """
+    rows: list[list[dict]] = []
+    for idx, e in enumerate(emails):
+        data = f"c:{kind}:{idx}" if kind else f"pick:{idx}"
+        rows.append([{"text": e, "callback_data": data}])
+    return rows
+
+
+def _kind_buttons(idx: int) -> list[list[dict]]:
+    """Las 4 opciones de tipo para un correo (por índice)."""
+    return [
+        [{"text": KIND_LABELS[kind], "callback_data": f"c:{kind}:{idx}"}]
+        for kind in COMMAND_KINDS.values()
+    ]
 
 
 def _format_result(email: str, result) -> str:
@@ -131,25 +168,65 @@ def _format_result(email: str, result) -> str:
     return "".join(parts)
 
 
-def _deliver_code(client: CodeBotClient, email: str) -> str:
+def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) -> str:
     email = (email or "").strip().lower()
     assigned = set(_assigned_emails(client))
     if email not in assigned:
-        return "Ese correo no está asignado a tu cuenta. Escribile al admin."
+        return (
+            f"⚠️ El correo <b>{html.escape(email)}</b> no está asignado a tu "
+            "cuenta, así que no te corresponde. Si creés que es un error, "
+            "escribile al admin."
+        )
     if not imap_reader.is_configured():
         return "El servicio de códigos todavía no está configurado. Probá más tarde."
     try:
-        result = imap_reader.fetch_latest_for_email(email)
+        result = imap_reader.fetch_latest_for_email(email, kind=kind)
     except Exception:
         logger.exception("Fallo leyendo IMAP para %s", email)
         return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
     if result is None or not result.has_payload:
+        if kind and kind in KIND_LABELS:
+            que = f"<b>{html.escape(KIND_LABELS[kind])}</b>"
+        else:
+            que = "un código reciente"
         return (
-            f"No encontré un código reciente para <b>{html.escape(email)}</b>.\n"
-            "Generá el código desde Netflix (reenviá el correo) y volvé a pedirlo."
+            f"No encontré {que} para <b>{html.escape(email)}</b>.\n"
+            "Generá el correo desde Netflix y volvé a pedirlo en un minuto."
         )
     client.touch()
     return _format_result(email, result)
+
+
+def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
+    """Procesa /codigo /viaje /hogar /clave [correo]."""
+    chat_id = client.telegram_chat_id
+    if not client.is_active:
+        _send_welcome(client)
+        return
+    emails = _assigned_emails(client)
+    if not emails:
+        send_message(
+            chat_id,
+            "Tu cuenta está activa pero todavía no tenés correos asignados.\n"
+            "El admin te los va a asignar en breve.",
+        )
+        return
+
+    arg = (arg or "").strip().lower()
+    if not arg:
+        # Sin correo: si tiene uno solo, lo usamos; si tiene varios, que elija.
+        if len(emails) == 1:
+            arg = emails[0]
+        else:
+            send_message(
+                chat_id,
+                f"¿De qué correo querés <b>{html.escape(KIND_LABELS[kind])}</b>?\n"
+                "Elegí uno (o repetí el comando con el correo al lado):",
+                buttons=_email_buttons(emails, kind=kind),
+            )
+            return
+
+    send_message(chat_id, _deliver_code(client, arg, kind=kind))
 
 
 # ---------- Handlers ----------
@@ -169,21 +246,30 @@ def _handle_message(update: dict) -> None:
 
     client, created = _get_or_create_client(chat_id, username, name)
 
-    if text.startswith("/start"):
+    cmd, _, rest = text.partition(" ")
+    cmd = cmd.lower().split("@", 1)[0]  # quita @botname si lo hubiera
+    rest = rest.strip()
+
+    if cmd == "/start":
         if created:
             _notify_admin_new(client)
         _send_welcome(client)
         return
-    if text.startswith("/ayuda") or text.startswith("/help"):
+    if cmd in ("/ayuda", "/help"):
         _send_welcome(client)
         return
-    if text.startswith("/miscorreos"):
+    if cmd == "/miscorreos":
         _send_email_menu(client)
         return
 
-    # ¿Escribió un correo?
+    # Los 4 comandos de tipo de código (/codigo /viaje /hogar /clave).
+    if cmd in COMMAND_KINDS:
+        _cmd_code(client, COMMAND_KINDS[cmd], rest)
+        return
+
+    # ¿Escribió un correo a secas? Le mostramos el selector de tipo.
     if "@" in text and " " not in text:
-        send_message(chat_id, _deliver_code(client, text))
+        _offer_kinds_for_email(client, text)
         return
 
     _send_welcome(client)
@@ -201,11 +287,37 @@ def _handle_callback(update: dict) -> None:
     client, _ = _get_or_create_client(
         chat_id, from_user.get("username") or "", from_user.get("first_name") or ""
     )
+    emails = _assigned_emails(client)
+    if data.startswith("c:"):
+        # c:<kind>:<idx> -> entregar ese tipo para el correo elegido.
+        _, _, payload = data.partition(":")
+        kind, _, idx_raw = payload.partition(":")
+        if cq_id:
+            answer_callback_query(cq_id, "Buscando…")
+        try:
+            idx = int(idx_raw)
+        except ValueError:
+            return
+        if 0 <= idx < len(emails):
+            send_message(chat_id, _deliver_code(client, emails[idx], kind=kind))
+        return
+    if data.startswith("pick:"):
+        # pick:<idx> -> mostrar las 4 opciones de tipo para ese correo.
+        if cq_id:
+            answer_callback_query(cq_id)
+        try:
+            idx = int(data.split(":", 1)[1])
+        except ValueError:
+            return
+        if 0 <= idx < len(emails):
+            send_message(
+                chat_id,
+                f"📧 <b>{html.escape(emails[idx])}</b>\n¿Qué necesitás?",
+                buttons=_kind_buttons(idx),
+            )
+        return
     if cq_id:
-        answer_callback_query(cq_id, "Buscando…")
-    if data.startswith("code:"):
-        email = data.split(":", 1)[1]
-        send_message(chat_id, _deliver_code(client, email))
+        answer_callback_query(cq_id)
 
 
 def _send_welcome(client: CodeBotClient) -> None:
@@ -226,11 +338,52 @@ def _send_welcome(client: CodeBotClient) -> None:
             "El admin te los va a asignar en breve.",
         )
         return
+    send_message(chat_id, _help_text(emails), buttons=_email_buttons(emails))
+
+
+def _help_text(emails: list[str]) -> str:
+    ejemplo = emails[0] if emails else "correo@gmail.com"
+    lines = [
+        "👋 Bot de <b>códigos Jheliz</b>. Pedí lo que necesités con el correo al lado:",
+        "",
+        f"🔑 <code>/codigo {ejemplo}</code> — código de inicio de sesión",
+        f"✈️ <code>/viaje {ejemplo}</code> — código de acceso temporal (de viaje)",
+        f"🏠 <code>/hogar {ejemplo}</code> — link para actualizar Hogar",
+        f"🔒 <code>/clave {ejemplo}</code> — link para restablecer contraseña",
+    ]
+    if len(emails) == 1:
+        lines.append(
+            "\nComo tenés un solo correo, también podés mandar el comando solo "
+            "(ej. <code>/codigo</code>) y te lo doy de esa cuenta."
+        )
+    else:
+        lines.append(
+            "\nTambién podés tocar un correo de abajo y elegir qué necesitás."
+        )
+    lines.append("/miscorreos — ver tus correos asignados")
+    return "\n".join(lines)
+
+
+def _offer_kinds_for_email(client: CodeBotClient, raw_email: str) -> None:
+    chat_id = client.telegram_chat_id
+    if not client.is_active:
+        _send_welcome(client)
+        return
+    email = (raw_email or "").strip().lower()
+    emails = _assigned_emails(client)
+    if email not in set(emails):
+        send_message(
+            chat_id,
+            f"⚠️ El correo <b>{html.escape(email)}</b> no está asignado a tu "
+            "cuenta, así que no te corresponde. Si creés que es un error, "
+            "escribile al admin.",
+        )
+        return
+    idx = emails.index(email)
     send_message(
         chat_id,
-        "✅ Elegí el correo del que querés el código de Netflix\n"
-        "(o escribilo directamente):",
-        buttons=_email_buttons(emails),
+        f"📧 <b>{html.escape(email)}</b>\n¿Qué necesitás?",
+        buttons=_kind_buttons(idx),
     )
 
 
@@ -241,7 +394,7 @@ def _send_email_menu(client: CodeBotClient) -> None:
         return
     send_message(
         client.telegram_chat_id,
-        "Tus correos asignados:",
+        "Tus correos asignados. Tocá uno y elegí qué necesitás:",
         buttons=_email_buttons(emails),
     )
 

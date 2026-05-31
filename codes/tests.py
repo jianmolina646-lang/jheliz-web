@@ -72,6 +72,97 @@ class NetflixParserTests(TestCase):
         self.assertEqual(r.kind, "other")
         self.assertFalse(r.has_payload)
 
+    def test_password_reset_classification_and_link(self):
+        html = (
+            "<p>Restablece tu contraseña</p>"
+            '<a href="https://www.netflix.com/password?g=1&amp;lkid=Y">'
+            "Crear contraseña nueva</a>"
+        )
+        r = parse_netflix_email("Netflix: Restablece tu contraseña", html=html)
+        self.assertEqual(r.kind, "password_reset")
+        self.assertIn("/password", r.action_url)
+        self.assertNotIn("&amp;", r.action_url)
+
+
+class CommandMappingTests(TestCase):
+    def test_four_commands_mapped_to_kinds(self):
+        self.assertEqual(
+            bot.COMMAND_KINDS,
+            {
+                "/codigo": "signin_code",
+                "/viaje": "temp_code",
+                "/hogar": "household",
+                "/clave": "password_reset",
+            },
+        )
+
+    def test_every_command_kind_has_a_label(self):
+        for kind in bot.COMMAND_KINDS.values():
+            self.assertIn(kind, bot.KIND_LABELS)
+
+
+class CmdCodeTests(TestCase):
+    def setUp(self):
+        self.client_obj = CodeBotClient.objects.create(
+            telegram_chat_id="555", is_active=True
+        )
+        AssignedEmail.objects.create(client=self.client_obj, email="solo@gmail.com")
+
+    @mock.patch("codes.bot.send_message")
+    @mock.patch("codes.bot._deliver_code", return_value="OK")
+    def test_single_email_fallback_when_no_arg(self, mdeliver, _msend):
+        bot._cmd_code(self.client_obj, "signin_code", "")
+        mdeliver.assert_called_once_with(
+            self.client_obj, "solo@gmail.com", kind="signin_code"
+        )
+
+    @mock.patch("codes.bot.send_message")
+    @mock.patch("codes.bot._deliver_code", return_value="OK")
+    def test_explicit_email_arg_is_used(self, mdeliver, _msend):
+        bot._cmd_code(self.client_obj, "household", "Solo@Gmail.com")
+        mdeliver.assert_called_once_with(
+            self.client_obj, "solo@gmail.com", kind="household"
+        )
+
+    @mock.patch("codes.bot._deliver_code", return_value="OK")
+    @mock.patch("codes.bot.send_message")
+    def test_multiple_emails_no_arg_shows_picker(self, msend, mdeliver):
+        AssignedEmail.objects.create(client=self.client_obj, email="otro@gmail.com")
+        bot._cmd_code(self.client_obj, "temp_code", "")
+        mdeliver.assert_not_called()
+        _args, kwargs = msend.call_args
+        self.assertTrue(kwargs.get("buttons"))
+
+
+class DeliverKindTests(TestCase):
+    def setUp(self):
+        self.client_obj = CodeBotClient.objects.create(
+            telegram_chat_id="777", is_active=True
+        )
+        AssignedEmail.objects.create(client=self.client_obj, email="mine@gmail.com")
+
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
+    def test_kind_is_forwarded_to_imap(self, mfetch, _cfg):
+        bot._deliver_code(self.client_obj, "mine@gmail.com", kind="password_reset")
+        mfetch.assert_called_once_with("mine@gmail.com", kind="password_reset")
+
+    def test_unassigned_email_says_no_corresponde(self):
+        msg = bot._deliver_code(self.client_obj, "ajeno@gmail.com", kind="signin_code")
+        self.assertIn("no te corresponde", msg)
+
+    @mock.patch("codes.bot.send_message")
+    def test_offer_kinds_rejects_unassigned(self, msend):
+        bot._offer_kinds_for_email(self.client_obj, "ajeno@gmail.com")
+        text = msend.call_args[0][1]
+        self.assertIn("no te corresponde", text)
+
+    @mock.patch("codes.bot.send_message")
+    def test_offer_kinds_shows_four_options(self, msend):
+        bot._offer_kinds_for_email(self.client_obj, "mine@gmail.com")
+        _args, kwargs = msend.call_args
+        self.assertEqual(len(kwargs.get("buttons", [])), 4)
+
 
 class DeliverCodeTests(TestCase):
     def setUp(self):

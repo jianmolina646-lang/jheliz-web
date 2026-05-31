@@ -112,12 +112,19 @@ def _msg_datetime(msg: Message) -> datetime:
 
 
 def fetch_latest_for_email(
-    account_email: str, lookback_minutes: int | None = None
+    account_email: str,
+    kind: str | None = None,
+    lookback_minutes: int | None = None,
 ) -> NetflixResult | None:
     """Busca el último correo de Netflix dirigido a ``account_email``.
 
+    Si se pasa ``kind`` (``signin_code`` / ``temp_code`` / ``household`` /
+    ``password_reset``), solo se considera el correo más reciente de ESE tipo;
+    los demás correos de Netflix se ignoran. Sin ``kind`` se devuelve el más
+    reciente de cualquier tipo reconocido.
+
     Devuelve un :class:`~codes.netflix.NetflixResult` o ``None`` si no hay
-    nada reciente para ese correo.
+    nada reciente que coincida.
     """
     if not is_configured():
         raise RuntimeError("IMAP de la casilla de códigos no configurado")
@@ -164,6 +171,10 @@ def fetch_latest_for_email(
                 continue
             subject = _decode(msg.get("Subject"))
             result = parse_netflix_email(subject, html=html, text=text)
+            # Cuando se pide un tipo puntual (uno de los 4 comandos), solo
+            # entregamos ese tipo; cualquier otro correo de Netflix se ignora.
+            if kind is not None and result.kind != kind:
+                continue
             candidates.append((dt, result))
         if not candidates:
             return None

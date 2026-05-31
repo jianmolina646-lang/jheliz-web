@@ -3,11 +3,13 @@
 Dado el asunto + cuerpo (HTML/texto) de un correo de Netflix, detecta de qué
 tipo es y extrae lo accionable para el cliente:
 
+- **signin_code**: "Tu código de inicio de sesión".
 - **temp_code**: "Tu código de acceso temporal" (viajes / fuera del hogar).
   Trae un botón "Obtener código" con un link a netflix.com.
 - **household**: "Cómo actualizar tu Hogar" / "Actualizar Hogar con Netflix".
   Trae un botón para confirmar el dispositivo/hogar.
-- **signin_code**: "Tu código de inicio de sesión".
+- **password_reset**: "Restablece tu contraseña" / "Cómo restablecer tu
+  contraseña". Trae un botón/link para crear una contraseña nueva.
 - **other**: correo de Netflix no reconocido.
 
 El resultado siempre incluye el ``action_url`` (link del botón principal)
@@ -30,6 +32,8 @@ _NETFLIX_LINK_RE = re.compile(
 )
 
 # Palabras clave por tipo (en español; se cubren variantes comunes).
+# El orden importa: ``_classify`` devuelve el primer tipo que matchea, así que
+# los más específicos van primero.
 _KEYWORDS = {
     "temp_code": ("código de acceso temporal", "acceso temporal", "obtener código"),
     "household": (
@@ -40,6 +44,18 @@ _KEYWORDS = {
         "primary-location",
         "update-primary-location",
     ),
+    "password_reset": (
+        "restablece tu contraseña",
+        "restablecer tu contraseña",
+        "restablecer contraseña",
+        "restablecimiento de contraseña",
+        "cambia tu contraseña",
+        "olvidaste tu contraseña",
+        "reset your password",
+        "password-reset",
+        "forgotpassword",
+        "loginhelp",
+    ),
     "signin_code": ("código de inicio de sesión", "login code", "sign-in code"),
 }
 
@@ -47,12 +63,14 @@ _KEYWORDS = {
 _URL_HINTS = {
     "temp_code": ("travel", "verify", "otp", "temporary"),
     "household": ("update-primary-location", "primary-location", "household", "confirm"),
+    "password_reset": ("password", "forgotpassword", "loginhelp", "reset"),
     "signin_code": ("login", "signin", "account/login"),
 }
 
 _HUMAN = {
     "temp_code": "Código de acceso temporal",
     "household": "Actualizar Hogar con Netflix",
+    "password_reset": "Restablecer contraseña",
     "signin_code": "Código de inicio de sesión",
     "other": "Correo de Netflix",
 }
