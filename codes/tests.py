@@ -57,6 +57,16 @@ class NetflixParserTests(TestCase):
         self.assertEqual(r.kind, "signin_code")
         self.assertEqual(r.code, "4821")
 
+    def test_links_have_html_entities_decoded(self):
+        html = (
+            "<p>Tu código de inicio de sesión</p>"
+            '<a href="https://www.netflix.com/accountaccess?g=1&amp;lkid=X&amp;lnktrk=EVO">'
+            "Ver cuenta</a>"
+        )
+        r = parse_netflix_email("Netflix: Tu código de inicio de sesión", html=html)
+        self.assertIn("&lkid=X", r.action_url)
+        self.assertNotIn("&amp;", r.action_url)
+
     def test_unknown_email_is_other(self):
         r = parse_netflix_email("Novedades de Netflix", html="<p>Mira lo nuevo</p>")
         self.assertEqual(r.kind, "other")

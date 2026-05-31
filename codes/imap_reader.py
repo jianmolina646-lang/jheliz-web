@@ -137,7 +137,10 @@ def fetch_latest_for_email(
     try:
         conn.login(settings.CODES_IMAP_USER, settings.CODES_IMAP_PASSWORD)
         conn.select("INBOX")
-        typ, data = conn.search(None, "SINCE", since_imap, "FROM", "netflix")
+        # TEXT busca en todo el mensaje: agarra tanto los reenvíos automáticos
+        # (From: Netflix) como los reenviados a mano (From: la cuenta origen,
+        # con el correo de Netflix dentro del cuerpo).
+        typ, data = conn.search(None, "SINCE", since_imap, "TEXT", "netflix")
         if typ != "OK":
             return None
         ids = data[0].split()

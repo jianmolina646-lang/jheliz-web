@@ -20,6 +20,7 @@ de netflix.com; está pensado para refinarse con muestras reales.
 
 from __future__ import annotations
 
+import html as _html
 import re
 from dataclasses import dataclass, field
 
@@ -122,7 +123,8 @@ def parse_netflix_email(subject: str, html: str = "", text: str = "") -> Netflix
     seen: set[str] = set()
     uniq_links = []
     for link in links:
-        link = link.rstrip(".,)")
+        # Limpia entidades HTML (&amp; -> &) y puntuación final.
+        link = _html.unescape(link).rstrip(".,)")
         if link not in seen:
             seen.add(link)
             uniq_links.append(link)
