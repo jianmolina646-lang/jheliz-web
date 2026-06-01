@@ -1247,6 +1247,44 @@ class CuentasEditBuyerTests(TestCase):
         # Vence = fecha de venta + duración del plan (30 días).
         self.assertEqual((oi.expires_at - oi.order.paid_at).days, self.plan.duration_days)
 
+    def test_backfill_migration_fills_expiry_on_old_sales(self):
+        """La migración de backfill calcula el vencimiento de ventas viejas."""
+        import importlib
+
+        from django.apps import apps as global_apps
+        from orders.models import Order, OrderItem
+
+        _0018 = importlib.import_module(
+            "orders.migrations.0018_backfill_orderitem_expires_at",
+        )
+
+        # Venta vieja (canal telegram) que quedó sin expires_at, con plan de 30d.
+        old_order = Order.objects.create(
+            email="viejo@gmail.com",
+            total=Decimal("20.00"),
+            status=Order.Status.DELIVERED,
+            paid_at=timezone.now() - timedelta(days=5),
+            channel=Order.Channel.TELEGRAM,
+        )
+        old_item = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            credentials="Correo: viejo@y.com", status=StockItem.Status.SOLD,
+        )
+        old_oi = OrderItem.objects.create(
+            order=old_order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=Decimal("20.00"), quantity=1, stock_item=old_item,
+        )
+        self.assertIsNone(old_oi.expires_at)
+
+        _0018.backfill_expires_at(global_apps, None)
+
+        old_oi.refresh_from_db()
+        self.assertIsNotNone(old_oi.expires_at)
+        self.assertEqual(
+            (old_oi.expires_at - old_order.paid_at).days, self.plan.duration_days,
+        )
+
     def test_edits_buyer_email_normalizes_case(self):
         """El email del comprador se guarda en lowercase."""
         self.client.force_login(self.staff)
