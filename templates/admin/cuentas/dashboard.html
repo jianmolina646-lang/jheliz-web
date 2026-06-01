@@ -619,6 +619,10 @@
     .jh-cc-act--danger:hover { background: rgba(239,68,68,.20); color: #fecaca; }
     .jh-cc-act--wa      { color:#86efac; background: rgba(37,211,102,.12); border-color: rgba(37,211,102,.28); }
     .jh-cc-act--wa:hover { background: rgba(37,211,102,.22); color:#dcfce7; }
+    .jh-cc-act--tg      { color:#7cc6fb; background: rgba(41,171,226,.12); border-color: rgba(41,171,226,.30); }
+    .jh-cc-act--tg:hover { background: rgba(41,171,226,.24); color:#dbeefe; }
+    .jh-cc-act--gm      { color:#f4a4a0; background: rgba(234,67,53,.12); border-color: rgba(234,67,53,.28); }
+    .jh-cc-act--gm:hover { background: rgba(234,67,53,.22); color:#fde2e0; }
     .jh-cc-act--archive:hover { background: rgba(148,163,184,.18); color:#e2e8f0; }
     .jh-cc-act--delete  { color:#fca5a5; }
     .jh-cc-act--delete:hover { background: rgba(239,68,68,.18); color:#fecaca; border-color: rgba(239,68,68,.30); }
@@ -910,6 +914,18 @@
                       <span class="material-symbols-outlined">chat</span>
                     </a>
                   {% endif %}
+                  {% if item.buyer_telegram %}
+                    <a href="https://t.me/{{ item.buyer_telegram|cut:'@' }}"
+                       target="_blank" rel="noopener" class="jh-cc-act jh-cc-act--tg" title="Escribir al cliente por Telegram">
+                      <span class="material-symbols-outlined">send</span>
+                    </a>
+                  {% endif %}
+                  {% if item.buyer_email %}
+                    <a href="https://mail.google.com/mail/?view=cm&fs=1&to={{ item.buyer_email|urlencode }}&su={% filter urlencode %}Jheliz Store - Tu cuenta{% endfilter %}&body={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de Jheliz Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
+                       target="_blank" rel="noopener" class="jh-cc-act jh-cc-act--gm" title="Escribir al cliente por Gmail">
+                      <span class="material-symbols-outlined">mail</span>
+                    </a>
+                  {% endif %}
                   <a href="{% url 'admin:catalog_stockitem_change' item.pk %}"
                      class="jh-cc-act" title="Ver / editar detalle">
                     <span class="material-symbols-outlined">edit</span>
@@ -1118,6 +1134,18 @@
               <a href="https://wa.me/{{ item.buyer_wa_digits }}?text={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de Jheliz Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
                  target="_blank" rel="noopener" class="jh-cc-act jh-cc-act--wa" title="Escribir al cliente por WhatsApp">
                 <span class="material-symbols-outlined">chat</span>
+              </a>
+            {% endif %}
+            {% if item.buyer_telegram %}
+              <a href="https://t.me/{{ item.buyer_telegram|cut:'@' }}"
+                 target="_blank" rel="noopener" class="jh-cc-act jh-cc-act--tg" title="Escribir al cliente por Telegram">
+                <span class="material-symbols-outlined">send</span>
+              </a>
+            {% endif %}
+            {% if item.buyer_email %}
+              <a href="https://mail.google.com/mail/?view=cm&fs=1&to={{ item.buyer_email|urlencode }}&su={% filter urlencode %}Jheliz Store - Tu cuenta{% endfilter %}&body={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de Jheliz Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
+                 target="_blank" rel="noopener" class="jh-cc-act jh-cc-act--gm" title="Escribir al cliente por Gmail">
+                <span class="material-symbols-outlined">mail</span>
               </a>
             {% endif %}
             <a href="{% url 'admin:catalog_stockitem_change' item.pk %}"
