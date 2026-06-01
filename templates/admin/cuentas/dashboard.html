@@ -510,6 +510,39 @@
     .jh-cc-plat .jh2-table tbody tr { transition: background .12s; }
     .jh-cc-plat .jh2-table tbody tr:hover { background: rgba(167,139,250,.04); }
 
+    /* ── Celda "Cuenta": correo arriba, contraseña abajo ─────────── */
+    .jh-cc-cred { display: flex; flex-direction: column; gap: 5px; max-width: 32ch; }
+    .jh-cc-cred__row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .jh-cc-cred__ic { font-size: 14px; color: rgba(148,163,184,.65); flex-shrink: 0; }
+    .jh-cc-cred__val {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12.5px; color: #e7ebf3; letter-spacing: -.01em;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .jh-cc-cred__row--pw .jh-cc-cred__val { color: #97a3b6; font-size: 12px; }
+    .jh-cc-cred__raw {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12.5px; color: #cbd5e1; line-height: 1.5;
+      max-width: 32ch; word-break: break-word;
+    }
+
+    /* ── Chips Perfil / PIN ──────────────────────────────────────── */
+    .jh-cc-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    .jh-cc-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 2px 8px; border-radius: 7px;
+      font-size: 11.5px; font-weight: 600; line-height: 1.55;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.08);
+      color: #d4dbe6;
+    }
+    .jh-cc-tag--pin { color: #c4b5fd; background: rgba(167,139,250,.10); border-color: rgba(167,139,250,.24); }
+    .jh-cc-tag__lbl {
+      color: #6b7689; font-weight: 700; font-size: 9px;
+      letter-spacing: .06em; text-transform: uppercase;
+    }
+    .jh-cc-tag--pin .jh-cc-tag__lbl { color: rgba(196,181,253,.7); }
+
     /* ── Acciones inline ─────────────────────────────────────────── */
     .jh-cc-actions { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
     .jh-cc-actions form { display: inline-flex; }
@@ -652,23 +685,38 @@
             {% for item in g.items %}
             <tr {% if matched_email and matched_email in item.account_text|lower %}style="background:rgba(251,146,60,0.06);"{% endif %}>
               <td>
-                <div class="jh2-table__mono jh2-table__cell-wrap" style="max-width:38ch;font-size:12.5px;">{{ item.account_text|default:item.credentials|truncatechars:120 }}</div>
+                {% if item.email_lc %}
+                  <div class="jh-cc-cred">
+                    <div class="jh-cc-cred__row">
+                      <span class="material-symbols-outlined jh-cc-cred__ic">mail</span>
+                      <span class="jh-cc-cred__val" title="{{ item.email_lc }}">{{ item.email_lc }}</span>
+                    </div>
+                    {% if item.account_password %}
+                      <div class="jh-cc-cred__row jh-cc-cred__row--pw">
+                        <span class="material-symbols-outlined jh-cc-cred__ic">key</span>
+                        <span class="jh-cc-cred__val" title="{{ item.account_password }}">{{ item.account_password }}</span>
+                      </div>
+                    {% endif %}
+                  </div>
+                {% else %}
+                  <div class="jh-cc-cred__raw">{{ item.account_text|default:item.credentials|truncatechars:120 }}</div>
+                {% endif %}
               </td>
               <td>
                 {% if item.profile_text or item.pin_text %}
-                  <div class="jh2-table__mono" style="font-size:12px;">
-                    {% if item.profile_text %}<span style="color:#cbd5e1;">{{ item.profile_text }}</span>{% endif %}
-                    {% if item.pin_text %}<span style="color:#94a3b8;"> · PIN {{ item.pin_text }}</span>{% endif %}
+                  <div class="jh-cc-tags">
+                    {% if item.profile_text %}<span class="jh-cc-tag">{{ item.profile_text }}</span>{% endif %}
+                    {% if item.pin_text %}<span class="jh-cc-tag jh-cc-tag--pin"><span class="jh-cc-tag__lbl">PIN</span>{{ item.pin_text }}</span>{% endif %}
                   </div>
                 {% else %}
                   <div class="jh2-table__muted">—</div>
                 {% endif %}
                 {# Cliente: nombre de perfil + PIN que SOLICITÓ el cliente al pagar (no el slot) #}
                 {% if item.buyer_profile or item.buyer_pin %}
-                  <div class="jh2-table__mono" style="font-size:11px;margin-top:4px;padding-top:4px;border-top:1px dashed rgba(148,163,184,.18);">
-                    <span style="color:#94a3b8;">Pidió:</span>
-                    {% if item.buyer_profile %}<span style="color:#fde68a;">"{{ item.buyer_profile }}"</span>{% endif %}
-                    {% if item.buyer_pin %}<span style="color:#fde68a;"> · PIN {{ item.buyer_pin }}</span>{% endif %}
+                  <div class="jh-cc-tags" style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(148,163,184,.18);">
+                    <span class="jh-cc-tag__lbl">Pidió</span>
+                    {% if item.buyer_profile %}<span class="jh-cc-tag" style="color:#fde68a;border-color:rgba(253,230,138,.22);">"{{ item.buyer_profile }}"</span>{% endif %}
+                    {% if item.buyer_pin %}<span class="jh-cc-tag jh-cc-tag--pin" style="color:#fde68a;"><span class="jh-cc-tag__lbl">PIN</span>{{ item.buyer_pin }}</span>{% endif %}
                   </div>
                 {% endif %}
               </td>
@@ -796,7 +844,7 @@
         {% for item in g.items %}
         <article class="jh-cc-card{% if matched_email and matched_email in item.account_text|lower %} jh-cc-card--match{% endif %}" role="listitem">
           <header class="jh-cc-card__head">
-            <div class="jh-cc-card__account">{{ item.account_text|default:item.credentials|truncatechars:120 }}</div>
+            <div class="jh-cc-card__account">{{ item.email_lc|default:item.account_text|default:item.credentials|truncatechars:120 }}</div>
             <div class="jh-cc-card__status">
               {% if item.status == 'available' %}
                 {% include "admin/components/_pill.html" with text="Disponible" variant="success" %}
@@ -813,6 +861,12 @@
           </header>
 
           <div class="jh-cc-card__meta">
+            {% if item.account_password %}
+              <div class="jh-cc-card__row jh-cc-card__row--muted">
+                <span class="material-symbols-outlined">key</span>
+                <span>{{ item.account_password }}</span>
+              </div>
+            {% endif %}
             {% if item.profile_text or item.pin_text %}
               <div class="jh-cc-card__row">
                 <span class="material-symbols-outlined">person</span>

@@ -1836,8 +1836,9 @@ def cuentas_dashboard(request):
     el Excel / bloc de notas del usuario: ver de un vistazo cuántas cuentas
     quedan disponibles y cuáles ya están vendidas por plataforma.
     """
+    import re as _re
     from catalog.models import Product, ProductMode, StockItem
-    from orders.credentials import split_account_extras
+    from orders.credentials import parse as _parse_creds, split_account_extras
 
     q = (request.GET.get("q") or "").strip().lower()
     status_filter = (request.GET.get("status") or "all").strip()
@@ -1889,8 +1890,13 @@ def cuentas_dashboard(request):
         account, profile, pin = split_account_extras(it.credentials or "")
         it.account_text = account
         it.profile_text = profile
-        it.pin_text = pin
+        # Algunos correos guardan el PIN como "PIN 1357"; evitamos el doble
+        # "PIN PIN" al renderizar la etiqueta " · PIN {valor}".
+        it.pin_text = _re.sub(r"^\s*pin[\s:.\-]*", "", pin or "", flags=_re.IGNORECASE).strip()
         it.email_lc = _extract_primary_email(account)
+        # Contraseña parseada para mostrar la cuenta de forma ordenada
+        # (correo arriba, contraseña abajo) en vez del texto crudo.
+        it.account_password = _parse_creds(it.credentials or "").password
 
         # Comprador (OrderItem más reciente asociado). Solo poblamos si la
         # cuenta NO está disponible — el caso interesante para el admin.
