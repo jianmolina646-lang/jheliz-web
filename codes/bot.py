@@ -265,15 +265,15 @@ def _handle_message(update: dict) -> None:
             _notify_admin_new(client)
         _send_welcome(client)
         return
-    if cmd in ("/ayuda", "/help"):
-        _send_welcome(client)
+    if cmd in ("/ayuda", "/help", "/cmds", "/comandos"):
+        _send_commands_help(client)
         return
     if cmd == "/miscorreos":
         _send_email_menu(client)
         return
 
     # Comandos de admin (solo para el chat del admin).
-    if _is_admin(chat_id) and cmd in ("/clientes", "/asignar", "/quitar"):
+    if _is_admin(chat_id) and cmd in ("/clientes", "/asignar", "/quitar", "/anuncio"):
         _handle_admin_command(chat_id, cmd, rest)
         return
 
@@ -338,59 +338,97 @@ def _handle_callback(update: dict) -> None:
 def _send_welcome(client: CodeBotClient) -> None:
     chat_id = client.telegram_chat_id
     admin = _is_admin(chat_id)
-    # El mensaje de "pasáselo al admin" es solo para clientes, no para el admin.
+    # El mensaje de "pedí activación" es solo para clientes, no para el admin.
     if not client.is_active and not admin:
         send_message(
             chat_id,
-            "👋 ¡Hola! Tu acceso al bot de códigos todavía no está activado.\n\n"
-            f"Tu ID es <code>{html.escape(str(chat_id))}</code>. "
-            "Pasáselo al admin para que te active y te asigne tus correos.",
+            "👋 <b>¡Bienvenido al Bot de Códigos de Jheliz Store!</b> ✨\n\n"
+            "Acá vas a obtener al instante los códigos de tu cuenta de Netflix:\n"
+            "🔑 inicio de sesión · ✈️ viaje · 🏠 Hogar · 🔒 contraseña\n\n"
+            "🔒 Tu acceso todavía <b>no está activado</b>.\n"
+            f"Tu ID es <code>{html.escape(str(chat_id))}</code>.\n"
+            "Enviáselo al admin para que te active y te asigne tus correos. "
+            "En cuanto lo haga, te aviso por acá ✅",
         )
         return
     emails = _assigned_emails(client)
-    if not emails:
-        if admin:
-            send_message(
-                chat_id,
-                "👋 Hola admin. Acá ves los códigos de las cuentas que te "
-                "asignes a vos mismo.\n\n"
-                "🔧 <b>Comandos de admin</b> (asignás sin tocar la web):\n"
-                "<code>/clientes</code> — lista tus clientes (ID, usuario, correos)\n"
-                "<code>/asignar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — asigna y activa\n"
-                "<code>/quitar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — quita un correo\n\n"
-                "El cliente tiene que mandar <b>/start</b> una vez para aparecer "
-                "en <code>/clientes</code>. También podés asignar desde el panel web.",
-            )
-            return
+    if admin:
         send_message(
             chat_id,
-            "Tu cuenta está activa pero todavía no tenés correos asignados.\n"
-            "El admin te los va a asignar en breve.",
+            "👋 <b>Hola, admin.</b> Bienvenido al Bot de Códigos de Jheliz Store.\n\n"
+            + _admin_help_text(),
+            buttons=_email_buttons(emails) if emails else None,
         )
         return
-    send_message(chat_id, _help_text(emails), buttons=_email_buttons(emails))
+    if not emails:
+        send_message(
+            chat_id,
+            "✅ <b>Tu cuenta está activada</b>, pero todavía no tenés correos asignados.\n"
+            "El admin te los va a asignar en breve. Te aviso cuando estén listos 📩",
+        )
+        return
+    send_message(chat_id, _client_help_text(emails), buttons=_email_buttons(emails))
 
 
-def _help_text(emails: list[str]) -> str:
-    ejemplo = emails[0] if emails else "correo@gmail.com"
+def _send_commands_help(client: CodeBotClient) -> None:
+    """Responde a /cmds: comandos de admin si es el admin, de cliente si no."""
+    chat_id = client.telegram_chat_id
+    if _is_admin(chat_id):
+        send_message(chat_id, _admin_help_text())
+        return
+    if not client.is_active:
+        _send_welcome(client)
+        return
+    emails = _assigned_emails(client)
+    send_message(
+        chat_id,
+        _client_help_text(emails),
+        buttons=_email_buttons(emails) if emails else None,
+    )
+
+
+def _client_help_text(emails: list[str]) -> str:
+    ejemplo = emails[0] if emails else "tucorreo@gmail.com"
     lines = [
-        "👋 Bot de <b>códigos Jheliz</b>. Pedí lo que necesités con el correo al lado:",
+        "✨ <b>Bot de Códigos · Jheliz Store</b>",
+        "",
+        "Escribí el comando con tu correo al lado 👇",
         "",
         f"🔑 <code>/codigo {ejemplo}</code> — código de inicio de sesión",
         f"✈️ <code>/viaje {ejemplo}</code> — código de acceso temporal (de viaje)",
         f"🏠 <code>/hogar {ejemplo}</code> — link para actualizar Hogar",
         f"🔒 <code>/clave {ejemplo}</code> — link para restablecer contraseña",
+        "",
+        "📋 <code>/miscorreos</code> — ver tus correos asignados",
+        "❓ <code>/cmds</code> — ver esta ayuda",
     ]
-    if len(emails) == 1:
+    if not emails:
+        lines.append("")
+        lines.append("⏳ Todavía no tenés correos asignados; el admin te los asigna en breve.")
+    elif len(emails) == 1:
+        lines.append("")
         lines.append(
-            "\nComo tenés un solo correo, también podés mandar el comando solo "
+            "💡 Tenés un solo correo, así que podés mandar el comando solo "
             "(ej. <code>/codigo</code>) y te lo doy de esa cuenta."
         )
     else:
-        lines.append(
-            "\nTambién podés tocar un correo de abajo y elegir qué necesitás."
-        )
-    lines.append("/miscorreos — ver tus correos asignados")
+        lines.append("")
+        lines.append("💡 También podés tocar un correo de abajo y elegir qué necesitás.")
+    return "\n".join(lines)
+
+
+def _admin_help_text() -> str:
+    lines = [
+        "🛠 <b>Panel de administrador · Jheliz Store</b>",
+        "",
+        "👥 <code>/clientes</code> — lista de clientes (ID, usuario, correos)",
+        "➕ <code>/asignar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — asigna y activa",
+        "➖ <code>/quitar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — quita un correo",
+        "📢 <code>/anuncio &lt;mensaje&gt;</code> — enviar un anuncio a todos los registrados",
+        "",
+        "— También tenés los comandos de cliente —",
+        "🔑 /codigo · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📋 /miscorreos",
+    ]
     return "\n".join(lines)
 
 
@@ -455,6 +493,49 @@ def _handle_admin_command(chat_id, cmd: str, rest: str) -> None:
         _admin_assign(chat_id, rest, add=True)
     elif cmd == "/quitar":
         _admin_assign(chat_id, rest, add=False)
+    elif cmd == "/anuncio":
+        _admin_broadcast(chat_id, rest)
+
+
+def _admin_broadcast(chat_id, message: str) -> None:
+    """Envía un anuncio a todos los que alguna vez hicieron /start.
+
+    Excluye al propio admin (que recibe en cambio un resumen de entrega).
+    """
+    message = (message or "").strip()
+    if not message:
+        send_message(
+            chat_id,
+            "Uso: <code>/anuncio &lt;mensaje&gt;</code>\n"
+            "Ej: <code>/anuncio Mañana renuevo las cuentas, aviso cuando esté listo.</code>",
+        )
+        return
+    body = "📢 <b>Anuncio · Jheliz Store</b>\n\n" + html.escape(message)
+    recipients = (
+        CodeBotClient.objects.exclude(telegram_chat_id=str(chat_id))
+        .exclude(telegram_chat_id="")
+        .values_list("telegram_chat_id", flat=True)
+    )
+    sent = 0
+    failed = 0
+    for rid in recipients:
+        try:
+            resp = send_message(rid, body)
+        except Exception:
+            logger.exception("Anuncio: fallo enviando a %s", rid)
+            failed += 1
+            continue
+        if resp.get("ok"):
+            sent += 1
+        else:
+            failed += 1
+    send_message(
+        chat_id,
+        "📣 <b>Anuncio enviado.</b>\n"
+        f"✅ Entregados: <b>{sent}</b>\n"
+        f"⚠️ Fallidos: <b>{failed}</b>"
+        + ("\n\n(Los fallidos suelen ser clientes que bloquearon el bot.)" if failed else ""),
+    )
 
 
 def _admin_list_clients(chat_id) -> None:
@@ -542,6 +623,42 @@ def _notify_admin_new(client: CodeBotClient) -> None:
     )
 
 
+# ---------- Menú de comandos de Telegram ----------
+
+# Comandos que ve el cliente en el botón azul "Menú" de Telegram.
+_CLIENT_MENU = [
+    {"command": "codigo", "description": "🔑 Código de inicio de sesión"},
+    {"command": "viaje", "description": "✈️ Código de acceso temporal (viaje)"},
+    {"command": "hogar", "description": "🏠 Link para actualizar Hogar"},
+    {"command": "clave", "description": "🔒 Link para restablecer contraseña"},
+    {"command": "miscorreos", "description": "📋 Ver mis correos asignados"},
+    {"command": "cmds", "description": "❓ Ver los comandos"},
+]
+
+# El admin ve, además, los comandos de administración.
+_ADMIN_MENU = _CLIENT_MENU + [
+    {"command": "clientes", "description": "👥 Lista de clientes"},
+    {"command": "asignar", "description": "➕ Asignar correo a un cliente"},
+    {"command": "quitar", "description": "➖ Quitar correo a un cliente"},
+    {"command": "anuncio", "description": "📢 Enviar anuncio a todos"},
+]
+
+
+def configure_commands() -> None:
+    """Registra el menú de comandos en Telegram (botón azul "Menú")."""
+    _call("setMyCommands", commands=_CLIENT_MENU, scope={"type": "default"})
+    admin = _admin_chat_id()
+    if admin:
+        try:
+            _call(
+                "setMyCommands",
+                commands=_ADMIN_MENU,
+                scope={"type": "chat", "chat_id": int(admin)},
+            )
+        except (TypeError, ValueError):
+            logger.warning("TELEGRAM_CODES_ADMIN_CHAT_ID inválido: %r", admin)
+
+
 # ---------- Polling ----------
 
 def process_update(update: dict) -> None:
@@ -554,6 +671,10 @@ def process_update(update: dict) -> None:
 def run_polling(poll_interval: float = 1.0) -> None:
     if not is_configured():
         raise RuntimeError("TELEGRAM_CODES_BOT_TOKEN no configurado")
+    try:
+        configure_commands()
+    except Exception:
+        logger.exception("No se pudo configurar el menú de comandos (sigo igual)")
     offset = 0
     logger.info("Bot de códigos iniciado (long polling)")
     while True:

@@ -119,7 +119,79 @@ class AdminWelcomeTests(TestCase):
             self.assertFalse(client.is_active)
             bot._send_welcome(client)
         text = msend.call_args[0][1]
-        self.assertIn("Pasáselo al admin", text)
+        self.assertIn("no está activado", text)
+        self.assertIn("123", text)  # le muestra su ID para pasárselo al admin
+
+
+class CmdsHelpTests(TestCase):
+    @mock.patch("codes.bot.send_message")
+    def test_cmds_admin_shows_admin_commands(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            client, _ = bot._get_or_create_client("900", "admin", "Admin")
+            bot._send_commands_help(client)
+        text = msend.call_args[0][1]
+        self.assertIn("/anuncio", text)
+        self.assertIn("/clientes", text)
+
+    @mock.patch("codes.bot.send_message")
+    def test_cmds_active_client_shows_only_client_commands(self, msend):
+        c = CodeBotClient.objects.create(telegram_chat_id="333", is_active=True)
+        AssignedEmail.objects.create(client=c, email="x@gmail.com")
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._send_commands_help(c)
+        text = msend.call_args[0][1]
+        self.assertIn("/codigo", text)
+        self.assertNotIn("/anuncio", text)
+
+    @mock.patch("codes.bot.send_message")
+    def test_cmds_inactive_client_gets_activation_message(self, msend):
+        c = CodeBotClient.objects.create(telegram_chat_id="444", is_active=False)
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._send_commands_help(c)
+        text = msend.call_args[0][1]
+        self.assertIn("no está activado", text)
+
+
+class BroadcastTests(TestCase):
+    def setUp(self):
+        CodeBotClient.objects.create(telegram_chat_id="111", is_active=True)
+        CodeBotClient.objects.create(telegram_chat_id="222", is_active=False)
+
+    @mock.patch("codes.bot.send_message", return_value={"ok": True})
+    def test_anuncio_sends_to_all_started_clients_except_admin(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            CodeBotClient.objects.create(telegram_chat_id="900", is_active=True)
+            bot._handle_admin_command("900", "/anuncio", "Hola a todos")
+        recipients = [c.args[0] for c in msend.call_args_list]
+        self.assertIn("111", recipients)
+        self.assertIn("222", recipients)
+        # El admin no recibe la copia del anuncio, solo el resumen final.
+        self.assertEqual(recipients.count("900"), 1)
+        self.assertEqual(recipients[-1], "900")
+        self.assertIn("Anuncio enviado", msend.call_args_list[-1].args[1])
+
+    @mock.patch("codes.bot.send_message", return_value={"ok": True})
+    def test_anuncio_sin_mensaje_muestra_uso(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/anuncio", "")
+        text = msend.call_args[0][1]
+        self.assertIn("Uso:", text)
+
+    @mock.patch("codes.bot.send_message")
+    def test_anuncio_ignored_for_non_admin(self, msend):
+        # Un cliente cualquiera manda /anuncio: no debe difundir nada.
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot.process_update(
+                {
+                    "message": {
+                        "chat": {"id": 111},
+                        "from": {"username": "x"},
+                        "text": "/anuncio spam para todos",
+                    }
+                }
+            )
+        sent_bodies = [c.args[1] for c in msend.call_args_list]
+        self.assertFalse(any("spam para todos" in b for b in sent_bodies))
 
 
 class AdminCommandTests(TestCase):
