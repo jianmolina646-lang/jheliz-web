@@ -262,6 +262,61 @@ class AdminCommandTests(TestCase):
         self.assertFalse(self.cliente.emails.exists())
 
 
+class ActivateClientTests(TestCase):
+    def setUp(self):
+        self.cliente = CodeBotClient.objects.create(
+            telegram_chat_id="424242", telegram_username="pepe", display_name="Pepe"
+        )
+
+    @mock.patch("codes.bot.send_message")
+    def test_activar_sin_asignar_correo(self, msend):
+        self.assertFalse(self.cliente.is_active)
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/activar", "424242")
+        self.cliente.refresh_from_db()
+        self.assertTrue(self.cliente.is_active)
+        self.assertFalse(self.cliente.emails.exists())
+        # Avisa al admin y al cliente.
+        self.assertEqual(msend.call_count, 2)
+
+    @mock.patch("codes.bot.send_message")
+    def test_activar_por_username(self, _msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/activar", "@pepe")
+        self.cliente.refresh_from_db()
+        self.assertTrue(self.cliente.is_active)
+
+    @mock.patch("codes.bot.send_message")
+    def test_desactivar_pausa_acceso(self, _msend):
+        self.cliente.is_active = True
+        self.cliente.save(update_fields=["is_active"])
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/desactivar", "424242")
+        self.cliente.refresh_from_db()
+        self.assertFalse(self.cliente.is_active)
+
+    @mock.patch("codes.bot.send_message")
+    def test_activar_sin_token_muestra_uso(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/activar", "")
+        self.assertIn("Uso:", msend.call_args[0][1])
+
+    @mock.patch("codes.bot.send_message")
+    def test_activar_ignored_for_non_admin(self, _msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot.process_update(
+                {
+                    "message": {
+                        "chat": {"id": 424242},
+                        "from": {"username": "pepe"},
+                        "text": "/activar 424242",
+                    }
+                }
+            )
+        self.cliente.refresh_from_db()
+        self.assertFalse(self.cliente.is_active)
+
+
 class CmdCodeTests(TestCase):
     def setUp(self):
         self.client_obj = CodeBotClient.objects.create(
