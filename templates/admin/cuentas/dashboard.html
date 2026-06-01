@@ -1408,7 +1408,8 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
                         focus:border-primary-500 focus:outline-none"
                  style="color-scheme: dark;">
           <div class="text-[11px] text-base-400 mt-1">
-            Se guarda como fecha de pago del pedido (paid_at).
+            Se guarda como fecha de la venta y desde acá se calcula el
+            vencimiento (fecha + duración del plan), igual que en la web.
           </div>
         </div>
 
@@ -1421,12 +1422,15 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
                   class="w-full rounded-md bg-base-950 border border-base-700 text-white text-sm px-3 py-2
                          focus:border-primary-500 focus:outline-none">
             <option value="">— sin cambios —</option>
+            <option value="web">🌐 Web (como compra normal)</option>
             <option value="telegram">📱 Telegram</option>
             <option value="whatsapp">💬 WhatsApp directo</option>
             <option value="manual">✏️ Otro / Manual</option>
           </select>
           <div class="text-[11px] text-base-400 mt-1">
-            De dónde vino el cliente. Si seleccionás Telegram, llená también el usuario.
+            De dónde vino el cliente. Si registrás una cuenta nueva y lo dejás
+            sin elegir, se guarda como <b>Web</b> (igual que una compra normal).
+            Si seleccionás Telegram, llená también el usuario.
           </div>
         </div>
 
