@@ -674,7 +674,7 @@
   </style>
   {% if groups %}
     {% for g in groups %}
-    <details class="jh-cc-plat" {% if forloop.counter <= 3 or g.total <= 12 %}open{% endif %}>
+    <details class="jh-cc-plat" id="cc-plat-{{ g.product.pk }}" {% if forloop.counter <= 3 or g.total <= 12 %}open{% endif %}>
       <summary class="jh-cc-plat__sum">
         <span class="jh-cc-plat__chev">
           <span class="material-symbols-outlined">expand_more</span>
@@ -745,7 +745,7 @@
           </thead>
           <tbody>
             {% for item in g.items %}
-            <tr {% if matched_email and matched_email in item.account_text|lower %}style="background:rgba(251,146,60,0.06);"{% endif %}>
+            <tr id="cc-item-{{ item.pk }}" class="jh-cc-row" data-cc-item="{{ item.pk }}" {% if matched_email and matched_email in item.account_text|lower %}style="background:rgba(251,146,60,0.06);"{% endif %}>
               <td>
                 {% if item.email_lc %}
                   <div class="jh-cc-cred">
@@ -960,7 +960,7 @@
       {# Layout mobile: misma data que la tabla pero como cards apiladas. #}
       <div class="jh-cc-cards-mobile" role="list" aria-label="Cuentas">
         {% for item in g.items %}
-        <article class="jh-cc-card{% if matched_email and matched_email in item.account_text|lower %} jh-cc-card--match{% endif %}" role="listitem">
+        <article class="jh-cc-card{% if matched_email and matched_email in item.account_text|lower %} jh-cc-card--match{% endif %}" role="listitem" data-cc-item="{{ item.pk }}">
           <header class="jh-cc-card__head">
             <div class="jh-cc-card__account">{{ item.email_lc|default:item.account_text|default:item.credentials|truncatechars:120 }}</div>
             <div class="jh-cc-card__status">
@@ -1617,6 +1617,50 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
   });
+})();
+</script>
+
+<style>
+  /* Resalta brevemente la cuenta a la que volvemos después de editar. */
+  @keyframes jhCcFlash {
+    0%   { background: rgba(124, 58, 237, .35); }
+    100% { background: transparent; }
+  }
+  .jh-cc-flash { animation: jhCcFlash 2.2s ease-out 1; }
+</style>
+<script>
+// Al volver de guardar una edición (#cc-item-<pk>), abrimos la plataforma de
+// esa cuenta, hacemos scroll hasta ella y la resaltamos, en vez de quedar
+// arriba de todo el listado.
+(function() {
+  function focusFromHash() {
+    const hash = window.location.hash || '';
+    const m = hash.match(/^#cc-item-(\d+)$/);
+    if (!m) return;
+    const id = m[1];
+    // Puede haber dos nodos (tabla desktop + card mobile); usamos el visible.
+    const nodes = document.querySelectorAll('[data-cc-item="' + id + '"]');
+    let target = null;
+    nodes.forEach(n => { if (!target && n.offsetParent !== null) target = n; });
+    if (!target) target = nodes[0];
+    if (!target) return;
+    // Abrimos cualquier <details> (plataforma) que la contenga.
+    let el = target;
+    while (el) {
+      if (el.tagName === 'DETAILS') el.open = true;
+      el = el.parentElement;
+    }
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('jh-cc-flash');
+      setTimeout(() => target.classList.remove('jh-cc-flash'), 2400);
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', focusFromHash);
+  } else {
+    focusFromHash();
+  }
 })();
 </script>
 

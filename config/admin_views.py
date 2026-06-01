@@ -1514,6 +1514,10 @@ def cuentas_edit_buyer(request, item_id: int):
 
     item = get_object_or_404(StockItem, pk=item_id)
     next_url = request.POST.get("next") or reverse("admin_cuentas_dashboard")
+    # Tras guardar volvemos a la misma cuenta (ancla #cc-item-<pk>) en vez de
+    # caer al tope del listado: el dashboard abre su plataforma y hace scroll.
+    if "#" not in next_url:
+        next_url = f"{next_url}#cc-item-{item.pk}"
 
     customer_name = (request.POST.get("customer_name") or "").strip()[:120]
     customer_whatsapp = (request.POST.get("customer_whatsapp") or "").strip()[:30]

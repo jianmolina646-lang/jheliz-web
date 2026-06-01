@@ -1206,6 +1206,29 @@ class CuentasEditBuyerTests(TestCase):
         self.assertEqual(local_dt.hour, 14)
         self.assertEqual(local_dt.minute, 30)
 
+    def test_redirect_returns_to_item_anchor(self):
+        """Tras guardar volvemos a la misma cuenta (#cc-item-<pk>), no al tope."""
+        self.client.force_login(self.staff)
+        # Con ``next`` explícito (caso real del formulario): preserva la URL
+        # del dashboard y le agrega el ancla de la cuenta editada.
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
+            {"customer_name": "Ana", "next": "/panel-jheliz-2026/control-cuentas/?q=x"},
+            follow=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(
+            resp["Location"],
+            f"/panel-jheliz-2026/control-cuentas/?q=x#cc-item-{self.item.pk}",
+        )
+        # Sin ``next`` también vuelve a la cuenta sobre el dashboard por defecto.
+        resp2 = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
+            {"customer_name": "Ana"},
+            follow=False,
+        )
+        self.assertTrue(resp2["Location"].endswith(f"#cc-item-{self.item.pk}"))
+
     def test_setting_date_recomputes_expiry_on_existing_item(self):
         """Editar un item sin vencimiento + fecha → se calcula el 'Vence en Xd'."""
         from orders.models import OrderItem
