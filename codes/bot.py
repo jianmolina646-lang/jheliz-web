@@ -273,7 +273,9 @@ def _handle_message(update: dict) -> None:
         return
 
     # Comandos de admin (solo para el chat del admin).
-    if _is_admin(chat_id) and cmd in ("/clientes", "/asignar", "/quitar", "/anuncio"):
+    if _is_admin(chat_id) and cmd in (
+        "/clientes", "/asignar", "/quitar", "/anuncio", "/activar", "/desactivar"
+    ):
         _handle_admin_command(chat_id, cmd, rest)
         return
 
@@ -422,6 +424,8 @@ def _admin_help_text() -> str:
         "🛠 <b>Panel de administrador · Jheliz Store</b>",
         "",
         "👥 <code>/clientes</code> — lista de clientes (ID, usuario, correos)",
+        "🔓 <code>/activar &lt;ID o @usuario&gt;</code> — activa el acceso (sin asignar correo aún)",
+        "⏸ <code>/desactivar &lt;ID o @usuario&gt;</code> — pausa el acceso",
         "➕ <code>/asignar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — asigna y activa",
         "➖ <code>/quitar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — quita un correo",
         "📢 <code>/anuncio &lt;mensaje&gt;</code> — enviar un anuncio a todos los registrados",
@@ -495,6 +499,50 @@ def _handle_admin_command(chat_id, cmd: str, rest: str) -> None:
         _admin_assign(chat_id, rest, add=False)
     elif cmd == "/anuncio":
         _admin_broadcast(chat_id, rest)
+    elif cmd in ("/activar", "/desactivar"):
+        _admin_set_active(chat_id, rest, active=(cmd == "/activar"))
+
+
+def _admin_set_active(chat_id, token: str, active: bool) -> None:
+    """Activa o desactiva a un cliente sin tocar sus correos.
+
+    Sirve para habilitar el acceso al bot aunque todavía no se le haya
+    asignado ninguna cuenta.
+    """
+    accion = "activar" if active else "desactivar"
+    token = (token or "").strip()
+    if not token:
+        send_message(
+            chat_id,
+            f"Uso: <code>/{accion} &lt;ID o @usuario&gt;</code>\n"
+            f"Ej: <code>/{accion} 8761148983</code>",
+        )
+        return
+    client = _resolve_client(token)
+    if client is None:
+        send_message(
+            chat_id,
+            f"No encontré un cliente con <code>{html.escape(token)}</code>.\n"
+            "El cliente tiene que haber mandado <b>/start</b> al bot primero. "
+            "Mirá <code>/clientes</code> para ver los IDs.",
+        )
+        return
+    label = f"{client.display_name or 'cliente'} (<code>{html.escape(str(client.telegram_chat_id))}</code>)"
+    if client.is_active == active:
+        estado = "ya estaba activo" if active else "ya estaba desactivado"
+        send_message(chat_id, f"{label} {estado}.")
+        return
+    client.is_active = active
+    client.save(update_fields=["is_active"])
+    if active:
+        send_message(chat_id, f"✅ Activé a {label}. (Aún sin correos: asignale con <code>/asignar</code>.)")
+        send_message(
+            client.telegram_chat_id,
+            "✅ <b>El admin activó tu acceso al bot.</b>\n"
+            "En breve te asigna tus correos y vas a poder pedir /codigo, /viaje, /hogar o /clave.",
+        )
+    else:
+        send_message(chat_id, f"⏸ Desactivé a {label}. Ya no puede pedir códigos hasta que lo reactives.")
 
 
 def _admin_broadcast(chat_id, message: str) -> None:
@@ -638,6 +686,8 @@ _CLIENT_MENU = [
 # El admin ve, además, los comandos de administración.
 _ADMIN_MENU = _CLIENT_MENU + [
     {"command": "clientes", "description": "👥 Lista de clientes"},
+    {"command": "activar", "description": "🔓 Activar acceso de un cliente"},
+    {"command": "desactivar", "description": "⏸ Pausar acceso de un cliente"},
     {"command": "asignar", "description": "➕ Asignar correo a un cliente"},
     {"command": "quitar", "description": "➖ Quitar correo a un cliente"},
     {"command": "anuncio", "description": "📢 Enviar anuncio a todos"},
