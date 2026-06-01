@@ -69,6 +69,18 @@ jobs:
               exit 1
             fi
 
+            # El bot de códigos vive en el perfil `bot`, así que el `up` de arriba
+            # (sin --profile) NO lo toca y se quedaría con la imagen vieja. Lo
+            # reconstruimos y recreamos explícitamente nombrándolo: al nombrar un
+            # servicio con perfil, compose lo levanta igual. --no-deps evita volver
+            # a tocar `web`; --force-recreate garantiza que tome el código nuevo.
+            echo "→ Reconstruyendo el bot de códigos (codes_bot)..."
+            if ! docker compose up -d --build --no-deps --force-recreate codes_bot; then
+              echo "✗ Falló el rebuild de codes_bot."
+              docker compose logs --tail=50 codes_bot || true
+              exit 1
+            fi
+
             echo "→ Smoke test público..."
             if ! curl -fsS -o /dev/null --max-time 10 http://localhost:8000/; then
               echo "✗ Smoke test falló."
