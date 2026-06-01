@@ -1560,7 +1560,9 @@ def cuentas_edit_buyer(request, item_id: int):
         if effective_source is None and telegram_username:
             effective_source = "telegram"
         if effective_source is None:
-            effective_source = "manual"
+            # Por defecto registramos la venta como si fuera de la Web, para que
+            # se vea igual que una compra del checkout (origen "Web" + vencimiento).
+            effective_source = "web"
         try:
             _register_manual_sale(
                 item=item,
@@ -1588,6 +1590,13 @@ def cuentas_edit_buyer(request, item_id: int):
     if customer_whatsapp != (oi.final_customer_whatsapp or ""):
         oi.final_customer_whatsapp = customer_whatsapp
         changed_oi.append("final_customer_whatsapp")
+    # Al fijar la fecha de venta recalculamos el vencimiento (fecha + duración
+    # del plan), igual que una compra web, para que aparezca el "Vence en Xd".
+    if parsed_date is not None:
+        new_expiry = _compute_manual_expiry(oi.plan, parsed_date)
+        if new_expiry != oi.expires_at:
+            oi.expires_at = new_expiry
+            changed_oi.append("expires_at")
     if changed_oi:
         oi.save(update_fields=changed_oi)
 
@@ -1612,10 +1621,12 @@ def cuentas_edit_buyer(request, item_id: int):
 
     if changed_oi or changed_order:
         bits = []
-        if changed_oi:
+        if "final_customer_name" in changed_oi or "final_customer_whatsapp" in changed_oi:
             bits.append("cliente")
         if "paid_at" in changed_order:
             bits.append("fecha")
+        if "expires_at" in changed_oi:
+            bits.append("vencimiento")
         if "email" in changed_order:
             bits.append("correo")
         if "channel" in changed_order:
@@ -1639,11 +1650,13 @@ def cuentas_edit_buyer(request, item_id: int):
 # entre WEB/TELEGRAM/MANUAL, así que para registrar venta-por-WhatsApp vs
 # venta-otro-manual usamos este detalle adicional.
 _SOURCE_TO_CHANNEL = {
+    "web": "web",
     "telegram": "telegram",
     "whatsapp": "manual",
     "manual": "manual",
 }
 _SOURCE_LABEL = {
+    "web": "Web",
     "telegram": "Telegram",
     "whatsapp": "WhatsApp directo",
     "manual": "manual",
@@ -1715,6 +1728,20 @@ def _normalize_telegram_username(raw):
     return value[:60]
 
 
+def _compute_manual_expiry(plan, paid_at):
+    """Calcula el vencimiento de una venta manual igual que una compra web.
+
+    ``paid_at + plan.duration_days``. Si el plan no tiene duración (0 días,
+    licencias perpetuas) o falta la fecha, devuelve ``None`` (sin vencimiento).
+    """
+    if plan is None or paid_at is None:
+        return None
+    duration = getattr(plan, "duration_days", 0) or 0
+    if duration <= 0:
+        return None
+    return paid_at + timedelta(days=duration)
+
+
 def _register_manual_sale(*, item, customer_name, customer_whatsapp,
                           buyer_email, sale_date, source=None,
                           telegram_username=""):
@@ -1752,9 +1779,12 @@ def _register_manual_sale(*, item, customer_name, customer_whatsapp,
 
     paid_at = sale_date or timezone.now()
     channel = _source_to_channel(source) or Order.Channel.MANUAL
+    # Vencimiento calculado igual que una compra web: fecha de venta + la
+    # duración del plan. Con duración 0 (licencias perpetuas) queda sin vencer.
+    expires_at = _compute_manual_expiry(plan, paid_at)
 
     note_lines = ["Venta registrada manualmente desde Control de cuentas."]
-    if source and source != "manual":
+    if source and source not in ("manual", "web"):
         note_lines.append(f"Origen: {_SOURCE_LABEL[source]}.")
 
     order = Order.objects.create(
@@ -1780,6 +1810,7 @@ def _register_manual_sale(*, item, customer_name, customer_whatsapp,
         quantity=1,
         final_customer_name=customer_name,
         final_customer_whatsapp=customer_whatsapp,
+        expires_at=expires_at,
     )
 
     item.status = item.Status.SOLD

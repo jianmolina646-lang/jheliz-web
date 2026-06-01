@@ -1206,6 +1206,24 @@ class CuentasEditBuyerTests(TestCase):
         self.assertEqual(local_dt.hour, 14)
         self.assertEqual(local_dt.minute, 30)
 
+    def test_setting_date_recomputes_expiry_on_existing_item(self):
+        """Editar un item sin vencimiento + fecha → se calcula el 'Vence en Xd'."""
+        from orders.models import OrderItem
+
+        # El OrderItem del setUp arranca sin expires_at.
+        self.assertIsNone(self.oi.expires_at)
+        self.client.force_login(self.staff)
+        resp = self.client.post(
+            reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
+            {"sale_date": "2026-05-24T10:00"},
+            follow=False,
+        )
+        self.assertEqual(resp.status_code, 302)
+        oi = OrderItem.objects.get(pk=self.oi.pk)
+        self.assertIsNotNone(oi.expires_at)
+        # Vence = fecha de venta + duración del plan (30 días).
+        self.assertEqual((oi.expires_at - oi.order.paid_at).days, self.plan.duration_days)
+
     def test_edits_buyer_email_normalizes_case(self):
         """El email del comprador se guarda en lowercase."""
         self.client.force_login(self.staff)
@@ -1311,7 +1329,7 @@ class CuentasEditBuyerTests(TestCase):
         self.assertEqual(orphan.status, StockItem.Status.AVAILABLE)
 
     def test_manual_sale_creates_order_and_marks_sold(self):
-        """Cuenta Available + datos → crea Order manual + OrderItem + marca vendida."""
+        """Cuenta Available + datos → crea Order web + OrderItem + marca vendida."""
         from orders.models import Order, OrderItem
 
         orphan = StockItem.objects.create(
@@ -1333,7 +1351,7 @@ class CuentasEditBuyerTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         msgs = [str(m) for m in resp.context["messages"]]
         self.assertTrue(
-            any("registrada como venta manual" in m for m in msgs), msgs,
+            any("registrada como venta Web" in m for m in msgs), msgs,
         )
 
         # Stock vendida + sold_at = fecha que pasamos
@@ -1350,10 +1368,15 @@ class CuentasEditBuyerTests(TestCase):
         self.assertEqual(oi.product_name, self.product.name)
         self.assertEqual(oi.plan_name, self.plan.name)
         self.assertEqual(oi.quantity, 1)
+        # El vencimiento se calcula igual que en la web: fecha + duración del plan.
+        self.assertIsNotNone(oi.expires_at)
+        self.assertEqual(
+            (oi.expires_at - oi.order.paid_at).days, self.plan.duration_days,
+        )
 
-        # Order es canal manual + delivered
+        # Order queda como canal web (se ve igual que una compra normal) + delivered
         order = oi.order
-        self.assertEqual(order.channel, Order.Channel.MANUAL)
+        self.assertEqual(order.channel, Order.Channel.WEB)
         self.assertEqual(order.status, Order.Status.DELIVERED)
         self.assertEqual(order.email, "manual@gmail.com")  # lowercase normalized
         self.assertEqual(order.phone, "+51 911 222 333")
@@ -1490,8 +1513,8 @@ class CuentasEditBuyerTests(TestCase):
         self.assertEqual(self.order.channel, Order.Channel.TELEGRAM)
         self.assertEqual(self.order.telegram_username, "cliente_existente")
 
-    def test_manual_sale_no_source_no_telegram_defaults_to_manual(self):
-        """Sin source y sin @telegram → canal MANUAL (sigue siendo el default)."""
+    def test_manual_sale_no_source_no_telegram_defaults_to_web(self):
+        """Sin source y sin @telegram → canal WEB (se ve igual que una compra normal)."""
         from orders.models import Order, OrderItem
 
         orphan = StockItem.objects.create(
@@ -1506,7 +1529,7 @@ class CuentasEditBuyerTests(TestCase):
             follow=True,
         )
         oi = OrderItem.objects.get(stock_item=orphan)
-        self.assertEqual(oi.order.channel, Order.Channel.MANUAL)
+        self.assertEqual(oi.order.channel, Order.Channel.WEB)
         self.assertEqual(oi.order.telegram_username, "")
 
     def test_dashboard_renders_source_select_and_telegram_field(self):
@@ -1516,6 +1539,7 @@ class CuentasEditBuyerTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'name="source"')
         self.assertContains(resp, 'name="telegram_username"')
+        self.assertContains(resp, 'value="web"')
         self.assertContains(resp, 'value="telegram"')
         self.assertContains(resp, 'value="whatsapp"')
 
