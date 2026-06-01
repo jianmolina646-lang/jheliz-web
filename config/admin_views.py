@@ -1277,6 +1277,18 @@ def stock_quick_action(request, item_id: int):
             status=StockItem.Status.AVAILABLE,
         )
         messages.success(request, f"Stock duplicado: nuevo #{clone.pk}.")
+    elif action == "mark_disabled":
+        # Archivar: sale de las listas activas pero conserva el registro
+        # (a quién/cuándo se vendió) para el historial y la renovación.
+        item.status = StockItem.Status.DISABLED
+        item.save(update_fields=["status"])
+        messages.success(request, f"Stock #{item.pk} archivado (deshabilitado).")
+    elif action == "delete":
+        # Borrado definitivo: pensado para cuentas cargadas por error /
+        # nunca vendidas. Para las vendidas conviene archivar.
+        pk = item.pk
+        item.delete()
+        messages.success(request, f"Stock #{pk} eliminado.")
     else:
         messages.error(request, f"Acción desconocida: {action}")
 
@@ -1840,13 +1852,20 @@ def cuentas_dashboard(request):
     from catalog.models import Product, ProductMode, StockItem
     from orders.credentials import parse as _parse_creds, split_account_extras
 
+    from datetime import timedelta
+
     q = (request.GET.get("q") or "").strip().lower()
     status_filter = (request.GET.get("status") or "all").strip()
     mode_filter = (request.GET.get("mode") or "all").strip()
     show_only = (request.GET.get("only") or "").strip()  # "active" = oculta deshabilitadas
+    sort = (request.GET.get("sort") or "recent").strip()
+    valid_sorts = {"recent", "expiry", "client", "label"}
+    if sort not in valid_sorts:
+        sort = "recent"
 
     valid_statuses = {s for s, _ in StockItem.Status.choices}
     valid_modes = {m for m, _ in ProductMode.choices}
+    now = timezone.now()
 
     from django.db.models import Prefetch
     from orders.models import OrderItem
@@ -1857,7 +1876,7 @@ def cuentas_dashboard(request):
         OrderItem.objects.select_related("order")
         .only(
             "id", "stock_item_id", "requested_profile_name", "requested_pin",
-            "final_customer_name", "final_customer_whatsapp",
+            "final_customer_name", "final_customer_whatsapp", "expires_at",
             "order__id", "order__uuid", "order__email", "order__phone",
             "order__paid_at", "order__created_at",
         )
@@ -1912,6 +1931,12 @@ def cuentas_dashboard(request):
         it.buyer_source_key = ""
         it.sale_date = None
         it.order_uuid = ""
+        # Vencimiento de la cuenta del cliente (para cobrar la renovación).
+        it.expires_at = None
+        it.expiry_days = None
+        it.expiry_state = ""  # overdue | today | soon | week | ok
+        # Dígitos de WhatsApp listos para armar el link wa.me/.
+        it.buyer_wa_digits = ""
         if it.status in (StockItem.Status.SOLD, StockItem.Status.RESERVED):
             oi = next(iter(it.order_items.all()), None)
             if oi:
@@ -1927,6 +1952,25 @@ def cuentas_dashboard(request):
                 it.buyer_source_key = _channel_to_source_key(oi.order)
                 it.sale_date = oi.order.paid_at or oi.order.created_at
                 it.order_uuid = str(oi.order.uuid)[:8]
+                it.expires_at = oi.expires_at
+                it.buyer_wa_digits = _re.sub(
+                    r"\D", "", it.buyer_resale_whatsapp or it.buyer_phone or ""
+                )
+
+        # Semáforo de vencimiento (🟢 ok / 🟡 por vencer / 🔴 vencida).
+        if it.expires_at:
+            days = (it.expires_at.date() - now.date()).days
+            it.expiry_days = days
+            if days < 0:
+                it.expiry_state = "overdue"
+            elif days == 0:
+                it.expiry_state = "today"
+            elif days <= 3:
+                it.expiry_state = "soon"
+            elif days <= 7:
+                it.expiry_state = "week"
+            else:
+                it.expiry_state = "ok"
 
     # Metadata por modo (para badges + filtros). Orden estable: perfil → completa → licencia.
     mode_meta = {
@@ -2025,6 +2069,24 @@ def cuentas_dashboard(request):
         ),
     )
 
+    # Orden de las cuentas dentro de cada plataforma. "recent" (default) ya
+    # viene por -created_at del queryset, así que solo reordenamos si piden otro.
+    if sort != "recent":
+        _far = now + timedelta(days=36500)
+
+        def _sort_key(it):
+            if sort == "expiry":
+                # Más próximas a vencer primero; las sin fecha al final.
+                return (it.expires_at is None, it.expires_at or _far)
+            if sort == "client":
+                return (it.buyer_resale_name or it.buyer_email or "~~~").lower()
+            if sort == "label":
+                return (it.label or "~~~").lower()
+            return 0
+
+        for g in groups:
+            g["items"].sort(key=_sort_key)
+
     # KPIs globales (todas las plataformas) — independientes del filtro de modo,
     # así el usuario siempre ve el total real.
     all_counts = (
@@ -2032,6 +2094,13 @@ def cuentas_dashboard(request):
         .annotate(c=Count("id"))
     )
     counts_by_status = {row["status"]: row["c"] for row in all_counts}
+    # Cuentas vendidas/reservadas que vencen en los próximos 7 días (incluye
+    # las ya vencidas) → "por cobrar" para no perder la renovación.
+    expiring_count = OrderItem.objects.filter(
+        stock_item__status__in=(StockItem.Status.SOLD, StockItem.Status.RESERVED),
+        expires_at__isnull=False,
+        expires_at__lte=now + timedelta(days=7),
+    ).count()
     kpis = {
         "available": counts_by_status.get("available", 0),
         "sold": counts_by_status.get("sold", 0),
@@ -2040,6 +2109,7 @@ def cuentas_dashboard(request):
         "disabled": counts_by_status.get("disabled", 0),
         "total": sum(counts_by_status.values()),
         "platforms": len(products_with_items),
+        "expiring": expiring_count,
     }
 
     status_options = [
@@ -2092,6 +2162,13 @@ def cuentas_dashboard(request):
         matched_email=matched_email,
         show_only=show_only,
         total_results=len(items),
+        sort=sort,
+        sort_options=[
+            {"value": "recent", "label": "Más recientes", "icon": "schedule"},
+            {"value": "expiry", "label": "Por vencimiento", "icon": "event_busy"},
+            {"value": "client", "label": "Por cliente", "icon": "person"},
+            {"value": "label", "label": "Por etiqueta", "icon": "label"},
+        ],
     )
     return render(request, "admin/cuentas/dashboard.html", ctx)
 
