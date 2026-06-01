@@ -1635,6 +1635,40 @@ class CuentasEditBuyerTests(TestCase):
             "El botón de editar cliente debe aparecer en table + card.",
         )
 
+    def test_requested_profile_shown_as_main_badge_when_no_slot(self):
+        """Si la cuenta no trae Perfil/PIN propios, el perfil/PIN del pedido
+        manual se muestra como badge grande (igual a las demás), no solo como
+        la línea chica 'Pidió'."""
+        from orders.models import Order, OrderItem
+
+        item = StockItem.objects.create(
+            product=self.product, plan=self.plan,
+            # Sin línea "Perfil:" / "PIN:" → no hay slot propio.
+            credentials="Correo: zeno@x.com\nContraseña: pp",
+            status=StockItem.Status.SOLD,
+        )
+        order = Order.objects.create(
+            email="zeno@gmail.com", total=Decimal("20.00"),
+            status=Order.Status.DELIVERED, paid_at=timezone.now(),
+            channel=Order.Channel.WEB,
+        )
+        OrderItem.objects.create(
+            order=order, product=self.product, plan=self.plan,
+            product_name=self.product.name, plan_name=self.plan.name,
+            unit_price=Decimal("20.00"), quantity=1, stock_item=item,
+            requested_profile_name="Zeno", requested_pin="8143",
+        )
+        self.client.force_login(self.staff)
+        resp = self.client.get(reverse("admin_cuentas_dashboard"))
+        self.assertEqual(resp.status_code, 200)
+        html = resp.content.decode()
+        # Badge grande (mismo markup que el slot de las demás cuentas).
+        self.assertIn('<span class="jh-cc-tag">Zeno</span>', html)
+        self.assertIn(
+            '<span class="jh-cc-tag jh-cc-tag--pin"><span class="jh-cc-tag__lbl">PIN</span>8143</span>',
+            html,
+        )
+
 
 class AdminInboxViewTests(TestCase):
     """Smoke test del feed unificado de bandeja del admin.

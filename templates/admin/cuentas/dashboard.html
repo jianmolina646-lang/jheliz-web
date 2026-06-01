@@ -776,16 +776,23 @@
                     {% if item.profile_text %}<span class="jh-cc-tag">{{ item.profile_text }}</span>{% endif %}
                     {% if item.pin_text %}<span class="jh-cc-tag jh-cc-tag--pin"><span class="jh-cc-tag__lbl">PIN</span>{{ item.pin_text }}</span>{% endif %}
                   </div>
+                  {# Cliente: nombre de perfil + PIN que SOLICITÓ el cliente al pagar (no el slot) #}
+                  {% if item.buyer_profile or item.buyer_pin %}
+                    <div class="jh-cc-tags" style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(148,163,184,.18);">
+                      <span class="jh-cc-tag__lbl">Pidió</span>
+                      {% if item.buyer_profile %}<span class="jh-cc-tag" style="color:#fde68a;border-color:rgba(253,230,138,.22);">"{{ item.buyer_profile }}"</span>{% endif %}
+                      {% if item.buyer_pin %}<span class="jh-cc-tag jh-cc-tag--pin" style="color:#fde68a;"><span class="jh-cc-tag__lbl">PIN</span>{{ item.buyer_pin }}</span>{% endif %}
+                    </div>
+                  {% endif %}
+                {% elif item.buyer_profile or item.buyer_pin %}
+                  {# Sin slot de perfil/PIN en la cuenta: mostramos el que se cargó
+                     en el registro manual como badge grande, igual a las demás. #}
+                  <div class="jh-cc-tags">
+                    {% if item.buyer_profile %}<span class="jh-cc-tag">{{ item.buyer_profile }}</span>{% endif %}
+                    {% if item.buyer_pin %}<span class="jh-cc-tag jh-cc-tag--pin"><span class="jh-cc-tag__lbl">PIN</span>{{ item.buyer_pin }}</span>{% endif %}
+                  </div>
                 {% else %}
                   <div class="jh2-table__muted">—</div>
-                {% endif %}
-                {# Cliente: nombre de perfil + PIN que SOLICITÓ el cliente al pagar (no el slot) #}
-                {% if item.buyer_profile or item.buyer_pin %}
-                  <div class="jh-cc-tags" style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(148,163,184,.18);">
-                    <span class="jh-cc-tag__lbl">Pidió</span>
-                    {% if item.buyer_profile %}<span class="jh-cc-tag" style="color:#fde68a;border-color:rgba(253,230,138,.22);">"{{ item.buyer_profile }}"</span>{% endif %}
-                    {% if item.buyer_pin %}<span class="jh-cc-tag jh-cc-tag--pin" style="color:#fde68a;"><span class="jh-cc-tag__lbl">PIN</span>{{ item.buyer_pin }}</span>{% endif %}
-                  </div>
                 {% endif %}
               </td>
               <td>
@@ -1016,8 +1023,18 @@
                   {% if item.pin_text %} · PIN {{ item.pin_text }}{% endif %}
                 </span>
               </div>
+            {% elif item.buyer_profile or item.buyer_pin %}
+              {# Sin slot en la cuenta: mostramos el perfil/PIN del registro
+                 manual como dato principal, igual que las demás. #}
+              <div class="jh-cc-card__row">
+                <span class="material-symbols-outlined">person</span>
+                <span>
+                  {% if item.buyer_profile %}{{ item.buyer_profile }}{% endif %}
+                  {% if item.buyer_pin %} · PIN {{ item.buyer_pin }}{% endif %}
+                </span>
+              </div>
             {% endif %}
-            {% if item.buyer_profile or item.buyer_pin %}
+            {% if item.profile_text or item.pin_text %}{% if item.buyer_profile or item.buyer_pin %}
               <div class="jh-cc-card__row jh-cc-card__row--warn">
                 <span class="material-symbols-outlined">edit_note</span>
                 <span>
@@ -1026,7 +1043,7 @@
                   {% if item.buyer_pin %} · PIN {{ item.buyer_pin }}{% endif %}
                 </span>
               </div>
-            {% endif %}
+            {% endif %}{% endif %}
 
             {% if item.buyer_email or item.buyer_phone or item.sale_date or item.buyer_resale_name %}
               <div class="jh-cc-card__sep" style="display:flex;flex-direction:column;gap:4px;">
