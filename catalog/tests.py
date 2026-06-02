@@ -1668,6 +1668,10 @@ class CuentasEditBuyerTests(TestCase):
             '<span class="jh-cc-tag jh-cc-tag--pin"><span class="jh-cc-tag__lbl">PIN</span>8143</span>',
             html,
         )
+        # Regresión: el comentario de plantilla no debe filtrarse como texto
+        # (los comentarios {# #} multilínea de Django se renderizan literales).
+        self.assertNotIn("Sin slot", html)
+        self.assertNotIn("{#", html)
 
 
 class AdminInboxViewTests(TestCase):

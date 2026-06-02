@@ -785,8 +785,7 @@
                     </div>
                   {% endif %}
                 {% elif item.buyer_profile or item.buyer_pin %}
-                  {# Sin slot de perfil/PIN en la cuenta: mostramos el que se cargó
-                     en el registro manual como badge grande, igual a las demás. #}
+                  {# Sin slot propio en la cuenta: el perfil/PIN del registro manual va como badge grande, igual a las demás. #}
                   <div class="jh-cc-tags">
                     {% if item.buyer_profile %}<span class="jh-cc-tag">{{ item.buyer_profile }}</span>{% endif %}
                     {% if item.buyer_pin %}<span class="jh-cc-tag jh-cc-tag--pin"><span class="jh-cc-tag__lbl">PIN</span>{{ item.buyer_pin }}</span>{% endif %}
@@ -1024,8 +1023,7 @@
                 </span>
               </div>
             {% elif item.buyer_profile or item.buyer_pin %}
-              {# Sin slot en la cuenta: mostramos el perfil/PIN del registro
-                 manual como dato principal, igual que las demás. #}
+              {# Sin slot propio en la cuenta: el perfil/PIN del registro manual va como dato principal, igual que las demás. #}
               <div class="jh-cc-card__row">
                 <span class="material-symbols-outlined">person</span>
                 <span>
