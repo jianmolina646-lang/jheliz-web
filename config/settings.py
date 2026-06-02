@@ -290,6 +290,15 @@ CODES_IMAP_USER = config("CODES_IMAP_USER", default="")
 CODES_IMAP_PASSWORD = config("CODES_IMAP_PASSWORD", default="")
 # Ventana (minutos) hacia atrás para considerar un correo de Netflix vigente.
 CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=30, cast=int)
+# Cuántos correos recientes (más nuevos primero) escanea como máximo el lector
+# IMAP. Evita recorrer toda la bandeja cuando hay muchos correos.
+CODES_IMAP_MAX_SCAN = config("CODES_IMAP_MAX_SCAN", default=25, cast=int)
+# Timeout (segundos) de la conexión IMAP para que nunca quede colgada.
+CODES_IMAP_TIMEOUT = config("CODES_IMAP_TIMEOUT", default=20, cast=int)
+# Anti-spam: segundos mínimos entre dos lecturas de Gmail del mismo cliente.
+CODES_COOLDOWN_SECONDS = config("CODES_COOLDOWN_SECONDS", default=6, cast=int)
+# Mini-caché: segundos que se reutiliza un código ya leído (toques repetidos).
+CODES_RESULT_CACHE_SECONDS = config("CODES_RESULT_CACHE_SECONDS", default=45, cast=int)
 
 # Discord bot (opcional)
 # Bot que reemplaza a Telegram para el back-office: pedidos nuevos, Yape,
