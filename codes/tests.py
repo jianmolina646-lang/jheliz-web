@@ -1,10 +1,11 @@
 from unittest import mock
 
+from django.core.cache import cache
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from codes import bot
-from codes.models import AssignedEmail, CodeBotClient
+from codes.models import AssignedEmail, BotState, CodeBotClient
 from codes.netflix import NetflixResult, parse_netflix_email
 
 
@@ -352,6 +353,7 @@ class CmdCodeTests(TestCase):
 
 class DeliverKindTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client_obj = CodeBotClient.objects.create(
             telegram_chat_id="777", is_active=True
         )
@@ -382,6 +384,7 @@ class DeliverKindTests(TestCase):
 
 class DeliverCodeTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client_obj = CodeBotClient.objects.create(
             telegram_chat_id="999", is_active=True
         )
@@ -410,3 +413,75 @@ class DeliverCodeTests(TestCase):
             msg = bot._deliver_code(self.client_obj, "mine@gmail.com")
         self.assertIn("Abrir en Netflix", msg)
         self.assertIn("netflix.com", msg)
+
+
+@override_settings(
+    CODES_COOLDOWN_SECONDS=6,
+    CODES_RESULT_CACHE_SECONDS=45,
+    TELEGRAM_CODES_ADMIN_CHAT_ID="900",
+)
+class EfficiencyTests(TestCase):
+    """Mejoras de eficiencia: caché de resultados, anti-spam y acceso correcto."""
+
+    def setUp(self):
+        cache.clear()
+        self.client_obj = CodeBotClient.objects.create(
+            telegram_chat_id="111", is_active=True
+        )
+        AssignedEmail.objects.create(client=self.client_obj, email="mine@gmail.com")
+
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    def test_result_is_cached_second_call_skips_imap(self, _cfg):
+        result = NetflixResult(
+            kind="signin_code",
+            subject="Tu código de inicio de sesión",
+            code="1234",
+        )
+        with mock.patch(
+            "codes.bot.imap_reader.fetch_latest_for_email", return_value=result
+        ) as mfetch:
+            first = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="signin_code")
+            second = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="signin_code")
+        # La segunda vez NO vuelve a leer Gmail: usa el caché.
+        self.assertEqual(mfetch.call_count, 1)
+        self.assertEqual(first, second)
+        self.assertIn("1234", second)
+
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
+    def test_cooldown_blocks_rapid_second_request(self, _fetch, _cfg):
+        # Primer pedido (sin payload): consume el "permiso" del cooldown.
+        bot._deliver_code(self.client_obj, "mine@gmail.com", kind="signin_code")
+        # Segundo pedido inmediato de OTRO tipo (no cacheado) → frenado.
+        msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="household")
+        self.assertIn("Esperá unos segundos", msg)
+
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
+    def test_admin_is_exempt_from_cooldown(self, _fetch, _cfg):
+        admin = CodeBotClient.objects.create(telegram_chat_id="900", is_active=True)
+        AssignedEmail.objects.create(client=admin, email="mine@gmail.com")
+        bot._deliver_code(admin, "mine@gmail.com", kind="signin_code")
+        msg = bot._deliver_code(admin, "mine@gmail.com", kind="household")
+        self.assertNotIn("Esperá unos segundos", msg)
+
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    def test_imap_retried_once_on_error(self, _cfg):
+        with mock.patch("codes.bot.time.sleep"), mock.patch(
+            "codes.bot.imap_reader.fetch_latest_for_email",
+            side_effect=OSError("gmail lento"),
+        ) as mfetch:
+            msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="signin_code")
+        self.assertEqual(mfetch.call_count, 2)
+        self.assertIn("Hubo un problema", msg)
+
+
+class BotStateOffsetTests(TestCase):
+    def test_offset_defaults_to_zero_and_persists(self):
+        self.assertEqual(BotState.get_offset(), 0)
+        BotState.set_offset(42)
+        self.assertEqual(BotState.get_offset(), 42)
+        # Idempotente: siempre fila única (pk=1).
+        BotState.set_offset(100)
+        self.assertEqual(BotState.objects.count(), 1)
+        self.assertEqual(BotState.get_offset(), 100)

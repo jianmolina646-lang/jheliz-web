@@ -139,7 +139,9 @@ def fetch_latest_for_email(
     since_imap = (since_dt - timedelta(days=1)).strftime("%d-%b-%Y")
 
     conn = imaplib.IMAP4_SSL(
-        settings.CODES_IMAP_HOST, getattr(settings, "CODES_IMAP_PORT", 993)
+        settings.CODES_IMAP_HOST,
+        getattr(settings, "CODES_IMAP_PORT", 993),
+        timeout=getattr(settings, "CODES_IMAP_TIMEOUT", 20),
     )
     try:
         conn.login(settings.CODES_IMAP_USER, settings.CODES_IMAP_PASSWORD)
@@ -151,10 +153,15 @@ def fetch_latest_for_email(
         if typ != "OK":
             return None
         ids = data[0].split()
+        # Recorremos de más nuevo a más viejo y solo los N más recientes:
+        # no tiene sentido bajar correos viejos que ya cayeron fuera de la
+        # ventana de minutos.
+        max_scan = getattr(settings, "CODES_IMAP_MAX_SCAN", 25)
+        ids = list(reversed(ids))[:max_scan]
         candidates: list[tuple[datetime, NetflixResult]] = []
-        # Recorremos de más nuevo a más viejo.
-        for msg_id in reversed(ids):
-            typ, msg_data = conn.fetch(msg_id, "(RFC822)")
+        for msg_id in ids:
+            # BODY.PEEK[] baja el correo SIN marcarlo como leído.
+            typ, msg_data = conn.fetch(msg_id, "(BODY.PEEK[])")
             if typ != "OK" or not msg_data or not msg_data[0]:
                 continue
             raw = msg_data[0][1]
@@ -175,6 +182,10 @@ def fetch_latest_for_email(
             # entregamos ese tipo; cualquier otro correo de Netflix se ignora.
             if kind is not None and result.kind != kind:
                 continue
+            # Con tipo puntual, el primer match (ya vamos de más nuevo a más
+            # viejo) es el que buscamos: cortamos sin seguir bajando correos.
+            if kind is not None:
+                return result
             candidates.append((dt, result))
         if not candidates:
             return None

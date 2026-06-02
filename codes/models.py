@@ -85,3 +85,33 @@ class AssignedEmail(models.Model):
         # Normaliza el correo para que el match con la bandeja sea fiable.
         self.email = (self.email or "").strip().lower()
         super().save(*args, **kwargs)
+
+
+class BotState(models.Model):
+    """Estado persistente del bot (fila única, pk=1).
+
+    Guarda el ``update_id`` de Telegram ya procesado para que, si el contenedor
+    se reinicia, el bot no vuelva a procesar pedidos viejos: retoma desde el
+    último update confirmado.
+    """
+
+    telegram_offset = models.BigIntegerField("Último update de Telegram", default=0)
+    updated_at = models.DateTimeField("Actualizado", auto_now=True)
+
+    class Meta:
+        verbose_name = "Estado del bot de códigos"
+        verbose_name_plural = "Estado del bot de códigos"
+
+    def __str__(self) -> str:
+        return f"BotState(offset={self.telegram_offset})"
+
+    @classmethod
+    def get_offset(cls) -> int:
+        row = cls.objects.filter(pk=1).first()
+        return row.telegram_offset if row else 0
+
+    @classmethod
+    def set_offset(cls, offset: int) -> None:
+        cls.objects.update_or_create(
+            pk=1, defaults={"telegram_offset": int(offset)}
+        )

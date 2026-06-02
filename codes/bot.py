@@ -21,11 +21,15 @@ from typing import Any, Iterable
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 from . import imap_reader
-from .models import AssignedEmail, CodeBotClient
+from .models import AssignedEmail, BotState, CodeBotClient
 
 logger = logging.getLogger(__name__)
+
+# Pausa antes del único reintento cuando Gmail falla/responde lento.
+_RETRY_SLEEP = 1.0
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 
@@ -178,6 +182,29 @@ def _format_result(email: str, result) -> str:
     return "".join(parts)
 
 
+def _result_cache_key(email: str, kind: str | None) -> str:
+    return f"codesbot:res:{email}:{kind or 'any'}"
+
+
+def _cooldown_key(chat_id: str) -> str:
+    return f"codesbot:cd:{chat_id}"
+
+
+def _on_cooldown(client: CodeBotClient) -> bool:
+    """True si el cliente pidió hace muy poco (anti-spam / anti-bloqueo Gmail).
+
+    El admin queda exento para poder probar sin esperas.
+    """
+    secs = getattr(settings, "CODES_COOLDOWN_SECONDS", 6)
+    if secs <= 0 or str(client.telegram_chat_id) == _admin_chat_id():
+        return False
+    key = _cooldown_key(client.telegram_chat_id)
+    if cache.get(key):
+        return True
+    cache.set(key, 1, timeout=secs)
+    return False
+
+
 def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) -> str:
     email = (email or "").strip().lower()
     assigned = set(_assigned_emails(client))
@@ -189,11 +216,33 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
         )
     if not imap_reader.is_configured():
         return "El servicio de códigos todavía no está configurado. Probá más tarde."
-    try:
-        result = imap_reader.fetch_latest_for_email(email, kind=kind)
-    except Exception:
-        logger.exception("Fallo leyendo IMAP para %s", email)
-        return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
+
+    # Mini-caché: si justo leímos este código hace unos segundos, lo
+    # reusamos (toques repetidos al mismo botón) sin volver a Gmail.
+    cache_key = _result_cache_key(email, kind)
+    cached = cache.get(cache_key)
+    if cached:
+        client.touch()
+        return cached
+
+    # Anti-spam: si pide de más, evitamos golpear Gmail (que puede bloquear).
+    if _on_cooldown(client):
+        return (
+            "⏳ Esperá unos segundos antes de pedir otro código y volvé a "
+            "intentar (así no saturamos el correo)."
+        )
+
+    result = None
+    for attempt in range(2):
+        try:
+            result = imap_reader.fetch_latest_for_email(email, kind=kind)
+            break
+        except Exception:
+            logger.exception("Fallo leyendo IMAP para %s (intento %d)", email, attempt + 1)
+            if attempt == 0:
+                time.sleep(_RETRY_SLEEP)
+                continue
+            return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
     if result is None or not result.has_payload:
         if kind and kind in KIND_LABELS:
             que = f"<b>{html.escape(KIND_LABELS[kind])}</b>"
@@ -204,7 +253,11 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
             "Generá el correo desde Netflix y volvé a pedirlo en un minuto."
         )
     client.touch()
-    return _format_result(email, result)
+    msg = _format_result(email, result)
+    ttl = getattr(settings, "CODES_RESULT_CACHE_SECONDS", 45)
+    if ttl > 0:
+        cache.set(cache_key, msg, timeout=ttl)
+    return msg
 
 
 def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
@@ -725,8 +778,14 @@ def run_polling(poll_interval: float = 1.0) -> None:
         configure_commands()
     except Exception:
         logger.exception("No se pudo configurar el menú de comandos (sigo igual)")
-    offset = 0
-    logger.info("Bot de códigos iniciado (long polling)")
+    # Retomamos desde el último update procesado: si el contenedor se
+    # reinicia, no reprocesamos pedidos viejos.
+    try:
+        offset = BotState.get_offset()
+    except Exception:
+        logger.exception("No pude leer el offset guardado; arranco de 0")
+        offset = 0
+    logger.info("Bot de códigos iniciado (long polling), offset=%s", offset)
     while True:
         try:
             data = _call(
@@ -735,12 +794,19 @@ def run_polling(poll_interval: float = 1.0) -> None:
                 timeout=25,
                 allowed_updates=["message", "callback_query"],
             )
-            for upd in data.get("result", []):
+            updates = data.get("result", [])
+            for upd in updates:
                 offset = upd["update_id"] + 1
                 try:
                     process_update(upd)
                 except Exception:
                     logger.exception("Error procesando update (codes)")
+            # Persistimos el avance una vez por lote (menos escrituras a la DB).
+            if updates:
+                try:
+                    BotState.set_offset(offset)
+                except Exception:
+                    logger.exception("No pude guardar el offset del bot")
         except requests.RequestException:
             logger.warning("getUpdates (codes) falló, reintentando…")
         time.sleep(poll_interval)
