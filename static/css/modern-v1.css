@@ -130,6 +130,31 @@
   80% { transform: translateX(110%); }
 }
 
+/* ---------- Soft badges v3 (calmer / more elegant) ----------------- */
+/* Glassy, low-saturation badges used on the refreshed product cards.
+   One badge per card keeps the grid calm and "premium". */
+.badge-soft {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  color: #f4f4f5;
+  background: rgba(10, 9, 15, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px -8px rgba(0, 0, 0, 0.7);
+}
+.badge-soft--top {
+  border-color: rgba(244, 114, 182, 0.45);
+  color: #fbcfe8;
+}
+.badge-soft--nuevo {
+  border-color: rgba(52, 211, 153, 0.45);
+  color: #bbf7d0;
+}
+
 /* ---------- Hero platform ribbon (floating chips) ------------------ */
 .platform-chip {
   display: inline-flex; align-items: center; gap: 0.4rem;
