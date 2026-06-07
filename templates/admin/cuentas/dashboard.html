@@ -143,7 +143,7 @@
   .jh-cc-kpi--expiring.jh-cc-kpi--alert { border-color: rgba(245,158,11,.45); }
 </style>
 
-<div class="flex flex-col gap-5">
+<div class="flex flex-col gap-5 jh-cc-theme">
 
   {# ── Hero moderno ──────────────────────────────────────────────── #}
   <div class="jh-cc-hero">
@@ -1725,4 +1725,236 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
   });
 })();
 </script>
+
+{% comment %}
+   Tema claro "KINEMANAGER": piel verde + tarjetas blancas para Control
+   de cuentas. Se aplica solo dentro de .jh-cc-theme y los modales de
+   esta página, así no afecta al resto del admin (que sigue en oscuro).
+   El color principal está en --cc-primary: cambialo y se actualiza todo.
+{% endcomment %}
+<style>
+  .jh-cc-theme {
+    /* 🎨 Color principal — cambialo y se actualiza todo el panel */
+    --cc-primary: #16a34a;
+    --cc-primary-dark: #15803d;
+    --cc-primary-soft: rgba(22,163,74,.10);
+    --cc-primary-softer: rgba(22,163,74,.06);
+    --cc-primary-border: rgba(22,163,74,.28);
+    --cc-surface: #ffffff;
+    --cc-bg: #eef1f5;
+    --cc-border: #e5e7eb;
+    --cc-text: #0f172a;
+    --cc-muted: #64748b;
+    --cc-shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px -16px rgba(15,23,42,.18);
+
+    background: var(--cc-bg);
+    padding: 18px;
+    border-radius: 20px;
+    color: var(--cc-text);
+  }
+
+  /* ── Hero → banner verde profesional ───────────────────────────── */
+  .jh-cc-theme .jh-cc-hero {
+    background: linear-gradient(135deg, var(--cc-primary), var(--cc-primary-dark));
+    border: 0;
+    box-shadow: 0 16px 36px -18px rgba(22,163,74,.6);
+  }
+  .jh-cc-theme .jh-cc-hero__icon {
+    background: rgba(255,255,255,.18);
+    box-shadow: none;
+  }
+  .jh-cc-theme .jh-cc-hero__eyebrow {
+    background: rgba(255,255,255,.18);
+    border-color: rgba(255,255,255,.28);
+    color: #fff;
+  }
+  .jh-cc-theme .jh-cc-hero__title { color: #fff; }
+  .jh-cc-theme .jh-cc-hero__subtitle { color: rgba(255,255,255,.85); }
+  .jh-cc-theme .jh-cc-hero__cta {
+    background: rgba(255,255,255,.16);
+    border-color: rgba(255,255,255,.45);
+    color: #fff;
+  }
+  .jh-cc-theme .jh-cc-hero__cta:hover { background: rgba(255,255,255,.28); }
+
+  /* ── KPI cards → tarjetas sólidas de color (estilo KINEMANAGER) ── */
+  .jh-cc-theme .jh-cc-kpi {
+    border: 0;
+    color: #fff;
+    box-shadow: var(--cc-shadow);
+  }
+  .jh-cc-theme .jh-cc-kpi:hover { border: 0; }
+  .jh-cc-theme .jh-cc-kpi__label { color: rgba(255,255,255,.88); }
+  .jh-cc-theme .jh-cc-kpi__value { color: #fff; }
+  .jh-cc-theme .jh-cc-kpi__meta { color: rgba(255,255,255,.82); }
+  .jh-cc-theme .jh-cc-kpi__pct { background: rgba(255,255,255,.20); color: #fff; }
+  .jh-cc-theme .jh-cc-kpi__label-dot { background: rgba(255,255,255,.9) !important; }
+  .jh-cc-theme .jh-cc-kpi__bar-wrap { background: rgba(255,255,255,.22); }
+  .jh-cc-theme .jh-cc-kpi__bar { background: rgba(255,255,255,.9) !important; }
+  .jh-cc-theme .jh-cc-kpi__watermark { color: #fff !important; opacity: .14; }
+  .jh-cc-theme .jh-cc-kpi--platforms { background: linear-gradient(150deg, #14b8a6, #0d9488); }
+  .jh-cc-theme .jh-cc-kpi--available { background: linear-gradient(150deg, #22c55e, #16a34a); }
+  .jh-cc-theme .jh-cc-kpi--sold      { background: linear-gradient(150deg, #3b82f6, #2563eb); }
+  .jh-cc-theme .jh-cc-kpi--defective { background: linear-gradient(150deg, #f87171, #ef4444); }
+  .jh-cc-theme .jh-cc-kpi--expiring  { background: linear-gradient(150deg, #fb923c, #f59e0b); }
+
+  /* ── Buscador → blanco con foco verde ──────────────────────────── */
+  .jh-cc-theme .jh-cc-search {
+    background: var(--cc-surface);
+    border: 1px solid var(--cc-border);
+    box-shadow: var(--cc-shadow);
+  }
+  .jh-cc-theme .jh-cc-search:focus-within {
+    border-color: var(--cc-primary);
+    box-shadow: 0 0 0 4px var(--cc-primary-soft);
+  }
+  .jh-cc-theme .jh-cc-search__icon { color: var(--cc-muted); }
+  .jh-cc-theme .jh-cc-search__input { color: var(--cc-text); }
+  .jh-cc-theme .jh-cc-search__input::placeholder { color: #94a3b8; }
+  .jh-cc-theme .jh-cc-search__clear { background: #f1f5f9; color: var(--cc-muted); }
+  .jh-cc-theme .jh-cc-search__clear:hover { background: #e2e8f0; color: var(--cc-text); }
+  .jh-cc-theme .jh-cc-search__btn {
+    background: linear-gradient(135deg, var(--cc-primary), var(--cc-primary-dark));
+    box-shadow: 0 6px 18px -6px rgba(22,163,74,.55);
+  }
+
+  /* ── Filtros → tarjeta blanca + chips claros ───────────────────── */
+  .jh-cc-theme .jh-cc-filters {
+    background: var(--cc-surface);
+    border: 1px solid var(--cc-border);
+    box-shadow: var(--cc-shadow);
+  }
+  .jh-cc-theme .jh-cc-filters__label { color: var(--cc-muted); }
+  .jh-cc-theme .jh-cc-fchip {
+    background: #f8fafc;
+    border: 1px solid var(--cc-border);
+    color: #334155;
+  }
+  .jh-cc-theme .jh-cc-fchip:hover { background: #f1f5f9; color: var(--cc-text); }
+  .jh-cc-theme .jh-cc-fchip__count { background: #e2e8f0; color: #475569; }
+  .jh-cc-theme .jh-cc-fchip--success { color:#15803d; border-color:#bbf7d0; }
+  .jh-cc-theme .jh-cc-fchip--success .jh-cc-fchip__count { background:#dcfce7; color:#15803d; }
+  .jh-cc-theme .jh-cc-fchip--info { color:#1d4ed8; border-color:#bfdbfe; }
+  .jh-cc-theme .jh-cc-fchip--info .jh-cc-fchip__count { background:#dbeafe; color:#1d4ed8; }
+  .jh-cc-theme .jh-cc-fchip--warning { color:#b45309; border-color:#fde68a; }
+  .jh-cc-theme .jh-cc-fchip--warning .jh-cc-fchip__count { background:#fef3c7; color:#b45309; }
+  .jh-cc-theme .jh-cc-fchip--danger { color:#b91c1c; border-color:#fecaca; }
+  .jh-cc-theme .jh-cc-fchip--danger .jh-cc-fchip__count { background:#fee2e2; color:#b91c1c; }
+  .jh-cc-theme .jh-cc-fchip--purple { color:#6d28d9; border-color:#ddd6fe; }
+  .jh-cc-theme .jh-cc-fchip--purple .jh-cc-fchip__count { background:#ede9fe; color:#6d28d9; }
+  .jh-cc-theme .jh-cc-fchip--active {
+    background: linear-gradient(135deg, var(--cc-primary), var(--cc-primary-dark)) !important;
+    border-color: var(--cc-primary-dark) !important;
+    color: #fff !important;
+    box-shadow: 0 4px 14px -4px rgba(22,163,74,.45);
+  }
+  .jh-cc-theme .jh-cc-fchip--active .jh-cc-fchip__count { background: rgba(255,255,255,.25); color:#fff; }
+
+  /* ── Tarjeta de plataforma → blanca ────────────────────────────── */
+  .jh-cc-theme .jh-cc-plat {
+    background: var(--cc-surface);
+    border: 1px solid var(--cc-border);
+    box-shadow: var(--cc-shadow);
+  }
+  .jh-cc-theme .jh-cc-plat[open] { border-color: var(--cc-primary-border); }
+  .jh-cc-theme .jh-cc-plat__chev { background: var(--cc-primary-soft); color: var(--cc-primary-dark); }
+  .jh-cc-theme .jh-cc-plat[open] .jh-cc-plat__chev { background: var(--cc-primary-soft); }
+  .jh-cc-theme .jh-cc-plat__name { color: var(--cc-text); }
+  .jh-cc-theme .jh-cc-plat__meta { color: var(--cc-muted); }
+  .jh-cc-theme .jh-cc-plat__stat {
+    background: #f8fafc; border: 1px solid var(--cc-border); color: #475569;
+  }
+  .jh-cc-theme .jh-cc-plat__stat--success { color:#15803d; background:#dcfce7; border-color:#bbf7d0; }
+  .jh-cc-theme .jh-cc-plat__stat--info { color:#1d4ed8; background:#dbeafe; border-color:#bfdbfe; }
+  .jh-cc-theme .jh-cc-plat__stat--danger { color:#b91c1c; background:#fee2e2; border-color:#fecaca; }
+  .jh-cc-theme .jh-cc-plat__add {
+    background: linear-gradient(135deg, var(--cc-primary), var(--cc-primary-dark));
+    box-shadow: 0 6px 14px -6px rgba(22,163,74,.55);
+  }
+  /* Badge de modo (perfil/completa/licencia): neutralizamos el estilo inline
+     oscuro para que se lea bien sobre la tarjeta blanca. */
+  .jh-cc-theme .jh-cc-plat__mode-badge {
+    background: #f1f5f9 !important;
+    border: 1px solid var(--cc-border) !important;
+    color: #475569 !important;
+  }
+
+  /* ── Tabla → clara ─────────────────────────────────────────────── */
+  .jh-cc-theme .jh-cc-plat .jh2-table th {
+    color: var(--cc-muted); border-bottom: 1px solid var(--cc-border);
+  }
+  .jh-cc-theme .jh-cc-plat .jh2-table td { border-bottom: 1px solid #f1f5f9; }
+  .jh-cc-theme .jh-cc-plat .jh2-table tbody tr:hover { background: var(--cc-primary-softer); }
+  .jh-cc-theme .jh2-table__strong { color: var(--cc-text); }
+  .jh-cc-theme .jh2-table__muted { color: var(--cc-muted); }
+
+  /* ── Credenciales ──────────────────────────────────────────────── */
+  .jh-cc-theme .jh-cc-cred__ic { color: #94a3b8; }
+  .jh-cc-theme .jh-cc-cred__val { color: #1e293b; }
+  .jh-cc-theme .jh-cc-cred__row--pw .jh-cc-cred__val { color: #64748b; }
+  .jh-cc-theme .jh-cc-cred__raw { color: #475569; }
+  .jh-cc-theme .jh-cc-copy { color: #94a3b8; }
+  .jh-cc-theme .jh-cc-copy:hover { background: var(--cc-primary-soft); color: var(--cc-primary-dark); border-color: var(--cc-primary-border); }
+  .jh-cc-theme .jh-cc-copy.is-copied { color:#15803d; background:#dcfce7; border-color:#bbf7d0; }
+
+  /* ── Chips Perfil / PIN ────────────────────────────────────────── */
+  .jh-cc-theme .jh-cc-tag { background:#f1f5f9; border:1px solid var(--cc-border); color:#334155; }
+  .jh-cc-theme .jh-cc-tag--pin { color: var(--cc-primary-dark); background: var(--cc-primary-soft); border-color: var(--cc-primary-border); }
+  .jh-cc-theme .jh-cc-tag__lbl { color:#94a3b8; }
+  .jh-cc-theme .jh-cc-tag--pin .jh-cc-tag__lbl { color: rgba(21,128,61,.7); }
+
+  /* ── Chips de vencimiento (semáforo, legibles en claro) ────────── */
+  .jh-cc-theme .jh-cc-exp--ok { color:#15803d; background:#dcfce7; border-color:#bbf7d0; }
+  .jh-cc-theme .jh-cc-exp--week { color:#b45309; background:#fef3c7; border-color:#fde68a; }
+  .jh-cc-theme .jh-cc-exp--soon { color:#c2410c; background:#ffedd5; border-color:#fed7aa; }
+  .jh-cc-theme .jh-cc-exp--today { color:#c2410c; background:#ffedd5; border-color:#fdba74; }
+  .jh-cc-theme .jh-cc-exp--overdue { color:#b91c1c; background:#fee2e2; border-color:#fecaca; }
+
+  /* ── Acciones inline ───────────────────────────────────────────── */
+  .jh-cc-theme .jh-cc-act { background:#f8fafc; border:1px solid var(--cc-border); color:#475569; }
+  .jh-cc-theme .jh-cc-act--success { color:#15803d; background:#dcfce7; border-color:#bbf7d0; }
+  .jh-cc-theme .jh-cc-act--info { color:#1d4ed8; background:#dbeafe; border-color:#bfdbfe; }
+  .jh-cc-theme .jh-cc-act--danger { color:#b91c1c; background:#fee2e2; border-color:#fecaca; }
+  .jh-cc-theme .jh-cc-act--wa { color:#15803d; background:#dcfce7; border-color:#bbf7d0; }
+  .jh-cc-theme .jh-cc-act--tg { color:#0369a1; background:#e0f2fe; border-color:#bae6fd; }
+  .jh-cc-theme .jh-cc-act--gm { color:#b91c1c; background:#fee2e2; border-color:#fecaca; }
+
+  /* ── Cards mobile ──────────────────────────────────────────────── */
+  .jh-cc-theme .jh-cc-card { background: var(--cc-surface); border:1px solid var(--cc-border); box-shadow: var(--cc-shadow); }
+  .jh-cc-theme .jh-cc-card__account { color:#1e293b; }
+  .jh-cc-theme .jh-cc-card__meta .jh-cc-card__row { color:#475569; }
+  .jh-cc-theme .jh-cc-card__meta .material-symbols-outlined { color:#94a3b8; }
+  .jh-cc-theme .jh-cc-card__row--muted { color:#94a3b8; }
+  .jh-cc-theme .jh-cc-card__actions { border-top:1px solid var(--cc-border); }
+
+  /* ── Tarjeta resultado de búsqueda (jh2-card) ──────────────────── */
+  .jh-cc-theme .jh2-card { background: var(--cc-surface); border:1px solid var(--cc-border); box-shadow: var(--cc-shadow); }
+
+  /* ── Resaltado al volver de editar (flash) → verde ─────────────── */
+  .jh-cc-theme .jh-cc-flash { animation: jhCcFlashLight 2.2s ease-out 1; }
+  @keyframes jhCcFlashLight { 0% { background: rgba(22,163,74,.18); } 100% { background: transparent; } }
+
+  /* ════ Modales en claro (quick-add / bulk-replace / edit-buyer) ══ */
+  #quick-add-modal .bg-base-900,
+  #bulk-replace-modal .bg-base-900,
+  #edit-buyer-modal .bg-base-900 { background:#ffffff !important; }
+  #quick-add-modal .bg-base-950,
+  #bulk-replace-modal .bg-base-950,
+  #edit-buyer-modal .bg-base-950 { background:#f8fafc !important; }
+  #quick-add-modal .border-base-700, #quick-add-modal .border-base-800,
+  #bulk-replace-modal .border-base-700, #bulk-replace-modal .border-base-800,
+  #edit-buyer-modal .border-base-700, #edit-buyer-modal .border-base-800 { border-color:#e5e7eb !important; }
+  #quick-add-modal .text-white,
+  #bulk-replace-modal .text-white,
+  #edit-buyer-modal .text-white { color:#0f172a !important; }
+  #quick-add-modal .text-base-200, #quick-add-modal .text-base-300, #quick-add-modal .text-base-400,
+  #bulk-replace-modal .text-base-200, #bulk-replace-modal .text-base-300, #bulk-replace-modal .text-base-400,
+  #edit-buyer-modal .text-base-200, #edit-buyer-modal .text-base-300, #edit-buyer-modal .text-base-400 { color:#64748b !important; }
+  #quick-add-modal .hover\:bg-base-800:hover,
+  #bulk-replace-modal .hover\:bg-base-800:hover,
+  #edit-buyer-modal .hover\:bg-base-800:hover { background:#f1f5f9 !important; }
+  #quick-add-modal input, #quick-add-modal textarea,
+  #bulk-replace-modal input, #bulk-replace-modal textarea,
+  #edit-buyer-modal input, #edit-buyer-modal textarea, #edit-buyer-modal select { color-scheme: light; }
+</style>
 {% endblock %}
