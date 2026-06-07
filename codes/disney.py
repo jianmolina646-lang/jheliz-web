@@ -56,6 +56,50 @@ _HUMAN = {
 # Quita etiquetas HTML para poder buscar el código en el texto visible.
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"[ \t\u00a0]+")
+# Bloques cuyo contenido NO es texto visible (los colores CSS como #707070 se
+# colaban como falsos "códigos"). Se eliminan por completo antes de leer.
+_NONVISIBLE_RE = re.compile(r"(?is)<(style|script|head)[^>]*>.*?</\1>")
+
+# Palabras que aparecen cerca del código real (suben el puntaje del candidato).
+_CODE_POS_KW = (
+    "código",
+    "codigo",
+    "code",
+    "passcode",
+    "acceso",
+    "verificación",
+    "verificacion",
+    "one-time",
+    "one time",
+    "single-use",
+    "un solo uso",
+    "único uso",
+    "unico uso",
+    "expire",
+    "expira",
+    "vence",
+    "minute",
+    "minuto",
+)
+# Palabras que descartan un número (registro de la empresa, direcciones, tel.).
+_CODE_NEG_KW = (
+    "registered",
+    "registro",
+    "registration",
+    "reg. no",
+    "reg no",
+    "no.",
+    "copyright",
+    "street",
+    "avenue",
+    "suite",
+    "floor",
+    "p.o",
+    "zip",
+    "phone",
+    "tel",
+    "unsubscribe",
+)
 
 
 @dataclass
@@ -75,13 +119,26 @@ class DisneyResult:
         return bool(self.code or self.action_url)
 
 
-def _to_text(html: str, text: str) -> str:
-    if text:
-        return text
-    if not html:
-        return ""
-    cleaned = _TAG_RE.sub(" ", _html.unescape(html))
+def _visible_from_html(html: str) -> str:
+    cleaned = _NONVISIBLE_RE.sub(" ", html)
+    cleaned = _TAG_RE.sub(" ", _html.unescape(cleaned))
     return _WS_RE.sub(" ", cleaned)
+
+
+def _to_text(html: str, text: str) -> str:
+    """Combina texto plano y texto visible del HTML.
+
+    Se incluyen ambos porque el text/plain de Disney+ suele venir vacío (o ser
+    solo un preheader) y el código vive en el HTML. Al armar el texto visible
+    se eliminan los bloques <style>/<head>/<script> para que los colores CSS
+    (p. ej. #707070) no se confundan con el código.
+    """
+    parts: list[str] = []
+    if text and text.strip():
+        parts.append(text)
+    if html:
+        parts.append(_visible_from_html(html))
+    return "\n".join(parts)
 
 
 def _classify(subject: str, body: str) -> str:
@@ -92,31 +149,35 @@ def _classify(subject: str, body: str) -> str:
 
 
 def _extract_code(body_text: str) -> str:
-    """Busca un código numérico visible (4 a 8 dígitos, se prefiere 6).
+    """Busca el código numérico (4 a 8 dígitos, se prefiere 6).
 
-    Primero intenta uno cercano a la palabra 'código'/'code'/'passcode'; si no,
-    cae al primer número de 6 dígitos del cuerpo (típico de Disney+).
+    Puntúa cada número por su contexto: suma si está cerca de palabras como
+    'código'/'passcode'/'expira'; descarta los que están en el pie legal
+    ('Registered No.'), direcciones o teléfonos, y los colores hex (#707070).
+    Se elige el de mayor puntaje y, a igualdad, el que aparece primero.
     """
     low = body_text.lower()
-    best = ""
+    candidates: list[tuple[int, int, str]] = []
     for m in re.finditer(r"(?<!\d)(\d{4,8})(?!\d)", body_text):
+        # Descarta colores hex tipo #707070.
+        if m.start() > 0 and body_text[m.start() - 1] == "#":
+            continue
         digits = m.group(1)
-        start = max(0, m.start() - 50)
-        context = low[start : m.end() + 15]
-        near_kw = any(
-            kw in context for kw in ("código", "codigo", "code", "passcode", "acceso")
-        )
-        if near_kw:
-            # Cerca de la palabra clave: si es de 6 dígitos lo damos ya.
-            if len(digits) == 6:
-                return digits
-            if not best:
-                best = digits
-    if best:
-        return best
-    # Sin contexto: tomamos el primer número de 6 dígitos del cuerpo.
-    m6 = re.search(r"(?<!\d)(\d{6})(?!\d)", body_text)
-    return m6.group(1) if m6 else ""
+        start = max(0, m.start() - 60)
+        context = low[start : m.end() + 25]
+        if any(kw in context for kw in _CODE_NEG_KW):
+            continue
+        score = 0
+        if any(kw in context for kw in _CODE_POS_KW):
+            score += 10
+        if len(digits) == 6:
+            score += 3
+        # (-puntaje, posición) → menor es mejor: mayor puntaje y antes en el texto.
+        candidates.append((-score, m.start(), digits))
+    if not candidates:
+        return ""
+    candidates.sort()
+    return candidates[0][2]
 
 
 def parse_disney_email(subject: str, html: str = "", text: str = "") -> DisneyResult:

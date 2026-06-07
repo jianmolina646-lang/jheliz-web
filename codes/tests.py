@@ -524,6 +524,39 @@ class DisneyParserTests(TestCase):
         self.assertFalse(r.has_payload)
         self.assertEqual(r.code, "")
 
+    def test_ignores_css_color_and_footer_number(self):
+        """Caso real Disney+: el color CSS #707070 y el 'Registered No.' del pie
+        no deben confundirse con el código; gana el OTP visible real."""
+        from codes.disney import parse_disney_email
+
+        html = (
+            "<html><head><style>a { color: #707070; } "
+            ".btn { background:#252526; }</style></head><body>"
+            "<p>Here\u2019s your one-time passcode for Disney+</p>"
+            "<table><tr><td>137657</td></tr></table>"
+            "<p>associated with your MyDisney account. "
+            "It will expire in 15 minutes.</p>"
+            "<footer>The Walt Disney Company Limited, 3 Queen Caroline Street, "
+            "Hammersmith, London W6 9PE, United Kingdom. Registered No. 530051. "
+            "All information \u00a9 Disney.</footer></body></html>"
+        )
+        r = parse_disney_email("Your one-time passcode for Disney+", html=html)
+        self.assertEqual(r.kind, "signin_code")
+        self.assertEqual(r.code, "137657")
+
+    def test_uses_html_code_when_text_is_only_preheader(self):
+        """El text/plain de Disney+ suele ser un preheader sin el código; el
+        código vive en el HTML y debe extraerse igual."""
+        from codes.disney import parse_disney_email
+
+        r = parse_disney_email(
+            "Your one-time passcode for Disney+",
+            html="<p>Your passcode</p><h1>246802</h1><p>expires in 15 minutes</p>",
+            text="Here's your one-time passcode for Disney+",
+        )
+        self.assertEqual(r.kind, "signin_code")
+        self.assertEqual(r.code, "246802")
+
 
 class DisneyBotMappingTests(TestCase):
     def test_single_command_and_service(self):
