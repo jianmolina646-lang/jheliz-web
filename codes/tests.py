@@ -485,3 +485,117 @@ class BotStateOffsetTests(TestCase):
         BotState.set_offset(100)
         self.assertEqual(BotState.objects.count(), 1)
         self.assertEqual(BotState.get_offset(), 100)
+
+
+class DisneyParserTests(TestCase):
+    def test_signin_code_from_text_es(self):
+        from codes.disney import parse_disney_email
+
+        r = parse_disney_email(
+            "Tu código de acceso único para Disney+",
+            text="Tu código de acceso es 123456. Vence pronto.",
+        )
+        self.assertEqual(r.kind, "signin_code")
+        self.assertEqual(r.code, "123456")
+        self.assertTrue(r.has_payload)
+
+    def test_signin_code_from_html_en(self):
+        from codes.disney import parse_disney_email
+
+        html = "<p>Your one-time passcode is</p><h1>456789</h1><p>It expires soon.</p>"
+        r = parse_disney_email("Your Disney+ verification code", html=html)
+        self.assertEqual(r.kind, "signin_code")
+        self.assertEqual(r.code, "456789")
+
+    def test_prefers_six_digit_near_keyword(self):
+        from codes.disney import parse_disney_email
+
+        r = parse_disney_email(
+            "Código de verificación",
+            text="Pedido 4821. Tu código de verificación es 654321.",
+        )
+        self.assertEqual(r.code, "654321")
+
+    def test_other_email_is_ignored(self):
+        from codes.disney import parse_disney_email
+
+        r = parse_disney_email("Novedades de Disney+", html="<p>Mirá los estrenos</p>")
+        self.assertEqual(r.kind, "other")
+        self.assertFalse(r.has_payload)
+        self.assertEqual(r.code, "")
+
+
+class DisneyBotMappingTests(TestCase):
+    def test_single_command_and_service(self):
+        from codes import disney_bot
+
+        self.assertEqual(disney_bot.SIGNIN_KIND, "signin_code")
+        self.assertEqual(disney_bot.SERVICE, "disney")
+        self.assertEqual(disney_bot.BOT_STATE_PK, 2)
+
+    @mock.patch("codes.disney_bot.send_message")
+    @mock.patch("codes.disney_bot._deliver_code", return_value="OK")
+    def test_single_email_fallback_when_no_arg(self, mdeliver, _msend):
+        from codes import disney_bot
+
+        c = CodeBotClient.objects.create(telegram_chat_id="555", is_active=True)
+        AssignedEmail.objects.create(client=c, email="solo@gmail.com")
+        disney_bot._cmd_code(c, "")
+        mdeliver.assert_called_once_with(c, "solo@gmail.com")
+
+    @mock.patch("codes.disney_bot.send_message")
+    @mock.patch("codes.disney_bot._deliver_code", return_value="OK")
+    def test_multiple_emails_no_arg_shows_picker(self, mdeliver, msend):
+        from codes import disney_bot
+
+        c = CodeBotClient.objects.create(telegram_chat_id="556", is_active=True)
+        AssignedEmail.objects.create(client=c, email="a@gmail.com")
+        AssignedEmail.objects.create(client=c, email="b@gmail.com")
+        disney_bot._cmd_code(c, "")
+        mdeliver.assert_not_called()
+        _args, kwargs = msend.call_args
+        self.assertTrue(kwargs.get("buttons"))
+
+    def test_deliver_blocks_unassigned_email(self):
+        from codes import disney_bot
+
+        c = CodeBotClient.objects.create(telegram_chat_id="557", is_active=True)
+        AssignedEmail.objects.create(client=c, email="mine@gmail.com")
+        msg = disney_bot._deliver_code(c, "ajeno@gmail.com")
+        self.assertIn("no te corresponde", msg)
+
+    @mock.patch("codes.disney_bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.disney_bot.imap_reader.fetch_latest_for_email", return_value=None)
+    def test_deliver_uses_disney_service_and_signin_kind(self, mfetch, _cfg):
+        from codes import disney_bot
+
+        c = CodeBotClient.objects.create(telegram_chat_id="558", is_active=True)
+        AssignedEmail.objects.create(client=c, email="mine@gmail.com")
+        disney_bot._deliver_code(c, "mine@gmail.com")
+        mfetch.assert_called_once_with(
+            "mine@gmail.com", kind="signin_code", service="disney"
+        )
+
+    @mock.patch("codes.disney_bot.send_message")
+    def test_admin_asignar_activates_and_assigns(self, msend):
+        from codes import disney_bot
+
+        cliente = CodeBotClient.objects.create(
+            telegram_chat_id="424243", telegram_username="ana"
+        )
+        with self.settings(TELEGRAM_DISNEY_ADMIN_CHAT_ID="900"):
+            disney_bot._handle_admin_command("900", "/asignar", "424243 NUEVA@Gmail.com")
+        cliente.refresh_from_db()
+        self.assertTrue(cliente.is_active)
+        self.assertEqual(
+            list(cliente.emails.values_list("email", flat=True)), ["nueva@gmail.com"]
+        )
+
+
+class BotStatePerBotOffsetTests(TestCase):
+    def test_offsets_are_independent_per_pk(self):
+        BotState.set_offset(10, pk=1)
+        BotState.set_offset(20, pk=2)
+        self.assertEqual(BotState.get_offset(pk=1), 10)
+        self.assertEqual(BotState.get_offset(pk=2), 20)
+        self.assertEqual(BotState.objects.count(), 2)
