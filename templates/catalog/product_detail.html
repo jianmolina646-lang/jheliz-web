@@ -266,7 +266,7 @@
   <!-- Left: product info ------------------------------------------------- -->
   <div class="surface rounded-2xl overflow-hidden">
     <!-- Hero banner del producto -->
-    <div class="pd-hero relative aspect-[16/8] md:aspect-[16/7] overflow-hidden"
+    <div class="pd-hero relative aspect-[16/9] overflow-hidden bg-[#0c0b12]"
          {% if not product.image %}style="{% product_gradient product %}"{% endif %}>
       <div class="pd-hero__glow"></div>
       {% if product.image %}
@@ -278,14 +278,13 @@
           {{ product.icon|default:product.category.emoji }}
         </div>
       {% endif %}
-      <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none"></div>
-      <span class="absolute top-4 left-4 text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-black/50 text-zinc-100 backdrop-blur-sm font-semibold">
+      <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent pointer-events-none"></div>
+      <span class="absolute top-4 left-4 text-[10px] uppercase tracking-wider px-2 py-1 rounded-md bg-black/45 text-zinc-100 backdrop-blur-sm font-semibold">
         {{ product.category.emoji }} {{ product.category.name }}
       </span>
-      <div class="absolute top-4 right-4 flex flex-col gap-1.5 items-end">
-        {% if product.is_featured %}<span class="badge-modern badge-modern--top"><span>⭐</span> Top ventas</span>{% endif %}
-        {% if product.is_new %}<span class="badge-modern badge-modern--nuevo"><span>✨</span> Nuevo</span>{% endif %}
-        {% if product.delivery_is_instant %}<span class="badge-modern badge-modern--flash"><span>⚡</span> Entrega inmediata</span>{% endif %}
+      <div class="absolute top-4 right-4">
+        {% if product.is_featured %}<span class="badge-soft badge-soft--top">⭐ Top ventas</span>
+        {% elif product.is_new %}<span class="badge-soft badge-soft--nuevo">✨ Nuevo</span>{% endif %}
       </div>
     </div>
 

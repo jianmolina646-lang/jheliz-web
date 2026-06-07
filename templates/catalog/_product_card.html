@@ -1,12 +1,12 @@
 {% load humanize i18n %}
 {% load catalog_extras %}
-<a href="{{ product.get_absolute_url }}" class="surface surface-lift rounded-2xl overflow-hidden hover:border-zinc-600 transition block group relative product-card" data-reveal>
+<a href="{{ product.get_absolute_url }}" class="surface surface-lift rounded-2xl overflow-hidden transition block group relative product-card flex flex-col" data-reveal>
   <!-- Banner ilustrado del producto ----------------------------------- -->
-  <div class="product-card__banner relative aspect-[16/9] overflow-hidden"
+  <div class="product-card__banner relative aspect-[16/10] overflow-hidden bg-[#0c0b12]"
        {% if not product.image %}style="{% product_gradient product %}"{% endif %}>
     {% if product.image %}
       <img src="{{ product.image.url }}" alt="{{ product.name }}"
-           class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+           class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
            loading="lazy" decoding="async">
     {% else %}
       <div class="absolute inset-0 flex items-center justify-center text-7xl drop-shadow-lg" aria-hidden="true">
@@ -14,48 +14,54 @@
       </div>
     {% endif %}
 
-    <!-- Sombrita inferior para que el texto del card resalte -->
-    <div class="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent pointer-events-none"></div>
+    <!-- Sombrita inferior sutil para anclar la categoría -->
+    <div class="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/55 to-transparent pointer-events-none"></div>
 
-    <!-- Badges sobre el banner -->
-    <div class="absolute top-3 right-3 flex flex-col gap-1 items-end">
-      {% if product.is_featured %}
-        <span class="badge-modern badge-modern--top"><span>⭐</span> {% trans "Top" %}</span>
-      {% endif %}
-      {% if product.is_new %}
-        <span class="badge-modern badge-modern--nuevo"><span>✨</span> {% trans "Nuevo" %}</span>
-      {% endif %}
-    </div>
+    <!-- Un solo badge prioritario (Top > Nuevo) para no recargar -->
+    {% if product.is_featured %}
+      <span class="absolute top-3 left-3 badge-soft badge-soft--top">⭐ {% trans "Top" %}</span>
+    {% elif product.is_new %}
+      <span class="absolute top-3 left-3 badge-soft badge-soft--nuevo">✨ {% trans "Nuevo" %}</span>
+    {% endif %}
 
-    <!-- Categoría -->
-    <span class="absolute bottom-3 left-3 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-black/50 text-zinc-100 backdrop-blur-sm font-semibold">
+    <!-- Categoría discreta abajo a la izquierda -->
+    <span class="absolute bottom-3 left-3 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-black/45 text-zinc-200 backdrop-blur-sm font-semibold">
       {{ product.category.emoji }} {{ product.category.name }}
     </span>
   </div>
 
   <!-- Contenido del card --------------------------------------------- -->
-  <div class="p-5">
-    <h3 class="font-display font-semibold text-zinc-100 leading-tight truncate">{{ product.name }}</h3>
+  <div class="p-5 flex flex-col flex-1">
+    <div class="flex items-start justify-between gap-3">
+      <h3 class="font-display font-semibold text-zinc-100 leading-tight truncate">{{ product.name }}</h3>
+      <span class="shrink-0 inline-flex items-center gap-1 text-[11px] text-amber-300/90 mt-0.5">
+        <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:11px;height:11px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        {{ product.rating }}
+      </span>
+    </div>
     {% if product.short_description %}
-      <p class="mt-2 text-sm text-zinc-400 line-clamp-2 leading-relaxed">{{ product.short_description }}</p>
+      <p class="mt-1.5 text-sm text-zinc-400 line-clamp-1 leading-relaxed">{{ product.short_description }}</p>
     {% endif %}
 
-    <div class="mt-4 pt-4 border-t hairline flex items-end justify-between gap-3">
+    <!-- Precio + acción, anclados al fondo -->
+    <div class="mt-auto pt-4 flex items-end justify-between gap-3">
       <div class="min-w-0">
         {% with plan=product|cheapest_plan_for:user %}
           {% if plan %}
             {% if user.is_distributor %}
-              <div class="text-[11px] font-semibold uppercase tracking-wider text-jheliz-400">{% trans "Mayorista desde" %}</div>
-              <div class="text-xl font-display font-bold text-white tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
-              {% with usd_price=plan.price_distributor|to_usd:USD_EXCHANGE_RATE %}
-                {% if usd_price %}<div class="text-xs text-emerald-300 font-semibold">≈ USD {{ usd_price|floatformat:2|intcomma }}</div>{% endif %}
-              {% endwith %}
-              <div class="text-[11px] text-zinc-500 line-through">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-jheliz-400">{% trans "Mayorista desde" %}</div>
+              <div class="text-2xl font-display font-bold text-white tracking-tight leading-none">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
+              <div class="mt-1 flex items-center gap-2">
+                {% with usd_price=plan.price_distributor|to_usd:USD_EXCHANGE_RATE %}
+                  {% if usd_price %}<span class="text-[11px] text-zinc-500">≈ USD {{ usd_price|floatformat:2|intcomma }}</span>{% endif %}
+                {% endwith %}
+                <span class="text-[11px] text-zinc-600 line-through">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</span>
+              </div>
             {% else %}
-              <div class="text-[11px] uppercase tracking-wider text-zinc-500">{% trans "Desde" %}</div>
-              <div class="text-xl font-display font-bold text-white tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
+              <div class="text-[10px] uppercase tracking-wider text-zinc-500">{% trans "Desde" %}</div>
+              <div class="text-2xl font-display font-bold text-white tracking-tight leading-none">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
               {% with usd_price=plan.price_customer|to_usd:USD_EXCHANGE_RATE %}
-                {% if usd_price %}<div class="text-xs text-emerald-300 font-semibold">≈ USD {{ usd_price|floatformat:2|intcomma }}</div>{% endif %}
+                {% if usd_price %}<div class="mt-1 text-[11px] text-zinc-500">≈ USD {{ usd_price|floatformat:2|intcomma }}</div>{% endif %}
               {% endwith %}
             {% endif %}
           {% else %}
@@ -63,51 +69,47 @@
           {% endif %}
         {% endwith %}
       </div>
-      <div class="text-right text-[11px] text-zinc-500 leading-tight shrink-0">
-        <div class="flex items-center gap-1 justify-end text-amber-400/90">
-          <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:11px;height:11px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <span class="text-zinc-300">{{ product.rating }}</span>
-        </div>
-        {% if product.sold_badge %}<div class="mt-1">{% blocktrans with n=product.sold_badge %}{{ n }} vendidos{% endblocktrans %}</div>{% endif %}
-      </div>
-    </div>
 
-    <div class="mt-4 flex items-center justify-between text-xs gap-2">
-      <span class="inline-flex items-center gap-1.5 text-emerald-400 shrink-0">
-        {% if product.delivery_is_instant %}
-          <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          {% trans "Inmediata" %}
-        {% else %}
-          <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          {% trans "Manual" %}
-        {% endif %}
-      </span>
-
+      <!-- Un solo chip de estado (stock) -->
       {% with urgency=product.stock_urgency_level stock=product.available_stock %}
         {% if stock == 0 %}
-          <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-zinc-700/70 text-zinc-200 border border-zinc-500/40">
+          <span class="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-zinc-700/60 text-zinc-300 border border-zinc-500/30">
             <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
             {% trans "Sin stock" %}
           </span>
         {% elif urgency == 'critical' %}
-          <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-200 border border-rose-400/50">
+          <span class="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-200 border border-rose-400/40">
             <span class="w-1.5 h-1.5 rounded-full bg-rose-300 animate-pulse"></span>
             {% blocktrans with n=stock %}Quedan {{ n }}{% endblocktrans %}
           </span>
         {% elif urgency == 'low' %}
-          <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-400/50">
-            🔥 {% blocktrans with n=stock %}Quedan {{ n }}{% endblocktrans %}
+          <span class="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-200 border border-amber-400/40">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-300"></span>
+            {% blocktrans with n=stock %}Quedan {{ n }}{% endblocktrans %}
           </span>
         {% else %}
-          <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-400/40">
+          <span class="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/12 text-emerald-200 border border-emerald-400/30">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
-            {% blocktrans with n=stock %}{{ n }} en stock{% endblocktrans %}
+            {% trans "Disponible" %}
           </span>
         {% endif %}
       {% endwith %}
-      <span class="text-zinc-400 group-hover:text-jheliz-400 transition inline-flex items-center gap-1">
+    </div>
+
+    <!-- Pie discreto: entrega + ver -->
+    <div class="mt-3.5 pt-3.5 border-t hairline flex items-center justify-between text-[11px]">
+      <span class="inline-flex items-center gap-1.5 text-zinc-500">
+        {% if product.delivery_is_instant %}
+          <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          {% trans "Entrega inmediata" %}
+        {% else %}
+          <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          {% trans "Entrega en minutos" %}
+        {% endif %}
+      </span>
+      <span class="inline-flex items-center gap-1 font-medium text-zinc-400 group-hover:text-jheliz-300 transition">
         {% trans "Ver" %}
-        <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
       </span>
     </div>
   </div>
