@@ -64,5 +64,15 @@ services:
     profiles:
       - bot  # Inicia junto al resto con: docker compose --profile bot up
 
+  disney_bot:
+    build: .
+    command: python manage.py run_disney_bot
+    env_file: .env
+    depends_on:
+      - web
+    restart: unless-stopped
+    profiles:
+      - bot  # Inicia junto al resto con: docker compose --profile bot up
+
 volumes:
   postgres_data:

@@ -88,11 +88,12 @@ class AssignedEmail(models.Model):
 
 
 class BotState(models.Model):
-    """Estado persistente del bot (fila única, pk=1).
+    """Estado persistente de cada bot (una fila por bot).
 
     Guarda el ``update_id`` de Telegram ya procesado para que, si el contenedor
     se reinicia, el bot no vuelva a procesar pedidos viejos: retoma desde el
-    último update confirmado.
+    último update confirmado. Cada bot usa su propia fila (``pk``): el de
+    Netflix ``pk=1`` y el de Disney+ ``pk=2``, así sus offsets no se pisan.
     """
 
     telegram_offset = models.BigIntegerField("Último update de Telegram", default=0)
@@ -103,15 +104,15 @@ class BotState(models.Model):
         verbose_name_plural = "Estado del bot de códigos"
 
     def __str__(self) -> str:
-        return f"BotState(offset={self.telegram_offset})"
+        return f"BotState(pk={self.pk}, offset={self.telegram_offset})"
 
     @classmethod
-    def get_offset(cls) -> int:
-        row = cls.objects.filter(pk=1).first()
+    def get_offset(cls, pk: int = 1) -> int:
+        row = cls.objects.filter(pk=pk).first()
         return row.telegram_offset if row else 0
 
     @classmethod
-    def set_offset(cls, offset: int) -> None:
+    def set_offset(cls, offset: int, pk: int = 1) -> None:
         cls.objects.update_or_create(
-            pk=1, defaults={"telegram_offset": int(offset)}
+            pk=pk, defaults={"telegram_offset": int(offset)}
         )

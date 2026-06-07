@@ -22,9 +22,18 @@ from email.utils import getaddresses, parsedate_to_datetime
 
 from django.conf import settings
 
+from .disney import DisneyResult, parse_disney_email
 from .netflix import NetflixResult, parse_netflix_email
 
 logger = logging.getLogger(__name__)
+
+# Cada servicio define con qué término se busca en la casilla y con qué parser
+# se interpreta el correo. La casilla central es la misma (mismo Gmail); lo
+# único que cambia es el término IMAP y el parser.
+_SERVICES = {
+    "netflix": ("netflix", parse_netflix_email),
+    "disney": ("disney", parse_disney_email),
+}
 
 _RECIPIENT_HEADERS = (
     "To",
@@ -115,19 +124,25 @@ def fetch_latest_for_email(
     account_email: str,
     kind: str | None = None,
     lookback_minutes: int | None = None,
-) -> NetflixResult | None:
-    """Busca el último correo de Netflix dirigido a ``account_email``.
+    service: str = "netflix",
+) -> NetflixResult | DisneyResult | None:
+    """Busca el último correo del ``service`` dirigido a ``account_email``.
 
-    Si se pasa ``kind`` (``signin_code`` / ``temp_code`` / ``household`` /
-    ``password_reset``), solo se considera el correo más reciente de ESE tipo;
-    los demás correos de Netflix se ignoran. Sin ``kind`` se devuelve el más
+    ``service`` elige el término de búsqueda y el parser (``netflix`` o
+    ``disney``). Si se pasa ``kind``, solo se considera el correo más reciente
+    de ESE tipo; los demás se ignoran. Sin ``kind`` se devuelve el más
     reciente de cualquier tipo reconocido.
 
-    Devuelve un :class:`~codes.netflix.NetflixResult` o ``None`` si no hay
-    nada reciente que coincida.
+    Devuelve el resultado parseado o ``None`` si no hay nada reciente que
+    coincida.
     """
     if not is_configured():
         raise RuntimeError("IMAP de la casilla de códigos no configurado")
+
+    try:
+        search_term, parser = _SERVICES[service]
+    except KeyError:
+        raise ValueError(f"Servicio de códigos desconocido: {service!r}")
 
     account_email = (account_email or "").strip().lower()
     if not account_email:
@@ -147,9 +162,9 @@ def fetch_latest_for_email(
         conn.login(settings.CODES_IMAP_USER, settings.CODES_IMAP_PASSWORD)
         conn.select("INBOX")
         # TEXT busca en todo el mensaje: agarra tanto los reenvíos automáticos
-        # (From: Netflix) como los reenviados a mano (From: la cuenta origen,
-        # con el correo de Netflix dentro del cuerpo).
-        typ, data = conn.search(None, "SINCE", since_imap, "TEXT", "netflix")
+        # (From: el servicio) como los reenviados a mano (From: la cuenta
+        # origen, con el correo del servicio dentro del cuerpo).
+        typ, data = conn.search(None, "SINCE", since_imap, "TEXT", search_term)
         if typ != "OK":
             return None
         ids = data[0].split()
@@ -158,7 +173,7 @@ def fetch_latest_for_email(
         # ventana de minutos.
         max_scan = getattr(settings, "CODES_IMAP_MAX_SCAN", 25)
         ids = list(reversed(ids))[:max_scan]
-        candidates: list[tuple[datetime, NetflixResult]] = []
+        candidates: list[tuple[datetime, NetflixResult | DisneyResult]] = []
         for msg_id in ids:
             # BODY.PEEK[] baja el correo SIN marcarlo como leído.
             typ, msg_data = conn.fetch(msg_id, "(BODY.PEEK[])")
@@ -177,9 +192,9 @@ def fetch_latest_for_email(
             if not matches:
                 continue
             subject = _decode(msg.get("Subject"))
-            result = parse_netflix_email(subject, html=html, text=text)
-            # Cuando se pide un tipo puntual (uno de los 4 comandos), solo
-            # entregamos ese tipo; cualquier otro correo de Netflix se ignora.
+            result = parser(subject, html=html, text=text)
+            # Cuando se pide un tipo puntual, solo entregamos ese tipo;
+            # cualquier otro correo del servicio se ignora.
             if kind is not None and result.kind != kind:
                 continue
             # Con tipo puntual, el primer match (ya vamos de más nuevo a más
