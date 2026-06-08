@@ -144,12 +144,16 @@ def register(request):
         user = User.objects.create_user(
             username=username, email=email, password=password,
         )
-        Tenant.objects.create(
+        tenant = Tenant.objects.create(
             user=user, business_name=business, whatsapp=whatsapp,
         )
+        tenant.start_trial()
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-        messages.success(request, "¡Cuenta creada! Activá tu suscripción para empezar.")
-        return redirect("jheliztv_billing")
+        messages.success(
+            request,
+            f"¡Cuenta creada! Tenés {Tenant.TRIAL_DAYS} días de prueba gratis. 🎉",
+        )
+        return redirect("jheliztv_dashboard")
 
     return render(request, "jheliztv/register.html", {})
 
@@ -168,6 +172,7 @@ def login_view(request):
         if tenant is None:
             # Un usuario de la tienda que no es inquilino: lo creamos al vuelo.
             tenant = Tenant.objects.create(user=user)
+            tenant.start_trial()
         login(request, user)
         return redirect("jheliztv_dashboard")
     return render(request, "jheliztv/login.html", {})
