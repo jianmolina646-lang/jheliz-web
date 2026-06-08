@@ -1,0 +1,218 @@
+{% extends "gestion/base.html" %}
+
+{% block jc_content %}
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+    <h2 class="jc-section-title">
+      {% if service.icon %}<span class="material-symbols-outlined">{{ service.icon }}</span>
+      {% else %}<span class="material-symbols-outlined">subscriptions</span>{% endif %}
+      {{ service.name }}
+    </h2>
+    <div style="display:flex;gap:8px;">
+      <a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'gestion_services' %}">
+        <span class="material-symbols-outlined">arrow_back</span> Servicios
+      </a>
+      <button type="button" class="jc-btn" data-jc-open="modalSub">
+        <span class="material-symbols-outlined">person_add</span> Nueva suscripción
+      </button>
+    </div>
+  </div>
+
+  <div class="jc-panel">
+    {% if subs %}
+    <div class="jc-table-wrap">
+      <table class="jc-table">
+        <thead>
+          <tr>
+            <th>Cliente / cuenta</th>
+            <th>Contraseña</th>
+            <th>Plan / perfiles</th>
+            <th>Tiempo restante</th>
+            <th>Utilidad</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in subs %}
+          <tr>
+            <td>
+              <strong>{{ s.client.name }}</strong><br>
+              <small style="color:#6b7280">{{ s.account_email }}</small>
+            </td>
+            <td>
+              {% if s.account_password %}
+                <span class="jc-pass">
+                  <code data-value="{{ s.account_password }}" data-shown="0">••••••••</code>
+                  <button type="button" class="jc-eye" title="Ver/ocultar"><span class="material-symbols-outlined">visibility</span></button>
+                </span>
+              {% else %}<small style="color:#9ca3af">—</small>{% endif %}
+            </td>
+            <td>
+              {{ s.get_plan_display }}
+              {% if s.plan == 'perfil' %}<br><small style="color:#6b7280">{{ s.profiles }} perfil(es){% if s.profile_name %} · {{ s.profile_name }}{% endif %}</small>{% endif %}
+            </td>
+            <td>
+              <span class="jc-chip jc-chip--{{ s.status_color }}" data-expires="{{ s.expires_ts }}">
+                <span class="jc-left-label">{{ s.time_left_label }}</span>
+              </span>
+            </td>
+            <td>
+              <span class="jc-profit {% if s.profit < 0 %}is-neg{% endif %}">
+                {% if s.profit >= 0 %}+{% else %}−{% endif %}${{ s.profit|stringformat:".2f"|cut:"-" }}
+              </span>
+            </td>
+            <td>
+              <div class="jc-acts">
+                {% if s.wa_link %}<a class="jc-iact jc-iact--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><span class="material-symbols-outlined">chat</span></a>{% endif %}
+                {% if s.tg_link %}<a class="jc-iact jc-iact--tg" href="{{ s.tg_link }}" target="_blank" title="Telegram"><span class="material-symbols-outlined">send</span></a>{% endif %}
+                <button type="button" class="jc-iact jc-iact--renew" title="Renovar"
+                        data-jc-open="modalRenew" data-action="{% url 'gestion_subscription_renew' s.pk %}"><span class="material-symbols-outlined">autorenew</span></button>
+                <button type="button" class="jc-iact jc-iact--edit" title="Editar"
+                        data-jc-open="modalEdit"
+                        data-action="{% url 'gestion_subscription_edit' s.pk %}"
+                        data-fill-account_email="{{ s.account_email }}"
+                        data-fill-account_password="{{ s.account_password }}"
+                        data-fill-plan="{{ s.plan }}"
+                        data-fill-profiles="{{ s.profiles }}"
+                        data-fill-profile_name="{{ s.profile_name }}"
+                        data-fill-profile_pin="{{ s.profile_pin }}"
+                        data-fill-cost="{{ s.cost }}"
+                        data-fill-investment="{{ s.investment }}"
+                        data-fill-client="{{ s.client_id }}"
+                        data-fill-service="{{ s.service_id }}"><span class="material-symbols-outlined">edit</span></button>
+                <button type="button" class="jc-iact jc-iact--del" title="Eliminar"
+                        onclick="if(confirm('¿Eliminar la suscripción de {{ s.client.name|escapejs }}?')){document.getElementById('delsub{{ s.pk }}').submit();}"><span class="material-symbols-outlined">delete</span></button>
+                <form id="delsub{{ s.pk }}" method="post" action="{% url 'gestion_subscription_delete' s.pk %}" style="display:none">{% csrf_token %}</form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="jc-empty">
+        <span class="material-symbols-outlined">person_off</span>
+        Este servicio no tiene suscripciones. Cargá la primera con "Nueva suscripción".
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── Modal: nueva suscripción ─────────────────────────────────── #}
+  <div class="jc-modal" id="modalSub" aria-hidden="true">
+    <div class="jc-modal__backdrop" data-jc-close></div>
+    <div class="jc-modal__box" role="dialog" aria-modal="true">
+      <form method="post" action="{% url 'gestion_subscription_add' %}">
+        {% csrf_token %}
+        <input type="hidden" name="service" value="{{ service.pk }}">
+        <div class="jc-modal__head">
+          <h3><span class="material-symbols-outlined">person_add</span> Nueva suscripción · {{ service.name }}</h3>
+          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="jc-modal__body">
+          <div class="jc-field">
+            <label>Cliente</label>
+            <select name="client" required>
+              <option value="">— Elegí un cliente —</option>
+              {% for c in clients %}<option value="{{ c.pk }}">{{ c.name }}{% if c.telegram %} ({{ c.telegram }}){% endif %}</option>{% endfor %}
+            </select>
+            <div class="jc-help">¿No está? Agregalo en "Mis clientes".</div>
+          </div>
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Correo / usuario de la cuenta</label><input type="text" name="account_email" required></div>
+            <div class="jc-field"><label>Contraseña</label><input type="text" name="account_password"></div>
+          </div>
+          <div class="jc-grid2">
+            <div class="jc-field">
+              <label>Plan</label>
+              <select name="plan"><option value="perfil">Perfil individual</option><option value="completa">Cuenta completa</option></select>
+            </div>
+            <div class="jc-field"><label>Perfiles (1–7)</label><input type="number" name="profiles" min="1" max="7" value="1"></div>
+          </div>
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Nombre de perfil</label><input type="text" name="profile_name"></div>
+            <div class="jc-field"><label>PIN</label><input type="text" name="profile_pin"></div>
+          </div>
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Costo (venta al cliente)</label><input type="number" step="0.01" name="cost" value="0.00"></div>
+            <div class="jc-field"><label>Inversión (lo que te costó)</label><input type="number" step="0.01" name="investment" value="0.00"></div>
+          </div>
+          <div class="jc-profit-live" data-profit-out>Utilidad: +$0.00</div>
+          <div class="jc-grid2" style="margin-top:14px;">
+            <div class="jc-field"><label>Inicio</label><input type="datetime-local" name="starts_at"></div>
+            <div class="jc-field"><label>Duración (días)</label><input type="number" name="duration_days" value="30" min="1"></div>
+          </div>
+          <div class="jc-help">Si no ponés "Vence" exacto, se calcula desde el inicio + los días.</div>
+        </div>
+        <div class="jc-modal__foot">
+          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Crear suscripción</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modal: renovar ───────────────────────────────────────────── #}
+  <div class="jc-modal" id="modalRenew" aria-hidden="true">
+    <div class="jc-modal__backdrop" data-jc-close></div>
+    <div class="jc-modal__box" role="dialog" aria-modal="true" style="width:min(420px,100%)">
+      <form method="post" action="">
+        {% csrf_token %}
+        <div class="jc-modal__head">
+          <h3><span class="material-symbols-outlined">autorenew</span> Renovar suscripción</h3>
+          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="jc-modal__body">
+          <div class="jc-field">
+            <label>Días a agregar (acumulativo)</label>
+            <input type="number" name="days" value="30" min="1">
+            <div class="jc-help">Se suman al tiempo restante actual.</div>
+          </div>
+        </div>
+        <div class="jc-modal__foot">
+          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">add</span> Renovar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modal: editar suscripción ────────────────────────────────── #}
+  <div class="jc-modal" id="modalEdit" aria-hidden="true">
+    <div class="jc-modal__backdrop" data-jc-close></div>
+    <div class="jc-modal__box" role="dialog" aria-modal="true">
+      <form method="post" action="">
+        {% csrf_token %}
+        <input type="hidden" name="client" value="">
+        <input type="hidden" name="service" value="{{ service.pk }}">
+        <input type="hidden" name="duration_days" value="30">
+        <div class="jc-modal__head">
+          <h3><span class="material-symbols-outlined">edit</span> Editar suscripción</h3>
+          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="jc-modal__body">
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Correo / usuario</label><input type="text" name="account_email" required></div>
+            <div class="jc-field"><label>Contraseña</label><input type="text" name="account_password"></div>
+          </div>
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Plan</label><select name="plan"><option value="perfil">Perfil individual</option><option value="completa">Cuenta completa</option></select></div>
+            <div class="jc-field"><label>Perfiles (1–7)</label><input type="number" name="profiles" min="1" max="7"></div>
+          </div>
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Nombre de perfil</label><input type="text" name="profile_name"></div>
+            <div class="jc-field"><label>PIN</label><input type="text" name="profile_pin"></div>
+          </div>
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Costo</label><input type="number" step="0.01" name="cost"></div>
+            <div class="jc-field"><label>Inversión</label><input type="number" step="0.01" name="investment"></div>
+          </div>
+          <div class="jc-profit-live" data-profit-out>Utilidad: +$0.00</div>
+        </div>
+        <div class="jc-modal__foot">
+          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

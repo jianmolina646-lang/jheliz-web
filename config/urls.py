@@ -269,6 +269,8 @@ urlpatterns = [
         service_worker_admin,
         name="pwa-admin-service-worker",
     ),
+    # Jheliz Control (módulo nuevo de gestión). Debe ir ANTES de admin.site.urls.
+    path("panel-jheliz-2026/jheliz-control/", include("gestion.urls")),
     path("panel-jheliz-2026/", admin.site.urls),
     # SEO / PWA endpoints (root-level)
     path("robots.txt", robots_txt, name="robots_txt"),

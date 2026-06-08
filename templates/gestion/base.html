@@ -1,0 +1,82 @@
+{% extends "admin/base.html" %}
+{% load static i18n %}
+
+{% block title %}{{ title }} · Jheliz Control{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/jheliz-control.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="jc" data-notif-url="{% url 'gestion_notifications' %}">
+
+  {# ── Encabezado del módulo ─────────────────────────────────────── #}
+  <header class="jc-topbar">
+    <a class="jc-brand" href="{% url 'gestion_dashboard' %}">
+      <span class="jc-logo" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="36" height="36">
+          <circle cx="32" cy="32" r="32" fill="#10b981"/>
+          <path fill="#ffffff" d="M20 22l6 7c2-1 4-1.5 6-1.5s4 .5 6 1.5l6-7v16c0
+            7-5.4 12-12 12s-12-5-12-12V22z"/>
+          <circle cx="27" cy="36" r="2.2" fill="#065f46"/>
+          <circle cx="37" cy="36" r="2.2" fill="#065f46"/>
+          <path d="M30 41c1.2 1 2.8 1 4 0" stroke="#065f46" stroke-width="1.6"
+            fill="none" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="jc-brand__txt">
+        <strong>Jheliz Control</strong>
+        <small>Gestión de suscripciones</small>
+      </span>
+    </a>
+
+    <form class="jc-search" action="{% url 'gestion_search' %}" method="get" role="search">
+      <span class="material-symbols-outlined">search</span>
+      <input type="search" name="q" value="{{ q|default:'' }}"
+             placeholder="Buscar cliente, @usuario o correo…" autocomplete="off">
+    </form>
+
+    <div class="jc-topbar__actions">
+      <button type="button" class="jc-bell" id="jcBell" aria-label="Notificaciones">
+        <span class="material-symbols-outlined">notifications</span>
+        <span class="jc-bell__count" id="jcBellCount" hidden>0</span>
+      </button>
+      <div class="jc-bell__panel" id="jcBellPanel" hidden></div>
+    </div>
+  </header>
+
+  {# ── Navegación entre secciones ────────────────────────────────── #}
+  <nav class="jc-tabs">
+    <a href="{% url 'gestion_dashboard' %}" class="jc-tab {% if jc_active == 'dashboard' %}is-active{% endif %}">
+      <span class="material-symbols-outlined">home</span> Inicio
+    </a>
+    <a href="{% url 'gestion_services' %}" class="jc-tab {% if jc_active == 'services' %}is-active{% endif %}">
+      <span class="material-symbols-outlined">grid_view</span> Servicios
+    </a>
+    <a href="{% url 'gestion_clients' %}" class="jc-tab {% if jc_active == 'clients' %}is-active{% endif %}">
+      <span class="material-symbols-outlined">groups</span> Mis clientes
+    </a>
+  </nav>
+
+  {# ── Mensajes ───────────────────────────────────────────────────── #}
+  {% if messages %}
+    <div class="jc-msgs">
+      {% for m in messages %}
+        <div class="jc-msg jc-msg--{{ m.tags }}">{{ m }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# ── Contenido de cada página ───────────────────────────────────── #}
+  <main class="jc-main jc-fade">
+    {% block jc_content %}{% endblock %}
+  </main>
+</div>
+
+<script src="{% static 'js/jheliz-control.js' %}"></script>
+{% block jc_scripts %}{% endblock %}
+{% endblock %}
