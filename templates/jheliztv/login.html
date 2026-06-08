@@ -1,0 +1,29 @@
+{% extends "jheliztv/public_base.html" %}
+
+{% block pb_nav_actions %}
+  <a class="pb-btn pb-btn--primary" href="{% url 'jheliztv_register' %}">Crear cuenta</a>
+{% endblock %}
+
+{% block pb_content %}
+<div class="pb-wrap" style="max-width:460px;margin:30px auto 60px;">
+  <div class="pb-card" style="padding:28px;">
+    <h2 style="margin:0 0 4px;font-size:22px;">Ingresar</h2>
+    <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">Entrá a tu panel de Jheliz Control.</p>
+    <form method="post" action="{% url 'jheliztv_login' %}">
+      {% csrf_token %}
+      <div class="pb-field">
+        <label>Usuario</label>
+        <input type="text" name="username" value="{{ username|default:'' }}" required autofocus autocomplete="username">
+      </div>
+      <div class="pb-field">
+        <label>Contraseña</label>
+        <input type="password" name="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="pb-btn pb-btn--primary" style="width:100%;justify-content:center;margin-top:4px;">
+        <span class="material-symbols-outlined">login</span> Ingresar
+      </button>
+    </form>
+    <p class="pb-foot">¿No tenés cuenta? <a href="{% url 'jheliztv_register' %}">Creala gratis</a></p>
+  </div>
+</div>
+{% endblock %}

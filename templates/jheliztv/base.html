@@ -1,0 +1,98 @@
+{% load static i18n %}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title|default:"Jheliz Control" }} · Jheliz Control</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
+  <link rel="stylesheet" href="{% static 'css/jheliz-control.css' %}">
+  <style>
+    body{margin:0;background:#f3f4f6;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+    .jc{max-width:1180px;margin:0 auto;padding:0 14px 48px;}
+  </style>
+</head>
+<body>
+<div class="jc" data-notif-url="{% url 'jheliztv_notifications' %}">
+
+  <header class="jc-topbar">
+    <a class="jc-brand" href="{% url 'jheliztv_dashboard' %}">
+      <span class="jc-logo" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="36" height="36">
+          <circle cx="32" cy="32" r="32" fill="#10b981"/>
+          <path fill="#ffffff" d="M20 22l6 7c2-1 4-1.5 6-1.5s4 .5 6 1.5l6-7v16c0
+            7-5.4 12-12 12s-12-5-12-12V22z"/>
+          <circle cx="27" cy="36" r="2.2" fill="#065f46"/>
+          <circle cx="37" cy="36" r="2.2" fill="#065f46"/>
+          <path d="M30 41c1.2 1 2.8 1 4 0" stroke="#065f46" stroke-width="1.6"
+            fill="none" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="jc-brand__txt">
+        <strong>Jheliz Control</strong>
+        <small>{{ jc_tenant.business_name|default:"Gestión de suscripciones" }}</small>
+      </span>
+    </a>
+
+    <form class="jc-search" action="{% url 'jheliztv_search' %}" method="get" role="search">
+      <span class="material-symbols-outlined">search</span>
+      <input type="search" name="q" value="{{ q|default:'' }}"
+             placeholder="Buscar cliente, @usuario o correo…" autocomplete="off">
+    </form>
+
+    <div class="jc-topbar__actions">
+      <button type="button" class="jc-bell" id="jcBell" aria-label="Notificaciones">
+        <span class="material-symbols-outlined">notifications</span>
+        <span class="jc-bell__count" id="jcBellCount" hidden>0</span>
+      </button>
+      <div class="jc-bell__panel" id="jcBellPanel" hidden></div>
+      <a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'jheliztv_logout' %}">
+        <span class="material-symbols-outlined">logout</span> Salir
+      </a>
+    </div>
+  </header>
+
+  <nav class="jc-tabs">
+    <a href="{% url 'jheliztv_dashboard' %}" class="jc-tab {% if jc_active == 'dashboard' %}is-active{% endif %}">
+      <span class="material-symbols-outlined">home</span> Inicio
+    </a>
+    <a href="{% url 'jheliztv_services' %}" class="jc-tab {% if jc_active == 'services' %}is-active{% endif %}">
+      <span class="material-symbols-outlined">grid_view</span> Servicios
+    </a>
+    <a href="{% url 'jheliztv_clients' %}" class="jc-tab {% if jc_active == 'clients' %}is-active{% endif %}">
+      <span class="material-symbols-outlined">groups</span> Mis clientes
+    </a>
+    <a href="{% url 'jheliztv_billing' %}" class="jc-tab {% if jc_active == 'billing' %}is-active{% endif %}">
+      <span class="material-symbols-outlined">qr_code_2</span> Mi suscripción
+    </a>
+  </nav>
+
+  {% if jc_tenant and jc_tenant.subscription_active and jc_days_left is not None and jc_days_left <= 5 %}
+    <div class="jc-msgs">
+      <div class="jc-msg jc-msg--warning">
+        Tu alquiler vence en {{ jc_days_left }} día{{ jc_days_left|pluralize }}.
+        <a href="{% url 'jheliztv_billing' %}" style="color:#065f46;font-weight:700;">Renovar ahora</a>.
+      </div>
+    </div>
+  {% endif %}
+
+  {% if messages %}
+    <div class="jc-msgs">
+      {% for m in messages %}
+        <div class="jc-msg jc-msg--{{ m.tags }}">{{ m }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <main class="jc-main jc-fade">
+    {% block jc_content %}{% endblock %}
+  </main>
+</div>
+
+<script src="{% static 'js/jheliz-control.js' %}"></script>
+{% block jc_scripts %}{% endblock %}
+</body>
+</html>

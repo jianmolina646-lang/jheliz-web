@@ -1,0 +1,91 @@
+{% extends "jheliztv/public_base.html" %}
+
+{% block pb_content %}
+<style>
+  .lp-hero{max-width:1100px;margin:0 auto;padding:34px 18px 10px;display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center;}
+  .lp-badge{display:inline-flex;align-items:center;gap:6px;background:#d1fae5;color:#065f46;font-weight:700;
+    font-size:12.5px;border-radius:999px;padding:6px 12px;margin-bottom:14px;}
+  .lp-hero h1{font-size:40px;line-height:1.07;margin:0 0 14px;letter-spacing:-1px;font-weight:800;}
+  .lp-hero h1 span{color:#059669;}
+  .lp-hero p{font-size:16.5px;line-height:1.55;color:#4b5563;margin:0 0 22px;max-width:540px;}
+  .lp-cta{display:flex;gap:12px;flex-wrap:wrap;}
+  .lp-mock{background:linear-gradient(160deg,#065f46,#10b981);border-radius:24px;padding:22px;color:#fff;
+    box-shadow:0 30px 70px -30px rgba(6,95,70,.7);}
+  .lp-mock h3{margin:0 0 14px;font-size:15px;opacity:.95;display:flex;align-items:center;gap:8px;}
+  .lp-mockrow{background:rgba(255,255,255,.13);border-radius:14px;padding:12px 14px;margin-bottom:10px;
+    display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(3px);}
+  .lp-mockrow b{font-size:14px;} .lp-mockrow small{opacity:.85;font-size:12px;display:block;}
+  .lp-pill{font-size:11.5px;font-weight:700;border-radius:999px;padding:4px 9px;}
+  .lp-pill.g{background:#bbf7d0;color:#065f46;} .lp-pill.y{background:#fde68a;color:#92400e;} .lp-pill.r{background:#fecaca;color:#991b1b;}
+  .lp-feats{max-width:1100px;margin:30px auto;padding:0 18px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .lp-feat{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px;box-shadow:0 16px 40px -30px rgba(6,78,59,.4);}
+  .lp-feat .material-symbols-outlined{font-size:30px;color:#10b981;background:#d1fae5;border-radius:12px;padding:8px;}
+  .lp-feat h4{margin:12px 0 6px;font-size:15.5px;}
+  .lp-feat p{margin:0;color:#6b7280;font-size:13.5px;line-height:1.5;}
+  .lp-price{max-width:520px;margin:10px auto 50px;padding:0 18px;}
+  .lp-pricecard{background:#fff;border:2px solid #10b981;border-radius:22px;padding:28px;text-align:center;
+    box-shadow:0 26px 60px -34px rgba(6,95,70,.55);}
+  .lp-pricecard .amt{font-size:44px;font-weight:800;color:#065f46;letter-spacing:-1px;}
+  .lp-pricecard .amt small{font-size:16px;color:#6b7280;font-weight:600;}
+  .lp-pricecard ul{list-style:none;padding:0;margin:18px 0;text-align:left;display:inline-block;}
+  .lp-pricecard li{margin:9px 0;color:#374151;font-size:14px;display:flex;align-items:center;gap:8px;}
+  .lp-pricecard li .material-symbols-outlined{color:#10b981;font-size:20px;}
+  @media(max-width:840px){.lp-hero{grid-template-columns:1fr;}.lp-hero h1{font-size:32px;}.lp-feats{grid-template-columns:1fr;}}
+</style>
+
+<section class="lp-hero">
+  <div>
+    <span class="lp-badge"><span class="material-symbols-outlined" style="font-size:16px">verified</span> Sistema de gestión de suscripciones</span>
+    <h1>Un negocio sin control <span>no es un buen negocio.</span></h1>
+    <p>
+      <strong>Jheliz Control</strong> organiza tus ventas, clientes, vencimientos y ganancias
+      en un solo lugar para que no pierdas renovaciones ni ingresos.
+    </p>
+    <div class="lp-cta">
+      <a class="pb-btn pb-btn--primary" href="{% url 'jheliztv_register' %}">
+        <span class="material-symbols-outlined">rocket_launch</span> Crear mi cuenta
+      </a>
+      <a class="pb-btn pb-btn--ghost" href="{% url 'jheliztv_login' %}">Ya tengo cuenta</a>
+    </div>
+  </div>
+
+  <div class="lp-mock" aria-hidden="true">
+    <h3><span class="material-symbols-outlined">subscriptions</span> Tus suscripciones</h3>
+    <div class="lp-mockrow"><div><b>Netflix · Ana</b><small>ana@correo.com</small></div><span class="lp-pill g">Vence en 22 d</span></div>
+    <div class="lp-mockrow"><div><b>Disney+ · Luis</b><small>luis@correo.com</small></div><span class="lp-pill y">Vence en 2 d</span></div>
+    <div class="lp-mockrow"><div><b>Spotify · Marta</b><small>marta@correo.com</small></div><span class="lp-pill r">Venció hace 1 d</span></div>
+  </div>
+</section>
+
+<section class="lp-feats">
+  <div class="lp-feat"><span class="material-symbols-outlined">dashboard_customize</span>
+    <h4>Tablero editable</h4><p>Añadí vos mismo las plataformas que vendés, con tu imagen e ícono.</p></div>
+  <div class="lp-feat"><span class="material-symbols-outlined">notifications_active</span>
+    <h4>Avisos de vencimiento</h4><p>Notificaciones desde el día anterior para no perder ninguna renovación.</p></div>
+  <div class="lp-feat"><span class="material-symbols-outlined">forum</span>
+    <h4>Mensajes WhatsApp / Telegram</h4><p>Plantillas predeterminadas y totalmente editables para avisar a tus clientes.</p></div>
+  <div class="lp-feat"><span class="material-symbols-outlined">picture_as_pdf</span>
+    <h4>Clientes y reportes</h4><p>Registro de clientes, correos y contactos con opción de descarga en PDF.</p></div>
+  <div class="lp-feat"><span class="material-symbols-outlined">bolt</span>
+    <h4>Relleno automático</h4><p>Registrás a tus clientes una sola vez y los reusás en cada venta.</p></div>
+  <div class="lp-feat"><span class="material-symbols-outlined">touch_app</span>
+    <h4>Rápido, en un clic</h4><p>Diseño optimizado para operar con rapidez desde el celular o la PC.</p></div>
+</section>
+
+<section class="lp-price">
+  <div class="lp-pricecard">
+    <div class="amt">S/ {{ saas.monthly_price|default:"30.00" }} <small>/ mes</small></div>
+    <ul>
+      <li><span class="material-symbols-outlined">check_circle</span> Acceso completo a Jheliz Control</li>
+      <li><span class="material-symbols-outlined">check_circle</span> Clientes y suscripciones ilimitadas</li>
+      <li><span class="material-symbols-outlined">check_circle</span> Avisos de vencimiento y reportes PDF</li>
+      <li><span class="material-symbols-outlined">check_circle</span> Pago fácil por Yape</li>
+    </ul>
+    <div>
+      <a class="pb-btn pb-btn--primary" href="{% url 'jheliztv_register' %}" style="width:100%;justify-content:center;">
+        <span class="material-symbols-outlined">rocket_launch</span> Empezar ahora
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}
