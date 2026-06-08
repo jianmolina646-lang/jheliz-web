@@ -4,7 +4,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -156,6 +156,10 @@ class ViewTests(TestCase):
         self.assertIn(r.status_code, (301, 302))
 
 
+@override_settings(
+    ALLOWED_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz", "ecormecejhelizstore.com", "testserver"],
+    JHELIZTV_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz"],
+)
 class TenantSaasTests(TestCase):
     """Producto SaaS jheliztv.xyz: ruteo por dominio, login propio,
     aislamiento de datos por inquilino y cobro Yape con aprobación manual."""
