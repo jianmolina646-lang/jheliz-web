@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -42,6 +43,14 @@ class ServiceCategory(models.Model):
 class Service(models.Model):
     """Un servicio que el revendedor ofrece (Netflix, Disney+, Spotify, Canva…)."""
 
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="jc_services",
+        verbose_name="Dueño (inquilino)",
+        null=True,
+        blank=True,
+    )
     name = models.CharField("Nombre", max_length=80)
     category = models.ForeignKey(
         ServiceCategory,
@@ -83,6 +92,14 @@ class Service(models.Model):
 class Client(models.Model):
     """Un cliente del revendedor (a quién le vende las suscripciones)."""
 
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="jc_clients",
+        verbose_name="Dueño (inquilino)",
+        null=True,
+        blank=True,
+    )
     name = models.CharField("Nombre", max_length=120)
     telegram = models.CharField(
         "Telegram (@usuario)", max_length=80, blank=True,
@@ -134,6 +151,14 @@ class Subscription(models.Model):
         COMPLETA = "completa", "Cuenta completa"
         PERFIL = "perfil", "Perfil individual"
 
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="jc_subscriptions",
+        verbose_name="Dueño (inquilino)",
+        null=True,
+        blank=True,
+    )
     client = models.ForeignKey(
         Client, on_delete=models.CASCADE, related_name="subscriptions",
         verbose_name="Cliente",
@@ -246,6 +271,14 @@ class Transaction(models.Model):
         INCOME = "income", "Ingreso"
         EXPENSE = "expense", "Egreso"
 
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="jc_transactions",
+        verbose_name="Dueño (inquilino)",
+        null=True,
+        blank=True,
+    )
     kind = models.CharField("Tipo", max_length=10, choices=Kind.choices)
     amount = models.DecimalField("Monto", max_digits=10, decimal_places=2)
     currency = models.CharField("Moneda", max_length=8, default="USD")
@@ -271,8 +304,16 @@ class Transaction(models.Model):
 
 
 class ControlSettings(models.Model):
-    """Ajustes singleton de Jheliz Control (créditos del revendedor, divisa)."""
+    """Ajustes por inquilino de Jheliz Control (créditos del revendedor, divisa)."""
 
+    owner = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="jc_settings",
+        verbose_name="Dueño (inquilino)",
+        null=True,
+        blank=True,
+    )
     credits = models.DecimalField(
         "Mis créditos", max_digits=12, decimal_places=2, default=Decimal("0.00")
     )
@@ -283,9 +324,152 @@ class ControlSettings(models.Model):
         verbose_name_plural = "Ajustes de Jheliz Control"
 
     def __str__(self) -> str:
-        return "Ajustes de Jheliz Control"
+        return f"Ajustes de {self.owner_id or 'Jheliz Control'}"
 
     @classmethod
-    def load(cls) -> "ControlSettings":
+    def load(cls, owner=None) -> "ControlSettings":
+        """Devuelve (o crea) los ajustes del inquilino dado.
+
+        Sin ``owner`` mantiene el comportamiento antiguo (singleton pk=1) para
+        no romper usos legados.
+        """
+        if owner is not None:
+            obj, _ = cls.objects.get_or_create(owner=owner)
+            return obj
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class Tenant(models.Model):
+    """Inquilino que **alquila** Jheliz Control (un negocio = un usuario/login).
+
+    El acceso al panel depende de ``plan_expires_at``: mientras esté vigente, el
+    inquilino opera normal; si vence, entra pero ve "suscripción vencida" hasta
+    que pague de nuevo (cobro por Yape con aprobación manual del proveedor).
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="jc_tenant",
+        verbose_name="Usuario",
+    )
+    business_name = models.CharField("Nombre del negocio", max_length=120, blank=True)
+    whatsapp = models.CharField("WhatsApp", max_length=40, blank=True)
+    plan_expires_at = models.DateTimeField(
+        "Alquiler vence", null=True, blank=True,
+        help_text="Hasta cuándo tiene acceso pagado. Vacío = nunca pagó.",
+    )
+    is_blocked = models.BooleanField(
+        "Bloqueado", default=False,
+        help_text="Si está activo, el inquilino no puede entrar aunque haya pagado.",
+    )
+    created_at = models.DateTimeField("Creado", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Inquilino"
+        verbose_name_plural = "Inquilinos"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return self.business_name or self.user.get_username()
+
+    @property
+    def subscription_active(self) -> bool:
+        if self.is_blocked:
+            return False
+        return bool(self.plan_expires_at and self.plan_expires_at > timezone.now())
+
+    @property
+    def days_left(self) -> int:
+        if not self.plan_expires_at:
+            return 0
+        secs = (self.plan_expires_at - timezone.now()).total_seconds()
+        return max(0, int(secs // 86400))
+
+    def extend(self, days: int = 30) -> None:
+        """Suma días de alquiler (acumulativo si aún está vigente)."""
+        base = (
+            self.plan_expires_at
+            if self.plan_expires_at and self.plan_expires_at > timezone.now()
+            else timezone.now()
+        )
+        self.plan_expires_at = base + timedelta(days=int(days))
+        self.save(update_fields=["plan_expires_at"])
+
+
+class TenantPayment(models.Model):
+    """Pago de alquiler por **Yape** de un inquilino, con aprobación manual."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pendiente"
+        APPROVED = "approved", "Aprobado"
+        REJECTED = "rejected", "Rechazado"
+
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="payments",
+        verbose_name="Inquilino",
+    )
+    amount = models.DecimalField("Monto", max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    days = models.PositiveIntegerField("Días que otorga", default=30)
+    proof = models.ImageField(
+        "Comprobante Yape", upload_to="jheliz_control/pagos/", blank=True,
+        help_text="Captura del pago por Yape subida por el inquilino.",
+    )
+    status = models.CharField(
+        "Estado", max_length=10, choices=Status.choices, default=Status.PENDING,
+    )
+    rejection_reason = models.CharField("Motivo de rechazo", max_length=200, blank=True)
+    created_at = models.DateTimeField("Subido", auto_now_add=True)
+    reviewed_at = models.DateTimeField("Revisado", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Pago de alquiler"
+        verbose_name_plural = "Pagos de alquiler (Yape)"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Pago {self.tenant} S/ {self.amount} ({self.get_status_display()})"
+
+    @property
+    def is_pending(self) -> bool:
+        return self.status == self.Status.PENDING
+
+    def approve(self) -> None:
+        self.status = self.Status.APPROVED
+        self.reviewed_at = timezone.now()
+        self.save(update_fields=["status", "reviewed_at"])
+        self.tenant.extend(self.days or 30)
+
+    def reject(self, reason: str = "") -> None:
+        self.status = self.Status.REJECTED
+        self.rejection_reason = reason or ""
+        self.reviewed_at = timezone.now()
+        self.save(update_fields=["status", "rejection_reason", "reviewed_at"])
+
+
+class SaasSettings(models.Model):
+    """Ajustes del **proveedor** (vos): precio del alquiler y Yape de cobro."""
+
+    monthly_price = models.DecimalField(
+        "Precio mensual (S/)", max_digits=10, decimal_places=2, default=Decimal("30.00")
+    )
+    yape_holder = models.CharField("Titular Yape", max_length=120, blank=True)
+    yape_phone = models.CharField("Número Yape", max_length=30, blank=True)
+    yape_qr = models.ImageField(
+        "QR de Yape", upload_to="jheliz_control/yape/", blank=True,
+        help_text="QR de tu Yape para cobrar el alquiler.",
+    )
+    instructions = models.TextField("Instrucciones extra", blank=True)
+
+    class Meta:
+        verbose_name = "Ajustes del SaaS (Jheliz Control)"
+        verbose_name_plural = "Ajustes del SaaS (Jheliz Control)"
+
+    def __str__(self) -> str:
+        return "Ajustes del SaaS"
+
+    @classmethod
+    def load(cls) -> "SaasSettings":
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj

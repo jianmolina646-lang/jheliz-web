@@ -1,0 +1,56 @@
+{% extends "jheliztv/base.html" %}
+
+{% block jc_content %}
+  <h2 class="jc-section-title"><span class="material-symbols-outlined">search</span> Buscar{% if q %}: "{{ q }}"{% endif %}</h2>
+
+  {% if not q %}
+    <div class="jc-panel jc-empty"><span class="material-symbols-outlined">search</span>Escribí un nombre, @usuario o correo en la barra de arriba.</div>
+  {% else %}
+    <div class="jc-panel" style="margin-bottom:16px;">
+      <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">groups</span> Clientes ({{ clients_found|length }})</h3>
+      {% if clients_found %}
+        <div class="jc-clients">
+          {% for c in clients_found %}
+            <article class="jc-client">
+              <div class="jc-client__top">
+                <div class="jc-avatar">{{ c.name|first|upper }}</div>
+                <div>
+                  <div class="jc-client__name">{{ c.name }}</div>
+                  {% if c.telegram %}<div class="jc-client__contact"><span class="material-symbols-outlined" style="font-size:15px">send</span>{{ c.telegram }}</div>{% endif %}
+                </div>
+              </div>
+              <a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'jheliztv_clients' %}?q={{ c.name|urlencode }}"><span class="material-symbols-outlined">open_in_new</span> Ver en clientes</a>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}<p style="color:#9ca3af;margin:0;">Sin clientes para "{{ q }}".</p>{% endif %}
+    </div>
+
+    <div class="jc-panel">
+      <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">subscriptions</span> Suscripciones ({{ subs_found|length }})</h3>
+      {% if subs_found %}
+        <div class="jc-table-wrap">
+          <table class="jc-table">
+            <thead><tr><th>Servicio</th><th>Cliente / cuenta</th><th>Tiempo restante</th><th>Acciones</th></tr></thead>
+            <tbody>
+              {% for s in subs_found %}
+              <tr>
+                <td><a href="{% url 'jheliztv_service_detail' s.service_id %}" style="color:#059669;font-weight:600;text-decoration:none">{{ s.service.name }}</a></td>
+                <td><strong>{{ s.client.name }}</strong><br><small style="color:#6b7280">{{ s.account_email }}</small></td>
+                <td><span class="jc-chip jc-chip--{{ s.status_color }}" data-expires="{{ s.expires_ts }}"><span class="jc-left-label">{{ s.time_left_label }}</span></span></td>
+                <td>
+                  <div class="jc-acts">
+                    {% if s.wa_link %}<a class="jc-iact jc-iact--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><span class="material-symbols-outlined">chat</span></a>{% endif %}
+                    {% if s.tg_link %}<a class="jc-iact jc-iact--tg" href="{{ s.tg_link }}" target="_blank" title="Telegram"><span class="material-symbols-outlined">send</span></a>{% endif %}
+                    <a class="jc-iact jc-iact--edit" href="{% url 'jheliztv_service_detail' s.service_id %}" title="Abrir"><span class="material-symbols-outlined">open_in_new</span></a>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}<p style="color:#9ca3af;margin:0;">Sin suscripciones para "{{ q }}".</p>{% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

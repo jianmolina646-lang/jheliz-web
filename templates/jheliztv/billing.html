@@ -1,0 +1,110 @@
+{% extends "jheliztv/base.html" %}
+
+{% block jc_content %}
+  <h2 class="jc-section-title"><span class="material-symbols-outlined">qr_code_2</span> Mi suscripción</h2>
+
+  {# ── Estado actual ──────────────────────────────────────────────── #}
+  <div class="jc-panel" style="margin-bottom:16px;">
+    {% if jc_tenant.subscription_active %}
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="material-symbols-outlined" style="font-size:34px;color:#10b981;background:#d1fae5;border-radius:12px;padding:6px;">verified</span>
+        <div>
+          <div style="font-weight:700;font-size:16px;color:#065f46;">Suscripción activa</div>
+          <div style="color:#6b7280;font-size:13.5px;">
+            Vence el {{ jc_tenant.plan_expires_at|date:"d/m/Y" }}
+            {% if jc_days_left is not None %}· quedan {{ jc_days_left }} día{{ jc_days_left|pluralize }}{% endif %}
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="material-symbols-outlined" style="font-size:34px;color:#ef4444;background:#fee2e2;border-radius:12px;padding:6px;">lock</span>
+        <div>
+          <div style="font-weight:700;font-size:16px;color:#991b1b;">Suscripción inactiva</div>
+          <div style="color:#6b7280;font-size:13.5px;">Pagá con Yape y subí tu comprobante para activarla.</div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if pending %}
+    <div class="jc-msg jc-msg--info" style="margin-bottom:16px;">
+      <strong>Pago en revisión.</strong> Recibimos tu comprobante del {{ pending.created_at|date:"d/m/Y H:i" }}.
+      Apenas lo confirmemos, tu cuenta se activa por {{ pending.days }} días.
+    </div>
+  {% endif %}
+  {% if last_rejected and not pending %}
+    <div class="jc-msg jc-msg--danger" style="margin-bottom:16px;">
+      Tu último comprobante fue rechazado{% if last_rejected.rejection_reason %}: {{ last_rejected.rejection_reason }}{% endif %}.
+      Volvé a intentarlo abajo.
+    </div>
+  {% endif %}
+
+  <div class="jc-grid2" style="align-items:start;">
+    {# ── Pago por Yape ────────────────────────────────────────────── #}
+    <div class="jc-panel">
+      <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">smartphone</span> Pagá por Yape</h3>
+      <div style="text-align:center;">
+        {% if saas.yape_qr %}
+          <img src="{{ saas.yape_qr.url }}" alt="QR Yape" style="max-width:240px;width:100%;border-radius:14px;border:1px solid #e5e7eb;">
+        {% else %}
+          <div class="jc-empty" style="padding:30px;"><span class="material-symbols-outlined">qr_code_2</span>El QR todavía no fue cargado. Escribinos para coordinar el pago.</div>
+        {% endif %}
+      </div>
+      <div style="margin-top:12px;font-size:14px;color:#374151;line-height:1.7;">
+        <div><strong>Monto:</strong> S/ {{ saas.monthly_price }}</div>
+        {% if saas.yape_holder %}<div><strong>Titular:</strong> {{ saas.yape_holder }}</div>{% endif %}
+        {% if saas.yape_phone %}<div><strong>Número Yape:</strong> {{ saas.yape_phone }}</div>{% endif %}
+      </div>
+      {% if saas.instructions %}
+        <p style="margin-top:12px;color:#6b7280;font-size:13px;white-space:pre-line;">{{ saas.instructions }}</p>
+      {% endif %}
+    </div>
+
+    {# ── Subir comprobante ────────────────────────────────────────── #}
+    <div class="jc-panel">
+      <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">upload</span> Subir comprobante</h3>
+      {% if pending %}
+        <p style="color:#6b7280;font-size:13.5px;">Ya tenés un comprobante en revisión. Te avisamos cuando se apruebe.</p>
+      {% else %}
+        <form method="post" action="{% url 'jheliztv_billing_upload' %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="jc-field">
+            <label>Captura del pago Yape</label>
+            <input type="file" name="proof" accept="image/*" required>
+            <div class="jc-help">Subí la captura donde se vea el monto y la fecha del Yape.</div>
+          </div>
+          <button type="submit" class="jc-btn" style="width:100%;justify-content:center;">
+            <span class="material-symbols-outlined">send</span> Enviar comprobante
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Historial ──────────────────────────────────────────────────── #}
+  {% if payments %}
+    <div class="jc-panel" style="margin-top:16px;">
+      <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">history</span> Mis pagos</h3>
+      <div class="jc-table-wrap">
+        <table class="jc-table">
+          <thead><tr><th>Fecha</th><th>Monto</th><th>Días</th><th>Estado</th></tr></thead>
+          <tbody>
+            {% for p in payments %}
+              <tr>
+                <td>{{ p.created_at|date:"d/m/Y H:i" }}</td>
+                <td>S/ {{ p.amount }}</td>
+                <td>{{ p.days }}</td>
+                <td>
+                  {% if p.status == 'approved' %}<span class="jc-chip jc-chip--green">Aprobado</span>
+                  {% elif p.status == 'rejected' %}<span class="jc-chip jc-chip--red">Rechazado</span>
+                  {% else %}<span class="jc-chip jc-chip--yellow">Pendiente</span>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -12,6 +12,14 @@ class ServiceForm(forms.ModelForm):
         model = Service
         fields = ("name", "category", "image", "icon", "color")
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # `color` tiene default en el modelo; no obligamos a enviarlo.
+        self.fields["color"].required = False
+
+    def clean_color(self):
+        return self.cleaned_data.get("color") or "#10b981"
+
 
 class ClientForm(forms.ModelForm):
     class Meta:

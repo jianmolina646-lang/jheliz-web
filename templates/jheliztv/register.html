@@ -1,0 +1,45 @@
+{% extends "jheliztv/public_base.html" %}
+
+{% block pb_nav_actions %}
+  <a class="pb-btn pb-btn--ghost" href="{% url 'jheliztv_login' %}">Ingresar</a>
+{% endblock %}
+
+{% block pb_content %}
+<div class="pb-wrap" style="max-width:480px;margin:30px auto 60px;">
+  <div class="pb-card" style="padding:28px;">
+    <h2 style="margin:0 0 4px;font-size:22px;">Crear mi cuenta</h2>
+    <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">Empezá a gestionar tus suscripciones hoy.</p>
+    <form method="post" action="{% url 'jheliztv_register' %}">
+      {% csrf_token %}
+      <div class="pb-field">
+        <label>Nombre de tu negocio</label>
+        <input type="text" name="business_name" value="{{ form_data.business_name|default:'' }}" placeholder="Ej. Streaming Ana" autofocus>
+      </div>
+      <div class="pb-field">
+        <label>Usuario</label>
+        <input type="text" name="username" value="{{ form_data.username|default:'' }}" required autocomplete="username">
+      </div>
+      <div class="pb-field">
+        <label>Correo (opcional)</label>
+        <input type="email" name="email" value="{{ form_data.email|default:'' }}" autocomplete="email">
+      </div>
+      <div class="pb-field">
+        <label>WhatsApp (opcional)</label>
+        <input type="text" name="whatsapp" value="{{ form_data.whatsapp|default:'' }}" placeholder="+51987654321">
+      </div>
+      <div class="pb-field">
+        <label>Contraseña</label>
+        <input type="password" name="password" required autocomplete="new-password">
+      </div>
+      <div class="pb-field">
+        <label>Repetir contraseña</label>
+        <input type="password" name="password2" required autocomplete="new-password">
+      </div>
+      <button type="submit" class="pb-btn pb-btn--primary" style="width:100%;justify-content:center;margin-top:4px;">
+        <span class="material-symbols-outlined">person_add</span> Crear cuenta
+      </button>
+    </form>
+    <p class="pb-foot">¿Ya tenés cuenta? <a href="{% url 'jheliztv_login' %}">Ingresá</a></p>
+  </div>
+</div>
+{% endblock %}

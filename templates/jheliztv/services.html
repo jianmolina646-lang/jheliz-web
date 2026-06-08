@@ -1,0 +1,104 @@
+{% extends "jheliztv/base.html" %}
+
+{% block jc_content %}
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+    <h2 class="jc-section-title"><span class="material-symbols-outlined">grid_view</span> Tablero de servicios</h2>
+    <button type="button" class="jc-btn" data-jc-open="modalSvc">
+      <span class="material-symbols-outlined">add</span> Agregar servicio
+    </button>
+  </div>
+
+  {% for group in categories %}
+    {% if group.services %}
+      <section class="jc-cat">
+        <div class="jc-cat__head">
+          <span class="material-symbols-outlined">{{ group.cat.icon }}</span>
+          <h3>{{ group.cat.name }}</h3>
+        </div>
+        <div class="jc-services">
+          {% for svc in group.services %}
+            <a class="jc-svc" href="{% url 'jheliztv_service_detail' svc.pk %}">
+              {% if svc.image %}
+                <img class="jc-svc__img" src="{{ svc.image.url }}" alt="{{ svc.name }}">
+              {% else %}
+                <div class="jc-svc__ph"><span class="material-symbols-outlined">{{ svc.icon|default:'apps' }}</span></div>
+              {% endif %}
+              <div class="jc-svc__name">{{ svc.name }}</div>
+              <div class="jc-svc__count">{{ svc.active_subscriptions.count }} cuenta(s)</div>
+              <button type="button" class="jc-svc__del" title="Eliminar"
+                      onclick="event.preventDefault();event.stopPropagation();if(confirm('¿Eliminar {{ svc.name|escapejs }}? Solo si no lo vendés.')){document.getElementById('delsvc{{ svc.pk }}').submit();}">
+                <span class="material-symbols-outlined">delete</span>
+              </button>
+              <form id="delsvc{{ svc.pk }}" method="post" action="{% url 'jheliztv_service_delete' svc.pk %}" style="display:none">{% csrf_token %}</form>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  {% endfor %}
+
+  {% if uncategorized %}
+    <section class="jc-cat">
+      <div class="jc-cat__head"><span class="material-symbols-outlined">apps</span><h3>Sin categoría</h3></div>
+      <div class="jc-services">
+        {% for svc in uncategorized %}
+          <a class="jc-svc" href="{% url 'jheliztv_service_detail' svc.pk %}">
+            {% if svc.image %}<img class="jc-svc__img" src="{{ svc.image.url }}" alt="{{ svc.name }}">
+            {% else %}<div class="jc-svc__ph"><span class="material-symbols-outlined">{{ svc.icon|default:'apps' }}</span></div>{% endif %}
+            <div class="jc-svc__name">{{ svc.name }}</div>
+            <div class="jc-svc__count">{{ svc.active_subscriptions.count }} cuenta(s)</div>
+          </a>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if not categories and not uncategorized %}
+    <div class="jc-panel jc-empty">
+      <span class="material-symbols-outlined">add_business</span>
+      Todavía no tenés servicios. Agregá el primero con el botón de arriba.
+    </div>
+  {% endif %}
+
+  {# ── Modal: agregar servicio ───────────────────────────────────── #}
+  <div class="jc-modal" id="modalSvc" aria-hidden="true">
+    <div class="jc-modal__backdrop" data-jc-close></div>
+    <div class="jc-modal__box" role="dialog" aria-modal="true">
+      <form method="post" action="{% url 'jheliztv_service_add' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="jc-modal__head">
+          <h3><span class="material-symbols-outlined">add_circle</span> Agregar servicio</h3>
+          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="jc-modal__body">
+          <div class="jc-field">
+            <label>Nombre</label>
+            <input type="text" name="name" required placeholder="Ej. Disney+, Spotify, Canva…">
+          </div>
+          <div class="jc-grid2">
+            <div class="jc-field">
+              <label>Categoría</label>
+              <select name="category">
+                <option value="">— Sin categoría —</option>
+                {% for c in all_categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="jc-field">
+              <label>Icono (si no subís imagen)</label>
+              <input type="text" name="icon" placeholder="Ej. live_tv, music_note">
+              <div class="jc-help">Nombre de Material Symbols.</div>
+            </div>
+          </div>
+          <div class="jc-field">
+            <label>Imagen representativa</label>
+            <input type="file" name="image" accept="image/*">
+          </div>
+        </div>
+        <div class="jc-modal__foot">
+          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

@@ -13,7 +13,17 @@ SECRET_KEY = config("SECRET_KEY", default="dev-insecure-key-change-me")
 DEBUG = config("DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
-    default="127.0.0.1,localhost,ecormecejhelizstore.com,www.ecormecejhelizstore.com",
+    default=(
+        "127.0.0.1,localhost,ecormecejhelizstore.com,www.ecormecejhelizstore.com,"
+        "jheliztv.xyz,www.jheliztv.xyz"
+    ),
+    cast=Csv(),
+)
+
+# Hosts que sirven el producto SaaS "Jheliz Control" (ruteo por dominio).
+JHELIZTV_HOSTS = config(
+    "JHELIZTV_HOSTS",
+    default="jheliztv.xyz,www.jheliztv.xyz",
     cast=Csv(),
 )
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
@@ -26,6 +36,8 @@ ADMIN_URL_PATH = config("ADMIN_URL_PATH", default="panel-jheliz-2026").strip("/"
 CSRF_TRUSTED_ORIGINS = [
     "https://ecormecejhelizstore.com",
     "https://www.ecormecejhelizstore.com",
+    "https://jheliztv.xyz",
+    "https://www.jheliztv.xyz",
 ]
 
 INSTALLED_APPS = [
@@ -69,6 +81,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # Ruteo por dominio: jheliztv.xyz sirve el producto SaaS (Jheliz Control).
+    "config.host_routing.JheliztvHostMiddleware",
     # i18n: detecta el idioma del usuario (cookie / header / sesión).
     "django.middleware.locale.LocaleMiddleware",
     # multi-país: inyecta `request.country` con el dict del país activo.

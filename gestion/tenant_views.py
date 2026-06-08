@@ -1,16 +1,22 @@
-"""Vistas de **Jheliz Control** (módulo de gestión para revendedor).
+"""Web del **inquilino** de Jheliz Control (producto SaaS en jheliztv.xyz).
 
-Montadas bajo `/panel-jheliz-2026/jheliz-control/` ANTES del catch-all
-`admin.site.urls`. Todas requieren staff.
+A diferencia de ``views.py`` (que vive dentro del panel admin y usa
+``@staff_member_required``), estas vistas son la cara pública del producto que
+se **alquila**: cada inquilino entra con su propio usuario/contraseña y ve solo
+sus datos. El cobro del alquiler es por **Yape con aprobación manual**.
+
+Reutiliza el mismo diseño "Jheliz Control" (clases ``jc-*``) mediante templates
+standalone bajo ``templates/jheliztv/`` (no dependen del admin).
 """
 from __future__ import annotations
 
 from datetime import timedelta
 from decimal import Decimal
-from urllib.parse import quote
+from functools import wraps
 
-from django.contrib import admin, messages
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import get_user_model
 from django.db.models import Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -22,23 +28,64 @@ from .forms import ClientForm, ServiceForm, SubscriptionForm, TransactionForm
 from .models import (
     Client,
     ControlSettings,
+    SaasSettings,
     Service,
     ServiceCategory,
     Subscription,
+    Tenant,
+    TenantPayment,
     Transaction,
 )
+from .views import _decorate_subs  # reuso de helpers
+
+User = get_user_model()
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Acceso
 # ---------------------------------------------------------------------------
-def _ctx(request, **extra):
+def _get_tenant(user):
+    if not user.is_authenticated:
+        return None
+    return Tenant.objects.filter(user=user).first()
+
+
+def tenant_required(view):
+    """Exige login + suscripción de alquiler vigente.
+
+    Si el inquilino no pagó (o venció), lo manda a "Mi suscripción".
+    """
+    @wraps(view)
+    def _wrapped(request, *args, **kwargs):
+        tenant = _get_tenant(request.user)
+        if tenant is None:
+            return redirect("jheliztv_login")
+        if not tenant.subscription_active:
+            messages.warning(
+                request,
+                "Tu suscripción está vencida. Renueva para seguir usando Jheliz Control.",
+            )
+            return redirect("jheliztv_billing")
+        return view(request, tenant, *args, **kwargs)
+
+    return _wrapped
+
+
+def _days_left(tenant):
+    if not tenant or not tenant.plan_expires_at:
+        return None
+    delta = tenant.plan_expires_at - timezone.now()
+    return max(0, delta.days)
+
+
+def _ctx(request, tenant, **extra):
     owner = request.user
     settings_obj = ControlSettings.load(owner)
     base = {
-        **admin.site.each_context(request),
         "jc_settings": settings_obj,
         "jc_currency": settings_obj.currency,
+        "jc_tenant": tenant,
+        "jc_days_left": _days_left(tenant),
         "jc_alerts": _expiry_alerts(owner),
         **extra,
     }
@@ -46,93 +93,180 @@ def _ctx(request, **extra):
 
 
 def _expiry_alerts(owner, within_days: int = 3):
-    """Suscripciones por vencer (≤ within_days) o ya vencidas, para la campana."""
     now = timezone.now()
     soon = now + timedelta(days=within_days)
-    qs = (
+    return list(
         Subscription.objects.filter(owner=owner, is_archived=False, expires_at__lte=soon)
         .select_related("client", "service")
         .order_by("expires_at")
     )
-    return list(qs)
-
-
-def _predefined_message(sub: Subscription) -> str:
-    """Texto automático con datos de la cuenta + vencimiento (WhatsApp/Telegram)."""
-    vence = timezone.localtime(sub.expires_at).strftime("%d/%m/%Y %H:%M")
-    lines = [
-        f"¡Hola {sub.client.name}! 👋",
-        f"Tu suscripción de *{sub.service.name}* está activa.",
-        f"📧 Cuenta: {sub.account_email}",
-    ]
-    if sub.account_password:
-        lines.append(f"🔑 Clave: {sub.account_password}")
-    if sub.plan == Subscription.Plan.PERFIL and sub.profile_name:
-        lines.append(f"👤 Perfil: {sub.profile_name}"
-                     + (f" · PIN: {sub.profile_pin}" if sub.profile_pin else ""))
-    lines.append(f"⏳ Vence: {vence}")
-    lines.append("Cualquier cosa me escribís. ¡Gracias! 🐱")
-    return "\n".join(lines)
-
-
-def _decorate_subs(subs):
-    """Adjunta links de mensajería a cada suscripción para el template."""
-    out = []
-    for s in subs:
-        msg = _predefined_message(s)
-        s.wa_link = (
-            f"https://wa.me/{s.client.whatsapp_digits}?text={quote(msg)}"
-            if s.client.whatsapp_digits else ""
-        )
-        s.tg_link = (
-            f"https://t.me/{s.client.telegram_handle}" if s.client.telegram_handle else ""
-        )
-        out.append(s)
-    return out
 
 
 # ---------------------------------------------------------------------------
-# Dashboard (Inicio)
+# Landing + auth
 # ---------------------------------------------------------------------------
-@staff_member_required
-def dashboard(request):
-    now = timezone.now()
+def landing(request):
+    if _get_tenant(request.user):
+        return redirect("jheliztv_dashboard")
+    saas = SaasSettings.load()
+    return render(request, "jheliztv/landing.html", {"saas": saas})
 
+
+def register(request):
+    if request.user.is_authenticated:
+        return redirect("jheliztv_dashboard")
+    if request.method == "POST":
+        username = (request.POST.get("username") or "").strip()
+        email = (request.POST.get("email") or "").strip()
+        business = (request.POST.get("business_name") or "").strip()
+        whatsapp = (request.POST.get("whatsapp") or "").strip()
+        password = request.POST.get("password") or ""
+        password2 = request.POST.get("password2") or ""
+
+        errors = []
+        if not username:
+            errors.append("Elegí un usuario.")
+        if User.objects.filter(username__iexact=username).exists():
+            errors.append("Ese usuario ya existe, probá con otro.")
+        if len(password) < 6:
+            errors.append("La contraseña debe tener al menos 6 caracteres.")
+        if password != password2:
+            errors.append("Las contraseñas no coinciden.")
+
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+            return render(
+                request, "jheliztv/register.html",
+                {"form_data": request.POST},
+            )
+
+        user = User.objects.create_user(
+            username=username, email=email, password=password,
+        )
+        Tenant.objects.create(
+            user=user, business_name=business, whatsapp=whatsapp,
+        )
+        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        messages.success(request, "¡Cuenta creada! Activá tu suscripción para empezar.")
+        return redirect("jheliztv_billing")
+
+    return render(request, "jheliztv/register.html", {})
+
+
+def login_view(request):
+    if request.user.is_authenticated and _get_tenant(request.user):
+        return redirect("jheliztv_dashboard")
+    if request.method == "POST":
+        username = (request.POST.get("username") or "").strip()
+        password = request.POST.get("password") or ""
+        user = authenticate(request, username=username, password=password)
+        if user is None:
+            messages.error(request, "Usuario o contraseña incorrectos.")
+            return render(request, "jheliztv/login.html", {"username": username})
+        tenant = _get_tenant(user)
+        if tenant is None:
+            # Un usuario de la tienda que no es inquilino: lo creamos al vuelo.
+            tenant = Tenant.objects.create(user=user)
+        login(request, user)
+        return redirect("jheliztv_dashboard")
+    return render(request, "jheliztv/login.html", {})
+
+
+def logout_view(request):
+    logout(request)
+    return redirect("jheliztv_landing")
+
+
+# ---------------------------------------------------------------------------
+# Cobro (Yape, aprobación manual)
+# ---------------------------------------------------------------------------
+def billing(request):
+    tenant = _get_tenant(request.user)
+    if tenant is None:
+        return redirect("jheliztv_login")
+    saas = SaasSettings.load()
+    pending = tenant.payments.filter(status=TenantPayment.Status.PENDING).first()
+    last_rejected = (
+        tenant.payments.filter(status=TenantPayment.Status.REJECTED)
+        .order_by("-created_at")
+        .first()
+    )
+    ctx = {
+        "jc_tenant": tenant,
+        "jc_active": "billing",
+        "jc_days_left": _days_left(tenant),
+        "title": "Mi suscripción",
+        "saas": saas,
+        "pending": pending,
+        "last_rejected": last_rejected,
+        "payments": tenant.payments.all()[:10],
+    }
+    return render(request, "jheliztv/billing.html", ctx)
+
+
+@require_POST
+def billing_upload(request):
+    tenant = _get_tenant(request.user)
+    if tenant is None:
+        return redirect("jheliztv_login")
+    saas = SaasSettings.load()
+    proof = request.FILES.get("proof")
+    if not proof:
+        messages.error(request, "Adjuntá la captura del pago por Yape.")
+        return redirect("jheliztv_billing")
+    if tenant.payments.filter(status=TenantPayment.Status.PENDING).exists():
+        messages.info(request, "Ya tenés un pago pendiente de revisión.")
+        return redirect("jheliztv_billing")
+    TenantPayment.objects.create(
+        tenant=tenant,
+        amount=saas.monthly_price,
+        days=30,
+        proof=proof,
+    )
+    messages.success(
+        request,
+        "¡Comprobante recibido! Lo revisamos y activamos tu cuenta en breve.",
+    )
+    return redirect("jheliztv_billing")
+
+
+# ---------------------------------------------------------------------------
+# Panel del inquilino (Inicio)
+# ---------------------------------------------------------------------------
+@tenant_required
+def dashboard(request, tenant):
     owner = request.user
-    # Métricas rápidas
+    now = timezone.now()
     total_clients = Client.objects.filter(owner=owner).count()
-    settings_obj = ControlSettings.load(owner)
 
-    # Serie ingresos vs egresos por mes (últimos 6 meses).
-    series = []
-    months = []
+    series, months = [], []
     y, mo = now.year, now.month
     for _ in range(6):
         months.append((y, mo))
         mo -= 1
         if mo == 0:
-            mo = 12
-            y -= 1
+            mo, y = 12, y - 1
     months.reverse()
 
     max_val = Decimal("1")
     for (yy, mm) in months:
         income = (
             Transaction.objects.filter(
-                owner=owner, kind=Transaction.Kind.INCOME, occurred_at__year=yy, occurred_at__month=mm
+                owner=owner, kind=Transaction.Kind.INCOME,
+                occurred_at__year=yy, occurred_at__month=mm,
             ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
         )
         expense = (
             Transaction.objects.filter(
-                owner=owner, kind=Transaction.Kind.EXPENSE, occurred_at__year=yy, occurred_at__month=mm
+                owner=owner, kind=Transaction.Kind.EXPENSE,
+                occurred_at__year=yy, occurred_at__month=mm,
             ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
         )
         max_val = max(max_val, income, expense)
         label = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep",
                  "Oct", "Nov", "Dic"][mm - 1]
         series.append({"label": label, "income": income, "expense": expense})
-
-    # alturas en % para las barras
     for row in series:
         row["income_pct"] = int(round(float(row["income"]) / float(max_val) * 100))
         row["expense_pct"] = int(round(float(row["expense"]) / float(max_val) * 100))
@@ -145,52 +279,43 @@ def dashboard(request):
         Transaction.objects.filter(owner=owner, kind=Transaction.Kind.EXPENSE)
         .aggregate(s=Sum("amount"))["s"] or Decimal("0")
     )
-
     active_subs = Subscription.objects.filter(owner=owner, is_archived=False).count()
 
     ctx = _ctx(
-        request,
-        title="Jheliz Control",
-        jc_active="dashboard",
-        total_clients=total_clients,
-        active_subs=active_subs,
-        series=series,
-        max_val=max_val,
-        total_income=total_income,
-        total_expense=total_expense,
+        request, tenant,
+        title="Inicio", jc_active="dashboard",
+        total_clients=total_clients, active_subs=active_subs,
+        series=series, total_income=total_income, total_expense=total_expense,
         net=total_income - total_expense,
     )
-    return render(request, "gestion/dashboard.html", ctx)
+    return render(request, "jheliztv/dashboard.html", ctx)
 
 
 # ---------------------------------------------------------------------------
-# Tablero de Servicios
+# Servicios
 # ---------------------------------------------------------------------------
-@staff_member_required
-def services_board(request):
+@tenant_required
+def services_board(request, tenant):
     owner = request.user
     categories = ServiceCategory.objects.prefetch_related("services").all()
-    # servicios sin categoría
-    uncategorized = Service.objects.filter(owner=owner, category__isnull=True)
     cats = []
     for c in categories:
         svcs = list(c.services.filter(owner=owner))
-        cats.append({"cat": c, "services": svcs})
+        if svcs:
+            cats.append({"cat": c, "services": svcs})
+    uncategorized = list(Service.objects.filter(owner=owner, category__isnull=True))
     ctx = _ctx(
-        request,
-        title="Tablero de servicios",
-        jc_active="services",
-        categories=cats,
-        uncategorized=list(uncategorized),
-        form=ServiceForm(),
-        all_categories=ServiceCategory.objects.all(),
+        request, tenant,
+        title="Servicios", jc_active="services",
+        categories=cats, uncategorized=uncategorized,
+        form=ServiceForm(), all_categories=ServiceCategory.objects.all(),
     )
-    return render(request, "gestion/services.html", ctx)
+    return render(request, "jheliztv/services.html", ctx)
 
 
-@staff_member_required
+@tenant_required
 @require_POST
-def service_add(request):
+def service_add(request, tenant):
     form = ServiceForm(request.POST, request.FILES)
     if form.is_valid():
         svc = form.save(commit=False)
@@ -199,20 +324,19 @@ def service_add(request):
         messages.success(request, "Servicio agregado.")
     else:
         messages.error(request, "Revisá los datos del servicio.")
-    return redirect("gestion_services")
+    return redirect("jheliztv_services")
 
 
-@staff_member_required
+@tenant_required
 @require_POST
-def service_delete(request, pk):
-    svc = get_object_or_404(Service, pk=pk, owner=request.user)
-    svc.delete()
+def service_delete(request, tenant, pk):
+    get_object_or_404(Service, pk=pk, owner=request.user).delete()
     messages.success(request, "Servicio eliminado.")
-    return redirect("gestion_services")
+    return redirect("jheliztv_services")
 
 
-@staff_member_required
-def service_detail(request, pk):
+@tenant_required
+def service_detail(request, tenant, pk):
     owner = request.user
     service = get_object_or_404(Service, pk=pk, owner=owner)
     subs = _decorate_subs(
@@ -221,23 +345,20 @@ def service_detail(request, pk):
     form = SubscriptionForm(initial={"service": service})
     form.fields["client"].queryset = Client.objects.filter(owner=owner)
     ctx = _ctx(
-        request,
-        title=service.name,
-        jc_active="services",
-        service=service,
-        subs=subs,
-        form=form,
+        request, tenant,
+        title=service.name, jc_active="services",
+        service=service, subs=subs, form=form,
         clients=Client.objects.filter(owner=owner),
     )
-    return render(request, "gestion/service_detail.html", ctx)
+    return render(request, "jheliztv/service_detail.html", ctx)
 
 
 # ---------------------------------------------------------------------------
-# Suscripciones (CRUD + renovar)
+# Suscripciones
 # ---------------------------------------------------------------------------
-@staff_member_required
+@tenant_required
 @require_POST
-def subscription_add(request):
+def subscription_add(request, tenant):
     owner = request.user
     form = SubscriptionForm(request.POST)
     form.fields["client"].queryset = Client.objects.filter(owner=owner)
@@ -246,39 +367,32 @@ def subscription_add(request):
         sub = form.save(commit=False)
         sub.owner = owner
         sub.save()
-        # Registramos el ingreso automático si hay costo.
         if sub.cost and sub.cost > 0:
             Transaction.objects.create(
-                owner=owner,
-                kind=Transaction.Kind.INCOME,
-                amount=sub.cost,
+                owner=owner, kind=Transaction.Kind.INCOME, amount=sub.cost,
                 currency=sub.currency,
                 description=f"Venta {sub.service.name} · {sub.client.name}",
-                client=sub.client,
-                subscription=sub,
+                client=sub.client, subscription=sub,
             )
         if sub.investment and sub.investment > 0:
             Transaction.objects.create(
-                owner=owner,
-                kind=Transaction.Kind.EXPENSE,
-                amount=sub.investment,
+                owner=owner, kind=Transaction.Kind.EXPENSE, amount=sub.investment,
                 currency=sub.currency,
                 description=f"Inversión {sub.service.name}",
-                client=sub.client,
-                subscription=sub,
+                client=sub.client, subscription=sub,
             )
         messages.success(request, "Suscripción creada.")
-        return redirect("gestion_service_detail", pk=sub.service_id)
+        return redirect("jheliztv_service_detail", pk=sub.service_id)
     messages.error(request, "Revisá los datos de la suscripción.")
     service_id = request.POST.get("service")
     if service_id:
-        return redirect("gestion_service_detail", pk=service_id)
-    return redirect("gestion_dashboard")
+        return redirect("jheliztv_service_detail", pk=service_id)
+    return redirect("jheliztv_dashboard")
 
 
-@staff_member_required
+@tenant_required
 @require_POST
-def subscription_edit(request, pk):
+def subscription_edit(request, tenant, pk):
     sub = get_object_or_404(Subscription, pk=pk, owner=request.user)
     form = SubscriptionForm(request.POST, instance=sub)
     if form.is_valid():
@@ -286,39 +400,43 @@ def subscription_edit(request, pk):
         messages.success(request, "Suscripción actualizada.")
     else:
         messages.error(request, "No se pudo actualizar la suscripción.")
-    return redirect("gestion_service_detail", pk=sub.service_id)
+    return redirect("jheliztv_service_detail", pk=sub.service_id)
 
 
-@staff_member_required
+@tenant_required
 @require_POST
-def subscription_renew(request, pk):
+def subscription_renew(request, tenant, pk):
     sub = get_object_or_404(Subscription, pk=pk, owner=request.user)
     try:
         days = int(request.POST.get("days", 30))
     except (TypeError, ValueError):
         days = 30
     sub.renew(days)
-    messages.success(request, f"Renovada +{days} días. Nuevo vencimiento: "
-                              f"{timezone.localtime(sub.expires_at):%d/%m/%Y}.")
-    return redirect("gestion_service_detail", pk=sub.service_id)
+    messages.success(
+        request,
+        f"Renovada +{days} días. Nuevo vencimiento: "
+        f"{timezone.localtime(sub.expires_at):%d/%m/%Y}.",
+    )
+    return redirect("jheliztv_service_detail", pk=sub.service_id)
 
 
-@staff_member_required
+@tenant_required
 @require_POST
-def subscription_delete(request, pk):
+def subscription_delete(request, tenant, pk):
     sub = get_object_or_404(Subscription, pk=pk, owner=request.user)
     service_id = sub.service_id
     sub.delete()
     messages.success(request, "Suscripción eliminada.")
-    return redirect("gestion_service_detail", pk=service_id)
+    return redirect("jheliztv_service_detail", pk=service_id)
 
 
 # ---------------------------------------------------------------------------
-# Mis Clientes
+# Clientes
 # ---------------------------------------------------------------------------
-@staff_member_required
-def clients(request):
-    qs = Client.objects.filter(owner=request.user).prefetch_related("subscriptions__service")
+@tenant_required
+def clients(request, tenant):
+    owner = request.user
+    qs = Client.objects.filter(owner=owner).prefetch_related("subscriptions__service")
     q = (request.GET.get("q") or "").strip()
     if q:
         qs = qs.filter(
@@ -327,19 +445,16 @@ def clients(request):
             | Q(subscriptions__account_email__icontains=q)
         ).distinct()
     ctx = _ctx(
-        request,
-        title="Mis clientes",
-        jc_active="clients",
-        clients=list(qs),
-        form=ClientForm(),
-        q=q,
+        request, tenant,
+        title="Mis clientes", jc_active="clients",
+        clients=list(qs), form=ClientForm(), q=q,
     )
-    return render(request, "gestion/clients.html", ctx)
+    return render(request, "jheliztv/clients.html", ctx)
 
 
-@staff_member_required
+@tenant_required
 @require_POST
-def client_add(request):
+def client_add(request, tenant):
     form = ClientForm(request.POST)
     if form.is_valid():
         client = form.save(commit=False)
@@ -348,12 +463,12 @@ def client_add(request):
         messages.success(request, "Cliente agregado.")
     else:
         messages.error(request, "Revisá los datos del cliente.")
-    return redirect("gestion_clients")
+    return redirect("jheliztv_clients")
 
 
-@staff_member_required
+@tenant_required
 @require_POST
-def client_edit(request, pk):
+def client_edit(request, tenant, pk):
     client = get_object_or_404(Client, pk=pk, owner=request.user)
     form = ClientForm(request.POST, instance=client)
     if form.is_valid():
@@ -361,24 +476,19 @@ def client_edit(request, pk):
         messages.success(request, "Cliente actualizado.")
     else:
         messages.error(request, "No se pudo actualizar el cliente.")
-    return redirect("gestion_clients")
+    return redirect("jheliztv_clients")
 
 
-@staff_member_required
+@tenant_required
 @require_POST
-def client_delete(request, pk):
-    client = get_object_or_404(Client, pk=pk, owner=request.user)
-    client.delete()
+def client_delete(request, tenant, pk):
+    get_object_or_404(Client, pk=pk, owner=request.user).delete()
     messages.success(request, "Cliente eliminado.")
-    return redirect("gestion_clients")
+    return redirect("jheliztv_clients")
 
 
-@staff_member_required
-def client_report_pdf(request, pk):
-    """Genera un PDF con todos los servicios del cliente (correos + vencimientos)."""
-    client = get_object_or_404(Client, pk=pk, owner=request.user)
-    subs = list(client.subscriptions.filter(is_archived=False).select_related("service"))
-
+@tenant_required
+def client_report_pdf(request, tenant, pk):
     from io import BytesIO
 
     from reportlab.lib import colors
@@ -386,13 +496,15 @@ def client_report_pdf(request, pk):
     from reportlab.lib.units import mm
     from reportlab.pdfgen import canvas
 
+    client = get_object_or_404(Client, pk=pk, owner=request.user)
+    subs = list(client.subscriptions.filter(is_archived=False).select_related("service"))
+
     buf = BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     width, height = A4
     green = colors.HexColor("#10b981")
     dark = colors.HexColor("#1f2937")
 
-    # Header
     c.setFillColor(green)
     c.rect(0, height - 30 * mm, width, 30 * mm, fill=1, stroke=0)
     c.setFillColor(colors.white)
@@ -401,7 +513,6 @@ def client_report_pdf(request, pk):
     c.setFont("Helvetica", 11)
     c.drawString(20 * mm, height - 25 * mm, "Reporte de servicios del cliente")
 
-    # Cliente
     y = height - 42 * mm
     c.setFillColor(dark)
     c.setFont("Helvetica-Bold", 14)
@@ -421,7 +532,6 @@ def client_report_pdf(request, pk):
     c.drawString(20 * mm, y, f"Generado: {timezone.localtime():%d/%m/%Y %H:%M}")
     y -= 10 * mm
 
-    # Tabla header
     c.setFillColor(green)
     c.rect(20 * mm, y - 2 * mm, width - 40 * mm, 8 * mm, fill=1, stroke=0)
     c.setFillColor(colors.white)
@@ -461,11 +571,11 @@ def client_report_pdf(request, pk):
 
 
 # ---------------------------------------------------------------------------
-# Movimientos (libro de caja)
+# Movimientos + buscador + notificaciones
 # ---------------------------------------------------------------------------
-@staff_member_required
+@tenant_required
 @require_POST
-def transaction_add(request):
+def transaction_add(request, tenant):
     form = TransactionForm(request.POST)
     form.fields["client"].queryset = Client.objects.filter(owner=request.user)
     if form.is_valid():
@@ -475,18 +585,14 @@ def transaction_add(request):
         messages.success(request, "Movimiento registrado.")
     else:
         messages.error(request, "Revisá el movimiento.")
-    return redirect("gestion_dashboard")
+    return redirect("jheliztv_dashboard")
 
 
-# ---------------------------------------------------------------------------
-# Buscador global + notificaciones
-# ---------------------------------------------------------------------------
-@staff_member_required
-def search(request):
+@tenant_required
+def search(request, tenant):
     owner = request.user
     q = (request.GET.get("q") or "").strip()
-    clients_found = []
-    subs_found = []
+    clients_found, subs_found = [], []
     if q:
         clients_found = list(
             Client.objects.filter(owner=owner).filter(
@@ -503,26 +609,22 @@ def search(request):
             .select_related("client", "service")[:50]
         ))
     ctx = _ctx(
-        request,
+        request, tenant,
         title=f"Buscar: {q}" if q else "Buscar",
-        q=q,
-        clients_found=clients_found,
-        subs_found=subs_found,
+        q=q, clients_found=clients_found, subs_found=subs_found,
     )
-    return render(request, "gestion/search.html", ctx)
+    return render(request, "jheliztv/search.html", ctx)
 
 
-@staff_member_required
-def notifications_json(request):
+@tenant_required
+def notifications_json(request, tenant):
     alerts = _expiry_alerts(request.user)
-    data = []
-    for s in alerts:
-        data.append({
-            "id": s.id,
-            "service": s.service.name,
-            "client": s.client.name,
-            "status": s.status_color,
-            "time_left": s.time_left_label,
-            "url": reverse("gestion_service_detail", args=[s.service_id]),
-        })
+    data = [{
+        "id": s.id,
+        "service": s.service.name,
+        "client": s.client.name,
+        "status": s.status_color,
+        "time_left": s.time_left_label,
+        "url": reverse("jheliztv_service_detail", args=[s.service_id]),
+    } for s in alerts]
     return JsonResponse({"count": len(data), "alerts": data})
