@@ -57,7 +57,7 @@
             </td>
             <td>
               <span class="jc-profit {% if s.profit < 0 %}is-neg{% endif %}">
-                {% if s.profit >= 0 %}+{% else %}−{% endif %}${{ s.profit|stringformat:".2f"|cut:"-" }}
+                {% if s.profit >= 0 %}+{% else %}−{% endif %}{{ jc_currency }} {{ s.profit|stringformat:".2f"|cut:"-" }}
               </span>
             </td>
             <td>
@@ -136,7 +136,7 @@
             <div class="jc-field"><label>Costo (venta al cliente)</label><input type="number" step="0.01" name="cost" value="0.00"></div>
             <div class="jc-field"><label>Inversión (lo que te costó)</label><input type="number" step="0.01" name="investment" value="0.00"></div>
           </div>
-          <div class="jc-profit-live" data-profit-out>Utilidad: +$0.00</div>
+          <div class="jc-profit-live" data-profit-out>Utilidad: +{{ jc_currency }} 0.00</div>
           <div class="jc-grid2" style="margin-top:14px;">
             <div class="jc-field"><label>Inicio</label><input type="datetime-local" name="starts_at"></div>
             <div class="jc-field"><label>Duración (días)</label><input type="number" name="duration_days" value="30" min="1"></div>
@@ -206,7 +206,7 @@
             <div class="jc-field"><label>Costo</label><input type="number" step="0.01" name="cost"></div>
             <div class="jc-field"><label>Inversión</label><input type="number" step="0.01" name="investment"></div>
           </div>
-          <div class="jc-profit-live" data-profit-out>Utilidad: +$0.00</div>
+          <div class="jc-profit-live" data-profit-out>Utilidad: +{{ jc_currency }} 0.00</div>
         </div>
         <div class="jc-modal__foot">
           <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
