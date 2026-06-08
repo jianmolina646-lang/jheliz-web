@@ -702,24 +702,23 @@
           </div>
         </div>
         <div class="jh-cc-plat__right">
-          {% if g.available %}
-            <span class="jh-cc-plat__stat jh-cc-plat__stat--success">
-              <span class="material-symbols-outlined">check_circle</span>
-              {{ g.available }} disp.
-            </span>
-          {% endif %}
-          {% if g.sold %}
-            <span class="jh-cc-plat__stat jh-cc-plat__stat--info">
-              <span class="material-symbols-outlined">local_shipping</span>
-              {{ g.sold }} vend.
-            </span>
-          {% endif %}
-          {% if g.defective %}
-            <span class="jh-cc-plat__stat jh-cc-plat__stat--danger">
-              <span class="material-symbols-outlined">warning</span>
-              {{ g.defective }} caídas
-            </span>
-          {% endif %}
+          {# Métricas del servicio, estilo KINEMANAGER (Ingresos / Egresos / Clientes / Cierres) #}
+          <div class="jh-cc-metric jh-cc-metric--in">
+            <span class="jh-cc-metric__lbl">Ingresos</span>
+            <span class="jh-cc-metric__val">S/ {{ g.ingresos|floatformat:2 }}</span>
+          </div>
+          <div class="jh-cc-metric jh-cc-metric--out">
+            <span class="jh-cc-metric__lbl">Egresos</span>
+            <span class="jh-cc-metric__val">S/ {{ g.egresos|floatformat:2 }}</span>
+          </div>
+          <div class="jh-cc-metric jh-cc-metric--cli">
+            <span class="jh-cc-metric__lbl">Clientes</span>
+            <span class="jh-cc-metric__val">{{ g.clientes }}</span>
+          </div>
+          <div class="jh-cc-metric jh-cc-metric--clo">
+            <span class="jh-cc-metric__lbl">Cierres</span>
+            <span class="jh-cc-metric__val">{{ g.cierres }}</span>
+          </div>
           <button type="button"
                   class="quick-add-btn jh-cc-plat__add"
                   data-product-id="{{ g.product.pk }}"
@@ -735,17 +734,46 @@
         <table class="jh2-table">
           <thead>
             <tr>
+              <th>Usuario</th>
               <th>Cuenta</th>
-              <th>Perfil / PIN</th>
-              <th>Estado</th>
-              <th>Etiqueta</th>
-              <th>Cargada</th>
+              <th>Plan</th>
+              <th>Perfiles</th>
+              <th>Tiempo</th>
+              <th>Registro</th>
+              <th>Monto</th>
               <th class="jh2-table__right">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {% for item in g.items %}
             <tr id="cc-item-{{ item.pk }}" class="jh-cc-row" data-cc-item="{{ item.pk }}" {% if matched_email and matched_email in item.account_text|lower %}style="background:rgba(251,146,60,0.06);"{% endif %}>
+              {# ── Usuario ─────────────────────────────────────────── #}
+              <td>
+                {% if item.buyer_resale_name or item.buyer_email or item.buyer_phone %}
+                  <div class="jh-cc-user">
+                    <span class="jh-cc-user__name">{{ item.buyer_resale_name|default:item.buyer_email|default:item.buyer_phone }}</span>
+                    {% if item.buyer_resale_name and item.buyer_email %}
+                      <span class="jh-cc-user__sub">{{ item.buyer_email }}</span>
+                    {% endif %}
+                    <div class="jh-cc-user__tags">
+                      {% if item.buyer_channel_label %}
+                        <span class="jh-cc-user__src">
+                          <span class="material-symbols-outlined">{% if item.buyer_source_key == 'telegram' %}send{% elif item.buyer_source_key == 'whatsapp' %}chat{% else %}store{% endif %}</span>
+                          {{ item.buyer_channel_label }}
+                        </span>
+                      {% endif %}
+                      {% if item.buyer_telegram %}<span class="jh-cc-user__tg">@{{ item.buyer_telegram }}</span>{% endif %}
+                    </div>
+                    {% if item.buyer_resale_name and item.buyer_resale_whatsapp %}
+                      <span class="jh-cc-user__sub">{{ item.buyer_resale_whatsapp }}</span>
+                    {% endif %}
+                    {% if item.order_uuid %}<span class="jh-cc-user__uuid">#{{ item.order_uuid }}</span>{% endif %}
+                  </div>
+                {% else %}
+                  <span class="jh2-table__muted">— Sin cliente</span>
+                {% endif %}
+              </td>
+              {# ── Cuenta ──────────────────────────────────────────── #}
               <td>
                 {% if item.email_lc %}
                   <div class="jh-cc-cred">
@@ -769,7 +797,26 @@
                 {% else %}
                   <div class="jh-cc-cred__raw">{{ item.account_text|default:item.credentials|truncatechars:120 }}</div>
                 {% endif %}
+                <div class="jh-cc-cuenta__foot">
+                  {% if item.status == 'available' %}
+                    {% include "admin/components/_pill.html" with text="Disponible" variant="success" %}
+                  {% elif item.status == 'sold' %}
+                    {% include "admin/components/_pill.html" with text="Vendida" variant="info" static=True %}
+                  {% elif item.status == 'reserved' %}
+                    {% include "admin/components/_pill.html" with text="Reservada" variant="neutral" static=True %}
+                  {% elif item.status == 'defective' %}
+                    {% include "admin/components/_pill.html" with text="Caída" variant="danger" %}
+                  {% else %}
+                    {% include "admin/components/_pill.html" with text="Deshabilitada" variant="neutral" static=True %}
+                  {% endif %}
+                  {% if item.label %}<span class="jh-cc-tag jh-cc-tag--label">{{ item.label }}</span>{% endif %}
+                </div>
               </td>
+              {# ── Plan ────────────────────────────────────────────── #}
+              <td>
+                <div class="jh2-table__strong" style="font-size:12.5px;">{{ item.plan.name|default:"—" }}</div>
+              </td>
+              {# ── Perfiles ────────────────────────────────────────── #}
               <td>
                 {% if item.profile_text or item.pin_text %}
                   <div class="jh-cc-tags">
@@ -780,93 +827,46 @@
                   {% if item.buyer_profile or item.buyer_pin %}
                     <div class="jh-cc-tags" style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(148,163,184,.18);">
                       <span class="jh-cc-tag__lbl">Pidió</span>
-                      {% if item.buyer_profile %}<span class="jh-cc-tag" style="color:#fde68a;border-color:rgba(253,230,138,.22);">"{{ item.buyer_profile }}"</span>{% endif %}
-                      {% if item.buyer_pin %}<span class="jh-cc-tag jh-cc-tag--pin" style="color:#fde68a;"><span class="jh-cc-tag__lbl">PIN</span>{{ item.buyer_pin }}</span>{% endif %}
+                      {% if item.buyer_profile %}<span class="jh-cc-tag">"{{ item.buyer_profile }}"</span>{% endif %}
+                      {% if item.buyer_pin %}<span class="jh-cc-tag jh-cc-tag--pin"><span class="jh-cc-tag__lbl">PIN</span>{{ item.buyer_pin }}</span>{% endif %}
                     </div>
                   {% endif %}
                 {% elif item.buyer_profile or item.buyer_pin %}
-                  {# Sin slot propio en la cuenta: el perfil/PIN del registro manual va como badge grande, igual a las demás. #}
+                  {# Sin slot propio en la cuenta: el perfil/PIN del registro manual va como badge grande. #}
                   <div class="jh-cc-tags">
                     {% if item.buyer_profile %}<span class="jh-cc-tag">{{ item.buyer_profile }}</span>{% endif %}
                     {% if item.buyer_pin %}<span class="jh-cc-tag jh-cc-tag--pin"><span class="jh-cc-tag__lbl">PIN</span>{{ item.buyer_pin }}</span>{% endif %}
                   </div>
                 {% else %}
-                  <div class="jh2-table__muted">—</div>
+                  <span class="jh-cc-tag jh-cc-tag--mode">{{ g.mode_label }}</span>
                 {% endif %}
               </td>
+              {# ── Tiempo ──────────────────────────────────────────── #}
               <td>
-                {% if item.status == 'available' %}
-                  {% include "admin/components/_pill.html" with text="Disponible" variant="success" %}
-                {% elif item.status == 'sold' %}
-                  {% include "admin/components/_pill.html" with text="Vendida" variant="info" static=True %}
-                {% elif item.status == 'reserved' %}
-                  {% include "admin/components/_pill.html" with text="Reservada" variant="neutral" static=True %}
-                {% elif item.status == 'defective' %}
-                  {% include "admin/components/_pill.html" with text="Caída" variant="danger" %}
-                {% else %}
-                  {% include "admin/components/_pill.html" with text="Deshabilitada" variant="neutral" static=True %}
-                {% endif %}
-
-                {# Vencimiento del cliente: semáforo para cobrar la renovación a tiempo #}
                 {% if item.expiry_state %}
-                  <div>
-                    <span class="jh-cc-exp jh-cc-exp--{{ item.expiry_state }}">
-                      <span class="material-symbols-outlined">{% if item.expiry_state == 'overdue' %}event_busy{% elif item.expiry_state == 'ok' %}event_available{% else %}schedule{% endif %}</span>
-                      {% if item.expiry_state == 'overdue' %}Venció hace {{ item.expiry_days|stringformat:"d"|cut:"-" }}d
-                      {% elif item.expiry_state == 'today' %}Vence hoy
-                      {% else %}Vence en {{ item.expiry_days }}d{% endif %}
-                      · {{ item.expires_at|date:"d/m/y" }}
-                    </span>
-                  </div>
-                {% endif %}
-
-                {# Info del comprador (cuando la cuenta NO está disponible) #}
-                {% if item.buyer_email or item.sale_date or item.buyer_resale_name %}
-                  <div style="margin-top:6px;font-size:11px;line-height:1.45;display:flex;flex-direction:column;gap:2px;max-width:30ch;">
-                    {% if item.buyer_email %}
-                      <div style="color:#cbd5e1;display:flex;align-items:center;gap:4px;min-width:0;">
-                        <span class="material-symbols-outlined" style="font-size:12px;color:#94a3b8;">person</span>
-                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ item.buyer_email }}</span>
-                      </div>
-                    {% endif %}
-                    {% if item.buyer_phone %}
-                      <div style="color:#94a3b8;display:flex;align-items:center;gap:4px;">
-                        <span class="material-symbols-outlined" style="font-size:12px;">phone</span>
-                        {{ item.buyer_phone }}
-                      </div>
-                    {% endif %}
-                    {% if item.sale_date %}
-                      <div style="color:#93c5fd;display:flex;align-items:center;gap:4px;">
-                        <span class="material-symbols-outlined" style="font-size:12px;">event</span>
-                        Vendida {{ item.sale_date|date:"d/m/y H:i" }}
-                      </div>
-                    {% endif %}
-                    {% if item.buyer_resale_name %}
-                      <div style="color:#fbbf24;display:flex;align-items:center;gap:4px;font-size:10.5px;">
-                        <span class="material-symbols-outlined" style="font-size:11px;">forward</span>
-                        Revendida a: {{ item.buyer_resale_name }}
-                        {% if item.buyer_resale_whatsapp %} · {{ item.buyer_resale_whatsapp }}{% endif %}
-                      </div>
-                    {% endif %}
-                    {% if item.buyer_channel_label or item.buyer_telegram %}
-                      <div class="jh2-table__muted" style="display:flex;align-items:center;gap:4px;font-size:10.5px;">
-                        <span class="material-symbols-outlined" style="font-size:11px;">{% if item.buyer_source_key == 'telegram' %}send{% elif item.buyer_source_key == 'whatsapp' %}chat{% else %}store{% endif %}</span>
-                        {% if item.buyer_channel_label %}{{ item.buyer_channel_label }}{% endif %}
-                        {% if item.buyer_telegram %} · <span style="font-family:ui-monospace,monospace;">@{{ item.buyer_telegram }}</span>{% endif %}
-                      </div>
-                    {% endif %}
-                    {% if item.order_uuid %}
-                      <div class="jh2-table__muted" style="font-size:10.5px;font-family:ui-monospace,monospace;">
-                        #{{ item.order_uuid }}
-                      </div>
-                    {% endif %}
-                  </div>
+                  <span class="jh-cc-exp jh-cc-exp--{{ item.expiry_state }}">
+                    <span class="material-symbols-outlined">{% if item.expiry_state == 'overdue' %}event_busy{% elif item.expiry_state == 'ok' %}event_available{% else %}schedule{% endif %}</span>
+                    {% if item.expiry_state == 'overdue' %}Venció hace {{ item.expiry_days|stringformat:"d"|cut:"-" }}d
+                    {% elif item.expiry_state == 'today' %}Vence hoy
+                    {% else %}Vence en {{ item.expiry_days }}d{% endif %}
+                  </span>
+                  <div class="jh2-table__muted" style="font-size:10.5px;margin-top:3px;">{{ item.expires_at|date:"d/m/y" }}</div>
+                {% else %}
+                  <span class="jh2-table__muted">—</span>
                 {% endif %}
               </td>
-              <td><div class="jh2-table__strong" style="font-size:12px;">{{ item.label|default:"—" }}</div></td>
+              {# ── Registro ────────────────────────────────────────── #}
               <td class="jh2-table__muted" style="font-size:11.5px;">
                 <div>{{ item.created_at|date:"d/m/y" }}</div>
-                {% if item.sold_at %}<div style="color:#93c5fd;">✓ {{ item.sold_at|date:"d/m/y" }}</div>{% endif %}
+                {% if item.sale_date %}<div class="jh-cc-reg-sold">✓ {{ item.sale_date|date:"d/m/y" }}</div>{% endif %}
+              </td>
+              {# ── Monto ───────────────────────────────────────────── #}
+              <td>
+                {% if item.sale_price %}
+                  <span class="jh-cc-amount">+S/ {{ item.sale_price|floatformat:2 }}</span>
+                {% else %}
+                  <span class="jh2-table__muted">—</span>
+                {% endif %}
               </td>
               <td class="jh2-table__right">
                 <div class="jh-cc-actions">
@@ -1877,6 +1877,54 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
     background: #f1f5f9 !important;
     border: 1px solid var(--cc-border) !important;
     color: #475569 !important;
+  }
+
+  /* ── Métricas de cabecera por servicio (Ingresos/Egresos/Clientes/Cierres) ── */
+  .jh-cc-theme .jh-cc-metric {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-width: 78px; padding: 6px 12px; border-radius: 12px;
+    border: 1px solid var(--cc-border); background: #f8fafc; line-height: 1.15;
+  }
+  .jh-cc-theme .jh-cc-metric__lbl {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--cc-muted);
+  }
+  .jh-cc-theme .jh-cc-metric__val { font-size: 13px; font-weight: 800; color: var(--cc-text); white-space: nowrap; }
+  .jh-cc-theme .jh-cc-metric--in  { background:#dcfce7; border-color:#bbf7d0; }
+  .jh-cc-theme .jh-cc-metric--in  .jh-cc-metric__lbl,
+  .jh-cc-theme .jh-cc-metric--in  .jh-cc-metric__val { color:#15803d; }
+  .jh-cc-theme .jh-cc-metric--out { background:#fee2e2; border-color:#fecaca; }
+  .jh-cc-theme .jh-cc-metric--out .jh-cc-metric__lbl,
+  .jh-cc-theme .jh-cc-metric--out .jh-cc-metric__val { color:#b91c1c; }
+  .jh-cc-theme .jh-cc-metric--cli { background:#dbeafe; border-color:#bfdbfe; }
+  .jh-cc-theme .jh-cc-metric--cli .jh-cc-metric__lbl,
+  .jh-cc-theme .jh-cc-metric--cli .jh-cc-metric__val { color:#1d4ed8; }
+  .jh-cc-theme .jh-cc-metric--clo { background:#f1f5f9; border-color:var(--cc-border); }
+
+  /* ── Celda Usuario ─────────────────────────────────────────────── */
+  .jh-cc-theme .jh-cc-user { display:flex; flex-direction:column; gap:2px; max-width:24ch; }
+  .jh-cc-theme .jh-cc-user__name { font-size:12.5px; font-weight:700; color:var(--cc-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .jh-cc-theme .jh-cc-user__sub { font-size:11px; color:var(--cc-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .jh-cc-theme .jh-cc-user__tags { display:flex; flex-wrap:wrap; gap:4px; }
+  .jh-cc-theme .jh-cc-user__src {
+    display:inline-flex; align-items:center; gap:3px; font-size:10px; font-weight:600;
+    padding:1px 6px; border-radius:999px; background:var(--cc-primary-soft);
+    color:var(--cc-primary-dark); border:1px solid var(--cc-primary-border);
+  }
+  .jh-cc-theme .jh-cc-user__src .material-symbols-outlined { font-size:11px; }
+  .jh-cc-theme .jh-cc-user__tg { font-size:10px; font-family:ui-monospace,monospace; color:#0369a1; }
+  .jh-cc-theme .jh-cc-user__uuid { font-size:9.5px; font-family:ui-monospace,monospace; color:#94a3b8; }
+
+  /* ── Celda Cuenta (pie con estado + etiqueta) ──────────────────── */
+  .jh-cc-theme .jh-cc-cuenta__foot { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:7px; }
+  .jh-cc-theme .jh-cc-tag--label { background:#fef9c3; border-color:#fde68a; color:#854d0e; }
+  .jh-cc-theme .jh-cc-tag--mode { background:var(--cc-primary-soft); border-color:var(--cc-primary-border); color:var(--cc-primary-dark); }
+
+  /* ── Celda Registro / Monto ────────────────────────────────────── */
+  .jh-cc-theme .jh-cc-reg-sold { color:var(--cc-primary-dark); font-weight:600; }
+  .jh-cc-theme .jh-cc-amount {
+    display:inline-block; font-size:13px; font-weight:800; color:#15803d;
+    background:#dcfce7; border:1px solid #bbf7d0; padding:3px 10px; border-radius:999px; white-space:nowrap;
   }
 
   /* ── Tabla → clara ─────────────────────────────────────────────── */
