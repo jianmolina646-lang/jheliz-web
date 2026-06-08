@@ -180,7 +180,7 @@ class Subscription(models.Model):
     profile_pin = models.CharField("PIN", max_length=12, blank=True)
 
     # Finanzas (USD por defecto; la divisa se guarda por si se cambia a futuro).
-    currency = models.CharField("Moneda", max_length=8, default="USD")
+    currency = models.CharField("Moneda", max_length=8, default="S/")
     cost = models.DecimalField(
         "Costo (venta al cliente)", max_digits=10, decimal_places=2, default=Decimal("0.00")
     )
@@ -281,7 +281,7 @@ class Transaction(models.Model):
     )
     kind = models.CharField("Tipo", max_length=10, choices=Kind.choices)
     amount = models.DecimalField("Monto", max_digits=10, decimal_places=2)
-    currency = models.CharField("Moneda", max_length=8, default="USD")
+    currency = models.CharField("Moneda", max_length=8, default="S/")
     description = models.CharField("Descripción", max_length=200, blank=True)
     client = models.ForeignKey(
         Client, on_delete=models.SET_NULL, null=True, blank=True,
@@ -317,7 +317,7 @@ class ControlSettings(models.Model):
     credits = models.DecimalField(
         "Mis créditos", max_digits=12, decimal_places=2, default=Decimal("0.00")
     )
-    currency = models.CharField("Moneda", max_length=8, default="USD")
+    currency = models.CharField("Moneda", max_length=8, default="S/")
 
     class Meta:
         verbose_name = "Ajustes de Jheliz Control"

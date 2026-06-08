@@ -16,7 +16,7 @@
   </style>
 </head>
 <body>
-<div class="jc" data-notif-url="{% url 'jheliztv_notifications' %}">
+<div class="jc" data-notif-url="{% url 'jheliztv_notifications' %}" data-currency="{{ jc_currency|default:'S/' }}">
 
   <header class="jc-topbar">
     <a class="jc-brand" href="{% url 'jheliztv_dashboard' %}">

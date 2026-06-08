@@ -105,9 +105,12 @@
     var inv = scope.querySelector('[name="investment"]');
     var out = scope.querySelector("[data-profit-out]");
     if (!cost || !inv || !out) { return; }
+    var cur = (document.querySelector(".jc") || {}).dataset
+      ? (document.querySelector(".jc").dataset.currency || "S/")
+      : "S/";
     function calc() {
       var p = (parseFloat(cost.value) || 0) - (parseFloat(inv.value) || 0);
-      out.textContent = "Utilidad: " + (p >= 0 ? "+" : "−") + "$" + Math.abs(p).toFixed(2);
+      out.textContent = "Utilidad: " + (p >= 0 ? "+" : "−") + cur + " " + Math.abs(p).toFixed(2);
       out.style.color = p >= 0 ? "" : "#991b1b";
     }
     cost.addEventListener("input", calc);
