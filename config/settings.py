@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "discord_bot.apps.DiscordBotConfig",
     "livechat.apps.LivechatConfig",
     "codes.apps.CodesConfig",
+    "gestion.apps.GestionConfig",
 ]
 
 MIDDLEWARE = [
@@ -458,6 +459,27 @@ UNFOLD = {
                         "title": "Ver tienda",
                         "icon": "public",
                         "link": "/",
+                    },
+                ],
+            },
+            {
+                "title": "🐱 Jheliz Control",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Inicio",
+                        "icon": "space_dashboard",
+                        "link": "/panel-jheliz-2026/jheliz-control/",
+                    },
+                    {
+                        "title": "Tablero de servicios",
+                        "icon": "grid_view",
+                        "link": "/panel-jheliz-2026/jheliz-control/servicios/",
+                    },
+                    {
+                        "title": "Mis clientes",
+                        "icon": "groups",
+                        "link": "/panel-jheliz-2026/jheliz-control/clientes/",
                     },
                 ],
             },

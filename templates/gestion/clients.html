@@ -1,0 +1,117 @@
+{% extends "gestion/base.html" %}
+
+{% block jc_content %}
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+    <h2 class="jc-section-title"><span class="material-symbols-outlined">groups</span> Mis clientes</h2>
+    <button type="button" class="jc-btn" data-jc-open="modalClient">
+      <span class="material-symbols-outlined">person_add</span> Agregar cliente
+    </button>
+  </div>
+
+  {% if q %}<p style="color:#6b7280;margin:0 0 12px;">Resultados para "<strong>{{ q }}</strong>".</p>{% endif %}
+
+  {% if clients %}
+    <div class="jc-clients">
+      {% for c in clients %}
+        <article class="jc-client">
+          <div class="jc-client__top">
+            <div class="jc-avatar">{{ c.name|first|upper }}</div>
+            <div>
+              <div class="jc-client__name">{{ c.name }}</div>
+              {% if c.telegram %}<div class="jc-client__contact"><span class="material-symbols-outlined" style="font-size:15px">send</span>{{ c.telegram }}</div>{% endif %}
+              {% if c.whatsapp %}<div class="jc-client__contact"><span class="material-symbols-outlined" style="font-size:15px">chat</span>{{ c.whatsapp }}</div>{% endif %}
+            </div>
+          </div>
+
+          {% with subs=c.active_subscriptions %}
+            {% if subs %}
+              <div class="jc-tags">
+                {% for s in subs %}<span class="jc-tag">{{ s.service.name }}</span>{% endfor %}
+              </div>
+            {% else %}
+              <div style="font-size:12.5px;color:#9ca3af;margin:8px 0;">Sin servicios activos</div>
+            {% endif %}
+          {% endwith %}
+
+          <div class="jc-client__foot">
+            <a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'gestion_client_report' c.pk %}" target="_blank">
+              <span class="material-symbols-outlined">picture_as_pdf</span> Reporte
+            </a>
+            <button type="button" class="jc-btn jc-btn--ghost jc-btn--sm"
+                    data-jc-open="modalClientEdit"
+                    data-action="{% url 'gestion_client_edit' c.pk %}"
+                    data-fill-name="{{ c.name }}"
+                    data-fill-telegram="{{ c.telegram }}"
+                    data-fill-whatsapp="{{ c.whatsapp }}"
+                    data-fill-email="{{ c.email }}"
+                    data-fill-notes="{{ c.notes }}">
+              <span class="material-symbols-outlined">edit</span> Editar
+            </button>
+            <button type="button" class="jc-iact jc-iact--del" title="Eliminar"
+                    onclick="if(confirm('¿Eliminar a {{ c.name|escapejs }} y sus suscripciones?')){document.getElementById('delcli{{ c.pk }}').submit();}"><span class="material-symbols-outlined">delete</span></button>
+            <form id="delcli{{ c.pk }}" method="post" action="{% url 'gestion_client_delete' c.pk %}" style="display:none">{% csrf_token %}</form>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="jc-panel jc-empty">
+      <span class="material-symbols-outlined">person_off</span>
+      {% if q %}No hay clientes que coincidan con "{{ q }}".{% else %}Todavía no cargaste clientes. Agregá el primero.{% endif %}
+    </div>
+  {% endif %}
+
+  {# ── Modal: agregar cliente ───────────────────────────────────── #}
+  <div class="jc-modal" id="modalClient" aria-hidden="true">
+    <div class="jc-modal__backdrop" data-jc-close></div>
+    <div class="jc-modal__box" role="dialog" aria-modal="true">
+      <form method="post" action="{% url 'gestion_client_add' %}">
+        {% csrf_token %}
+        <div class="jc-modal__head">
+          <h3><span class="material-symbols-outlined">person_add</span> Agregar cliente</h3>
+          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="jc-modal__body">
+          <div class="jc-field"><label>Nombre</label><input type="text" name="name" required></div>
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Telegram (@usuario)</label><input type="text" name="telegram" placeholder="@usuario"></div>
+            <div class="jc-field"><label>WhatsApp</label><input type="text" name="whatsapp" placeholder="+51987654321"></div>
+          </div>
+          <div class="jc-field"><label>Correo</label><input type="email" name="email"></div>
+          <div class="jc-field"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+        </div>
+        <div class="jc-modal__foot">
+          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modal: editar cliente ────────────────────────────────────── #}
+  <div class="jc-modal" id="modalClientEdit" aria-hidden="true">
+    <div class="jc-modal__backdrop" data-jc-close></div>
+    <div class="jc-modal__box" role="dialog" aria-modal="true">
+      <form method="post" action="">
+        {% csrf_token %}
+        <div class="jc-modal__head">
+          <h3><span class="material-symbols-outlined">edit</span> Editar cliente</h3>
+          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="jc-modal__body">
+          <div class="jc-field"><label>Nombre</label><input type="text" name="name" required></div>
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Telegram (@usuario)</label><input type="text" name="telegram"></div>
+            <div class="jc-field"><label>WhatsApp</label><input type="text" name="whatsapp"></div>
+          </div>
+          <div class="jc-field"><label>Correo</label><input type="email" name="email"></div>
+          <div class="jc-field"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+        </div>
+        <div class="jc-modal__foot">
+          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
