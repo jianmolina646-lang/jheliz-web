@@ -346,7 +346,12 @@ class Tenant(models.Model):
     El acceso al panel depende de ``plan_expires_at``: mientras esté vigente, el
     inquilino opera normal; si vence, entra pero ve "suscripción vencida" hasta
     que pague de nuevo (cobro por Yape con aprobación manual del proveedor).
+
+    Al registrarse, el inquilino arranca con ``TRIAL_DAYS`` días de prueba
+    gratis (acceso completo sin pagar el primer mes).
     """
+
+    TRIAL_DAYS = 30
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -386,6 +391,12 @@ class Tenant(models.Model):
             return 0
         secs = (self.plan_expires_at - timezone.now()).total_seconds()
         return max(0, int(secs // 86400))
+
+    def start_trial(self, days: int = TRIAL_DAYS) -> None:
+        """Otorga la prueba gratis inicial si el inquilino nunca tuvo acceso."""
+        if self.plan_expires_at is None:
+            self.plan_expires_at = timezone.now() + timedelta(days=int(days))
+            self.save(update_fields=["plan_expires_at"])
 
     def extend(self, days: int = 30) -> None:
         """Suma días de alquiler (acumulativo si aún está vigente)."""

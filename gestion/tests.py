@@ -197,12 +197,29 @@ class TenantSaasTests(TestCase):
         # En el dominio de la tienda NO se exponen las URLs del producto.
         self.assertEqual(self.client.get(self.REGISTER, HTTP_HOST="ecormecejhelizstore.com").status_code, 404)
 
-    def test_register_creates_tenant_and_blocks_until_paid(self):
+    def test_register_grants_free_trial(self):
         r = self._register("inq1")
         self.assertEqual(r.status_code, 302)
         tenant = self.Tenant.objects.get(user__username="inq1")
+        # Al registrarse arranca con la prueba gratis: acceso activo sin pagar.
+        self.assertTrue(tenant.subscription_active)
+        self.assertGreaterEqual(tenant.days_left, self.Tenant.TRIAL_DAYS - 1)
+        # Con la prueba vigente, el panel responde 200 (no redirige a cobro).
+        self.assertEqual(
+            self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST).status_code, 200
+        )
+
+    def test_expired_trial_blocks_until_paid(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        self._register("inq1b")
+        tenant = self.Tenant.objects.get(user__username="inq1b")
+        # Simula prueba vencida: sin pago, el panel redirige a "Mi suscripción".
+        tenant.plan_expires_at = timezone.now() - timedelta(days=1)
+        tenant.save(update_fields=["plan_expires_at"])
         self.assertFalse(tenant.subscription_active)
-        # Sin pago, el panel redirige a "Mi suscripción".
         r = self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST)
         self.assertRedirects(r, self.BILLING, fetch_redirect_response=False)
 
