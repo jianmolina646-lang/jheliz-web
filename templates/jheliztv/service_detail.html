@@ -11,6 +11,9 @@
       <a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'jheliztv_services' %}">
         <span class="material-symbols-outlined">arrow_back</span> Servicios
       </a>
+      <button type="button" class="jc-btn jc-btn--ghost jc-btn--sm" data-jc-open="modalSvcEdit">
+        <span class="material-symbols-outlined">edit</span> Editar servicio
+      </button>
       <button type="button" class="jc-btn" data-jc-open="modalSub">
         <span class="material-symbols-outlined">person_add</span> Nueva suscripción
       </button>
@@ -146,6 +149,59 @@
         <div class="jc-modal__foot">
           <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
           <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Crear suscripción</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modal: editar servicio (nombre / categoría / icono / color / logo) ── #}
+  <div class="jc-modal" id="modalSvcEdit" aria-hidden="true">
+    <div class="jc-modal__backdrop" data-jc-close></div>
+    <div class="jc-modal__box" role="dialog" aria-modal="true">
+      <form method="post" action="{% url 'jheliztv_service_edit' service.pk %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="jc-modal__head">
+          <h3><span class="material-symbols-outlined">edit</span> Editar servicio</h3>
+          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="jc-modal__body">
+          <div class="jc-field">
+            <label>Nombre</label>
+            <input type="text" name="name" value="{{ service.name }}" required>
+          </div>
+          <div class="jc-grid2">
+            <div class="jc-field">
+              <label>Categoría</label>
+              <select name="category">
+                <option value="">— Sin categoría —</option>
+                {% for c in all_categories %}<option value="{{ c.pk }}"{% if service.category_id == c.pk %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="jc-field">
+              <label>Color de la tarjeta</label>
+              <input type="color" name="color" value="{{ service.color|default:'#10b981' }}">
+            </div>
+          </div>
+          <div class="jc-field">
+            <label>Icono (si no subís imagen)</label>
+            <input type="text" name="icon" value="{{ service.icon }}" placeholder="Ej. live_tv, music_note">
+            <div class="jc-help">Nombre de Material Symbols.</div>
+          </div>
+          <div class="jc-field">
+            <label>Logo / imagen</label>
+            {% if service.image %}
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                <img src="{{ service.image.url }}" alt="{{ service.name }}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid #e5e7eb;">
+                <small style="color:#6b7280">Logo actual. Subí uno nuevo para reemplazarlo.</small>
+              </div>
+            {% endif %}
+            <input type="file" name="image" accept="image/*">
+            <div class="jc-help">Ideal: imagen cuadrada (PNG/JPG), fondo transparente si se puede.</div>
+          </div>
+        </div>
+        <div class="jc-modal__foot">
+          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar cambios</button>
         </div>
       </form>
     </div>

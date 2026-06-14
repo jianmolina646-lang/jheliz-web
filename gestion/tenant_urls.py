@@ -23,6 +23,7 @@ urlpatterns = [
     path("app/servicios/", v.services_board, name="jheliztv_services"),
     path("app/servicios/agregar/", v.service_add, name="jheliztv_service_add"),
     path("app/servicios/<int:pk>/", v.service_detail, name="jheliztv_service_detail"),
+    path("app/servicios/<int:pk>/editar/", v.service_edit, name="jheliztv_service_edit"),
     path("app/servicios/<int:pk>/eliminar/", v.service_delete, name="jheliztv_service_delete"),
 
     # Suscripciones

@@ -259,3 +259,52 @@ class TenantSaasTests(TestCase):
         self.assertEqual(Client.objects.filter(owner=tb.user).count(), 0)
         r = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
         self.assertNotContains(r, "Cliente A")
+
+    def test_service_edit_updates_name_and_logo(self):
+        import io
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+
+        self._register("carol")
+        tc = self.Tenant.objects.get(user__username="carol")
+        tc.extend(30)
+        self.client.post(self.SERVICE_ADD, {"name": "Netflix"}, HTTP_HOST=self.HOST)
+        svc = Service.objects.get(owner=tc.user, name="Netflix")
+
+        buf = io.BytesIO()
+        Image.new("RGB", (8, 8), "#e50914").save(buf, format="PNG")
+        logo = SimpleUploadedFile("logo.png", buf.getvalue(), content_type="image/png")
+        r = self.client.post(
+            f"/app/servicios/{svc.pk}/editar/",
+            {"name": "Netflix Premium", "icon": "live_tv", "color": "#e50914", "image": logo},
+            HTTP_HOST=self.HOST,
+        )
+        self.assertRedirects(
+            r, f"/app/servicios/{svc.pk}/", fetch_redirect_response=False
+        )
+        svc.refresh_from_db()
+        self.assertEqual(svc.name, "Netflix Premium")
+        self.assertEqual(svc.color, "#e50914")
+        self.assertTrue(svc.image)
+
+    def test_service_edit_blocked_for_other_owner(self):
+        # Inquilino dueño crea el servicio.
+        self._register("owner1")
+        to = self.Tenant.objects.get(user__username="owner1")
+        to.extend(30)
+        self.client.post(self.SERVICE_ADD, {"name": "HBO"}, HTTP_HOST=self.HOST)
+        svc = Service.objects.get(owner=to.user, name="HBO")
+
+        # Otro inquilino no puede editar el servicio ajeno (404).
+        self.client.logout()
+        self._register("intruder")
+        ti = self.Tenant.objects.get(user__username="intruder")
+        ti.extend(30)
+        r = self.client.post(
+            f"/app/servicios/{svc.pk}/editar/",
+            {"name": "Hackeado"}, HTTP_HOST=self.HOST,
+        )
+        self.assertEqual(r.status_code, 404)
+        svc.refresh_from_db()
+        self.assertEqual(svc.name, "HBO")
