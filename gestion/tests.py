@@ -388,3 +388,79 @@ class TenantSaasTests(TestCase):
         cli = Client.objects.get(owner=t.user, name="Cliente Nuevo")
         self.assertEqual(cli.whatsapp, "+51987654321")
         self.assertTrue(Subscription.objects.filter(client=cli, account_email="n@x.com").exists())
+
+
+@override_settings(
+    ALLOWED_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz", "ecormecejhelizstore.com", "testserver"],
+    JHELIZTV_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz"],
+)
+class OwnerControlPanelTests(TestCase):
+    """Panel del dueño en jheliztv.xyz/control/: solo staff, ve inquilinos,
+    aprueba pagos Yape y suma días — separado de la web del inquilino."""
+
+    HOST = "jheliztv.xyz"
+    CONTROL = "/control/"
+    CONTROL_LOGIN = "/control/ingresar/"
+
+    def setUp(self):
+        from .models import SaasSettings, Tenant
+
+        SaasSettings.load()
+        self.Tenant = Tenant
+        U = get_user_model()
+        self.owner = U.objects.create_user("dueno", password="pw", is_staff=True, is_superuser=True)
+        self.tenant_user = U.objects.create_user("inq", password="pw")
+        self.tenant = Tenant.objects.create(user=self.tenant_user, business_name="Negocio Inq", whatsapp="+51987111222")
+        self.tenant.start_trial()
+
+    def test_control_only_on_jheliztv_host(self):
+        # En el dominio de la tienda no existe /control/.
+        self.assertEqual(
+            self.client.get(self.CONTROL_LOGIN, HTTP_HOST="ecormecejhelizstore.com").status_code, 404
+        )
+
+    def test_control_requires_login(self):
+        r = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
+        self.assertRedirects(r, self.CONTROL_LOGIN, fetch_redirect_response=False)
+
+    def test_non_staff_cannot_login(self):
+        r = self.client.post(
+            self.CONTROL_LOGIN, {"username": "inq", "password": "pw"}, HTTP_HOST=self.HOST
+        )
+        # Sigue en la página de login (no entra al panel).
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Acceso solo para el administrador")
+
+    def test_staff_sees_registered_tenants(self):
+        self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
+        r = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Negocio Inq")
+        self.assertContains(r, "Clientes registrados")
+
+    def test_approve_payment_activates_tenant(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from .models import TenantPayment
+
+        # Inquilino con prueba vencida + un pago pendiente.
+        self.tenant.plan_expires_at = timezone.now() - timedelta(days=1)
+        self.tenant.save(update_fields=["plan_expires_at"])
+        pay = TenantPayment.objects.create(tenant=self.tenant, amount=30, days=30)
+
+        self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
+        self.client.post(f"/control/pagos/{pay.pk}/aprobar/", HTTP_HOST=self.HOST)
+
+        pay.refresh_from_db()
+        self.tenant.refresh_from_db()
+        self.assertEqual(pay.status, TenantPayment.Status.APPROVED)
+        self.assertTrue(self.tenant.subscription_active)
+
+    def test_extend_tenant_adds_days(self):
+        self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
+        before = self.tenant.days_left
+        self.client.post(f"/control/inquilinos/{self.tenant.pk}/extender/", {"days": "30"}, HTTP_HOST=self.HOST)
+        self.tenant.refresh_from_db()
+        self.assertGreater(self.tenant.days_left, before)

@@ -1,0 +1,103 @@
+{% extends "jheliztv/control/base.html" %}
+
+{% block jc_content %}
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+    <h2 class="jc-section-title"><span class="material-symbols-outlined">admin_panel_settings</span> Inquilinos de jheliztv.xyz</h2>
+  </div>
+
+  <div class="jc-metrics">
+    <div class="jc-metric">
+      <div class="jc-metric__icon"><span class="material-symbols-outlined">groups</span></div>
+      <div><div class="jc-metric__v">{{ kpi.total }}</div><div class="jc-metric__l">Inquilinos registrados</div></div>
+    </div>
+    <div class="jc-metric">
+      <div class="jc-metric__icon"><span class="material-symbols-outlined">verified</span></div>
+      <div><div class="jc-metric__v">{{ kpi.activos }}</div><div class="jc-metric__l">Alquiler vigente</div></div>
+    </div>
+    <div class="jc-metric">
+      <div class="jc-metric__icon {% if kpi.vencidos %}is-red{% endif %}"><span class="material-symbols-outlined">timer_off</span></div>
+      <div><div class="jc-metric__v">{{ kpi.vencidos }}</div><div class="jc-metric__l">Vencidos</div></div>
+    </div>
+    <div class="jc-metric">
+      <div class="jc-metric__icon is-blue"><span class="material-symbols-outlined">receipt_long</span></div>
+      <div><div class="jc-metric__v">{{ kpi.pendientes }}</div><div class="jc-metric__l">Pagos por aprobar</div></div>
+    </div>
+  </div>
+
+  {# ── Pagos pendientes ──────────────────────────────────────────── #}
+  <div class="jc-panel" style="margin-top:16px;">
+    <h2 class="jc-section-title"><span class="material-symbols-outlined">payments</span> Pagos de alquiler por aprobar (Yape)</h2>
+    {% if pending %}
+    <div class="jc-table-wrap">
+      <table class="jc-table">
+        <thead>
+          <tr><th>Inquilino</th><th>Monto</th><th>Días</th><th>Comprobante</th><th>Subido</th><th>Acciones</th></tr>
+        </thead>
+        <tbody>
+          {% for p in pending %}
+          <tr>
+            <td><strong>{{ p.tenant }}</strong><br><small style="color:#6b7280">{{ p.tenant.user.username }}</small></td>
+            <td>S/ {{ p.amount }}</td>
+            <td>{{ p.days }}</td>
+            <td>
+              {% if p.proof %}<a class="jc-btn jc-btn--ghost jc-btn--sm" href="{{ p.proof.url }}" target="_blank"><span class="material-symbols-outlined">image</span> Ver</a>
+              {% else %}<small style="color:#9ca3af">—</small>{% endif %}
+            </td>
+            <td><small>{{ p.created_at|date:"d/m/Y H:i" }}</small></td>
+            <td>
+              <div class="jc-acts">
+                <form method="post" action="{% url 'jheliztv_control_payment_approve' p.pk %}" style="display:inline">{% csrf_token %}
+                  <button type="submit" class="jc-iact jc-iact--renew" title="Aprobar (+{{ p.days }} días)"><span class="material-symbols-outlined">check</span></button>
+                </form>
+                <form method="post" action="{% url 'jheliztv_control_payment_reject' p.pk %}" style="display:inline"
+                      onsubmit="return confirm('¿Rechazar este pago?');">{% csrf_token %}
+                  <button type="submit" class="jc-iact jc-iact--del" title="Rechazar"><span class="material-symbols-outlined">close</span></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p style="color:#6b7280;margin:6px 2px 0;">No hay pagos pendientes. Mientras los inquilinos estén en prueba gratis o con alquiler vigente, no aparece nada acá.</p>
+    {% endif %}
+  </div>
+
+  {# ── Inquilinos ────────────────────────────────────────────────── #}
+  <div class="jc-panel" style="margin-top:16px;">
+    <h2 class="jc-section-title"><span class="material-symbols-outlined">groups</span> Clientes registrados</h2>
+    {% if tenants %}
+    <div class="jc-table-wrap">
+      <table class="jc-table">
+        <thead>
+          <tr><th>Negocio</th><th>Usuario</th><th>WhatsApp</th><th>Estado</th><th>Días restantes</th><th>Registrado</th><th>Acciones</th></tr>
+        </thead>
+        <tbody>
+          {% for t in tenants %}
+          <tr>
+            <td><strong>{{ t.business_name|default:"—" }}</strong></td>
+            <td>{{ t.user.username }}</td>
+            <td>
+              {% if t.whatsapp %}<a href="https://wa.me/{{ t.whatsapp_digits }}" target="_blank" style="color:#059669;text-decoration:none;font-weight:600;">{{ t.whatsapp }}</a>
+              {% else %}<small style="color:#9ca3af">—</small>{% endif %}
+            </td>
+            <td><span class="jc-chip jc-chip--{{ t.estado_color }}">{{ t.estado }}</span></td>
+            <td>{{ t.days_left }} día{{ t.days_left|pluralize }}</td>
+            <td><small>{{ t.created_at|date:"d/m/Y" }}</small></td>
+            <td>
+              <form method="post" action="{% url 'jheliztv_control_tenant_extend' t.pk %}" style="display:inline">{% csrf_token %}
+                <button type="submit" class="jc-btn jc-btn--sm"><span class="material-symbols-outlined">add</span> 30 días</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <p style="color:#6b7280;margin:6px 2px 0;">Todavía no hay inquilinos registrados en jheliztv.xyz.</p>
+    {% endif %}
+  </div>
+{% endblock %}
