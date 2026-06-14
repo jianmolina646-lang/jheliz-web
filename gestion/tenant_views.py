@@ -334,6 +334,19 @@ def service_add(request, tenant):
 
 @tenant_required
 @require_POST
+def service_edit(request, tenant, pk):
+    service = get_object_or_404(Service, pk=pk, owner=request.user)
+    form = ServiceForm(request.POST, request.FILES, instance=service)
+    if form.is_valid():
+        form.save()
+        messages.success(request, "Servicio actualizado.")
+    else:
+        messages.error(request, "Revisá los datos del servicio.")
+    return redirect("jheliztv_service_detail", pk=service.pk)
+
+
+@tenant_required
+@require_POST
 def service_delete(request, tenant, pk):
     get_object_or_404(Service, pk=pk, owner=request.user).delete()
     messages.success(request, "Servicio eliminado.")
@@ -354,6 +367,7 @@ def service_detail(request, tenant, pk):
         title=service.name, jc_active="services",
         service=service, subs=subs, form=form,
         clients=Client.objects.filter(owner=owner),
+        all_categories=ServiceCategory.objects.all(),
     )
     return render(request, "jheliztv/service_detail.html", ctx)
 
