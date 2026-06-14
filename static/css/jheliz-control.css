@@ -169,17 +169,17 @@
 /* ── Acciones rápidas ────────────────────────────────────────────────── */
 .jc-acts { display: flex; gap: 6px; flex-wrap: wrap; }
 .jc-iact {
-  width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--jc-line); background: var(--jc-card);
-  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--jc-ink);
-  text-decoration: none; transition: all .14s ease;
+  width: 32px; height: 32px; border-radius: 9px; border: 1px solid transparent; color: #fff;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  text-decoration: none; transition: all .14s ease; box-shadow: 0 2px 5px rgba(0,0,0,.12);
 }
-.jc-iact:hover { transform: translateY(-2px); }
+.jc-iact:hover { transform: translateY(-2px); filter: brightness(1.08); }
 .jc-iact .material-symbols-outlined { font-size: 18px; }
-.jc-iact--wa:hover { background: #25d366; color: #fff; border-color: #25d366; }
-.jc-iact--tg:hover { background: #229ed9; color: #fff; border-color: #229ed9; }
-.jc-iact--renew:hover { background: var(--jc-green); color: #fff; border-color: var(--jc-green); }
-.jc-iact--edit:hover { background: #6366f1; color: #fff; border-color: #6366f1; }
-.jc-iact--del:hover { background: var(--jc-red); color: #fff; border-color: var(--jc-red); }
+.jc-iact--wa { background: #25d366; }
+.jc-iact--tg { background: #229ed9; }
+.jc-iact--renew { background: var(--jc-green); }
+.jc-iact--edit { background: #f59e0b; }
+.jc-iact--del { background: var(--jc-red); }
 
 /* ── Botones ─────────────────────────────────────────────────────────── */
 .jc-btn {
