@@ -234,14 +234,50 @@
   outline: 0; border-color: var(--jc-green); box-shadow: 0 0 0 3px var(--jc-green-soft);
 }
 .jc-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.jc-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
 .jc-help { font-size: 11.5px; color: var(--jc-muted); margin-top: 3px; }
+.jc-field label small { font-weight: 500; color: var(--jc-muted); }
+.jc-ilbl { font-size: 18px; vertical-align: -3px; color: var(--jc-green); }
 .jc-profit-live { background: var(--jc-green-soft); color: var(--jc-green-deep); padding: 10px 14px; border-radius: 11px; font-weight: 700; }
+
+/* ── Selección rápida de cliente ─────────────────────────────────────── */
+.jc-quickpick { background: var(--jc-bg, #f3f4f6); border: 1px solid var(--jc-line); border-radius: 13px; padding: 12px; margin-bottom: 14px; }
+.jc-quickpick__title { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--jc-green-deep); margin-bottom: 9px; }
+.jc-quickpick__title .material-symbols-outlined { font-size: 18px; }
+.jc-csearch { width: 100%; padding: 9px 13px; border: 1px solid var(--jc-line); border-radius: 10px; font-size: 14px; background: var(--jc-card); }
+.jc-csearch:focus { outline: 0; border-color: var(--jc-green); box-shadow: 0 0 0 3px var(--jc-green-soft); }
+.jc-clist { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; max-height: 132px; overflow-y: auto; }
+.jc-citem { border: 1px solid var(--jc-line); background: var(--jc-card); border-radius: 999px; padding: 6px 13px; font-size: 13px; cursor: pointer; color: var(--jc-ink); transition: all .14s; }
+.jc-citem small { color: var(--jc-muted); }
+.jc-citem:hover { border-color: var(--jc-green); }
+.jc-citem.is-active { background: var(--jc-green); border-color: var(--jc-green); color: #fff; }
+.jc-citem.is-active small { color: rgba(255,255,255,.85); }
+
+/* ── Nota informativa ────────────────────────────────────────────────── */
+.jc-note { display: flex; gap: 8px; align-items: flex-start; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; border-radius: 11px; padding: 9px 12px; font-size: 12.5px; margin-bottom: 14px; }
+.jc-note .material-symbols-outlined { font-size: 18px; flex: 0 0 auto; }
+
+/* ── Tiempo del servicio ─────────────────────────────────────────────── */
+.jc-daysrow { display: flex; align-items: center; gap: 8px; }
+.jc-daysrow input { max-width: 110px; }
+.jc-daysrow span { font-size: 14px; color: var(--jc-muted); }
+
+/* ── Botones de perfiles / cuenta completa ───────────────────────────── */
+.jc-pchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.jc-pchip { width: 42px; height: 42px; border: 1px solid var(--jc-line); background: var(--jc-card); border-radius: 11px; font-size: 15px; font-weight: 700; cursor: pointer; color: var(--jc-ink); transition: all .14s; }
+.jc-pchip--full { width: auto; padding: 0 16px; font-size: 13px; }
+.jc-pchip:hover { border-color: var(--jc-green); }
+.jc-pchip.is-active { background: var(--jc-green); border-color: var(--jc-green); color: #fff; box-shadow: 0 4px 10px var(--jc-green-soft); }
+
+/* ── Caja "Opcional" (vendido / invertido) ───────────────────────────── */
+.jc-optbox { background: var(--jc-bg, #f3f4f6); border: 1px solid var(--jc-line); border-radius: 13px; padding: 13px; margin-top: 14px; }
+.jc-optbox__title { text-align: center; font-size: 12.5px; font-weight: 700; color: var(--jc-muted); margin-bottom: 10px; }
 
 /* ── Estado vacío ────────────────────────────────────────────────────── */
 .jc-empty { text-align: center; padding: 40px 20px; color: var(--jc-muted); }
 .jc-empty .material-symbols-outlined { font-size: 48px; color: var(--jc-line); display: block; margin-bottom: 8px; }
 
 @media (max-width: 600px) {
-  .jc-grid2 { grid-template-columns: 1fr; }
+  .jc-grid2, .jc-grid3 { grid-template-columns: 1fr; }
   .jc { margin: -12px; padding: 12px; }
 }

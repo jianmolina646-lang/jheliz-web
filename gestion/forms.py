@@ -41,7 +41,7 @@ class SubscriptionForm(forms.ModelForm):
         model = Subscription
         fields = (
             "client", "service", "account_email", "account_password",
-            "plan", "profiles", "profile_name", "profile_pin",
+            "plan", "profiles", "profile_name", "profile_pin", "plan_label",
             "currency", "cost", "investment",
             "starts_at", "expires_at",
         )
@@ -79,9 +79,9 @@ class SubscriptionForm(forms.ModelForm):
         profiles = cleaned.get("profiles") or 1
         cleaned["profiles"] = max(1, min(7, int(profiles)))
 
-        # Moneda por defecto USD.
+        # Moneda por defecto soles (S/).
         if not cleaned.get("currency"):
-            cleaned["currency"] = "USD"
+            cleaned["currency"] = "S/"
         return cleaned
 
 
@@ -99,7 +99,7 @@ class TransactionForm(forms.ModelForm):
         self.fields["occurred_at"].required = False
 
     def clean_currency(self):
-        return self.cleaned_data.get("currency") or "USD"
+        return self.cleaned_data.get("currency") or "S/"
 
     def clean_occurred_at(self):
         return self.cleaned_data.get("occurred_at") or timezone.now()

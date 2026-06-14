@@ -10,8 +10,9 @@ standalone bajo ``templates/jheliztv/`` (no dependen del admin).
 """
 from __future__ import annotations
 
+import re
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from functools import wraps
 
 from django.contrib import messages
@@ -375,38 +376,112 @@ def service_detail(request, tenant, pk):
 # ---------------------------------------------------------------------------
 # Suscripciones
 # ---------------------------------------------------------------------------
+def _split_emails(raw: str) -> list[str]:
+    """Separa correos por coma/; /salto de línea y elimina duplicados."""
+    parts = re.split(r"[,;\n]+", raw or "")
+    seen: set[str] = set()
+    out: list[str] = []
+    for p in parts:
+        e = p.strip()
+        if e and e.lower() not in seen:
+            seen.add(e.lower())
+            out.append(e)
+    return out
+
+
+def _dec(value) -> Decimal:
+    try:
+        return Decimal(str(value or "0")).quantize(Decimal("0.01"))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0.00")
+
+
 @tenant_required
 @require_POST
 def subscription_add(request, tenant):
     owner = request.user
-    form = SubscriptionForm(request.POST)
-    form.fields["client"].queryset = Client.objects.filter(owner=owner)
-    form.fields["service"].queryset = Service.objects.filter(owner=owner)
-    if form.is_valid():
-        sub = form.save(commit=False)
-        sub.owner = owner
-        sub.save()
-        if sub.cost and sub.cost > 0:
-            Transaction.objects.create(
-                owner=owner, kind=Transaction.Kind.INCOME, amount=sub.cost,
-                currency=sub.currency,
-                description=f"Venta {sub.service.name} · {sub.client.name}",
-                client=sub.client, subscription=sub,
+    post = request.POST
+    service = get_object_or_404(Service, pk=post.get("service") or 0, owner=owner)
+
+    # --- Cliente: usar uno existente o crear uno nuevo al vuelo ---------------
+    client = None
+    client_id = (post.get("client") or "").strip()
+    if client_id:
+        client = Client.objects.filter(pk=client_id, owner=owner).first()
+    if client is None:
+        new_name = (post.get("new_client_name") or "").strip()
+        if new_name:
+            client = Client.objects.create(
+                owner=owner, name=new_name,
+                whatsapp=(post.get("new_client_whatsapp") or "").strip(),
+                telegram=(post.get("new_client_telegram") or "").strip(),
             )
-        if sub.investment and sub.investment > 0:
+    if client is None:
+        messages.error(request, "Elegí un cliente o cargá uno nuevo.")
+        return redirect("jheliztv_service_detail", pk=service.pk)
+
+    # --- Correos (uno o varios separados por coma) ----------------------------
+    emails = _split_emails(post.get("account_emails") or post.get("account_email") or "")
+    if not emails:
+        messages.error(request, "Ingresá al menos un correo de la cuenta.")
+        return redirect("jheliztv_service_detail", pk=service.pk)
+
+    password = (post.get("account_password") or "").strip()
+    plan = Subscription.Plan.COMPLETA if post.get("plan") == "completa" else Subscription.Plan.PERFIL
+    try:
+        profiles = max(1, min(7, int(post.get("profiles") or 1)))
+    except (TypeError, ValueError):
+        profiles = 1
+    if plan == Subscription.Plan.COMPLETA:
+        profiles = 1
+    plan_label = (post.get("plan_label") or "").strip()
+    profile_name = (post.get("profile_name") or "").strip()
+    profile_pin = (post.get("profile_pin") or "").strip()
+
+    try:
+        days = max(1, int(post.get("duration_days") or 30))
+    except (TypeError, ValueError):
+        days = 30
+    starts = timezone.now()
+    expires = starts + timedelta(days=days)
+    currency = ControlSettings.load(owner).currency or "S/"
+
+    # Los totales ("¿cuánto vendiste/invertiste en total?") se reparten en
+    # partes iguales entre los correos cargados.
+    n = len(emails)
+    cost_each = (_dec(post.get("cost")) / n).quantize(Decimal("0.01"))
+    inv_each = (_dec(post.get("investment")) / n).quantize(Decimal("0.01"))
+
+    for email in emails:
+        sub = Subscription.objects.create(
+            owner=owner, client=client, service=service,
+            account_email=email, account_password=password,
+            plan=plan, profiles=profiles,
+            profile_name=profile_name, profile_pin=profile_pin,
+            plan_label=plan_label, currency=currency,
+            cost=cost_each, investment=inv_each,
+            starts_at=starts, expires_at=expires,
+        )
+        if cost_each > 0:
             Transaction.objects.create(
-                owner=owner, kind=Transaction.Kind.EXPENSE, amount=sub.investment,
-                currency=sub.currency,
-                description=f"Inversión {sub.service.name}",
-                client=sub.client, subscription=sub,
+                owner=owner, kind=Transaction.Kind.INCOME, amount=cost_each,
+                currency=currency,
+                description=f"Venta {service.name} · {client.name}",
+                client=client, subscription=sub,
             )
+        if inv_each > 0:
+            Transaction.objects.create(
+                owner=owner, kind=Transaction.Kind.EXPENSE, amount=inv_each,
+                currency=currency,
+                description=f"Inversión {service.name}",
+                client=client, subscription=sub,
+            )
+
+    if n == 1:
         messages.success(request, "Suscripción creada.")
-        return redirect("jheliztv_service_detail", pk=sub.service_id)
-    messages.error(request, "Revisá los datos de la suscripción.")
-    service_id = request.POST.get("service")
-    if service_id:
-        return redirect("jheliztv_service_detail", pk=service_id)
-    return redirect("jheliztv_dashboard")
+    else:
+        messages.success(request, f"Se crearon {n} suscripciones.")
+    return redirect("jheliztv_service_detail", pk=service.pk)
 
 
 @tenant_required

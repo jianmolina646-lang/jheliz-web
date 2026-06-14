@@ -50,6 +50,7 @@
               {% else %}<small style="color:#9ca3af">—</small>{% endif %}
             </td>
             <td>
+              {% if s.plan_label %}<strong>{{ s.plan_label }}</strong><br>{% endif %}
               {{ s.get_plan_display }}
               {% if s.plan == 'perfil' %}<br><small style="color:#6b7280">{{ s.profiles }} perfil(es){% if s.profile_name %} · {{ s.profile_name }}{% endif %}</small>{% endif %}
             </td>
@@ -75,6 +76,7 @@
                         data-fill-account_email="{{ s.account_email }}"
                         data-fill-account_password="{{ s.account_password }}"
                         data-fill-plan="{{ s.plan }}"
+                        data-fill-plan_label="{{ s.plan_label }}"
                         data-fill-profiles="{{ s.profiles }}"
                         data-fill-profile_name="{{ s.profile_name }}"
                         data-fill-profile_pin="{{ s.profile_pin }}"
@@ -108,47 +110,80 @@
         {% csrf_token %}
         <input type="hidden" name="service" value="{{ service.pk }}">
         <div class="jc-modal__head">
-          <h3><span class="material-symbols-outlined">person_add</span> Nueva suscripción · {{ service.name }}</h3>
+          <h3><span class="material-symbols-outlined">person_add</span> Agregar Suscripción · {{ service.name }}</h3>
           <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
         </div>
-        <div class="jc-modal__body">
-          <div class="jc-field">
-            <label>Cliente</label>
-            <select name="client" required>
-              <option value="">— Elegí un cliente —</option>
-              {% for c in clients %}<option value="{{ c.pk }}">{{ c.name }}{% if c.telegram %} ({{ c.telegram }}){% endif %}</option>{% endfor %}
-            </select>
-            <div class="jc-help">¿No está? Agregalo en "Mis clientes".</div>
-          </div>
-          <div class="jc-grid2">
-            <div class="jc-field"><label>Correo / usuario de la cuenta</label><input type="text" name="account_email" required></div>
-            <div class="jc-field"><label>Contraseña</label><input type="text" name="account_password"></div>
-          </div>
-          <div class="jc-grid2">
-            <div class="jc-field">
-              <label>Plan</label>
-              <select name="plan"><option value="perfil">Perfil individual</option><option value="completa">Cuenta completa</option></select>
+        <div class="jc-modal__body" data-jc-subform>
+          {# Selección rápida de cliente #}
+          <div class="jc-quickpick">
+            <div class="jc-quickpick__title"><span class="material-symbols-outlined">bolt</span> Selección rápida de cliente</div>
+            <input type="search" class="jc-csearch" data-jc-csearch placeholder="Nombre, +teléfono o @telegram…">
+            <div class="jc-clist" data-jc-clist>
+              {% for c in clients %}
+                <button type="button" class="jc-citem" data-jc-cpick
+                        data-id="{{ c.pk }}" data-name="{{ c.name }}"
+                        data-wa="{{ c.whatsapp }}" data-tg="{{ c.telegram }}"
+                        data-search="{{ c.name|lower }} {{ c.whatsapp }} {{ c.telegram|lower }}">
+                  <strong>{{ c.name }}</strong>{% if c.telegram %} <small>{{ c.telegram }}</small>{% endif %}
+                </button>
+              {% empty %}
+                <div class="jc-help" style="padding:6px 8px;">Todavía no tenés clientes. Escribí uno nuevo abajo.</div>
+              {% endfor %}
             </div>
-            <div class="jc-field"><label>Perfiles (1–7)</label><input type="number" name="profiles" min="1" max="7" value="1"></div>
           </div>
-          <div class="jc-grid2">
-            <div class="jc-field"><label>Nombre de perfil</label><input type="text" name="profile_name"></div>
-            <div class="jc-field"><label>PIN</label><input type="text" name="profile_pin"></div>
+          <input type="hidden" name="client" data-jc-client value="">
+          <div class="jc-grid3">
+            <div class="jc-field"><label>Nombre del cliente</label><input type="text" name="new_client_name" data-jc-cname placeholder="Selecciona arriba o escribe uno nuevo"></div>
+            <div class="jc-field"><label>WhatsApp <small>(opcional)</small></label><input type="text" name="new_client_whatsapp" data-jc-cwa placeholder="+ 51…"></div>
+            <div class="jc-field"><label>Telegram <small>(opcional)</small></label><input type="text" name="new_client_telegram" data-jc-ctg placeholder="@usuario"></div>
           </div>
-          <div class="jc-grid2">
-            <div class="jc-field"><label>Costo (venta al cliente)</label><input type="number" step="0.01" name="cost" value="0.00"></div>
-            <div class="jc-field"><label>Inversión (lo que te costó)</label><input type="number" step="0.01" name="investment" value="0.00"></div>
+
+          {# Correos de la cuenta (varios) #}
+          <div class="jc-field">
+            <label><span class="material-symbols-outlined jc-ilbl">mail</span> Correos de la cuenta <small>— separá con , (el último sin coma)</small></label>
+            <textarea name="account_emails" rows="3" placeholder="correo1@ejemplo.com,&#10;correo2@ejemplo.com,&#10;correo3@gmail.com" required></textarea>
           </div>
-          <div class="jc-profit-live" data-profit-out>Utilidad: +{{ jc_currency }} 0.00</div>
-          <div class="jc-grid2" style="margin-top:14px;">
-            <div class="jc-field"><label>Inicio</label><input type="datetime-local" name="starts_at"></div>
-            <div class="jc-field"><label>Duración (días)</label><input type="number" name="duration_days" value="30" min="1"></div>
+
+          {# Contraseña compartida #}
+          <div class="jc-field">
+            <label><span class="material-symbols-outlined jc-ilbl">key</span> Contraseña <small>— aplica a todos</small></label>
+            <input type="text" name="account_password" placeholder="Contraseña123">
           </div>
-          <div class="jc-help">Si no ponés "Vence" exacto, se calcula desde el inicio + los días.</div>
+          <div class="jc-note"><span class="material-symbols-outlined">info</span> La misma contraseña se usará para <strong>todos los correos</strong> que ingreses. Se creará una suscripción independiente por cada correo.</div>
+
+          {# Plan + tiempo #}
+          <div class="jc-grid2" style="margin-top:6px;">
+            <div class="jc-field"><label>Plan de suscripción</label><input type="text" name="plan_label" placeholder="Premium, Básico…"></div>
+            <div class="jc-field"><label>Tiempo del servicio</label><div class="jc-daysrow"><input type="number" name="duration_days" value="30" min="1"> <span>días</span></div></div>
+          </div>
+
+          {# Perfiles / cuenta completa #}
+          <input type="hidden" name="plan" data-jc-plan value="perfil">
+          <input type="hidden" name="profiles" data-jc-profiles value="1">
+          <div class="jc-field">
+            <label>Toca los perfiles del cliente:</label>
+            <div class="jc-pchips" data-jc-pchips>
+              {% for i in "1234567"|make_list %}
+                <button type="button" class="jc-pchip{% if i == '1' %} is-active{% endif %}" data-jc-profile="{{ i }}">{{ i }}</button>
+              {% endfor %}
+              <button type="button" class="jc-pchip jc-pchip--full" data-jc-profile="full">cuenta completa</button>
+            </div>
+          </div>
+
+          {# Opcional: totales vendido/invertido #}
+          <div class="jc-optbox">
+            <div class="jc-optbox__title">Opcional</div>
+            <div class="jc-grid2">
+              <div class="jc-field"><label>¿Cuánto vendiste en total?</label><input type="number" step="0.01" name="cost" value="0.00"></div>
+              <div class="jc-field"><label>¿Cuánto invertiste en total?</label><input type="number" step="0.01" name="investment" value="0.00"></div>
+            </div>
+            <div class="jc-help">💡 Permite llevar un control más preciso de tus ingresos y egresos. Ej: 2 cuentas a {{ jc_currency }} 5 = {{ jc_currency }} 10.</div>
+            <div class="jc-profit-live" data-profit-out>Utilidad: +{{ jc_currency }} 0.00</div>
+          </div>
         </div>
         <div class="jc-modal__foot">
           <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
-          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Crear suscripción</button>
+          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">check</span> Agregar Suscripción</button>
         </div>
       </form>
     </div>
@@ -254,6 +289,7 @@
             <div class="jc-field"><label>Plan</label><select name="plan"><option value="perfil">Perfil individual</option><option value="completa">Cuenta completa</option></select></div>
             <div class="jc-field"><label>Perfiles (1–7)</label><input type="number" name="profiles" min="1" max="7"></div>
           </div>
+          <div class="jc-field"><label>Plan de suscripción</label><input type="text" name="plan_label" placeholder="Premium, Básico…"></div>
           <div class="jc-grid2">
             <div class="jc-field"><label>Nombre de perfil</label><input type="text" name="profile_name"></div>
             <div class="jc-field"><label>PIN</label><input type="text" name="profile_pin"></div>
