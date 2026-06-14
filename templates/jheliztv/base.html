@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title|default:"Jheliz Control" }} · Jheliz Control</title>
+  <title>{{ title|default:"JHELIZCONTROLTV" }} · JHELIZCONTROLTV</title>
   <meta name="robots" content="noindex,nofollow">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,17 +22,16 @@
     <a class="jc-brand" href="{% url 'jheliztv_dashboard' %}">
       <span class="jc-logo" aria-hidden="true">
         <svg viewBox="0 0 64 64" width="36" height="36">
-          <circle cx="32" cy="32" r="32" fill="#10b981"/>
-          <path fill="#ffffff" d="M20 22l6 7c2-1 4-1.5 6-1.5s4 .5 6 1.5l6-7v16c0
-            7-5.4 12-12 12s-12-5-12-12V22z"/>
-          <circle cx="27" cy="36" r="2.2" fill="#065f46"/>
-          <circle cx="37" cy="36" r="2.2" fill="#065f46"/>
-          <path d="M30 41c1.2 1 2.8 1 4 0" stroke="#065f46" stroke-width="1.6"
-            fill="none" stroke-linecap="round"/>
+          <defs><linearGradient id="jcLogoBar" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#059669"/></linearGradient></defs>
+          <rect x="2" y="2" width="60" height="60" rx="18" fill="url(#jcLogoBar)"/>
+          <path d="M17 13 L51 32 L17 51 Z" fill="rgba(255,255,255,.16)"/>
+          <text x="32" y="42" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif"
+            font-size="29" font-weight="800" fill="#ffffff" letter-spacing="-2">JC</text>
         </svg>
       </span>
       <span class="jc-brand__txt">
-        <strong>Jheliz Control</strong>
+        <strong>JHELIZCONTROLTV</strong>
         <small>{{ jc_tenant.business_name|default:"Gestión de suscripciones" }}</small>
       </span>
     </a>
