@@ -178,6 +178,10 @@ class Subscription(models.Model):
     )
     profile_name = models.CharField("Nombre de perfil", max_length=80, blank=True)
     profile_pin = models.CharField("PIN", max_length=12, blank=True)
+    plan_label = models.CharField(
+        "Plan de suscripción", max_length=40, blank=True,
+        help_text="Nombre del plan (ej. Premium, Básico).",
+    )
 
     # Finanzas (USD por defecto; la divisa se guarda por si se cambia a futuro).
     currency = models.CharField("Moneda", max_length=8, default="S/")

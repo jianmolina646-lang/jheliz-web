@@ -119,6 +119,67 @@
   }
   document.querySelectorAll("form").forEach(wireProfit);
 
+  // ── Botones de perfiles (1–7 / cuenta completa) ───────────────────────
+  document.querySelectorAll("[data-jc-pchips]").forEach(function (box) {
+    var form = box.closest("form");
+    if (!form) { return; }
+    var planEl = form.querySelector("[data-jc-plan]");
+    var profEl = form.querySelector("[data-jc-profiles]");
+    box.addEventListener("click", function (e) {
+      var chip = e.target.closest("[data-jc-profile]");
+      if (!chip) { return; }
+      box.querySelectorAll(".jc-pchip").forEach(function (c) { c.classList.remove("is-active"); });
+      chip.classList.add("is-active");
+      var val = chip.getAttribute("data-jc-profile");
+      if (val === "full") {
+        if (planEl) { planEl.value = "completa"; }
+        if (profEl) { profEl.value = "1"; }
+      } else {
+        if (planEl) { planEl.value = "perfil"; }
+        if (profEl) { profEl.value = val; }
+      }
+    });
+  });
+
+  // ── Selección rápida de cliente (buscar / elegir / crear nuevo) ───────
+  document.querySelectorAll("[data-jc-subform]").forEach(function (form) {
+    var search = form.querySelector("[data-jc-csearch]");
+    var list = form.querySelector("[data-jc-clist]");
+    var hidden = form.querySelector("[data-jc-client]");
+    var nameI = form.querySelector("[data-jc-cname]");
+    var waI = form.querySelector("[data-jc-cwa]");
+    var tgI = form.querySelector("[data-jc-ctg]");
+    if (search && list) {
+      search.addEventListener("input", function () {
+        var q = search.value.trim().toLowerCase();
+        list.querySelectorAll("[data-jc-cpick]").forEach(function (item) {
+          var hay = (item.getAttribute("data-search") || "").toLowerCase();
+          item.style.display = (!q || hay.indexOf(q) !== -1) ? "" : "none";
+        });
+      });
+    }
+    if (list) {
+      list.addEventListener("click", function (e) {
+        var item = e.target.closest("[data-jc-cpick]");
+        if (!item) { return; }
+        list.querySelectorAll("[data-jc-cpick]").forEach(function (c) { c.classList.remove("is-active"); });
+        item.classList.add("is-active");
+        if (hidden) { hidden.value = item.getAttribute("data-id") || ""; }
+        if (nameI) { nameI.value = item.getAttribute("data-name") || ""; }
+        if (waI) { waI.value = item.getAttribute("data-wa") || ""; }
+        if (tgI) { tgI.value = item.getAttribute("data-tg") || ""; }
+      });
+    }
+    // Si el usuario edita el nombre a mano, dejamos de usar el cliente elegido
+    // (se creará uno nuevo con lo que escriba).
+    if (nameI) {
+      nameI.addEventListener("input", function () {
+        if (hidden) { hidden.value = ""; }
+        if (list) { list.querySelectorAll("[data-jc-cpick]").forEach(function (c) { c.classList.remove("is-active"); }); }
+      });
+    }
+  });
+
   // ── Campana de notificaciones ─────────────────────────────────────────
   var root = document.querySelector(".jc");
   var bell = document.getElementById("jcBell");

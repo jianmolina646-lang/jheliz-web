@@ -308,3 +308,83 @@ class TenantSaasTests(TestCase):
         self.assertEqual(r.status_code, 404)
         svc.refresh_from_db()
         self.assertEqual(svc.name, "HBO")
+
+    SUB_ADD = "/app/suscripciones/agregar/"
+
+    def _new_service(self, username="seller", name="Netflix"):
+        self._register(username)
+        t = self.Tenant.objects.get(user__username=username)
+        t.extend(30)
+        self.client.post(self.SERVICE_ADD, {"name": name}, HTTP_HOST=self.HOST)
+        return t, Service.objects.get(owner=t.user, name=name)
+
+    def test_subscription_add_multiple_emails_splits_totals(self):
+        t, svc = self._new_service("seller1")
+        cli = Client.objects.create(owner=t.user, name="Juan")
+        r = self.client.post(
+            self.SUB_ADD,
+            {
+                "service": svc.pk, "client": cli.pk,
+                "account_emails": "a@x.com, b@x.com, c@x.com",
+                "account_password": "Pass123",
+                "plan": "perfil", "profiles": "2",
+                "plan_label": "Premium", "duration_days": "30",
+                "cost": "30", "investment": "12",
+            },
+            HTTP_HOST=self.HOST,
+        )
+        self.assertRedirects(r, f"/app/servicios/{svc.pk}/", fetch_redirect_response=False)
+        subs = Subscription.objects.filter(owner=t.user, service=svc).order_by("account_email")
+        self.assertEqual(subs.count(), 3)
+        # El total (30/12) se reparte en partes iguales entre los 3 correos.
+        for s in subs:
+            self.assertEqual(s.cost, Decimal("10.00"))
+            self.assertEqual(s.investment, Decimal("4.00"))
+            self.assertEqual(s.account_password, "Pass123")
+            self.assertEqual(s.plan_label, "Premium")
+            self.assertEqual(s.profiles, 2)
+        self.assertEqual({s.account_email for s in subs}, {"a@x.com", "b@x.com", "c@x.com"})
+
+    def test_service_detail_renders_new_subscription_modal(self):
+        t, svc = self._new_service("seller_render")
+        Client.objects.create(owner=t.user, name="Pepe", telegram="@pepe")
+        r = self.client.get(f"/app/servicios/{svc.pk}/", HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        for token in (
+            "Selección rápida de cliente", "Agregar Suscripción",
+            "cuenta completa", "¿Cuánto vendiste en total?",
+            "account_emails", "data-jc-csearch",
+        ):
+            self.assertContains(r, token)
+
+    def test_subscription_add_cuenta_completa_forces_one_profile(self):
+        t, svc = self._new_service("seller2")
+        cli = Client.objects.create(owner=t.user, name="Ana")
+        self.client.post(
+            self.SUB_ADD,
+            {
+                "service": svc.pk, "client": cli.pk,
+                "account_emails": "full@x.com",
+                "plan": "completa", "profiles": "5", "duration_days": "30",
+            },
+            HTTP_HOST=self.HOST,
+        )
+        s = Subscription.objects.get(account_email="full@x.com")
+        self.assertEqual(s.plan, "completa")
+        self.assertEqual(s.profiles, 1)
+
+    def test_subscription_add_creates_inline_client(self):
+        t, svc = self._new_service("seller3")
+        self.client.post(
+            self.SUB_ADD,
+            {
+                "service": svc.pk, "client": "",
+                "new_client_name": "Cliente Nuevo",
+                "new_client_whatsapp": "+51987654321",
+                "account_emails": "n@x.com", "duration_days": "30",
+            },
+            HTTP_HOST=self.HOST,
+        )
+        cli = Client.objects.get(owner=t.user, name="Cliente Nuevo")
+        self.assertEqual(cli.whatsapp, "+51987654321")
+        self.assertTrue(Subscription.objects.filter(client=cli, account_email="n@x.com").exists())
