@@ -15,6 +15,8 @@ from django.views.static import serve as static_serve
 
 urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
+    # Panel del dueño (solo staff): inquilinos + pagos de alquiler.
+    path("control/", include("gestion.owner_urls")),
     path("", include("gestion.tenant_urls")),
 ]
 

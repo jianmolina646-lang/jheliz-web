@@ -384,6 +384,11 @@ class Tenant(models.Model):
         return self.business_name or self.user.get_username()
 
     @property
+    def whatsapp_digits(self) -> str:
+        import re
+        return re.sub(r"\D", "", self.whatsapp or "")
+
+    @property
     def subscription_active(self) -> bool:
         if self.is_blocked:
             return False
