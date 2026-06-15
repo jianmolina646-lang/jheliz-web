@@ -151,6 +151,10 @@ jobs:
             echo "✓ Deploy completado: $(git rev-parse --short HEAD)"
         env:
           VPS_PROJECT_PATH: ${{ vars.VPS_PROJECT_PATH }}
-          NGINX_CONF_SYNC: ${{ vars.NGINX_CONF_SYNC }}
+          # La config de nginx del VPS se mantiene a mano (la del store y la de
+          # jheliztv.xyz viven en archivos separados en sites-enabled/). La
+          # sincronización automática queda desactivada para que el deploy no
+          # intente sobrescribir esos archivos ni quede en rojo por este paso.
+          NGINX_CONF_SYNC: "false"
           NGINX_CONF_PATH: ${{ vars.NGINX_CONF_PATH }}
           MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET }}
