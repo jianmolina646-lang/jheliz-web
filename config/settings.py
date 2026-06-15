@@ -697,13 +697,14 @@ FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default="")
 #
 # IMPORTANTE: los defaults anteriores (3 intentos / 24h) eran demasiado
 # agresivos y bloqueaban a clientes que escribían mal su contraseña 2-3
-# veces. Ajustados a 10 intentos / 1 hora — sigue siendo seguro contra
-# fuerza bruta automatizada pero ya no maltrata a usuarios honestos.
-AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=10, cast=int)
+# veces. Ajustado a 30 intentos / 2 minutos — en la práctica un usuario
+# honesto NUNCA lo ve, pero queda un freno mínimo contra fuerza bruta
+# automatizada (y si llega a saltar, se destraba solo en 2 minutos).
+AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=30, cast=int)
 AXES_COOLOFF_TIME = config(
-    # Acepta horas en decimales (0.5 = 30 min) para poder bajarlo más sin
-    # tener que migrar a otra unidad si más adelante hace falta.
-    "AXES_COOLOFF_TIME_HOURS", default=1.0, cast=float,
+    # Acepta horas en decimales (0.5 = 30 min, 0.0333 ≈ 2 min) para poder
+    # bajarlo sin migrar a otra unidad si más adelante hace falta.
+    "AXES_COOLOFF_TIME_HOURS", default=2.0 / 60.0, cast=float,
 )
 # Lockout sólo por (ip, username): un atacante que prueba varias contraseñas
 # del mismo usuario es lo único que queremos frenar. Así NO bloqueamos a
