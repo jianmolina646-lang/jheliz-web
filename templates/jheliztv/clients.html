@@ -17,19 +17,28 @@
           <div class="jc-client__top">
             <div class="jc-avatar">{{ c.name|first|upper }}</div>
             <div>
-              <div class="jc-client__name">{{ c.name }}</div>
+              <div class="jc-client__name">{{ c.name }}{% if c.active_subs %}<span class="jc-count-badge">{{ c.active_subs|length }} activa{{ c.active_subs|length|pluralize }}</span>{% endif %}</div>
               {% if c.telegram %}<div class="jc-client__contact"><span class="material-symbols-outlined" style="font-size:15px">send</span>{{ c.telegram }}</div>{% endif %}
               {% if c.whatsapp %}<div class="jc-client__contact"><span class="material-symbols-outlined" style="font-size:15px">chat</span>{{ c.whatsapp }}</div>{% endif %}
             </div>
           </div>
 
-          {% with subs=c.active_subscriptions %}
+          {% with subs=c.active_subs %}
             {% if subs %}
-              <div class="jc-tags">
-                {% for s in subs %}<span class="jc-tag">{{ s.service.name }}</span>{% endfor %}
+              <div class="jc-csubs">
+                {% for s in subs %}
+                  <div class="jc-csub{% if forloop.counter0 >= 3 %} jc-csub--extra{% endif %}">
+                    <span class="jc-csub__svc"><span class="jc-csub__dot jc-csub__dot--{{ s.status_color }}"></span>{{ s.service.name }}</span>
+                    <span class="jc-csub__meta">{{ s.account_email }}{% if s.plan == 'completa' %} · Cuenta completa{% elif s.profile_name %} · {{ s.profile_name }}{% elif s.profiles > 1 %} · {{ s.profiles }} perfiles{% endif %}</span>
+                    <span class="jc-chip jc-chip--{{ s.status_color }} jc-csub__chip" data-expires="{{ s.expires_ts }}"><span class="jc-left-label">{{ s.time_left_label }}</span></span>
+                  </div>
+                {% endfor %}
               </div>
+              {% if subs|length > 3 %}
+                <button type="button" class="jc-csub-more" data-jc-more><span class="material-symbols-outlined" style="font-size:16px">expand_more</span> Ver todas ({{ subs|length }})</button>
+              {% endif %}
             {% else %}
-              <div style="font-size:12.5px;color:#9ca3af;margin:8px 0;">Sin servicios activos</div>
+              <div class="jc-csubs-empty">Sin servicios activos</div>
             {% endif %}
           {% endwith %}
 

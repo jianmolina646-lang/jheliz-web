@@ -48,6 +48,21 @@
     }
   });
 
+  // ── "Ver todas" — desplegar suscripciones extra de un cliente ─────────
+  document.addEventListener("click", function (e) {
+    var more = e.target.closest("[data-jc-more]");
+    if (!more) { return; }
+    var list = more.previousElementSibling;
+    while (list && !list.classList.contains("jc-csubs")) { list = list.previousElementSibling; }
+    if (!list) { return; }
+    var open = list.classList.toggle("is-open");
+    var label = more.lastChild;
+    var total = list.querySelectorAll(".jc-csub").length;
+    if (label) { label.textContent = open ? " Ver menos" : " Ver todas (" + total + ")"; }
+    var icon = more.querySelector(".material-symbols-outlined");
+    if (icon) { icon.textContent = open ? "expand_less" : "expand_more"; }
+  });
+
   // ── Ojo de contraseña ─────────────────────────────────────────────────
   document.addEventListener("click", function (e) {
     var eye = e.target.closest(".jc-eye");

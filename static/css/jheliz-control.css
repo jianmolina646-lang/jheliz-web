@@ -206,6 +206,22 @@
 .jc-tag { background: var(--jc-green-soft); color: var(--jc-green-deep); padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
 .jc-client__foot { display: flex; gap: 7px; margin-top: 12px; flex-wrap: wrap; }
 
+/* Suscripciones por cliente (lista ordenada estilo KINEMANAGER) */
+.jc-count-badge { display: inline-block; margin-left: 7px; background: var(--jc-green-soft); color: var(--jc-green-deep); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
+.jc-csubs { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.jc-csub { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid var(--jc-line); border-radius: 10px; background: #fafafa; }
+.jc-csub--extra { display: none; }
+.jc-csubs.is-open .jc-csub--extra { display: flex; }
+.jc-csub__svc { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+.jc-csub__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--jc-muted); flex: none; }
+.jc-csub__dot--green { background: var(--jc-green); }
+.jc-csub__dot--yellow { background: var(--jc-yellow); }
+.jc-csub__dot--red, .jc-csub__dot--expired { background: var(--jc-red); }
+.jc-csub__meta { flex: 1 1 auto; min-width: 0; font-size: 12px; color: var(--jc-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jc-csub__chip { flex: none; }
+.jc-csub-more { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: var(--jc-green-dark); font-weight: 700; font-size: 12.5px; cursor: pointer; padding: 2px 4px; }
+.jc-csubs-empty { font-size: 12.5px; color: #9ca3af; margin: 8px 0; }
+
 /* ── Modales (fade + backdrop) ───────────────────────────────────────── */
 .jc-modal { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center; padding: 18px; }
 .jc-modal.is-open { display: flex; }
