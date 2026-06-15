@@ -18,7 +18,7 @@ from functools import wraps
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
-from django.db.models import Q, Sum
+from django.db.models import Prefetch, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -530,7 +530,14 @@ def subscription_delete(request, tenant, pk):
 @tenant_required
 def clients(request, tenant):
     owner = request.user
-    qs = Client.objects.filter(owner=owner).prefetch_related("subscriptions__service")
+    active_subs_qs = (
+        Subscription.objects.filter(is_archived=False)
+        .select_related("service")
+        .order_by("expires_at")
+    )
+    qs = Client.objects.filter(owner=owner).prefetch_related(
+        Prefetch("subscriptions", queryset=active_subs_qs, to_attr="active_subs")
+    )
     q = (request.GET.get("q") or "").strip()
     if q:
         qs = qs.filter(
