@@ -20,8 +20,10 @@
             <a class="jc-svc" href="{% url 'jheliztv_service_detail' svc.pk %}">
               {% if svc.image %}
                 <img class="jc-svc__img" src="{{ svc.image.url }}" alt="{{ svc.name }}">
+              {% elif svc.icon %}
+                <div class="jc-svc__ph"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
               {% else %}
-                <div class="jc-svc__ph"><span class="material-symbols-outlined">{{ svc.icon|default:'apps' }}</span></div>
+                <div class="jc-svc__ph jc-svc__ph--mono">{{ svc.name|first|upper }}</div>
               {% endif %}
               <div class="jc-svc__name">{{ svc.name }}</div>
               <div class="jc-svc__count">{{ svc.active_subscriptions.count }} cuenta(s)</div>
@@ -44,7 +46,8 @@
         {% for svc in uncategorized %}
           <a class="jc-svc" href="{% url 'jheliztv_service_detail' svc.pk %}">
             {% if svc.image %}<img class="jc-svc__img" src="{{ svc.image.url }}" alt="{{ svc.name }}">
-            {% else %}<div class="jc-svc__ph"><span class="material-symbols-outlined">{{ svc.icon|default:'apps' }}</span></div>{% endif %}
+            {% elif svc.icon %}<div class="jc-svc__ph"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
+            {% else %}<div class="jc-svc__ph jc-svc__ph--mono">{{ svc.name|first|upper }}</div>{% endif %}
             <div class="jc-svc__name">{{ svc.name }}</div>
             <div class="jc-svc__count">{{ svc.active_subscriptions.count }} cuenta(s)</div>
           </a>
