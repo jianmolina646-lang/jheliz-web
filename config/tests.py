@@ -693,7 +693,7 @@ class LockedLoginsAdminTests(TestCase):
             username="cliente@x.com",
             ip_address="10.0.0.1",
             user_agent="curl/8",
-            failures_since_start=12,
+            failures_since_start=35,
             get_data="", post_data="", http_accept="", path_info="/admin/login/",
         )
         self.client.force_login(self.admin)
@@ -702,7 +702,7 @@ class LockedLoginsAdminTests(TestCase):
         body = resp.content.decode("utf-8")
         self.assertIn("cliente@x.com", body)
         self.assertIn("10.0.0.1", body)
-        # 12 fallos contra threshold 10 → bloqueado
+        # 35 fallos contra threshold 30 → bloqueado
         self.assertIn("Bloqueado", body)
 
     def test_unlock_login_deletes_one_attempt(self):
