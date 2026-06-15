@@ -464,3 +464,15 @@ class OwnerControlPanelTests(TestCase):
         self.client.post(f"/control/inquilinos/{self.tenant.pk}/extender/", {"days": "30"}, HTTP_HOST=self.HOST)
         self.tenant.refresh_from_db()
         self.assertGreater(self.tenant.days_left, before)
+
+    def test_block_and_unblock_tenant(self):
+        self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
+        # Bloquear: el inquilino queda sin acceso aunque tenga alquiler vigente.
+        self.client.post(f"/control/inquilinos/{self.tenant.pk}/bloquear/", HTTP_HOST=self.HOST)
+        self.tenant.refresh_from_db()
+        self.assertTrue(self.tenant.is_blocked)
+        self.assertFalse(self.tenant.subscription_active)
+        # Desbloquear: vuelve a tener acceso.
+        self.client.post(f"/control/inquilinos/{self.tenant.pk}/bloquear/", HTTP_HOST=self.HOST)
+        self.tenant.refresh_from_db()
+        self.assertFalse(self.tenant.is_blocked)

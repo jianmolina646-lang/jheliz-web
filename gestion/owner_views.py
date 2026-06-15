@@ -118,3 +118,17 @@ def control_tenant_extend(request, pk):
     tenant.extend(days)
     messages.success(request, f"{tenant}: +{days} días de alquiler.")
     return redirect("jheliztv_control_dashboard")
+
+
+@owner_required
+@require_POST
+def control_tenant_block(request, pk):
+    """Bloquea/desbloquea al inquilino sin borrar sus datos."""
+    tenant = get_object_or_404(Tenant, pk=pk)
+    tenant.is_blocked = not tenant.is_blocked
+    tenant.save(update_fields=["is_blocked"])
+    if tenant.is_blocked:
+        messages.warning(request, f"{tenant} fue bloqueado: ya no puede entrar (sus datos se conservan).")
+    else:
+        messages.success(request, f"{tenant} fue desbloqueado: ya puede entrar de nuevo.")
+    return redirect("jheliztv_control_dashboard")
