@@ -233,4 +233,28 @@
   }
   loadNotifs();
   setInterval(loadNotifs, 120000);
+
+  // ── Buscador instantáneo en "Mis clientes" ───────────────────────────
+  var cliSearch = document.querySelector(".jc-clients-search");
+  if (cliSearch) {
+    var cards = Array.prototype.slice.call(document.querySelectorAll(".jc-client"));
+    var noMatch = document.getElementById("jcClientsNoMatch");
+    // Búsqueda instantánea en el cliente: no recargar la página.
+    var form = cliSearch.closest("form");
+    if (form) { form.addEventListener("submit", function (e) { e.preventDefault(); }); }
+    function norm(s) { return (s || "").toString().toLowerCase().trim(); }
+    function filterClients() {
+      var term = norm(cliSearch.value);
+      var shown = 0;
+      cards.forEach(function (card) {
+        var hay = norm(card.getAttribute("data-search"));
+        var match = !term || hay.indexOf(term) !== -1;
+        card.hidden = !match;
+        if (match) { shown += 1; }
+      });
+      if (noMatch) { noMatch.hidden = !(term && shown === 0); }
+    }
+    cliSearch.addEventListener("input", filterClients);
+    filterClients();
+  }
 })();

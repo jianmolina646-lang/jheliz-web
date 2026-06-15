@@ -8,12 +8,20 @@
     </button>
   </div>
 
+  <form method="get" class="jc-clients-search-form">
+    <div class="jc-search-box">
+      <span class="material-symbols-outlined">search</span>
+      <input type="search" name="q" value="{{ q }}" class="jc-clients-search"
+             placeholder="Buscar por nombre, @telegram, WhatsApp o correo…" autocomplete="off">
+    </div>
+  </form>
+
   {% if q %}<p style="color:#6b7280;margin:0 0 12px;">Resultados para "<strong>{{ q }}</strong>".</p>{% endif %}
 
   {% if clients %}
     <div class="jc-clients">
       {% for c in clients %}
-        <article class="jc-client">
+        <article class="jc-client" data-search="{{ c.name }} {{ c.telegram }} {{ c.whatsapp }} {{ c.email }}">
           <div class="jc-client__top">
             <div class="jc-avatar">{{ c.name|first|upper }}</div>
             <div>
@@ -69,6 +77,11 @@
       {% if q %}No hay clientes que coincidan con "{{ q }}".{% else %}Todavía no cargaste clientes. Agregá el primero.{% endif %}
     </div>
   {% endif %}
+
+  <div class="jc-panel jc-empty" id="jcClientsNoMatch" hidden>
+    <span class="material-symbols-outlined">search_off</span>
+    Ningún cliente coincide con tu búsqueda.
+  </div>
 
   {# ── Modal: agregar cliente ───────────────────────────────────── #}
   <div class="jc-modal" id="modalClient" aria-hidden="true">
