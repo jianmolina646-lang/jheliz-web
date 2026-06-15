@@ -195,6 +195,16 @@
 .jc-btn--sm { padding: 7px 12px; font-size: 13px; }
 
 /* ── Clientes (tarjetas) ─────────────────────────────────────────────── */
+.jc-clients-search-form { margin: 4px 0 16px; }
+.jc-search-box {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--jc-bg); border: 1px solid var(--jc-line);
+  border-radius: 999px; padding: 9px 16px; transition: border-color .18s, box-shadow .18s;
+}
+.jc-search-box:focus-within { border-color: var(--jc-green); box-shadow: 0 0 0 3px var(--jc-green-soft); }
+.jc-search-box .material-symbols-outlined { color: var(--jc-muted); font-size: 20px; }
+.jc-search-box input { flex: 1; border: 0; background: transparent; outline: none; font-size: 14px; color: var(--jc-ink); }
+.jc-search-box input::-webkit-search-cancel-button { cursor: pointer; }
 .jc-clients { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .jc-client { background: var(--jc-card); border-radius: var(--jc-radius); box-shadow: var(--jc-shadow); padding: 18px; border: 1px solid var(--jc-line); transition: transform .16s, box-shadow .16s; }
 .jc-client:hover { transform: translateY(-3px); box-shadow: 0 20px 40px -20px rgba(6,78,59,.5); }

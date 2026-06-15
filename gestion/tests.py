@@ -260,6 +260,22 @@ class TenantSaasTests(TestCase):
         r = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
         self.assertNotContains(r, "Cliente A")
 
+    def test_clients_page_has_search_and_filters_by_owner(self):
+        self._register("searcher")
+        ts = self.Tenant.objects.get(user__username="searcher")
+        ts.extend(30)
+        Client.objects.create(owner=ts.user, name="Juan Perez", telegram="@juanp")
+        Client.objects.create(owner=ts.user, name="Maria Lopez", whatsapp="+51999888777")
+
+        # La página de "Mis clientes" muestra el buscador.
+        r = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
+        self.assertContains(r, "jc-clients-search")
+
+        # Filtro server-side por nombre (fallback sin JavaScript).
+        r = self.client.get(self.CLIENTS, {"q": "Maria"}, HTTP_HOST=self.HOST)
+        self.assertContains(r, "Maria Lopez")
+        self.assertNotContains(r, "Juan Perez")
+
     def test_service_edit_updates_name_and_logo(self):
         import io
 
