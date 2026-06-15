@@ -276,6 +276,22 @@ class TenantSaasTests(TestCase):
         self.assertContains(r, "Maria Lopez")
         self.assertNotContains(r, "Juan Perez")
 
+    def test_csrf_failure_redirects_back_instead_of_403(self):
+        from django.test import Client as DjangoClient
+
+        # Cliente que SÍ exige el token CSRF (como un navegador real).
+        c = DjangoClient(enforce_csrf_checks=True)
+        # POST al login del dueño SIN token y con un referer válido: en vez del
+        # 403 de Django, debe redirigir de vuelta al formulario.
+        r = c.post(
+            "/control/ingresar/",
+            {"username": "x", "password": "y"},
+            HTTP_HOST=self.HOST,
+            HTTP_REFERER=f"https://{self.HOST}/control/ingresar/",
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r["Location"], f"https://{self.HOST}/control/ingresar/")
+
     def test_service_edit_updates_name_and_logo(self):
         import io
 

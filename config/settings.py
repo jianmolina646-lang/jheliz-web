@@ -40,6 +40,10 @@ CSRF_TRUSTED_ORIGINS = [
     "https://www.jheliztv.xyz",
 ]
 
+# Ante un token CSRF vencido (formulario viejo / botón "atrás"), recargar el
+# formulario con un aviso en vez de mostrar la pantalla "Prohibido (403)".
+CSRF_FAILURE_VIEW = "config.csrf_views.csrf_failure"
+
 INSTALLED_APPS = [
     # Unfold debe ir ANTES de django.contrib.admin
     "unfold",
