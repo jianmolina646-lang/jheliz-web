@@ -87,9 +87,21 @@
             <td>{{ t.days_left }} día{{ t.days_left|pluralize }}</td>
             <td><small>{{ t.created_at|date:"d/m/Y" }}</small></td>
             <td>
-              <form method="post" action="{% url 'jheliztv_control_tenant_extend' t.pk %}" style="display:inline">{% csrf_token %}
-                <button type="submit" class="jc-btn jc-btn--sm"><span class="material-symbols-outlined">add</span> 30 días</button>
-              </form>
+              <div class="jc-acts">
+                <form method="post" action="{% url 'jheliztv_control_tenant_extend' t.pk %}" style="display:inline">{% csrf_token %}
+                  <button type="submit" class="jc-btn jc-btn--sm"><span class="material-symbols-outlined">add</span> 30 días</button>
+                </form>
+                {% if t.is_blocked %}
+                <form method="post" action="{% url 'jheliztv_control_tenant_block' t.pk %}" style="display:inline">{% csrf_token %}
+                  <button type="submit" class="jc-iact jc-iact--renew" title="Desbloquear inquilino"><span class="material-symbols-outlined">lock_open</span></button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'jheliztv_control_tenant_block' t.pk %}" style="display:inline"
+                      onsubmit="return confirm('¿Bloquear a {{ t.business_name|default:t.user.username|escapejs }}? No podrá entrar, pero no se borra nada.');">{% csrf_token %}
+                  <button type="submit" class="jc-iact jc-iact--del" title="Bloquear inquilino"><span class="material-symbols-outlined">block</span></button>
+                </form>
+                {% endif %}
+              </div>
             </td>
           </tr>
           {% endfor %}
