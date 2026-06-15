@@ -798,6 +798,16 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
+# Sesión persistente: por default Django deja la cookie de sesión SIN Max-Age,
+# así que muchos navegadores/webviews de celular (los que abren el link desde
+# WhatsApp/Telegram) la borran al cambiar de página o al cerrar, y al usuario
+# "se le cierra la sesión al toque". Le damos 30 días de vida y la renovamos
+# en cada request (expiración deslizante), de modo que mientras usen la app no
+# los saca.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 días
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_SAVE_EVERY_REQUEST = True
+
 # Cookie de idioma (`django_language`): por default Django la setea como
 # session cookie (sin Max-Age), lo que hace que se pierda cuando el
 # usuario cierra el navegador o cuando un webview agresivo limpia
