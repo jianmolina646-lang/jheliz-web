@@ -507,7 +507,12 @@ def subscription_add(request, tenant):
 @require_POST
 def subscription_edit(request, tenant, pk):
     sub = get_object_or_404(Subscription, pk=pk, owner=request.user)
-    form = SubscriptionForm(request.POST, instance=sub)
+    # Al editar no se cambian cliente ni servicio: los tomamos de la propia
+    # suscripción (el modal no los reenvía y antes mandaba "client" vacío).
+    data = request.POST.copy()
+    data["client"] = sub.client_id
+    data["service"] = sub.service_id
+    form = SubscriptionForm(data, instance=sub)
     if form.is_valid():
         form.save()
         messages.success(request, "Suscripción actualizada.")

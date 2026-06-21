@@ -361,6 +361,33 @@ class TenantSaasTests(TestCase):
         self.client.post(self.SERVICE_ADD, {"name": name}, HTTP_HOST=self.HOST)
         return t, Service.objects.get(owner=t.user, name=name)
 
+    def test_subscription_edit_keeps_client_and_updates_fields(self):
+        t, svc = self._new_service("seller_edit")
+        cli = Client.objects.create(owner=t.user, name="Edu")
+        self.client.post(
+            self.SUB_ADD,
+            {"service": svc.pk, "client": cli.pk, "account_emails": "edit@x.com", "duration_days": "30"},
+            HTTP_HOST=self.HOST,
+        )
+        sub = Subscription.objects.get(account_email="edit@x.com")
+        old_expires = sub.expires_at
+        # El modal manda "client" vacío (no se reenvía): la edición debe igual funcionar.
+        r = self.client.post(
+            f"/app/suscripciones/{sub.pk}/editar/",
+            {
+                "client": "", "service": svc.pk,
+                "account_email": "edit@x.com", "account_password": "nueva123",
+                "plan": "completa", "profiles": "1", "plan_label": "Premium",
+            },
+            HTTP_HOST=self.HOST,
+        )
+        self.assertRedirects(r, f"/app/servicios/{svc.pk}/", fetch_redirect_response=False)
+        sub.refresh_from_db()
+        self.assertEqual(sub.client_id, cli.pk)
+        self.assertEqual(sub.account_password, "nueva123")
+        self.assertEqual(sub.plan_label, "Premium")
+        self.assertEqual(sub.expires_at, old_expires)  # no se toca el vencimiento
+
     def test_subscription_renew_by_expiry_date(self):
         t, svc = self._new_service("seller_renew")
         cli = Client.objects.create(owner=t.user, name="Pia")
