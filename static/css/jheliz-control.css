@@ -215,6 +215,7 @@
 .jc-sortpill.is-active { background: var(--jc-green); border-color: var(--jc-green); color: #fff; box-shadow: 0 3px 8px var(--jc-green-soft); }
 .jc-clients { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; align-items: stretch; }
 .jc-client { background: var(--jc-card); border-radius: var(--jc-radius); box-shadow: var(--jc-shadow); padding: 18px; border: 1px solid var(--jc-line); transition: transform .16s, box-shadow .16s; display: flex; flex-direction: column; height: 100%; }
+.jc-client[hidden] { display: none; }
 .jc-client:hover { transform: translateY(-3px); box-shadow: 0 20px 40px -20px rgba(6,78,59,.5); }
 .jc-client__top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .jc-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--jc-green); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; }
@@ -294,6 +295,7 @@
 
 /* ── Tiempo del servicio ─────────────────────────────────────────────── */
 .jc-daysrow { display: flex; align-items: center; gap: 8px; }
+.jc-daysrow[hidden] { display: none; }
 .jc-daysrow input { max-width: 110px; }
 .jc-daysrow[data-jc-tmpane="date"] input { max-width: 170px; }
 .jc-daysrow span { font-size: 14px; color: var(--jc-muted); }
