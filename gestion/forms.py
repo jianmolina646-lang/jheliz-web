@@ -1,6 +1,8 @@
 """Formularios de Jheliz Control."""
 from __future__ import annotations
 
+from decimal import Decimal
+
 from django import forms
 from django.utils import timezone
 
@@ -55,10 +57,19 @@ class SubscriptionForm(forms.ModelForm):
         self.fields["expires_at"].required = False
         self.fields["starts_at"].required = False
         self.fields["currency"].required = False
+        # Tienen default en el modelo: no obligamos a reenviarlos al editar.
+        self.fields["cost"].required = False
+        self.fields["investment"].required = False
 
     def clean(self):
         cleaned = super().clean()
         editing = bool(self.instance and self.instance.pk)
+
+        # Costo / inversión: si no llegan, conservar el de la instancia o 0.
+        if cleaned.get("cost") is None:
+            cleaned["cost"] = self.instance.cost if editing else Decimal("0.00")
+        if cleaned.get("investment") is None:
+            cleaned["investment"] = self.instance.investment if editing else Decimal("0.00")
 
         # Inicio: si no llega, conservar el de la instancia (al editar) o ahora.
         starts = cleaned.get("starts_at")
