@@ -63,6 +63,28 @@
     if (icon) { icon.textContent = open ? "expand_less" : "expand_more"; }
   });
 
+  // ── "Ver" cuenta: revela correo + contraseña ──────────────────────────
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-jc-ver]");
+    if (!btn) { return; }
+    var box = btn.parentNode.querySelector("[data-jc-acctbox]");
+    if (!box) { return; }
+    var icon = btn.querySelector(".material-symbols-outlined");
+    var lbl = btn.querySelector("[data-jc-verlbl]");
+    var hidden = box.hasAttribute("hidden");
+    if (hidden) {
+      box.removeAttribute("hidden");
+      btn.classList.add("is-open");
+      if (icon) { icon.textContent = "visibility_off"; }
+      if (lbl) { lbl.textContent = "Ocultar"; }
+    } else {
+      box.setAttribute("hidden", "");
+      btn.classList.remove("is-open");
+      if (icon) { icon.textContent = "visibility"; }
+      if (lbl) { lbl.textContent = "Ver"; }
+    }
+  });
+
   // ── Ojo de contraseña ─────────────────────────────────────────────────
   document.addEventListener("click", function (e) {
     var eye = e.target.closest(".jc-eye");

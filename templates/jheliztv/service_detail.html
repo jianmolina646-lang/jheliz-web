@@ -66,13 +66,13 @@
               </div>
             </td>
             <td>
-              <div class="jc-acct">
-                <span class="jc-acct__mail">{{ s.account_email }}</span>
+              <button type="button" class="jc-seebtn" data-jc-ver title="Ver cuenta">
+                <span class="material-symbols-outlined">visibility</span><span data-jc-verlbl>Ver</span>
+              </button>
+              <div class="jc-acct" data-jc-acctbox hidden>
+                <span class="jc-acct__mail"><span class="material-symbols-outlined">mail</span>{{ s.account_email }}</span>
                 {% if s.account_password %}
-                  <button type="button" class="jc-seebtn jc-eye" title="Ver/ocultar clave">
-                    <span class="material-symbols-outlined">visibility</span>
-                    <code data-value="{{ s.account_password }}" data-label="Ver" data-shown="0">Ver</code>
-                  </button>
+                  <span class="jc-acct__pass"><span class="material-symbols-outlined">key</span><code>{{ s.account_password }}</code></span>
                 {% endif %}
               </div>
             </td>
