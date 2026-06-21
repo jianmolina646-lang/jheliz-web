@@ -361,12 +361,17 @@ def service_detail(request, tenant, pk):
     subs = _decorate_subs(
         list(service.subscriptions.filter(is_archived=False).select_related("client"))
     )
+    # KPIs del servicio (estilo KINEMANAGER).
+    ingresos = sum((s.cost for s in subs), Decimal("0"))
+    egresos = sum((s.investment for s in subs), Decimal("0"))
+    n_clients = len({s.client_id for s in subs})
     form = SubscriptionForm(initial={"service": service})
     form.fields["client"].queryset = Client.objects.filter(owner=owner)
     ctx = _ctx(
         request, tenant,
         title=service.name, jc_active="services",
         service=service, subs=subs, form=form,
+        kpi_ingresos=ingresos, kpi_egresos=egresos, kpi_clients=n_clients,
         clients=Client.objects.filter(owner=owner),
         all_categories=ServiceCategory.objects.all(),
     )

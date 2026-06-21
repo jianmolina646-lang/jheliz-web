@@ -472,6 +472,24 @@ class TenantSaasTests(TestCase):
         ):
             self.assertContains(r, token)
 
+    def test_service_detail_shows_kpis_and_search(self):
+        t, svc = self._new_service("seller_kpi")
+        cli = Client.objects.create(owner=t.user, name="Ringo", whatsapp="+51999000111")
+        self.client.post(
+            self.SUB_ADD,
+            {"service": svc.pk, "client": cli.pk, "account_emails": "kpi@x.com",
+             "account_password": "clave99", "cost": "20", "investment": "8",
+             "duration_days": "30"},
+            HTTP_HOST=self.HOST,
+        )
+        r = self.client.get(f"/app/servicios/{svc.pk}/", HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        for token in (
+            "jc-kpis", "Ingresos", "Egresos", "Clientes",
+            "jc-subs-search", "Suscripciones registradas", "Registro",
+        ):
+            self.assertContains(r, token)
+
     def test_subscription_add_by_expiry_date(self):
         t, svc = self._new_service("seller_date")
         cli = Client.objects.create(owner=t.user, name="Lucas")
