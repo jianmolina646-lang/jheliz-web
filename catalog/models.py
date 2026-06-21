@@ -481,7 +481,7 @@ class PromoBanner(models.Model):
     """
 
     class Style(models.TextChoices):
-        PINK = "pink", "Rosa Jheliz (recomendado)"
+        PINK = "pink", "Rosa VirtualidadSP (recomendado)"
         DARK = "dark", "Negro"
         AMBER = "amber", "\u00c1mbar / oferta"
         EMERALD = "emerald", "Verde / nuevo"
@@ -569,7 +569,7 @@ class SiteSettings(models.Model):
     """
 
     site_name = models.CharField(
-        "Nombre del sitio", max_length=80, default="Jheliz",
+        "Nombre del sitio", max_length=80, default="VirtualidadSP",
         help_text="Aparece en el header, footer y emails.",
     )
     tagline = models.CharField(
@@ -606,7 +606,7 @@ class SiteSettings(models.Model):
     )
     whatsapp_message = models.CharField(
         "Mensaje pre-rellenado de WhatsApp", max_length=200,
-        default="Hola Jheliz, tengo una consulta sobre sus productos.",
+        default="Hola VirtualidadSP, tengo una consulta sobre sus productos.",
     )
     contact_email = models.EmailField("Correo de contacto", blank=True)
 
@@ -631,7 +631,7 @@ class SiteSettings(models.Model):
     # Información legal (Indecopi Perú)
     legal_business_name = models.CharField(
         "Razón social", max_length=160, blank=True,
-        help_text="Nombre legal de la empresa, ej: 'Jheliz Services E.I.R.L.'",
+        help_text="Nombre legal de la empresa, ej: 'VirtualidadSP Services E.I.R.L.'",
     )
     legal_ruc = models.CharField(
         "RUC", max_length=20, blank=True,

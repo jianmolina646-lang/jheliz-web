@@ -1,5 +1,5 @@
 """
-Django settings for Jheliz.
+Django settings for VirtualidadSP.
 """
 
 from pathlib import Path
@@ -15,12 +15,13 @@ ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
     default=(
         "127.0.0.1,localhost,ecormecejhelizstore.com,www.ecormecejhelizstore.com,"
+        "virtualidadsp.com,www.virtualidadsp.com,"
         "jheliztv.xyz,www.jheliztv.xyz"
     ),
     cast=Csv(),
 )
 
-# Hosts que sirven el producto SaaS "Jheliz Control" (ruteo por dominio).
+# Hosts que sirven el producto SaaS "Jheliz Control TV" (ruteo por dominio).
 JHELIZTV_HOSTS = config(
     "JHELIZTV_HOSTS",
     default="jheliztv.xyz,www.jheliztv.xyz",
@@ -36,6 +37,8 @@ ADMIN_URL_PATH = config("ADMIN_URL_PATH", default="panel-jheliz-2026").strip("/"
 CSRF_TRUSTED_ORIGINS = [
     "https://ecormecejhelizstore.com",
     "https://www.ecormecejhelizstore.com",
+    "https://virtualidadsp.com",
+    "https://www.virtualidadsp.com",
     "https://jheliztv.xyz",
     "https://www.jheliztv.xyz",
 ]
@@ -85,7 +88,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    # Ruteo por dominio: jheliztv.xyz sirve el producto SaaS (Jheliz Control).
+    # Ruteo por dominio: jheliztv.xyz sirve el producto SaaS (VirtualidadSP Control).
     "config.host_routing.JheliztvHostMiddleware",
     # i18n: detecta el idioma del usuario (cookie / header / sesión).
     "django.middleware.locale.LocaleMiddleware",
@@ -226,7 +229,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Email
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Jheliz <no-reply@ecormecejhelizstore.com>")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="VirtualidadSP <no-reply@ecormecejhelizstore.com>")
 SUPPORT_ADMIN_EMAIL = config("SUPPORT_ADMIN_EMAIL", default="")
 
 # SMTP (opcional, para enviar correos reales en prod).
@@ -332,7 +335,7 @@ CODES_RESULT_CACHE_SECONDS = config("CODES_RESULT_CACHE_SECONDS", default=45, ca
 # Discord bot (opcional)
 # Bot que reemplaza a Telegram para el back-office: pedidos nuevos, Yape,
 # pedidos de codigo, distribuidores, soporte. Telegram queda solo para el
-# canal publico de anuncios (Jheliz|Avisos).
+# canal publico de anuncios (VirtualidadSP|Avisos).
 DISCORD_BOT_TOKEN = config("DISCORD_BOT_TOKEN", default="")
 # ID del servidor Discord (guild) — numero largo. Se obtiene en Discord con
 # click derecho sobre el nombre del servidor → "Copiar ID del servidor"
@@ -362,7 +365,7 @@ DISCORD_PUBLIC_KEY = config("DISCORD_PUBLIC_KEY", default="")
 DISCORD_APPLICATION_ID = config("DISCORD_APPLICATION_ID", default="")
 
 # Brand
-SITE_NAME = "Jheliz"
+SITE_NAME = "VirtualidadSP"
 SITE_TAGLINE = "Netflix, Disney+ y Office en Perú desde S/ 7"
 
 def _hashed_static(path: str) -> str:
@@ -380,8 +383,8 @@ def _hashed_static(path: str) -> str:
 
 # Unfold admin theme
 UNFOLD = {
-    "SITE_TITLE": "Jheliz Admin",
-    "SITE_HEADER": "Jheliz",
+    "SITE_TITLE": "VirtualidadSP Admin",
+    "SITE_HEADER": "VirtualidadSP",
     "SITE_SUBHEADER": "Panel de administración",
     "SITE_SYMBOL": "storefront",
     "SHOW_HISTORY": True,
@@ -481,27 +484,6 @@ UNFOLD = {
                 ],
             },
             {
-                "title": "🐱 Jheliz Control",
-                "separator": True,
-                "items": [
-                    {
-                        "title": "Inicio",
-                        "icon": "space_dashboard",
-                        "link": "/panel-jheliz-2026/jheliz-control/",
-                    },
-                    {
-                        "title": "Tablero de servicios",
-                        "icon": "grid_view",
-                        "link": "/panel-jheliz-2026/jheliz-control/servicios/",
-                    },
-                    {
-                        "title": "Mis clientes",
-                        "icon": "groups",
-                        "link": "/panel-jheliz-2026/jheliz-control/clientes/",
-                    },
-                ],
-            },
-            {
                 "title": "🛍️ Vender",
                 "separator": True,
                 "items": [
@@ -529,11 +511,6 @@ UNFOLD = {
                         "title": "Stock por producto",
                         "icon": "inventory",
                         "link": "/panel-jheliz-2026/stock/",
-                    },
-                    {
-                        "title": "Control de cuentas",
-                        "icon": "manage_accounts",
-                        "link": "/panel-jheliz-2026/control-cuentas/",
                     },
                     {
                         "title": "Stock (todos)",
@@ -741,7 +718,7 @@ ADMIN_LOGIN_NOTIFY = config("ADMIN_LOGIN_NOTIFY", default=True, cast=bool)
 #      temporal de rescate por SSH.
 # ---------------------------------------------------------------------------
 ADMIN_2FA_ENFORCED = config("ADMIN_2FA_ENFORCED", default=False, cast=bool)
-OTP_TOTP_ISSUER = "Jheliz Admin"
+OTP_TOTP_ISSUER = "VirtualidadSP Admin"
 
 # ---------------------------------------------------------------------------
 # Security headers

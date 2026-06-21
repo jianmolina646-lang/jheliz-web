@@ -51,8 +51,8 @@ def manifest_json(request):
     icon512 = request.build_absolute_uri("/static/img/icon-512.png")
     return JsonResponse({
         "id": "/?source=pwa",
-        "name": "Jheliz Services TV",
-        "short_name": "Jheliz",
+        "name": "VirtualidadSP Services TV",
+        "short_name": "VirtualidadSP",
         "description": "Streaming y licencias al instante en Per\u00fa.",
         "start_url": "/?source=pwa",
         "scope": "/",
@@ -90,7 +90,7 @@ def manifest_json(request):
     })
 
 
-_SERVICE_WORKER_JS = """// Jheliz PWA service worker
+_SERVICE_WORKER_JS = """// VirtualidadSP PWA service worker
 const VERSION = 'jheliz-v4';
 const STATIC_CACHE = `static-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
@@ -174,9 +174,9 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data ? event.data.json() : {};
   } catch (e) {
-    payload = { title: 'Jheliz Store', body: event.data ? event.data.text() : '' };
+    payload = { title: 'VirtualidadSP Store', body: event.data ? event.data.text() : '' };
   }
-  const title = payload.title || 'Jheliz Store';
+  const title = payload.title || 'VirtualidadSP Store';
   const options = {
     body: payload.body || '',
     icon: payload.icon || '/static/img/icon-192.png',
@@ -219,7 +219,7 @@ def service_worker(request):
 # escritorio. Scope dedicado para que no se mezcle con el SW del sitio público.
 # ---------------------------------------------------------------------------
 
-_ADMIN_SERVICE_WORKER_JS = """// Jheliz Admin PWA service worker
+_ADMIN_SERVICE_WORKER_JS = """// VirtualidadSP Admin PWA service worker
 // Scope: /panel-jheliz-2026/. Network-only para todas las requests dentro
 // del admin (queremos siempre datos frescos: pedidos, tickets, stock).
 const VERSION = 'jheliz-admin-v1';
@@ -243,9 +243,9 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data ? event.data.json() : {};
   } catch (e) {
-    payload = { title: 'Jheliz Admin', body: event.data ? event.data.text() : '' };
+    payload = { title: 'VirtualidadSP Admin', body: event.data ? event.data.text() : '' };
   }
-  const title = payload.title || 'Jheliz Admin';
+  const title = payload.title || 'VirtualidadSP Admin';
   const options = {
     body: payload.body || '',
     icon: payload.icon || '/static/img/icon-192.png',
@@ -280,9 +280,9 @@ def manifest_admin_json(request):
     admin_root = "/panel-jheliz-2026/"
     return JsonResponse({
         "id": admin_root + "?source=pwa",
-        "name": "Jheliz Admin",
-        "short_name": "Jheliz Admin",
-        "description": "Panel de administraci\u00f3n de Jheliz Store.",
+        "name": "VirtualidadSP Admin",
+        "short_name": "VirtualidadSP Admin",
+        "description": "Panel de administraci\u00f3n de VirtualidadSP Store.",
         "start_url": admin_root + "?source=pwa",
         "scope": admin_root,
         "display": "standalone",
@@ -342,7 +342,7 @@ def faq(request):
         {
             "q": "\u00bfPuedo cambiar la contrase\u00f1a de la cuenta?",
             "a": (
-                "No \u2014 las cuentas son administradas por Jheliz para garantizar el servicio a todos"
+                "No \u2014 las cuentas son administradas por VirtualidadSP para garantizar el servicio a todos"
                 " los perfiles. Si cambias la contrase\u00f1a, se invalida la garant\u00eda."
             ),
         },

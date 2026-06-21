@@ -25,7 +25,7 @@ _PALETTES = [
     ("#D83B01", "#7c2d12"),  # Office orange
     ("#0d6efd", "#1e293b"),  # Generic blue
     ("#7D2AE7", "#312e81"),  # Canva purple
-    ("#ec4899", "#831843"),  # Jheliz pink
+    ("#ec4899", "#831843"),  # VirtualidadSP pink
     ("#f59e0b", "#78350f"),  # Amber
     ("#06b6d4", "#155e75"),  # Cyan
 ]

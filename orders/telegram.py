@@ -147,7 +147,7 @@ def notify_admin(text: str, buttons: Iterable[Iterable[dict]] | None = None) -> 
     Si Discord está configurado para el back-office, ruta a Discord. Si no,
     cae al path Telegram. De esta manera, una vez que el bot de Discord
     está activo el admin queda totalmente liberado de Telegram (que pasa
-    a usarse sólo para el canal público `Jheliz|Avisos`).
+    a usarse sólo para el canal público `VirtualidadSP|Avisos`).
     """
     # --- Discord (canal #admin) -------------------------------------------
     try:
@@ -652,7 +652,7 @@ def announce_text(text: str, audience: str = AUDIENCE_ALL) -> dict | None:
 # ---------- Comandos / handlers ----------
 
 PUBLIC_HELP = (
-    "👋 Soy el bot de <b>Jheliz</b>.\n\n"
+    "👋 Soy el bot de <b>VirtualidadSP</b>.\n\n"
     "<b>Comandos públicos</b>\n"
     "/catalogo — productos activos\n"
     "/pedido &lt;uuid&gt; — estado de un pedido\n"
@@ -860,7 +860,7 @@ def _cmd_catalogo(chat_id: int | str) -> None:
     if not products:
         send_message(chat_id, "Todavía no hay productos cargados.")
         return
-    lines = ["<b>Catálogo Jheliz</b>", ""]
+    lines = ["<b>Catálogo VirtualidadSP</b>", ""]
     for p in products:
         plan = p.plans.filter(is_active=True).order_by("price_customer").first()
         precio = (
@@ -1096,7 +1096,7 @@ def _report_text() -> str:
     _, t_month = _money_sum(month_qs)
 
     return "\n".join([
-        "<b>📊 Reporte Jheliz</b>",
+        "<b>📊 Reporte VirtualidadSP</b>",
         f"Hoy: {today_qs.count()} pedidos · {cur_t} {t_today}",
         f"Últimos 7 días: {week_qs.count()} pedidos · {cur_t} {t_week}",
         f"Mes en curso: {month_qs.count()} pedidos · {cur_t} {t_month}",
@@ -1185,7 +1185,7 @@ def run_polling(poll_interval: float = 1.0) -> None:
     if not is_configured():
         raise RuntimeError("TELEGRAM_BOT_TOKEN no configurado")
     offset = 0
-    logger.info("Bot Jheliz iniciado (long polling)")
+    logger.info("Bot VirtualidadSP iniciado (long polling)")
     while True:
         try:
             data = _call(

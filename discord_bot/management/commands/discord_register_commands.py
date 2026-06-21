@@ -4,7 +4,7 @@ Uso:
     python manage.py discord_register_commands
 
 Por defecto registra los comandos como "guild commands" (sólo visibles
-dentro de tu servidor `Jheliz admin`). Esto los hace aparecer al
+dentro de tu servidor `VirtualidadSP admin`). Esto los hace aparecer al
 instante (los globales tardan hasta 1 hora). Si pasás --global, se
 registran como comandos globales.
 """
@@ -18,7 +18,7 @@ from discord_bot import client, interactions
 
 
 class Command(BaseCommand):
-    help = "Registra los slash commands del bot Jheliz en Discord."
+    help = "Registra los slash commands del bot VirtualidadSP en Discord."
 
     def add_arguments(self, parser):
         parser.add_argument(

@@ -2717,7 +2717,7 @@ class PWATests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn("application/json", resp["Content-Type"])
         data = resp.json()
-        self.assertEqual(data["short_name"], "Jheliz")
+        self.assertEqual(data["short_name"], "VirtualidadSP")
         self.assertEqual(data["display"], "standalone")
         # Los shortcuts de la app deben incluir el combo builder.
         shortcut_urls = [s["url"] for s in data.get("shortcuts", [])]
@@ -2954,7 +2954,7 @@ class BrevoEmailBackendTests(TestCase):
         msg = EmailMessage(
             subject="Asunto de prueba",
             body="<p>Hola</p>" if content_html else "Hola plano",
-            from_email="Jheliz <ecomercejheliz@gmail.com>",
+            from_email="VirtualidadSP <ecomercejheliz@gmail.com>",
             to=["dest@example.com", "Otro <dos@example.com>"],
             cc=["cc@example.com"],
             reply_to=["responder@example.com"],
@@ -2969,7 +2969,7 @@ class BrevoEmailBackendTests(TestCase):
             _build_payload(self._msg(content_html=True))
         self.assertEqual(
             payload["sender"],
-            {"email": "ecomercejheliz@gmail.com", "name": "Jheliz"},
+            {"email": "ecomercejheliz@gmail.com", "name": "VirtualidadSP"},
         )
         self.assertEqual(payload["to"], [
             {"email": "dest@example.com"},

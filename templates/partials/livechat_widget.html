@@ -4,7 +4,7 @@
 {% livechat_is_online as jhz_is_online %}
 
 <!-- ============================================================
-     Live chat (Jheliz) — burbuja flotante en todas las páginas
+     Live chat (VirtualidadSP) — burbuja flotante en todas las páginas
      ============================================================ -->
 <div id="jhz-chat-root"
      data-poll-interval="5000"
@@ -34,7 +34,7 @@
 
   <button id="jhz-chat-bubble"
           type="button"
-          aria-label="Abrir chat de soporte Jheliz · respondemos en menos de 5 minutos"
+          aria-label="Abrir chat de soporte VirtualidadSP · respondemos en menos de 5 minutos"
           aria-expanded="false"
           class="fixed bottom-5 right-5 z-50 inline-flex items-center justify-center w-14 h-14 rounded-full text-white shadow-lg hover:scale-105 active:scale-95 transition"
           style="background:linear-gradient(135deg,#a855f7,#ec4899); box-shadow:0 8px 24px -6px rgba(236,72,153,.5);">
@@ -74,7 +74,7 @@
                 style="background: {% if jhz_is_online %}#22c55e{% else %}#94a3b8{% endif %};"></span>
         </div>
         <div class="min-w-0">
-          <div class="font-bold text-sm leading-tight">Jheliz Soporte</div>
+          <div class="font-bold text-sm leading-tight">VirtualidadSP Soporte</div>
           <div class="text-[11px] opacity-95 leading-tight flex items-center gap-1">
             {% if jhz_is_online %}
               <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
@@ -88,7 +88,7 @@
       </div>
       <div class="flex items-center gap-1.5">
         {% if WHATSAPP_NUMBER %}
-          <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}?text=Hola%20Jheliz%2C%20tengo%20una%20consulta"
+          <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}?text=Hola%20VirtualidadSP%2C%20tengo%20una%20consulta"
              target="_blank" rel="noopener"
              aria-label="Hablanos por WhatsApp"
              title="Hablanos por WhatsApp"
@@ -134,7 +134,7 @@
           <span class="text-[10px] uppercase tracking-wider text-zinc-500">o también</span>
           <div class="flex-1 h-px bg-zinc-700/60"></div>
         </div>
-        <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}?text=Hola%20Jheliz%2C%20tengo%20una%20consulta"
+        <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}?text=Hola%20VirtualidadSP%2C%20tengo%20una%20consulta"
            target="_blank" rel="noopener"
            class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-semibold text-white transition hover:brightness-110"
            style="background:#25d366;">
@@ -321,7 +321,7 @@
 
     if (m.sender === 'admin') {
       row.classList.add('items-start');
-      meta.textContent = 'Jheliz · ' + formatTime(m.created_at);
+      meta.textContent = 'VirtualidadSP · ' + formatTime(m.created_at);
     } else if (m.sender === 'system') {
       row.classList.add('items-center');
       meta.textContent = formatTime(m.created_at);
@@ -476,7 +476,7 @@
     var hint = {
       id: -1,
       sender: 'admin',
-      body: '¡Hola! Soy del equipo de Jheliz. ¿En qué te puedo ayudar?',
+      body: '¡Hola! Soy del equipo de VirtualidadSP. ¿En qué te puedo ayudar?',
       created_at: new Date().toISOString(),
     };
     renderMessage(hint, { skipScroll: true });

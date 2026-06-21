@@ -6,7 +6,7 @@ from .models import BlogPost
 
 
 class LatestPostsFeed(Feed):
-    title = "Blog Jheliz"
+    title = "Blog VirtualidadSP"
     link = reverse_lazy("blog:list")
     description = "Guías, tips y noticias sobre cuentas premium de streaming y software original."
 

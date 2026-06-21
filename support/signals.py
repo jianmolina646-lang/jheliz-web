@@ -46,7 +46,7 @@ def _notify_ticket_message(sender, instance: TicketMessage, created: bool, **kwa
                 {"ticket": ticket, "message": instance},
             )
             send_mail(
-                subject=f"[Jheliz Soporte] Ticket #{ticket.id} — {ticket.subject}",
+                subject=f"[VirtualidadSP Soporte] Ticket #{ticket.id} — {ticket.subject}",
                 message=f"{ticket.user.username}: {instance.body[:200]}",
                 from_email=None,
                 recipient_list=[admin_email],

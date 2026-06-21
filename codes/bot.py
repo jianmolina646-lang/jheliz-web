@@ -397,7 +397,7 @@ def _send_welcome(client: CodeBotClient) -> None:
     if not client.is_active and not admin:
         send_message(
             chat_id,
-            "👋 <b>¡Bienvenido al Bot de Códigos de Jheliz Store!</b> ✨\n\n"
+            "👋 <b>¡Bienvenido al Bot de Códigos de VirtualidadSP Store!</b> ✨\n\n"
             "Acá vas a obtener al instante los códigos de tu cuenta de Netflix:\n"
             "🔑 inicio de sesión · ✈️ viaje · 🏠 Hogar · 🔒 contraseña\n\n"
             "🔒 Tu acceso todavía <b>no está activado</b>.\n"
@@ -410,7 +410,7 @@ def _send_welcome(client: CodeBotClient) -> None:
     if admin:
         send_message(
             chat_id,
-            "👋 <b>Hola, admin.</b> Bienvenido al Bot de Códigos de Jheliz Store.\n\n"
+            "👋 <b>Hola, admin.</b> Bienvenido al Bot de Códigos de VirtualidadSP Store.\n\n"
             + _admin_help_text(),
             buttons=_email_buttons(emails) if emails else None,
         )
@@ -445,7 +445,7 @@ def _send_commands_help(client: CodeBotClient) -> None:
 def _client_help_text(emails: list[str]) -> str:
     ejemplo = emails[0] if emails else "tucorreo@gmail.com"
     lines = [
-        "✨ <b>Bot de Códigos · Jheliz Store</b>",
+        "✨ <b>Bot de Códigos · VirtualidadSP Store</b>",
         "",
         "Escribí el comando con tu correo al lado 👇",
         "",
@@ -474,7 +474,7 @@ def _client_help_text(emails: list[str]) -> str:
 
 def _admin_help_text() -> str:
     lines = [
-        "🛠 <b>Panel de administrador · Jheliz Store</b>",
+        "🛠 <b>Panel de administrador · VirtualidadSP Store</b>",
         "",
         "👥 <code>/clientes</code> — lista de clientes (ID, usuario, correos)",
         "🔓 <code>/activar &lt;ID o @usuario&gt;</code> — activa el acceso (sin asignar correo aún)",
@@ -611,7 +611,7 @@ def _admin_broadcast(chat_id, message: str) -> None:
             "Ej: <code>/anuncio Mañana renuevo las cuentas, aviso cuando esté listo.</code>",
         )
         return
-    body = "📢 <b>Anuncio · Jheliz Store</b>\n\n" + html.escape(message)
+    body = "📢 <b>Anuncio · VirtualidadSP Store</b>\n\n" + html.escape(message)
     recipients = (
         CodeBotClient.objects.exclude(telegram_chat_id=str(chat_id))
         .exclude(telegram_chat_id="")

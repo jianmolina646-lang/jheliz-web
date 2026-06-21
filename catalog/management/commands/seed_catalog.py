@@ -6,7 +6,7 @@ from catalog.models import Category, Plan, Product, ProductMode, StockItem
 
 
 class Command(BaseCommand):
-    help = "Crea categor\u00edas y productos de ejemplo para Jheliz."
+    help = "Crea categor\u00edas y productos de ejemplo para VirtualidadSP."
 
     def handle(self, *args, **options):
         streaming, _ = Category.objects.get_or_create(

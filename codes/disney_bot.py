@@ -438,7 +438,7 @@ def _admin_broadcast(chat_id, message: str) -> None:
             "Ej: <code>/anuncio Mañana renuevo las cuentas, aviso cuando esté listo.</code>",
         )
         return
-    body = "📢 <b>Anuncio · Disney+ Jheliz</b>\n\n" + html.escape(message)
+    body = "📢 <b>Anuncio · Disney+ VirtualidadSP</b>\n\n" + html.escape(message)
     recipients = (
         CodeBotClient.objects.exclude(telegram_chat_id=str(chat_id))
         .exclude(telegram_chat_id="")

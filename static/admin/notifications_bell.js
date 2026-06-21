@@ -241,7 +241,7 @@
                     playBeep();
                     var top = unseen[0];
                     nativeNotify(
-                        diff === 1 ? "Jheliz · 1 nueva notificación" : "Jheliz · " + diff + " nuevas",
+                        diff === 1 ? "VirtualidadSP · 1 nueva notificación" : "VirtualidadSP · " + diff + " nuevas",
                         top ? top.title : "Hay actividad nueva en el panel.",
                     );
                 }

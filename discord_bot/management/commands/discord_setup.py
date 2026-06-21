@@ -25,7 +25,7 @@ from django.core.management.base import BaseCommand, CommandError
 from discord_bot import client
 
 
-WELCOME_MARKER = "[Jheliz · setup]"  # se incluye en cada welcome embed
+WELCOME_MARKER = "[VirtualidadSP · setup]"  # se incluye en cada welcome embed
                                      # para detectarlo y evitar duplicados.
 
 

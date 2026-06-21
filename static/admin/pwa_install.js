@@ -1,4 +1,4 @@
-// Jheliz Admin PWA installer
+// VirtualidadSP Admin PWA installer
 // 1. Inyecta <link rel="manifest"> y meta theme-color para que Chrome detecte
 //    el panel como instalable.
 // 2. Registra el service worker dedicado del admin.
@@ -51,7 +51,7 @@
 
       var title = document.createElement("meta");
       title.name = "apple-mobile-web-app-title";
-      title.content = "Jheliz Admin";
+      title.content = "VirtualidadSP Admin";
       head.appendChild(title);
     }
   }
@@ -97,7 +97,7 @@
     var wrap = document.createElement("div");
     wrap.id = "jheliz-pwa-banner";
     wrap.setAttribute("role", "dialog");
-    wrap.setAttribute("aria-label", "Instalar Jheliz Admin");
+    wrap.setAttribute("aria-label", "Instalar VirtualidadSP Admin");
     wrap.style.cssText =
       "position:fixed;left:50%;bottom:18px;transform:translateX(-50%);" +
       "z-index:99999;max-width:480px;width:calc(100% - 28px);" +
@@ -120,7 +120,7 @@
     body.style.cssText = "flex:1;min-width:0;line-height:1.25;";
     var title = document.createElement("div");
     title.style.cssText = "font-weight:700;font-size:14px;color:#fff;";
-    title.textContent = isIOS ? "Instalar Jheliz Admin" : "Instalar el panel como app";
+    title.textContent = isIOS ? "Instalar VirtualidadSP Admin" : "Instalar el panel como app";
     var sub = document.createElement("div");
     sub.style.cssText = "font-size:12px;color:#fbcfe8;margin-top:2px;";
     sub.textContent = isIOS

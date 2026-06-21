@@ -71,7 +71,7 @@ class JhelizLogoutView(LogoutView):
 
 # -- Password reset --------------------------------------------------------
 #
-# Flujo built-in de Django adaptado al estilo de Jheliz:
+# Flujo built-in de Django adaptado al estilo de VirtualidadSP:
 #   1. /cuenta/recuperar/             → form con email
 #   2. /cuenta/recuperar/enviado/     → "Te enviamos un correo si la cuenta existe"
 #   3. /cuenta/recuperar/<uid>/<token>/ → form para nueva contraseña
@@ -90,7 +90,7 @@ class JhelizPasswordResetView(PasswordResetView):
     subject_template_name = "accounts/password_reset_subject.txt"
     form_class = JhelizPasswordResetForm
     success_url = reverse_lazy("accounts:password_reset_done")
-    extra_email_context = {"site_name": "Jheliz"}
+    extra_email_context = {"site_name": "VirtualidadSP"}
 
 
 class JhelizPasswordResetDoneView(PasswordResetDoneView):

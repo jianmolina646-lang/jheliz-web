@@ -134,7 +134,7 @@ class DiscordSetupModernTests(TestCase):
             cli.pin_message.return_value = True
             # Devolver un pin previo del bot (con el marker)
             cli.list_pinned_messages.return_value = [
-                {"embeds": [{"footer": {"text": "[Jheliz · setup] · algo"}}]},
+                {"embeds": [{"footer": {"text": "[VirtualidadSP · setup] · algo"}}]},
             ]
 
             out = StringIO()
