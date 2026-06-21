@@ -11,7 +11,7 @@ standalone bajo ``templates/jheliztv/`` (no dependen del admin).
 from __future__ import annotations
 
 import re
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 
@@ -396,6 +396,21 @@ def _dec(value) -> Decimal:
         return Decimal("0.00")
 
 
+def _parse_expires_on(raw):
+    """Convierte una fecha ``YYYY-MM-DD`` (input type=date) en el datetime de
+    vencimiento (fin de ese día, en la zona horaria activa). Devuelve ``None``
+    si no hay fecha válida, para que se use ``duration_days`` en su lugar."""
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        d = datetime.strptime(raw, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None
+    naive = datetime.combine(d, time(23, 59))
+    return timezone.make_aware(naive, timezone.get_current_timezone())
+
+
 @tenant_required
 @require_POST
 def subscription_add(request, tenant):
@@ -438,12 +453,16 @@ def subscription_add(request, tenant):
     profile_name = (post.get("profile_name") or "").strip()
     profile_pin = (post.get("profile_pin") or "").strip()
 
-    try:
-        days = max(1, int(post.get("duration_days") or 30))
-    except (TypeError, ValueError):
-        days = 30
     starts = timezone.now()
-    expires = starts + timedelta(days=days)
+    # El tiempo del servicio se puede dar por "días" (duration_days) o eligiendo
+    # directamente la fecha de vencimiento (expires_on, formato YYYY-MM-DD).
+    expires = _parse_expires_on(post.get("expires_on"))
+    if expires is None:
+        try:
+            days = max(1, int(post.get("duration_days") or 30))
+        except (TypeError, ValueError):
+            days = 30
+        expires = starts + timedelta(days=days)
     currency = ControlSettings.load(owner).currency or "S/"
 
     # Los totales ("¿cuánto vendiste/invertiste en total?") se reparten en

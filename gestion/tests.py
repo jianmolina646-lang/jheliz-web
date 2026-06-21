@@ -389,6 +389,38 @@ class TenantSaasTests(TestCase):
         ):
             self.assertContains(r, token)
 
+    def test_subscription_add_by_expiry_date(self):
+        t, svc = self._new_service("seller_date")
+        cli = Client.objects.create(owner=t.user, name="Lucas")
+        r = self.client.post(
+            self.SUB_ADD,
+            {
+                "service": svc.pk, "client": cli.pk,
+                "account_emails": "date@x.com",
+                "expires_on": "2027-01-15",
+            },
+            HTTP_HOST=self.HOST,
+        )
+        self.assertRedirects(r, f"/app/servicios/{svc.pk}/", fetch_redirect_response=False)
+        s = Subscription.objects.get(account_email="date@x.com")
+        local = timezone.localtime(s.expires_at)
+        self.assertEqual((local.year, local.month, local.day), (2027, 1, 15))
+
+    def test_subscription_add_invalid_date_falls_back_to_days(self):
+        t, svc = self._new_service("seller_baddate")
+        cli = Client.objects.create(owner=t.user, name="Mara")
+        self.client.post(
+            self.SUB_ADD,
+            {
+                "service": svc.pk, "client": cli.pk,
+                "account_emails": "bad@x.com",
+                "expires_on": "no-es-fecha", "duration_days": "30",
+            },
+            HTTP_HOST=self.HOST,
+        )
+        s = Subscription.objects.get(account_email="bad@x.com")
+        self.assertGreater(s.expires_at, timezone.now())
+
     def test_subscription_add_cuenta_completa_forces_one_profile(self):
         t, svc = self._new_service("seller2")
         cli = Client.objects.create(owner=t.user, name="Ana")

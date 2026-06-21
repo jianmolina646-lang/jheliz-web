@@ -156,6 +156,31 @@
     });
   });
 
+  // ── Tiempo del servicio: por días o por fecha de vencimiento ──────────
+  document.querySelectorAll("[data-jc-timemode]").forEach(function (box) {
+    var field = box.closest(".jc-field");
+    if (!field) { return; }
+    var panes = field.querySelectorAll("[data-jc-tmpane]");
+    function setMode(mode) {
+      box.querySelectorAll("[data-jc-tmode]").forEach(function (b) {
+        b.classList.toggle("is-active", b.getAttribute("data-jc-tmode") === mode);
+      });
+      panes.forEach(function (pane) {
+        var on = pane.getAttribute("data-jc-tmpane") === mode;
+        pane.hidden = !on;
+        // El input oculto se deshabilita para que no se envíe (evita que una
+        // fecha cargada pise los días, o viceversa).
+        pane.querySelectorAll("input").forEach(function (i) { i.disabled = !on; });
+      });
+    }
+    box.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-jc-tmode]");
+      if (!btn) { return; }
+      setMode(btn.getAttribute("data-jc-tmode"));
+    });
+    setMode("days");
+  });
+
   // ── Selección rápida de cliente (buscar / elegir / crear nuevo) ───────
   document.querySelectorAll("[data-jc-subform]").forEach(function (form) {
     var search = form.querySelector("[data-jc-csearch]");
