@@ -276,6 +276,17 @@ class TenantSaasTests(TestCase):
         self.assertContains(r, "Maria Lopez")
         self.assertNotContains(r, "Juan Perez")
 
+    def test_clients_sort_by_name(self):
+        self._register("sorter")
+        ts = self.Tenant.objects.get(user__username="sorter")
+        ts.extend(30)
+        Client.objects.create(owner=ts.user, name="Zulema")
+        Client.objects.create(owner=ts.user, name="ana")  # minúscula: orden case-insensitive
+        r = self.client.get(self.CLIENTS, {"sort": "name"}, HTTP_HOST=self.HOST)
+        body = r.content.decode()
+        self.assertLess(body.index("ana"), body.index("Zulema"))
+        self.assertContains(r, "jc-sortpill")
+
     def test_csrf_failure_redirects_back_instead_of_403(self):
         from django.test import Client as DjangoClient
 

@@ -19,6 +19,13 @@
   {% if q %}<p style="color:#6b7280;margin:0 0 12px;">Resultados para "<strong>{{ q }}</strong>".</p>{% endif %}
 
   {% if clients %}
+    <div class="jc-sortbar">
+      <span class="jc-sortbar__label"><span class="material-symbols-outlined">swap_vert</span> Ordenar</span>
+      <a href="?sort=expiry{% if q %}&q={{ q|urlencode }}{% endif %}" class="jc-sortpill{% if sort == 'expiry' %} is-active{% endif %}">Vence pronto</a>
+      <a href="?sort=name{% if q %}&q={{ q|urlencode }}{% endif %}" class="jc-sortpill{% if sort == 'name' %} is-active{% endif %}">Nombre A-Z</a>
+      <a href="?sort=active{% if q %}&q={{ q|urlencode }}{% endif %}" class="jc-sortpill{% if sort == 'active' %} is-active{% endif %}">Más activas</a>
+    </div>
+
     <div class="jc-clients">
       {% for c in clients %}
         <article class="jc-client" data-search="{{ c.name }} {{ c.telegram }} {{ c.whatsapp }} {{ c.email }}">

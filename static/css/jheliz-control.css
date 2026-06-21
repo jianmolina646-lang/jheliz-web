@@ -205,8 +205,14 @@
 .jc-search-box .material-symbols-outlined { color: var(--jc-muted); font-size: 20px; }
 .jc-search-box input { flex: 1; border: 0; background: transparent; outline: none; font-size: 14px; color: var(--jc-ink); }
 .jc-search-box input::-webkit-search-cancel-button { cursor: pointer; }
-.jc-clients { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-.jc-client { background: var(--jc-card); border-radius: var(--jc-radius); box-shadow: var(--jc-shadow); padding: 18px; border: 1px solid var(--jc-line); transition: transform .16s, box-shadow .16s; }
+.jc-sortbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.jc-sortbar__label { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 700; color: var(--jc-muted); }
+.jc-sortbar__label .material-symbols-outlined { font-size: 18px; }
+.jc-sortpill { text-decoration: none; padding: 5px 13px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--jc-ink); border: 1px solid var(--jc-line); background: var(--jc-card); transition: all .14s; }
+.jc-sortpill:hover { border-color: var(--jc-green); }
+.jc-sortpill.is-active { background: var(--jc-green); border-color: var(--jc-green); color: #fff; box-shadow: 0 3px 8px var(--jc-green-soft); }
+.jc-clients { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; align-items: stretch; }
+.jc-client { background: var(--jc-card); border-radius: var(--jc-radius); box-shadow: var(--jc-shadow); padding: 18px; border: 1px solid var(--jc-line); transition: transform .16s, box-shadow .16s; display: flex; flex-direction: column; height: 100%; }
 .jc-client:hover { transform: translateY(-3px); box-shadow: 0 20px 40px -20px rgba(6,78,59,.5); }
 .jc-client__top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .jc-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--jc-green); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; }
@@ -214,7 +220,7 @@
 .jc-client__contact { font-size: 12.5px; color: var(--jc-muted); display: flex; align-items: center; gap: 4px; }
 .jc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .jc-tag { background: var(--jc-green-soft); color: var(--jc-green-deep); padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
-.jc-client__foot { display: flex; gap: 7px; margin-top: 12px; flex-wrap: wrap; }
+.jc-client__foot { display: flex; gap: 7px; margin-top: auto; padding-top: 12px; flex-wrap: wrap; }
 
 /* Suscripciones por cliente (lista ordenada estilo KINEMANAGER) */
 .jc-count-badge { display: inline-block; margin-left: 7px; background: var(--jc-green-soft); color: var(--jc-green-deep); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
