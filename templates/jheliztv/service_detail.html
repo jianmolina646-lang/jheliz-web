@@ -263,9 +263,15 @@
         </div>
         <div class="jc-modal__body">
           <div class="jc-field">
-            <label>Días a agregar (acumulativo)</label>
-            <input type="number" name="days" value="30" min="1">
-            <div class="jc-help">Se suman al tiempo restante actual.</div>
+            <label>Tiempo del servicio</label>
+            <div class="jc-timemode" data-jc-timemode>
+              <button type="button" class="jc-tmbtn is-active" data-jc-tmode="days">Por días</button>
+              <button type="button" class="jc-tmbtn" data-jc-tmode="date">Por fecha</button>
+            </div>
+            <div class="jc-daysrow" data-jc-tmpane="days"><input type="number" name="days" value="30" min="1"> <span>días</span></div>
+            <div class="jc-daysrow" data-jc-tmpane="date" hidden><input type="date" name="expires_on"> <span>vence</span></div>
+            <div class="jc-help" data-jc-tmhelp="days">Se suman al tiempo restante actual.</div>
+            <div class="jc-help" data-jc-tmhelp="date" hidden>La suscripción vencerá exactamente ese día.</div>
           </div>
         </div>
         <div class="jc-modal__foot">
