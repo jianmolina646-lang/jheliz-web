@@ -57,7 +57,7 @@
     if (!list) { return; }
     var open = list.classList.toggle("is-open");
     var label = more.lastChild;
-    var total = list.querySelectorAll(".jc-csub").length;
+    var total = list.querySelectorAll(".jc-csub2").length;
     if (label) { label.textContent = open ? " Ver menos" : " Ver todas (" + total + ")"; }
     var icon = more.querySelector(".material-symbols-outlined");
     if (icon) { icon.textContent = open ? "expand_less" : "expand_more"; }

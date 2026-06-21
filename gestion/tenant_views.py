@@ -593,6 +593,16 @@ def clients(request, tenant):
             key=lambda c: (min((s.expires_at for s in c.active_subs), default=far), c.name.lower())
         )
 
+    # Agrupar las suscripciones por servicio (para el modal "Extraer a PDF").
+    for c in clients:
+        groups: dict[int, dict] = {}
+        for s in c.active_subs:
+            g = groups.setdefault(
+                s.service_id, {"service": s.service, "count": 0}
+            )
+            g["count"] += 1
+        c.svc_groups = sorted(groups.values(), key=lambda g: g["service"].name.lower())
+
     ctx = _ctx(
         request, tenant,
         title="Mis clientes", jc_active="clients",
@@ -646,7 +656,14 @@ def client_report_pdf(request, tenant, pk):
     from reportlab.pdfgen import canvas
 
     client = get_object_or_404(Client, pk=pk, owner=request.user)
-    subs = list(client.subscriptions.filter(is_archived=False).select_related("service"))
+    subs_qs = client.subscriptions.filter(is_archived=False).select_related("service")
+    # "Extraer": permite elegir qué servicios incluir
+    # (?services=1&services=2 o ?services=1,2,3).
+    raw = " ".join(request.GET.getlist("services")).replace(",", " ")
+    ids = [int(x) for x in raw.split() if x.isdigit()]
+    if ids:
+        subs_qs = subs_qs.filter(service_id__in=ids)
+    subs = list(subs_qs.order_by("service__name", "account_email"))
 
     buf = BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
@@ -686,9 +703,10 @@ def client_report_pdf(request, tenant, pk):
     c.setFillColor(colors.white)
     c.setFont("Helvetica-Bold", 9)
     c.drawString(22 * mm, y, "Servicio")
-    c.drawString(70 * mm, y, "Cuenta / correo")
-    c.drawString(140 * mm, y, "Plan")
-    c.drawString(165 * mm, y, "Vence")
+    c.drawString(58 * mm, y, "Correo / usuario")
+    c.drawString(112 * mm, y, "Clave")
+    c.drawString(150 * mm, y, "Plan")
+    c.drawString(172 * mm, y, "Vence")
     y -= 10 * mm
 
     c.setFont("Helvetica", 9)
@@ -700,10 +718,11 @@ def client_report_pdf(request, tenant, pk):
         if y < 25 * mm:
             c.showPage()
             y = height - 30 * mm
-        c.drawString(22 * mm, y, s.service.name[:28])
-        c.drawString(70 * mm, y, s.account_email[:34])
-        c.drawString(140 * mm, y, s.get_plan_display()[:12])
-        c.drawString(165 * mm, y, timezone.localtime(s.expires_at).strftime("%d/%m/%Y"))
+        c.drawString(22 * mm, y, s.service.name[:20])
+        c.drawString(58 * mm, y, s.account_email[:30])
+        c.drawString(112 * mm, y, (s.account_password or "—")[:22])
+        c.drawString(150 * mm, y, s.get_plan_display()[:11])
+        c.drawString(172 * mm, y, timezone.localtime(s.expires_at).strftime("%d/%m/%Y"))
         y -= 7 * mm
 
     c.setFillColor(colors.HexColor("#9ca3af"))
