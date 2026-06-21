@@ -215,8 +215,14 @@
 .jc-usr__ic .material-symbols-outlined { font-size: 14px; }
 .jc-usr__ic--wa { background: #25d366; }
 .jc-usr__ic--tg { background: #229ed9; }
-.jc-acct { display: flex; align-items: center; gap: 8px; }
-.jc-acct__mail { color: var(--jc-ink); }
+.jc-acct { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 6px; }
+.jc-acct[hidden] { display: none; }
+.jc-acct__mail { color: var(--jc-ink); display: inline-flex; align-items: center; gap: 5px; word-break: break-all; }
+.jc-acct__mail .material-symbols-outlined { font-size: 15px; color: var(--jc-muted); }
+.jc-acct__pass { display: inline-flex; align-items: center; gap: 5px; }
+.jc-acct__pass .material-symbols-outlined { font-size: 15px; color: var(--jc-muted); }
+.jc-acct__pass code { font-family: ui-monospace, monospace; background: var(--jc-bg, #f3f4f6); padding: 2px 7px; border-radius: 6px; }
+.jc-seebtn.is-open { background: var(--jc-green); border-color: var(--jc-green); color: #fff; }
 .jc-seebtn { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--jc-green-soft); background: var(--jc-green-soft); color: var(--jc-green-deep); font-weight: 700; font-size: 11.5px; cursor: pointer; }
 .jc-seebtn .material-symbols-outlined { font-size: 14px; }
 .jc-seebtn code { font-family: ui-monospace, monospace; }
