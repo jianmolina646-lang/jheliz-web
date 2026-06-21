@@ -154,7 +154,15 @@
           {# Plan + tiempo #}
           <div class="jc-grid2" style="margin-top:6px;">
             <div class="jc-field"><label>Plan de suscripción</label><input type="text" name="plan_label" placeholder="Premium, Básico…"></div>
-            <div class="jc-field"><label>Tiempo del servicio</label><div class="jc-daysrow"><input type="number" name="duration_days" value="30" min="1"> <span>días</span></div></div>
+            <div class="jc-field">
+              <label>Tiempo del servicio</label>
+              <div class="jc-timemode" data-jc-timemode>
+                <button type="button" class="jc-tmbtn is-active" data-jc-tmode="days">Por días</button>
+                <button type="button" class="jc-tmbtn" data-jc-tmode="date">Por fecha</button>
+              </div>
+              <div class="jc-daysrow" data-jc-tmpane="days"><input type="number" name="duration_days" value="30" min="1"> <span>días</span></div>
+              <div class="jc-daysrow" data-jc-tmpane="date" hidden><input type="date" name="expires_on"> <span>vence</span></div>
+            </div>
           </div>
 
           {# Perfiles / cuenta completa #}

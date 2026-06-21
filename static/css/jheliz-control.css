@@ -287,7 +287,12 @@
 /* ── Tiempo del servicio ─────────────────────────────────────────────── */
 .jc-daysrow { display: flex; align-items: center; gap: 8px; }
 .jc-daysrow input { max-width: 110px; }
+.jc-daysrow[data-jc-tmpane="date"] input { max-width: 170px; }
 .jc-daysrow span { font-size: 14px; color: var(--jc-muted); }
+.jc-timemode { display: inline-flex; gap: 4px; padding: 3px; margin-bottom: 7px; background: var(--jc-bg, #f3f4f6); border: 1px solid var(--jc-line); border-radius: 10px; }
+.jc-tmbtn { border: 0; background: transparent; padding: 5px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--jc-muted); transition: all .14s; }
+.jc-tmbtn:hover { color: var(--jc-ink); }
+.jc-tmbtn.is-active { background: var(--jc-green); color: #fff; box-shadow: 0 3px 8px var(--jc-green-soft); }
 
 /* ── Botones de perfiles / cuenta completa ───────────────────────────── */
 .jc-pchips { display: flex; flex-wrap: wrap; gap: 8px; }
