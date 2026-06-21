@@ -388,6 +388,33 @@ class TenantSaasTests(TestCase):
         self.assertEqual(sub.plan_label, "Premium")
         self.assertEqual(sub.expires_at, old_expires)  # no se toca el vencimiento
 
+    def test_client_extract_pdf_filters_by_service(self):
+        t, svc = self._new_service("seller_pdf", name="Netflix")
+        svc2 = Service.objects.create(owner=t.user, name="HBO")
+        cli = Client.objects.create(owner=t.user, name="Leo")
+        self.client.post(
+            self.SUB_ADD,
+            {"service": svc.pk, "client": cli.pk, "account_emails": "nf@x.com",
+             "account_password": "secreta1", "duration_days": "30"},
+            HTTP_HOST=self.HOST,
+        )
+        self.client.post(
+            self.SUB_ADD,
+            {"service": svc2.pk, "client": cli.pk, "account_emails": "hbo@x.com",
+             "duration_days": "30"},
+            HTTP_HOST=self.HOST,
+        )
+        url = f"/app/clientes/{cli.pk}/reporte.pdf"
+        # Sin filtro: PDF válido con ambos servicios.
+        r = self.client.get(url, HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r["Content-Type"], "application/pdf")
+        self.assertTrue(r.content.startswith(b"%PDF"))
+        # Con filtro por un solo servicio: sigue devolviendo un PDF válido.
+        r = self.client.get(url, {"services": svc.pk}, HTTP_HOST=self.HOST)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.content.startswith(b"%PDF"))
+
     def test_subscription_renew_by_expiry_date(self):
         t, svc = self._new_service("seller_renew")
         cli = Client.objects.create(owner=t.user, name="Pia")

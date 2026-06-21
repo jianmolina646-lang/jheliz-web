@@ -217,10 +217,16 @@
 .jc-client { background: var(--jc-card); border-radius: var(--jc-radius); box-shadow: var(--jc-shadow); padding: 18px; border: 1px solid var(--jc-line); transition: transform .16s, box-shadow .16s; display: flex; flex-direction: column; height: 100%; }
 .jc-client[hidden] { display: none; }
 .jc-client:hover { transform: translateY(-3px); box-shadow: 0 20px 40px -20px rgba(6,78,59,.5); }
-.jc-client__top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-.jc-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--jc-green); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; }
+.jc-client__top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.jc-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--jc-green); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; flex: none; }
+.jc-client__id { flex: 1 1 auto; min-width: 0; }
 .jc-client__name { font-weight: 700; font-size: 15px; }
-.jc-client__contact { font-size: 12.5px; color: var(--jc-muted); display: flex; align-items: center; gap: 4px; }
+.jc-client__meta { font-size: 11.5px; color: #9ca3af; margin-top: 1px; }
+.jc-client__contact { font-size: 12.5px; color: var(--jc-muted); display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+.jc-client__badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.jc-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.jc-badge .material-symbols-outlined { font-size: 14px; }
+.jc-badge--mail { background: #eef2ff; color: #4338ca; }
 .jc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .jc-tag { background: var(--jc-green-soft); color: var(--jc-green-deep); padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
 .jc-client__foot { display: flex; gap: 7px; margin-top: auto; padding-top: 12px; flex-wrap: wrap; }
@@ -240,6 +246,41 @@
 .jc-csub__chip { flex: none; }
 .jc-csub-more { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; color: var(--jc-green-dark); font-weight: 700; font-size: 12.5px; cursor: pointer; padding: 2px 4px; }
 .jc-csubs-empty { font-size: 12.5px; color: #9ca3af; margin: 8px 0; }
+
+/* Filas de servicio estilo KINEMANAGER (logo + correo + ✓ + clave) */
+.jc-csub2 { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--jc-line); border-radius: 10px; background: #fafafa; }
+.jc-csub2.jc-csub--extra { display: none; }
+.jc-csubs.is-open .jc-csub2.jc-csub--extra { display: flex; }
+.jc-csub2__logo { width: 30px; height: 30px; border-radius: 8px; flex: none; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 13px; }
+.jc-csub2__body { flex: 1 1 auto; min-width: 0; }
+.jc-csub2__line { display: flex; align-items: center; gap: 5px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jc-csub2__line strong { flex: none; }
+.jc-csub2__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--jc-muted); flex: none; }
+.jc-csub2__dot--green { background: var(--jc-green); }
+.jc-csub2__dot--yellow { background: var(--jc-yellow); }
+.jc-csub2__dot--red, .jc-csub2__dot--expired { background: var(--jc-red); }
+.jc-csub2__mail { color: var(--jc-muted); overflow: hidden; text-overflow: ellipsis; }
+.jc-csub2__pass { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: #9ca3af; margin-top: 2px; font-family: ui-monospace, monospace; }
+.jc-csub2__pass .material-symbols-outlined { font-size: 13px; }
+.jc-csub2__ok { color: var(--jc-green); font-size: 19px; flex: none; }
+
+/* Botones de acción de la tarjeta (Editar / Extraer / Eliminar) */
+.jc-cbtn { flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 7px 6px; border-radius: 9px; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1px solid var(--jc-line); background: var(--jc-card); transition: all .14s; }
+.jc-cbtn .material-symbols-outlined { font-size: 16px; }
+.jc-cbtn:disabled { opacity: .45; cursor: not-allowed; }
+.jc-cbtn--edit { color: #1d4ed8; border-color: #bfdbfe; background: #eff6ff; }
+.jc-cbtn--edit:hover:not(:disabled) { background: #dbeafe; }
+.jc-cbtn--extract { color: var(--jc-green-deep); border-color: var(--jc-green-soft); background: var(--jc-green-soft); }
+.jc-cbtn--extract:hover:not(:disabled) { background: #c7f0dd; }
+.jc-cbtn--del { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+.jc-cbtn--del:hover:not(:disabled) { background: #fee2e2; }
+
+/* Modal "Extraer a PDF" */
+.jc-extopt { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--jc-line); border-radius: 10px; margin-bottom: 8px; cursor: pointer; }
+.jc-extopt:hover { border-color: var(--jc-green); }
+.jc-extopt input { width: 17px; height: 17px; accent-color: var(--jc-green); flex: none; }
+.jc-extopt__name { flex: 1 1 auto; font-weight: 600; font-size: 13.5px; }
+.jc-extopt__count { font-size: 11.5px; color: var(--jc-muted); }
 
 /* ── Modales (fade + backdrop) ───────────────────────────────────────── */
 .jc-modal { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center; padding: 18px; }

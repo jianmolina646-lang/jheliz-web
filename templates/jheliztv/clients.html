@@ -28,13 +28,17 @@
 
     <div class="jc-clients">
       {% for c in clients %}
-        <article class="jc-client" data-search="{{ c.name }} {{ c.telegram }} {{ c.whatsapp }} {{ c.email }}">
+        <article class="jc-client" data-search="{{ c.name }} {{ c.telegram }} {{ c.whatsapp }} {{ c.email }}{% for s in c.active_subs %} {{ s.account_email }} {{ s.service.name }}{% endfor %}">
           <div class="jc-client__top">
             <div class="jc-avatar">{{ c.name|first|upper }}</div>
-            <div>
-              <div class="jc-client__name">{{ c.name }}{% if c.active_subs %}<span class="jc-count-badge">{{ c.active_subs|length }} activa{{ c.active_subs|length|pluralize }}</span>{% endif %}</div>
+            <div class="jc-client__id">
+              <div class="jc-client__name">{{ c.name }}</div>
+              <div class="jc-client__meta">Añadido el {{ c.created_at|date:"d/m/Y" }}</div>
               {% if c.telegram %}<div class="jc-client__contact"><span class="material-symbols-outlined" style="font-size:15px">send</span>{{ c.telegram }}</div>{% endif %}
-              {% if c.whatsapp %}<div class="jc-client__contact"><span class="material-symbols-outlined" style="font-size:15px">chat</span>{{ c.whatsapp }}</div>{% endif %}
+            </div>
+            <div class="jc-client__badges">
+              <span class="jc-badge jc-badge--mail"><span class="material-symbols-outlined">mail</span>{{ c.active_subs|length }} cuenta{{ c.active_subs|length|pluralize }}</span>
+              {% if c.active_subs %}<span class="jc-count-badge">{{ c.active_subs|length }} activa{{ c.active_subs|length|pluralize }}</span>{% endif %}
             </div>
           </div>
 
@@ -42,10 +46,13 @@
             {% if subs %}
               <div class="jc-csubs">
                 {% for s in subs %}
-                  <div class="jc-csub{% if forloop.counter0 >= 3 %} jc-csub--extra{% endif %}">
-                    <span class="jc-csub__svc"><span class="jc-csub__dot jc-csub__dot--{{ s.status_color }}"></span>{{ s.service.name }}</span>
-                    <span class="jc-csub__meta">{{ s.account_email }}{% if s.plan == 'completa' %} · Cuenta completa{% elif s.profile_name %} · {{ s.profile_name }}{% elif s.profiles > 1 %} · {{ s.profiles }} perfiles{% endif %}</span>
-                    <span class="jc-chip jc-chip--{{ s.status_color }} jc-csub__chip" data-expires="{{ s.expires_ts }}"><span class="jc-left-label">{{ s.time_left_label }}</span></span>
+                  <div class="jc-csub2{% if forloop.counter0 >= 3 %} jc-csub--extra{% endif %}">
+                    <span class="jc-csub2__logo"{% if s.service.image %} style="background-image:url('{{ s.service.image.url }}')"{% else %} style="background:{{ s.service.color|default:'#10b981' }}"{% endif %}>{% if not s.service.image %}{{ s.service.name|first|upper }}{% endif %}</span>
+                    <div class="jc-csub2__body">
+                      <div class="jc-csub2__line"><span class="jc-csub2__dot jc-csub2__dot--{{ s.status_color }}"></span><strong>{{ s.service.name }}</strong> <span class="jc-csub2__mail">{{ s.account_email }}</span></div>
+                      {% if s.account_password %}<div class="jc-csub2__pass"><span class="material-symbols-outlined">key</span>{{ s.account_password }}</div>{% endif %}
+                    </div>
+                    <span class="material-symbols-outlined jc-csub2__ok">check_circle</span>
                   </div>
                 {% endfor %}
               </div>
@@ -58,10 +65,7 @@
           {% endwith %}
 
           <div class="jc-client__foot">
-            <a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'jheliztv_client_report' c.pk %}" target="_blank">
-              <span class="material-symbols-outlined">picture_as_pdf</span> Reporte
-            </a>
-            <button type="button" class="jc-btn jc-btn--ghost jc-btn--sm"
+            <button type="button" class="jc-cbtn jc-cbtn--edit"
                     data-jc-open="modalClientEdit"
                     data-action="{% url 'jheliztv_client_edit' c.pk %}"
                     data-fill-name="{{ c.name }}"
@@ -71,11 +75,46 @@
                     data-fill-notes="{{ c.notes }}">
               <span class="material-symbols-outlined">edit</span> Editar
             </button>
-            <button type="button" class="jc-iact jc-iact--del" title="Eliminar"
-                    onclick="if(confirm('¿Eliminar a {{ c.name|escapejs }} y sus suscripciones?')){document.getElementById('delcli{{ c.pk }}').submit();}"><span class="material-symbols-outlined">delete</span></button>
+            <button type="button" class="jc-cbtn jc-cbtn--extract"{% if not c.svc_groups %} disabled{% endif %}
+                    data-jc-open="extrCli{{ c.pk }}">
+              <span class="material-symbols-outlined">picture_as_pdf</span> Extraer
+            </button>
+            <button type="button" class="jc-cbtn jc-cbtn--del"
+                    onclick="if(confirm('¿Eliminar a {{ c.name|escapejs }} y sus suscripciones?')){document.getElementById('delcli{{ c.pk }}').submit();}">
+              <span class="material-symbols-outlined">delete</span> Eliminar
+            </button>
             <form id="delcli{{ c.pk }}" method="post" action="{% url 'jheliztv_client_delete' c.pk %}" style="display:none">{% csrf_token %}</form>
           </div>
         </article>
+
+        {# ── Modal: extraer a PDF (por cliente) ───────────────────── #}
+        {% if c.svc_groups %}
+        <div class="jc-modal" id="extrCli{{ c.pk }}" aria-hidden="true">
+          <div class="jc-modal__backdrop" data-jc-close></div>
+          <div class="jc-modal__box" role="dialog" aria-modal="true" style="width:min(420px,100%)">
+            <form method="get" action="{% url 'jheliztv_client_report' c.pk %}" target="_blank">
+              <div class="jc-modal__head">
+                <h3><span class="material-symbols-outlined">picture_as_pdf</span> Extraer a PDF</h3>
+                <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+              </div>
+              <div class="jc-modal__body">
+                <p class="jc-help" style="margin:0 0 10px">{{ c.name }} · Seleccioná los servicios a incluir:</p>
+                {% for g in c.svc_groups %}
+                  <label class="jc-extopt">
+                    <input type="checkbox" name="services" value="{{ g.service.pk }}" checked>
+                    <span class="jc-extopt__name">{{ g.service.name }}</span>
+                    <span class="jc-extopt__count">{{ g.count }} cuenta{{ g.count|pluralize }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+              <div class="jc-modal__foot">
+                <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+                <button type="submit" class="jc-btn"><span class="material-symbols-outlined">download</span> Generar PDF</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        {% endif %}
       {% endfor %}
     </div>
   {% else %}
