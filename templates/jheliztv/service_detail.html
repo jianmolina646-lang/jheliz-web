@@ -58,6 +58,7 @@
               <span class="jc-chip jc-chip--{{ s.status_color }}" data-expires="{{ s.expires_ts }}">
                 <span class="jc-left-label">{{ s.time_left_label }}</span>
               </span>
+              <div class="jc-exp-date"><span class="material-symbols-outlined">event</span>{{ s.expires_at|date:"d/m/Y" }}</div>
             </td>
             <td>
               <span class="jc-profit {% if s.profit < 0 %}is-neg{% endif %}">
