@@ -564,10 +564,24 @@ def clients(request, tenant):
             | Q(email__icontains=q) | Q(whatsapp__icontains=q)
             | Q(subscriptions__account_email__icontains=q)
         ).distinct()
+
+    clients = list(qs)
+    sort = (request.GET.get("sort") or "expiry").strip()
+    if sort == "name":
+        clients.sort(key=lambda c: c.name.lower())
+    elif sort == "active":
+        clients.sort(key=lambda c: (-len(c.active_subs), c.name.lower()))
+    else:  # "expiry": primero lo que vence antes; sin suscripciones activas al final
+        sort = "expiry"
+        far = timezone.now() + timedelta(days=3650)
+        clients.sort(
+            key=lambda c: (min((s.expires_at for s in c.active_subs), default=far), c.name.lower())
+        )
+
     ctx = _ctx(
         request, tenant,
         title="Mis clientes", jc_active="clients",
-        clients=list(qs), form=ClientForm(), q=q,
+        clients=clients, form=ClientForm(), q=q, sort=sort,
     )
     return render(request, "jheliztv/clients.html", ctx)
 
