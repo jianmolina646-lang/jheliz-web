@@ -1,58 +1,85 @@
 {% extends "jheliztv/base.html" %}
 
 {% block jc_content %}
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
-    <h2 class="jc-section-title">
-      {% if service.icon %}<span class="material-symbols-outlined">{{ service.icon }}</span>
-      {% else %}<span class="material-symbols-outlined">subscriptions</span>{% endif %}
-      {{ service.name }}
-    </h2>
-    <div style="display:flex;gap:8px;">
-      <a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'jheliztv_services' %}">
-        <span class="material-symbols-outlined">arrow_back</span> Servicios
-      </a>
-      <button type="button" class="jc-btn jc-btn--ghost jc-btn--sm" data-jc-open="modalSvcEdit">
-        <span class="material-symbols-outlined">edit</span> Editar servicio
-      </button>
-      <button type="button" class="jc-btn" data-jc-open="modalSub">
-        <span class="material-symbols-outlined">person_add</span> Nueva suscripción
-      </button>
+  <div class="jc-svc-head">
+    <div class="jc-svc-head__id">
+      <span class="jc-svc-logo"{% if service.image %} style="background-image:url('{{ service.image.url }}')"{% else %} style="background:{{ service.color|default:'#10b981' }}"{% endif %}>
+        {% if not service.image %}{% if service.icon %}<span class="material-symbols-outlined">{{ service.icon }}</span>{% else %}{{ service.name|first|upper }}{% endif %}{% endif %}
+      </span>
+      <div>
+        <h2 class="jc-svc-name">{{ service.name }}</h2>
+        <div class="jc-svc-sub">{{ subs|length }} suscripción{{ subs|length|pluralize:"es" }}</div>
+      </div>
     </div>
+    <div class="jc-kpis">
+      <div class="jc-kpi jc-kpi--in"><span class="jc-kpi__label">Ingresos</span><span class="jc-kpi__val">{{ jc_currency }} {{ kpi_ingresos|stringformat:".2f" }}</span></div>
+      <div class="jc-kpi jc-kpi--out"><span class="jc-kpi__label">Egresos</span><span class="jc-kpi__val">{{ jc_currency }} {{ kpi_egresos|stringformat:".2f" }}</span></div>
+      <div class="jc-kpi jc-kpi--cli"><span class="jc-kpi__label">Clientes</span><span class="jc-kpi__val">{{ kpi_clients }}</span></div>
+    </div>
+  </div>
+
+  <div class="jc-svc-actions">
+    <a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'jheliztv_services' %}">
+      <span class="material-symbols-outlined">arrow_back</span> Servicios
+    </a>
+    <button type="button" class="jc-btn jc-btn--ghost jc-btn--sm" data-jc-open="modalSvcEdit">
+      <span class="material-symbols-outlined">edit</span> Editar servicio
+    </button>
+    <button type="button" class="jc-btn" data-jc-open="modalSub">
+      <span class="material-symbols-outlined">person_add</span> Nueva suscripción
+    </button>
   </div>
 
   <div class="jc-panel">
     {% if subs %}
+    <div class="jc-subbar">
+      <span class="jc-subbar__title"><span class="material-symbols-outlined">receipt_long</span> Suscripciones registradas</span>
+      <div class="jc-search-box jc-search-box--sm">
+        <span class="material-symbols-outlined">search</span>
+        <input type="search" class="jc-subs-search" placeholder="Buscar suscripción (usuario, correo, plan…)" autocomplete="off">
+      </div>
+    </div>
     <div class="jc-table-wrap">
-      <table class="jc-table">
+      <table class="jc-table jc-table--subs">
         <thead>
           <tr>
-            <th>Cliente / cuenta</th>
-            <th>Contraseña</th>
-            <th>Plan / perfiles</th>
-            <th>Tiempo restante</th>
+            <th>Usuario</th>
+            <th>Cuenta</th>
+            <th>Plan</th>
+            <th>Perfiles</th>
+            <th>Tiempo</th>
+            <th>Registro</th>
             <th>Utilidad</th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
           {% for s in subs %}
-          <tr>
+          <tr data-search="{{ s.client.name|lower }} {{ s.account_email|lower }} {{ s.plan_label|lower }} {{ s.client.telegram|lower }} {{ s.client.whatsapp }}">
             <td>
-              <strong>{{ s.client.name }}</strong><br>
-              <small style="color:#6b7280">{{ s.account_email }}</small>
+              <div class="jc-usr">
+                <strong>{{ s.client.name }}</strong>
+                <div class="jc-usr__icons">
+                  {% if s.wa_link %}<a class="jc-usr__ic jc-usr__ic--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><span class="material-symbols-outlined">chat</span></a>{% endif %}
+                  {% if s.tg_link %}<a class="jc-usr__ic jc-usr__ic--tg" href="{{ s.tg_link }}" target="_blank" title="Telegram"><span class="material-symbols-outlined">send</span></a>{% endif %}
+                </div>
+              </div>
             </td>
             <td>
-              {% if s.account_password %}
-                <span class="jc-pass">
-                  <code data-value="{{ s.account_password }}" data-shown="0">••••••••</code>
-                  <button type="button" class="jc-eye" title="Ver/ocultar"><span class="material-symbols-outlined">visibility</span></button>
-                </span>
-              {% else %}<small style="color:#9ca3af">—</small>{% endif %}
+              <div class="jc-acct">
+                <span class="jc-acct__mail">{{ s.account_email }}</span>
+                {% if s.account_password %}
+                  <button type="button" class="jc-seebtn jc-eye" title="Ver/ocultar clave">
+                    <span class="material-symbols-outlined">visibility</span>
+                    <code data-value="{{ s.account_password }}" data-label="Ver" data-shown="0">Ver</code>
+                  </button>
+                {% endif %}
+              </div>
             </td>
+            <td>{% if s.plan_label %}<strong>{{ s.plan_label }}</strong>{% else %}<small style="color:#9ca3af">—</small>{% endif %}</td>
             <td>
-              {% if s.plan_label %}<strong>{{ s.plan_label }}</strong><br>{% endif %}
-              {{ s.get_plan_display }}
-              {% if s.plan == 'perfil' %}<br><small style="color:#6b7280">{{ s.profiles }} perfil(es){% if s.profile_name %} · {{ s.profile_name }}{% endif %}</small>{% endif %}
+              {% if s.plan == 'completa' %}<span class="jc-pill-soft">cuenta completa</span>
+              {% else %}<span class="jc-pill-soft">{{ s.profiles }} perfil{{ s.profiles|pluralize:"es" }}</span>{% if s.profile_name %}<br><small style="color:#6b7280">{{ s.profile_name }}</small>{% endif %}{% endif %}
             </td>
             <td>
               <span class="jc-chip jc-chip--{{ s.status_color }}" data-expires="{{ s.expires_ts }}">
@@ -60,6 +87,7 @@
               </span>
               <div class="jc-exp-date"><span class="material-symbols-outlined">event</span>{{ s.expires_at|date:"d/m/Y" }}</div>
             </td>
+            <td><small style="color:#6b7280">{{ s.created_at|date:"d/m/Y" }}</small></td>
             <td>
               <span class="jc-profit {% if s.profit < 0 %}is-neg{% endif %}">
                 {% if s.profit >= 0 %}+{% else %}−{% endif %}{{ jc_currency }} {{ s.profit|stringformat:".2f"|cut:"-" }}
@@ -68,7 +96,6 @@
             <td>
               <div class="jc-acts">
                 {% if s.wa_link %}<a class="jc-iact jc-iact--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><span class="material-symbols-outlined">chat</span></a>{% endif %}
-                {% if s.tg_link %}<a class="jc-iact jc-iact--tg" href="{{ s.tg_link }}" target="_blank" title="Telegram"><span class="material-symbols-outlined">send</span></a>{% endif %}
                 <button type="button" class="jc-iact jc-iact--renew" title="Renovar"
                         data-jc-open="modalRenew" data-action="{% url 'jheliztv_subscription_renew' s.pk %}"><span class="material-symbols-outlined">autorenew</span></button>
                 <button type="button" class="jc-iact jc-iact--edit" title="Editar"
@@ -94,6 +121,10 @@
           {% endfor %}
         </tbody>
       </table>
+      <div class="jc-empty jc-subs-nomatch" hidden>
+        <span class="material-symbols-outlined">search_off</span>
+        Ninguna suscripción coincide con tu búsqueda.
+      </div>
     </div>
     {% else %}
       <div class="jc-empty">

@@ -71,7 +71,7 @@
     var icon = eye.querySelector(".material-symbols-outlined");
     if (!code) { return; }
     if (code.dataset.shown === "1") {
-      code.textContent = "••••••••";
+      code.textContent = code.dataset.label || "••••••••";
       code.dataset.shown = "0";
       if (icon) { icon.textContent = "visibility"; }
     } else {
@@ -285,5 +285,28 @@
     }
     cliSearch.addEventListener("input", filterClients);
     filterClients();
+  }
+
+  // ── Buscador instantáneo de suscripciones (detalle de servicio) ───────
+  var subSearch = document.querySelector(".jc-subs-search");
+  if (subSearch) {
+    var rows = Array.prototype.slice.call(
+      document.querySelectorAll(".jc-table--subs tbody tr")
+    );
+    var subNoMatch = document.querySelector(".jc-subs-nomatch");
+    function nrm(s) { return (s || "").toString().toLowerCase().trim(); }
+    function filterSubs() {
+      var term = nrm(subSearch.value);
+      var shown = 0;
+      rows.forEach(function (row) {
+        var hay = nrm(row.getAttribute("data-search"));
+        var match = !term || hay.indexOf(term) !== -1;
+        row.hidden = !match;
+        if (match) { shown += 1; }
+      });
+      if (subNoMatch) { subNoMatch.hidden = !(term && shown === 0); }
+    }
+    subSearch.addEventListener("input", filterSubs);
+    filterSubs();
   }
 })();
