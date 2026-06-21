@@ -161,6 +161,7 @@
     var field = box.closest(".jc-field");
     if (!field) { return; }
     var panes = field.querySelectorAll("[data-jc-tmpane]");
+    var helps = field.querySelectorAll("[data-jc-tmhelp]");
     function setMode(mode) {
       box.querySelectorAll("[data-jc-tmode]").forEach(function (b) {
         b.classList.toggle("is-active", b.getAttribute("data-jc-tmode") === mode);
@@ -171,6 +172,9 @@
         // El input oculto se deshabilita para que no se envíe (evita que una
         // fecha cargada pise los días, o viceversa).
         pane.querySelectorAll("input").forEach(function (i) { i.disabled = !on; });
+      });
+      helps.forEach(function (help) {
+        help.hidden = help.getAttribute("data-jc-tmhelp") !== mode;
       });
     }
     box.addEventListener("click", function (e) {

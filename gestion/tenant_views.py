@@ -520,6 +520,16 @@ def subscription_edit(request, tenant, pk):
 @require_POST
 def subscription_renew(request, tenant, pk):
     sub = get_object_or_404(Subscription, pk=pk, owner=request.user)
+    expires = _parse_expires_on(request.POST.get("expires_on"))
+    if expires is not None:
+        # Renovación "por fecha": el vencimiento queda exactamente ese día.
+        sub.expires_at = expires
+        sub.save(update_fields=["expires_at"])
+        messages.success(
+            request,
+            f"Renovada. Nuevo vencimiento: {timezone.localtime(sub.expires_at):%d/%m/%Y}.",
+        )
+        return redirect("jheliztv_service_detail", pk=sub.service_id)
     try:
         days = int(request.POST.get("days", 30))
     except (TypeError, ValueError):

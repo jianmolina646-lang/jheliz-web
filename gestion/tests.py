@@ -361,6 +361,24 @@ class TenantSaasTests(TestCase):
         self.client.post(self.SERVICE_ADD, {"name": name}, HTTP_HOST=self.HOST)
         return t, Service.objects.get(owner=t.user, name=name)
 
+    def test_subscription_renew_by_expiry_date(self):
+        t, svc = self._new_service("seller_renew")
+        cli = Client.objects.create(owner=t.user, name="Pia")
+        self.client.post(
+            self.SUB_ADD,
+            {"service": svc.pk, "client": cli.pk, "account_emails": "renew@x.com", "duration_days": "30"},
+            HTTP_HOST=self.HOST,
+        )
+        sub = Subscription.objects.get(account_email="renew@x.com")
+        self.client.post(
+            f"/app/suscripciones/{sub.pk}/renovar/",
+            {"expires_on": "2027-03-10"},
+            HTTP_HOST=self.HOST,
+        )
+        sub.refresh_from_db()
+        local = timezone.localtime(sub.expires_at)
+        self.assertEqual((local.year, local.month, local.day), (2027, 3, 10))
+
     def test_subscription_add_multiple_emails_splits_totals(self):
         t, svc = self._new_service("seller1")
         cli = Client.objects.create(owner=t.user, name="Juan")
