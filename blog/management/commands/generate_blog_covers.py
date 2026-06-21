@@ -139,7 +139,7 @@ def _cover_from_photo(post: BlogPost, style: dict, photo: Image.Image) -> bytes:
     # Top-left brand line (jheliz)
     brand_sm_font = _font(28, bold=True)
     odraw.ellipse((60, 64, 78, 82), fill=(236, 72, 153, 255))
-    odraw.text((90, 58), "Jheliz", font=brand_sm_font, fill=(255, 255, 255, 250))
+    odraw.text((90, 58), "VirtualidadSP", font=brand_sm_font, fill=(255, 255, 255, 250))
 
     # Pink accent bar above the title
     odraw.rectangle((60, 360, 120, 366), fill=(236, 72, 153, 255))
@@ -192,7 +192,7 @@ def _cover_branded(post: BlogPost, style: dict) -> bytes:
 
     brand_sm_font = _font(34, bold=True)
     draw.ellipse((60, 64, 78, 82), fill=(236, 72, 153, 255))
-    draw.text((90, 56), style.get("logo_text", "JHELIZ"), font=brand_sm_font, fill=(255, 255, 255, 250))
+    draw.text((90, 56), style.get("logo_text", "VIRTUALIDADSP"), font=brand_sm_font, fill=(255, 255, 255, 250))
 
     draw.rectangle((60, 360, 120, 366), fill=(236, 72, 153, 255))
     kicker_font = _font(22, bold=True)
@@ -251,7 +251,7 @@ class Command(BaseCommand):
                 "kicker": (post.category.name if post.category else "Blog"),
                 "primary": (236, 72, 153),
                 "primary_dark": (76, 5, 35),
-                "logo_text": "JHELIZ",
+                "logo_text": "VIRTUALIDADSP",
             })
             if post.cover_image:
                 try:

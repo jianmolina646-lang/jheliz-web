@@ -40,7 +40,7 @@ def _product_schema(request, product, plans):
         "description": product.short_description or product.description or product.name,
         "category": product.category.name,
         "url": request.build_absolute_uri(product.get_absolute_url()),
-        "brand": {"@type": "Brand", "name": "Jheliz"},
+        "brand": {"@type": "Brand", "name": "VirtualidadSP"},
         "aggregateRating": {
             "@type": "AggregateRating",
             "ratingValue": str(product.rating),
@@ -1291,7 +1291,7 @@ def _send_reclamacion_emails(obj):
     from django.core.mail import EmailMultiAlternatives
     from django.template.loader import render_to_string
 
-    site_name = "Jheliz"
+    site_name = "VirtualidadSP"
     subject = f"Confirmación reclamación #{obj.numero} — {site_name}"
     ctx = {"reclamacion": obj, "site_name": site_name}
 

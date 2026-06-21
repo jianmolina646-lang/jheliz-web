@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% load static humanize %}
 
-{% block title %}{% if category %}{{ category.emoji }} {{ category.name }} · Guías 2026 | Blog {{ SITE_NAME }}{% else %}Blog Jheliz ✦ Guías Netflix, Disney+ y Office actualizadas 2026{% endif %}{% endblock %}
+{% block title %}{% if category %}{{ category.emoji }} {{ category.name }} · Guías 2026 | Blog {{ SITE_NAME }}{% else %}Blog VirtualidadSP ✦ Guías Netflix, Disney+ y Office actualizadas 2026{% endif %}{% endblock %}
 {% block meta_description %}{% if category %}📰 Guías y tips sobre {{ category.name|lower }}: cómo activar tu cuenta, qué hacer si falla y comparativas reales. Lectura rápida, sin paja.{% else %}📰 Todo lo que necesitas saber de streaming y software premium en Perú: cómo activar Netflix, Disney+, Office y trucos para aprovechar tu suscripción al máximo.{% endif %}{% endblock %}
 {% block og_title %}{% if category %}{{ category.emoji }} {{ category.name }} — Blog {{ SITE_NAME }}{% else %}Blog {{ SITE_NAME }} ✦ Guías Netflix, Disney+ y Office 2026{% endif %}{% endblock %}
 {% block og_description %}{% if category %}📰 Guías sobre {{ category.name|lower }} actualizadas en 2026.{% else %}📰 Guías paso a paso sobre Netflix, Disney+ y software premium. Lectura rápida, sin paja.{% endif %}{% endblock %}
 
 {% block extra_head %}
-<link rel="alternate" type="application/rss+xml" title="Blog Jheliz RSS" href="{% url 'blog:feed' %}">
+<link rel="alternate" type="application/rss+xml" title="Blog VirtualidadSP RSS" href="{% url 'blog:feed' %}">
 <style>
   .blog-hero {
     position: relative; overflow: visible;
@@ -61,7 +61,7 @@
 <!-- Hero ----------------------------------------------------------------- -->
 <section class="mesh-accent -mx-6 px-6 py-12 md:py-20 mb-10">
   <div class="max-w-3xl">
-    <span class="hero-eyebrow badge-glow">{% if category %}📂 Categoría{% else %}📰 Blog Jheliz · 2026{% endif %}</span>
+    <span class="hero-eyebrow badge-glow">{% if category %}📂 Categoría{% else %}📰 Blog VirtualidadSP · 2026{% endif %}</span>
     <h1 class="font-display font-extrabold tracking-tight mt-5 leading-[0.96]" style="font-size:clamp(2.6rem,7.5vw,5.25rem);letter-spacing:-0.045em">
       {% if category %}
         {{ category.emoji }} <span class="text-grad">{{ category.name }}</span>

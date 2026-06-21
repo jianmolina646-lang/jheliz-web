@@ -24,8 +24,8 @@ from .admin_helpers import (
 from .models import Customer, Distributor, PushSubscription, Role, User, WalletRecharge, WalletTransaction
 
 
-JHELIZ_FIELDSETS_EXTRA = (
-    ("Jheliz", {
+VIRTUALIDADSP_FIELDSETS_EXTRA = (
+    ("VirtualidadSP", {
         "fields": (
             "role", "phone", "telegram_username",
             "wallet_balance", "distributor_approved", "admin_notes",
@@ -111,9 +111,9 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
     actions = ["approve_distributor", "revoke_distributor", "unlock_login_action"]
     list_per_page = 50
 
-    fieldsets = BaseUserAdmin.fieldsets + JHELIZ_FIELDSETS_EXTRA
+    fieldsets = BaseUserAdmin.fieldsets + VIRTUALIDADSP_FIELDSETS_EXTRA
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
-        ("Jheliz", {
+        ("VirtualidadSP", {
             "fields": ("email", "role", "phone", "telegram_username"),
         }),
     )
@@ -169,7 +169,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
                 try:
                     html = render_to_string("emails/distributor_approved.html", {"user": user})
                     send_mail(
-                        subject="Tu cuenta de distribuidor Jheliz ha sido aprobada",
+                        subject="Tu cuenta de distribuidor VirtualidadSP ha sido aprobada",
                         message=(
                             f"Hola {user.get_full_name() or user.username},\n\n"
                             "Tu solicitud de distribuidor fue aprobada. Ya puedes ver los precios mayoristas "
@@ -623,7 +623,7 @@ class DistributorAdmin(ModelAdmin):
                 try:
                     html = render_to_string("emails/distributor_approved.html", {"user": user})
                     send_mail(
-                        subject="Tu cuenta de distribuidor Jheliz ha sido aprobada",
+                        subject="Tu cuenta de distribuidor VirtualidadSP ha sido aprobada",
                         message=(
                             f"Hola {user.get_full_name() or user.username},\n\n"
                             "Tu solicitud de distribuidor fue aprobada. Ya puedes ver los precios mayoristas "

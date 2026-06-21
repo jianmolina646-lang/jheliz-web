@@ -143,7 +143,7 @@ def notify_admin_login(sender, request, user, **kwargs: Any) -> None:
     username = getattr(user, "get_username", lambda: str(user))()
     email = getattr(user, "email", "") or ""
 
-    subject = f"🔐 Nuevo inicio de sesión en el admin de Jheliz ({username})"
+    subject = f"🔐 Nuevo inicio de sesión en el admin de VirtualidadSP ({username})"
     body = (
         f"Alguien acaba de iniciar sesión en tu panel admin.\n\n"
         f"• Usuario: {username}\n"

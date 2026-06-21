@@ -1,4 +1,4 @@
-# Deploy de Jheliz — `ecormecejhelizstore.com`
+# Deploy de VirtualidadSP — `ecormecejhelizstore.com`
 
 Esta guía cubre dos escenarios: **VPS Hostinger** (o cualquier VPS Linux) y **Fly.io** (gratis para empezar, tráfico bajo). Elige una según el plan que tengas.
 
@@ -85,7 +85,7 @@ Espera 5–30 min a que propague.
 
 ### 1.6 Webhook de Mercado Pago
 
-En https://www.mercadopago.com.pe/developers/panel → tu app JHELIZ → **Webhooks**:
+En https://www.mercadopago.com.pe/developers/panel → tu app VIRTUALIDADSP → **Webhooks**:
 
 - URL: `https://ecormecejhelizstore.com/pedidos/webhooks/mercadopago/`
 - Eventos: `payment`
@@ -156,7 +156,7 @@ fly secrets set \
   EMAIL_HOST=smtp-relay.brevo.com \
   EMAIL_HOST_USER=... \
   EMAIL_HOST_PASSWORD=... \
-  DEFAULT_FROM_EMAIL='Jheliz <no-reply@ecormecejhelizstore.com>'
+  DEFAULT_FROM_EMAIL='VirtualidadSP <no-reply@ecormecejhelizstore.com>'
 fly deploy
 ```
 

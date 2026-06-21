@@ -240,8 +240,8 @@ class AdminHelpersTests(TestCase):
     """Cubre los helpers visuales del admin de usuarios."""
 
     def test_initials_from_full_name(self):
-        u = User(first_name="Jheliz", last_name="Servicios", username="jhz")
-        self.assertEqual(_initials(u), "JS")
+        u = User(first_name="VirtualidadSP", last_name="Servicios", username="jhz")
+        self.assertEqual(_initials(u), "VS")
 
     def test_initials_fallback_username(self):
         u = User(username="colocha", email="")

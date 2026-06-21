@@ -1,4 +1,4 @@
-# Jheliz
+# VirtualidadSP
 
 Plataforma de venta de **streaming y licencias** para Perú — dominio `ecormecejhelizstore.com`.
 

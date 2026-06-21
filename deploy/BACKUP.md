@@ -1,4 +1,4 @@
-# Backups de Jheliz Web
+# Backups de VirtualidadSP Web
 
 Scripts para hacer backup diario de la **base de datos**, los **archivos subidos por usuarios** (`media/`) y el **`.env`** del VPS — y para restaurar desde uno de esos backups.
 

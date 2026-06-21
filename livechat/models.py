@@ -1,4 +1,4 @@
-"""Modelos del chat en vivo (cliente <-> admin) integrado al admin Jheliz."""
+"""Modelos del chat en vivo (cliente <-> admin) integrado al admin VirtualidadSP."""
 
 from __future__ import annotations
 

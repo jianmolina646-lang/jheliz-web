@@ -1,4 +1,4 @@
-/* Jheliz admin — visual polish (Pack-G).
+/* VirtualidadSP admin — visual polish (Pack-G).
  * Degradados rosa→violeta, animaciones suaves, sombras estilo macOS,
  * fuente Inter y ajustes mobile.
  */
@@ -1331,7 +1331,7 @@ header a[href="/jheliz-admin/"] {
  * con más especificidad (Tailwind w-[18px] usa clase arbitraria).
  * =================================================================== */
 
-/* ---------- Cabecera "Jheliz / Panel de administración" con card ----- */
+/* ---------- Cabecera "VirtualidadSP / Panel de administración" con card ----- */
 aside #nav-sidebar-inner > div:first-of-type,
 #nav-sidebar-inner > div:first-of-type {
     padding: 14px 16px !important;

@@ -2366,7 +2366,7 @@ def customer_detail(request, email: str):
         clean = "".join(ch for ch in phone if ch.isdigit())
         if clean:
             from urllib.parse import quote
-            msg = quote(f"Hola! Te escribimos de Jheliz. Vimos tu compra y queremos saber cómo te ha ido.")
+            msg = quote(f"Hola! Te escribimos de VirtualidadSP. Vimos tu compra y queremos saber cómo te ha ido.")
             whatsapp_url = f"https://wa.me/{clean}?text={msg}"
 
     ctx = _admin_context(
@@ -4353,7 +4353,7 @@ def mp_diagnose_view(request):
                 preference_data = {
                     "items": [{
                         "id": "diag-1",
-                        "title": "Diagnóstico Jheliz · prueba",
+                        "title": "Diagnóstico VirtualidadSP · prueba",
                         "quantity": 1,
                         "unit_price": 1.0,
                         "currency_id": settings.DEFAULT_CURRENCY or "PEN",

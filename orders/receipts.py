@@ -169,7 +169,7 @@ def _draw_header_band(canvas: canvas_mod.Canvas, doc: BaseDocTemplate) -> None:
         canvas.rect(x, height - band_h, width / steps + 0.5, band_h, fill=1, stroke=0)
     # Logo / nombre + título recibo
     site = doc._site
-    name = (site.site_name if site else "Jheliz Store") or "Jheliz Store"
+    name = (site.site_name if site else "VirtualidadSP Store") or "VirtualidadSP Store"
     canvas.setFillColor(colors.white)
     canvas.setFont("Helvetica-Bold", 20)
     canvas.drawString(15 * mm, height - 16 * mm, name)
@@ -225,7 +225,7 @@ def generate_receipt_pdf(order: "Order") -> bytes:
         leftMargin=15 * mm, rightMargin=15 * mm,
         topMargin=38 * mm, bottomMargin=24 * mm,
         title=f"Recibo Pedido {order.display_number}",
-        author=(site.site_name if site else "Jheliz Store"),
+        author=(site.site_name if site else "VirtualidadSP Store"),
         subject="Recibo de compra",
     )
     doc._site = site

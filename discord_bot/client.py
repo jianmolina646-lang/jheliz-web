@@ -150,7 +150,7 @@ def send_embed(
     title: str,
     description: str = "",
     fields: list[dict] | None = None,
-    color: int = 0xE91E63,  # rosa por defecto (marca Jheliz)
+    color: int = 0xE91E63,  # rosa por defecto (marca VirtualidadSP)
     url: str | None = None,
     image_url: str | None = None,
     thumbnail_url: str | None = None,

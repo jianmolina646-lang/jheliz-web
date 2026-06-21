@@ -851,7 +851,7 @@ class AdminPWAEndpointsTests(TestCase):
         self.assertIn("application/json", resp["Content-Type"])
         import json as _json
         data = _json.loads(resp.content)
-        self.assertEqual(data["short_name"], "Jheliz Admin")
+        self.assertEqual(data["short_name"], "VirtualidadSP Admin")
         self.assertEqual(data["scope"], "/panel-jheliz-2026/")
         self.assertEqual(data["display"], "standalone")
         # Debe declarar al menos 1 icono.

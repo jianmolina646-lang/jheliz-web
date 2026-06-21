@@ -24,7 +24,7 @@ _DIVIDER = "━━━━━━━━━━━━━━━━━━"
 
 def _customer_welcome() -> str:
     return "\n".join([
-        "🎬 <b>¡BIENVENIDO A JHELIZ!</b> 📺",
+        "🎬 <b>¡BIENVENIDO A VIRTUALIDADSP!</b> 📺",
         "",
         _DIVIDER,
         "",
@@ -46,13 +46,13 @@ def _customer_welcome() -> str:
         "",
         _DIVIDER,
         "",
-        "💎 <i>Gracias por elegir Jheliz — entretenimiento sin pagar de más</i> ❤️",
+        "💎 <i>Gracias por elegir VirtualidadSP — entretenimiento sin pagar de más</i> ❤️",
     ])
 
 
 def _distrib_welcome() -> str:
     return "\n".join([
-        "🏪 <b>JHELIZ · CANAL DE DISTRIBUIDORES</b>",
+        "🏪 <b>VIRTUALIDADSP · CANAL DE DISTRIBUIDORES</b>",
         "",
         _DIVIDER,
         "",
@@ -77,7 +77,7 @@ def _distrib_welcome() -> str:
         "⚠️ <i>Canal de acceso restringido — para mayoristas autorizados</i>",
         "📩 ¿Querés ser distribuidor? Escribí a @ecomercejheliz",
         "",
-        "¡Gracias por trabajar con Jheliz! 🤝",
+        "¡Gracias por trabajar con VirtualidadSP! 🤝",
     ])
 
 

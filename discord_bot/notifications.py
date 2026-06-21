@@ -33,7 +33,7 @@ COLOR_INFO = 0x6366F1     # índigo: notificación neutral
 COLOR_SUCCESS = 0x22C55E  # verde
 COLOR_WARNING = 0xF59E0B  # ámbar: acción requerida
 COLOR_DANGER = 0xEF4444   # rojo: error / rechazo
-COLOR_PURPLE = 0xA855F7   # morado: marca Jheliz
+COLOR_PURPLE = 0xA855F7   # morado: marca VirtualidadSP
 
 
 # ---------- Helpers internos ----------
@@ -203,7 +203,7 @@ def notify_new_code_request(request, code_request) -> dict | None:
         fields=fields,
         color=COLOR_WARNING,
         components=components,
-        footer="Verificador de códigos · Jheliz",
+        footer="Verificador de códigos · VirtualidadSP",
     )
 
 
@@ -383,7 +383,7 @@ def notify_new_order(order) -> dict | None:
         fields=embed_data["fields"],
         color=embed_data["color"],
         components=components,
-        footer="Jheliz · Back-office",
+        footer="VirtualidadSP · Back-office",
     )
     if not msg:
         return None
