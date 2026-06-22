@@ -348,20 +348,22 @@ class CountryMiddlewareTests(TestCase):
     """Verifica que el middleware resuelve country desde cookie/header/default."""
 
     def test_default_country_when_no_cookie(self):
-        resp = self.client.get("/")
+        # El selector país/idioma vive en el footer base (no en la portada
+        # rediseñada), por eso verificamos contra una página interna.
+        resp = self.client.get("/productos/")
         self.assertEqual(resp.status_code, 200)
         # Por default debería ser PE.
         self.assertContains(resp, "🇵🇪")
 
     def test_country_from_cookie(self):
         self.client.cookies["jheliz_country"] = "BR"
-        resp = self.client.get("/")
+        resp = self.client.get("/productos/")
         # El selector del footer renderiza la bandera del país activo.
         self.assertContains(resp, "🇧🇷")
 
     def test_country_from_geo_header(self):
         # Sin cookie pero con header CF-IPCountry → debería resolver MX.
-        resp = self.client.get("/", HTTP_CF_IPCOUNTRY="MX")
+        resp = self.client.get("/productos/", HTTP_CF_IPCOUNTRY="MX")
         self.assertContains(resp, "🇲🇽")
 
     def test_set_country_persists_cookie(self):
@@ -416,9 +418,11 @@ class LanguageSwitcherTests(TestCase):
         self.assertIn(str(cookie["samesite"]).lower(), ("lax",))
 
     def test_translates_navbar_in_english(self):
-        # Activar inglés via cookie y verificar que el header lo refleja.
+        # Activar inglés via cookie y verificar que el header base lo refleja.
+        # La portada rediseñada tiene su propio header, por eso usamos una
+        # página interna que conserva el navbar base.
         self.client.cookies["django_language"] = "en"
-        resp = self.client.get("/")
+        resp = self.client.get("/productos/")
         self.assertEqual(resp.status_code, 200)
         body = resp.content.decode()
         self.assertIn("Products", body)
@@ -426,7 +430,7 @@ class LanguageSwitcherTests(TestCase):
 
     def test_translates_navbar_in_portuguese(self):
         self.client.cookies["django_language"] = "pt"
-        resp = self.client.get("/")
+        resp = self.client.get("/productos/")
         body = resp.content.decode()
         self.assertIn("Produtos", body)
 
@@ -435,7 +439,9 @@ class FooterPickerRenderTests(TestCase):
     """El footer renderiza los selectores con todos los países."""
 
     def test_footer_lists_all_countries(self):
-        resp = self.client.get("/")
+        # El picker de país/idioma vive en el footer base (páginas internas),
+        # no en la portada rediseñada.
+        resp = self.client.get("/productos/")
         self.assertEqual(resp.status_code, 200)
         body = resp.content.decode()
         # Que aparezca al menos un país de cada continente (sanity).

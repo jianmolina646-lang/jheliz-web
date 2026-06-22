@@ -1,0 +1,52 @@
+{% load humanize i18n catalog_extras %}
+<div class="product-card bg-slate-900 border border-slate-700 rounded-3xl overflow-hidden group flex flex-col">
+  <div class="p-6 md:p-7 flex-1">
+    <div class="flex justify-between items-start gap-4">
+      <div class="min-w-0">
+        {% if product.is_featured %}
+          <span class="text-xs font-bold bg-emerald-900 text-emerald-400 px-3.5 py-1 rounded-2xl">{% trans "MÁS VENDIDO" %}</span>
+        {% elif product.is_new %}
+          <span class="text-xs font-bold bg-blue-900 text-blue-300 px-3.5 py-1 rounded-2xl">{% trans "NUEVO" %}</span>
+        {% endif %}
+        <h3 class="text-2xl md:text-3xl font-semibold tracking-tight {% if product.is_featured or product.is_new %}mt-4 md:mt-5{% else %}mt-1{% endif %} text-white truncate">{{ product.name }}</h3>
+        {% if product.short_description %}
+          <p class="text-slate-400 mt-1 line-clamp-2">{{ product.short_description }}</p>
+        {% else %}
+          <p class="text-slate-400 mt-1">{{ product.category.name }}</p>
+        {% endif %}
+      </div>
+      <div class="shrink-0">
+        {% if product.image %}
+          <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-14 h-14 rounded-2xl object-cover" loading="lazy" decoding="async">
+        {% else %}
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl" style="{% product_gradient product %}">
+            {{ product.icon|default:product.category.emoji }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if from_price %}
+      <div class="mt-7 md:mt-8 flex items-baseline gap-x-2">
+        <span class="text-xs text-slate-500 font-semibold uppercase tracking-wider">{% trans "Desde" %}</span>
+        <span class="text-4xl md:text-5xl font-bold tracking-tighter text-white">{{ CURRENCY_SYMBOL }} {{ from_price|floatformat:0|intcomma }}</span>
+      </div>
+    {% else %}
+      <div class="mt-7 md:mt-8 text-slate-400 font-medium">{% trans "Pronto disponible" %}</div>
+    {% endif %}
+    <div class="text-emerald-400 text-sm mt-1">
+      {% if product.delivery_is_instant %}{% trans "Entrega en menos de 5 minutos" %}{% else %}{% trans "Entrega en minutos" %}{% endif %}
+    </div>
+  </div>
+
+  <div class="px-6 md:px-7 pb-6 md:pb-7 border-t border-slate-700 pt-5 md:pt-6 flex justify-between items-center gap-3">
+    {% with stock=product.available_stock %}
+      {% if stock == 0 %}
+        <span class="text-xs text-slate-500">{% trans "Sin stock por ahora" %}</span>
+      {% else %}
+        <span class="text-xs text-slate-400">{% trans "Disponible" %} · {% trans "garantía 30 días" %}</span>
+      {% endif %}
+    {% endwith %}
+    <a href="{{ product.get_absolute_url }}" class="modern-btn px-5 md:px-6 py-2.5 md:py-3 bg-white text-slate-900 rounded-2xl font-bold text-sm whitespace-nowrap">{% trans "Comprar ahora" %}</a>
+  </div>
+</div>
