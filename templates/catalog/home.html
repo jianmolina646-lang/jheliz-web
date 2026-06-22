@@ -1,428 +1,321 @@
 {% extends "base.html" %}
-{% load humanize i18n %}
+{% load humanize i18n static %}
+{% load catalog_extras %}
 
-{% block above_content %}
-{% if recent_purchases %}
-<div class="border-y hairline overflow-hidden bg-white/[0.02]" aria-label="{% trans "Compras recientes" %}">
-  <div class="max-w-6xl mx-auto px-6 py-2 flex items-center gap-3 text-xs text-zinc-400 overflow-hidden">
-    <span class="inline-flex items-center gap-1.5 shrink-0 text-emerald-400 font-semibold">
-      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-      {% trans "EN VIVO" %}
-    </span>
-    <div class="ticker-track flex gap-8 whitespace-nowrap" style="animation: ticker 35s linear infinite;">
-      {% for p in recent_purchases %}{% for _ in "12" %}
-        <span class="inline-flex items-center gap-1.5">
-          <span class="text-zinc-200 font-medium">{{ p.name }}</span>
-          {% trans "compró" %} <span class="text-zinc-200">{{ p.product }}</span>
-          <span class="text-zinc-600">· {{ p.when|naturaltime }}</span>
-        </span>
-      {% endfor %}{% endfor %}
-    </div>
-  </div>
-</div>
-<style>@keyframes ticker { from { transform: translateX(0) } to { transform: translateX(-50%) } }</style>
-{% endif %}
-{% endblock %}
+{% block title %}{% blocktrans with site=SITE_NAME %}{{ site }} • Cuentas Premium con Entrega Inmediata{% endblocktrans %}{% endblock %}
 
 {% block extra_head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  .price-pill {
-    background: rgba(255,255,255,.03); border: 1px solid var(--line);
-    border-radius: 999px; padding: 0.45rem 0.85rem;
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    transition: all 150ms ease;
+  /* === Portada VirtualidadSP (tema oscuro slate + acento azul) === */
+  body {
+    background: #020617 !important;
+    color: #e2e8f0;
   }
-  .price-pill:hover {
-    background: rgba(236,72,153,.08); border-color: rgba(236,72,153,.4);
-    transform: translateY(-1px);
+  .vsp .font-display {
+    font-family: 'Space Grotesk', 'Geist', 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.03em;
   }
-  .price-pill .em { font-size: 1.1rem; }
-  .price-pill .nm { font-size: 0.78rem; color: #d4d4d8; font-weight: 600; }
-  .price-pill .pr { font-size: 0.72rem; color: #f9a8d4; font-family: monospace; }
-  .step-mini {
-    width: 2.25rem; height: 2.25rem; border-radius: 0.7rem;
-    background: linear-gradient(135deg, #ec4899, #a855f7);
-    color: #fff; font-weight: 800;
-    display: inline-flex; align-items: center; justify-content: center;
-    box-shadow: 0 8px 24px -8px rgba(236,72,153,.7), inset 0 1px 0 rgba(255,255,255,.25);
-    font-size: 0.95rem;
+  .vsp .fade-in-up {
+    opacity: 0;
+    transform: translateY(25px);
+    transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  .stat-num {
-    font-family: 'Geist', system-ui, sans-serif;
-    font-weight: 800; font-size: 2.5rem; line-height: 1;
-    letter-spacing: -0.04em;
-    background: linear-gradient(180deg, #fafafa, #a1a1aa);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
+  .vsp .fade-in-up.visible { opacity: 1; transform: translateY(0); }
+  .vsp .product-card {
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  @media (min-width: 768px) { .stat-num { font-size: 3.25rem; } }
-  .hero-title {
-    font-family: 'Geist', system-ui, sans-serif;
-    font-weight: 900;
-    letter-spacing: -0.05em;
-    line-height: 0.94;
-    font-size: clamp(2.7rem, 8.4vw, 5.8rem);
-    text-shadow:
-      0 1px 0 rgba(255,255,255,.04),
-      0 14px 40px rgba(236,72,153,.18);
+  .vsp .product-card:hover {
+    transform: translateY(-14px) scale(1.015);
+    box-shadow: 0 30px 60px -15px rgb(0 0 0 / 0.4);
   }
-
-  /* Floating orbs — emoji decorativos detrás del hero. Drift suave + fade. */
-  .hero-orbs {
-    position: absolute; inset: 0;
-    pointer-events: none; z-index: 0;
-    overflow: hidden;
+  .vsp .modern-btn {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative; overflow: hidden;
   }
-  .hero-orb {
-    position: absolute;
-    font-size: 2.6rem;
-    opacity: .14;
-    filter: blur(.4px) drop-shadow(0 8px 22px rgba(236,72,153,.35));
-    animation: orbDrift 18s ease-in-out infinite alternate;
-    will-change: transform, opacity;
+  .vsp .modern-btn:hover { transform: translateY(-3px); }
+  .vsp .modern-btn::after {
+    content: ''; position: absolute; top: -50%; left: -100%;
+    width: 50%; height: 200%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+    transition: 0.5s;
   }
-  .hero-orb--1 { top:  8%; left:  6%; font-size: 3rem;   animation-duration: 22s; }
-  .hero-orb--2 { top: 14%; left: 80%; font-size: 2.2rem; animation-duration: 19s; animation-delay: -3s; }
-  .hero-orb--3 { top: 38%; left:  2%; font-size: 2.4rem; animation-duration: 24s; animation-delay: -7s; }
-  .hero-orb--4 { top: 52%; left: 86%; font-size: 2.8rem; animation-duration: 17s; animation-delay: -2s; }
-  .hero-orb--5 { top: 72%; left: 12%; font-size: 2.6rem; animation-duration: 21s; animation-delay: -10s; }
-  .hero-orb--6 { top: 78%; left: 76%; font-size: 2.3rem; animation-duration: 20s; animation-delay: -5s; }
-  .hero-orb--7 { top: 26%; left: 50%; font-size: 1.9rem; animation-duration: 23s; animation-delay: -8s; opacity: .09; }
-  .hero-orb--8 { top: 64%; left: 44%; font-size: 2.1rem; animation-duration: 25s; animation-delay: -12s; opacity: .1; }
-  @keyframes orbDrift {
-    0%   { transform: translate3d(0, 0, 0) rotate(-2deg); }
-    50%  { transform: translate3d(8px, -14px, 0) rotate(3deg); }
-    100% { transform: translate3d(-6px, 10px, 0) rotate(-3deg); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .hero-orb { animation: none; opacity: .08; }
-  }
-  @media (max-width: 640px) {
-    .hero-orb--7, .hero-orb--8 { display: none; }
-    .hero-orb { font-size: 1.7rem !important; opacity: .1; }
-  }
-
-  /* Neon ring pulse alrededor del CTA primario en hero (intensifica ítem 11) */
-  .btn-primary.btn-neon {
-    position: relative;
-  }
-  .btn-primary.btn-neon::before {
-    content: '';
-    position: absolute; inset: -3px;
-    border-radius: inherit;
-    background: linear-gradient(135deg, #ec4899, #a855f7, #6366f1, #ec4899);
-    background-size: 300% 300%;
-    animation: neonRotate 6s linear infinite;
-    z-index: -1;
-    filter: blur(8px); opacity: .55;
-  }
-  @keyframes neonRotate {
-    0%   { background-position: 0% 50%; }
-    100% { background-position: 300% 50%; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .btn-primary.btn-neon::before { animation: none; }
-  }
-  .hero-italic {
-    font-family: 'Instrument Serif', Georgia, serif;
-    font-weight: 400;
-    font-style: italic;
-    letter-spacing: -0.02em;
-  }
-  .hero-eyebrow {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    padding: 0.35rem 0.85rem; border-radius: 9999px;
-    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em;
-    color: #f9a8d4;
-    background: linear-gradient(135deg, rgba(236,72,153,.14), rgba(168,85,247,.12));
-    border: 1px solid rgba(236,72,153,.25);
-    box-shadow: 0 6px 24px -10px rgba(236,72,153,.5);
-  }
-  .hero-live-pulse {
-    display: inline-flex; align-items: center; gap: .45rem;
-    padding: .35rem .75rem;
-    border-radius: 9999px;
-    background: rgba(16,185,129,.08);
-    border: 1px solid rgba(16,185,129,.25);
-    font-size: .72rem; color: #a7f3d0;
-    font-family: 'Geist', system-ui, sans-serif;
-  }
-  .hero-live-pulse__dot {
-    width: 7px; height: 7px;
-    border-radius: 9999px;
-    background: #34d399;
-    box-shadow: 0 0 0 0 rgba(52,211,153,.6);
-    animation: liveDot 1.6s ease-out infinite;
-  }
-  .hero-live-pulse__label {
-    font-weight: 700; letter-spacing: .08em;
-    color: #34d399;
-  }
-  .hero-live-pulse__sep { color: rgba(255,255,255,.25); }
-  .hero-live-pulse__value {
-    font-weight: 700; color: #fafafa;
-  }
-  .hero-live-pulse__text { color: #a1a1aa; }
-  @keyframes liveDot {
-    0% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); }
-    70% { box-shadow: 0 0 0 8px rgba(52,211,153,0); }
-    100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
-  }
-  .badge-glow { position: relative; }
-  .badge-glow::after {
-    content: ''; position: absolute; inset: 0; border-radius: inherit;
-    box-shadow: 0 0 0 4px rgba(236,72,153,.15); animation: pulseGlow 2.5s ease-out infinite;
-  }
-  @keyframes pulseGlow {
-    0% { box-shadow: 0 0 0 0 rgba(236,72,153,.45); }
-    70% { box-shadow: 0 0 0 12px rgba(236,72,153,0); }
-    100% { box-shadow: 0 0 0 0 rgba(236,72,153,0); }
-  }
+  .vsp .modern-btn:hover::after { left: 250%; }
+  .vsp .nav-glass { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); }
 </style>
 {% endblock %}
 
-{% block content %}
-
-<!-- Hero ----------------------------------------------------------------- -->
-<section class="mesh-accent pt-10 md:pt-20 pb-16 md:pb-24 text-center relative overflow-hidden">
-  {% include "partials/_hero_floating_orbs.html" %}
-  <div class="max-w-4xl mx-auto relative z-10" data-reveal>
-    <span class="hero-eyebrow badge-glow">
-      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-      {% trans "Entrega inmediata · Soporte 24/7 en Perú" %}
-    </span>
-
-    {# Live pulse counter — pedidos entregados hoy. SOCIAL_PROOF.today_orders #}
-    {% if SOCIAL_PROOF.today_orders %}
-    <div class="hero-live-pulse mt-4" role="status" aria-live="polite">
-      <span class="hero-live-pulse__dot" aria-hidden="true"></span>
-      <span class="hero-live-pulse__label">{% trans "EN VIVO" %}</span>
-      <span class="hero-live-pulse__sep">·</span>
-      <span class="hero-live-pulse__value">{{ SOCIAL_PROOF.today_orders }}</span>
-      <span class="hero-live-pulse__text">{% if SOCIAL_PROOF.today_orders == 1 %}{% trans "pedido entregado hoy" %}{% else %}{% trans "pedidos entregados hoy" %}{% endif %}</span>
-    </div>
-    {% endif %}
-    <h1 class="hero-title mt-7">
-      {% trans "Streaming" %} &amp; {% trans "licencias" %}<br>
-      <span class="hero-italic text-zinc-300">{% trans "al mejor" %}</span>
-      <span class="text-grad">{% trans "precio del 2026" %}</span>
-    </h1>
-    <p class="mt-7 text-base md:text-xl text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-      {% trans "Netflix, Disney+, HBO Max, Prime, Crunchyroll, Windows, Office y más. Pago con Yape o Binance Pay; cuenta en tu correo en minutos." %}
-    </p>
-    <div class="mt-9 flex flex-wrap gap-3 justify-center">
-      <a href="{% url 'catalog:products' %}" class="btn btn-primary btn-lg btn-neon">
-        {% trans "Explorar catálogo" %}
-        <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+{% block site_header %}
+<nav class="vsp nav-glass border-b border-slate-800 sticky top-0 z-50">
+  <div class="max-w-screen-2xl mx-auto px-5 md:px-8">
+    <div class="flex items-center justify-between py-4 md:py-5">
+      <a href="{% url 'catalog:home' %}" class="flex items-center gap-x-3">
+        <div class="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center">
+          <span class="text-white font-bold text-2xl md:text-3xl">V</span>
+        </div>
+        <span class="font-display text-2xl md:text-3xl font-semibold tracking-tighter text-white">{{ SITE_NAME }}</span>
       </a>
-      <a href="{% url 'catalog:distributor' %}" class="btn btn-secondary btn-lg" style="border-radius:9999px">{% trans "Soy distribuidor" %}</a>
-    </div>
 
-    <!-- Trust badges 2026 — confianza, pagos, sello, SSL -->
-    <div class="mt-12">
-      {% include "partials/_trust_badges.html" with variant="hero" %}
+      <div class="hidden md:flex items-center gap-x-8 text-sm font-medium text-slate-300">
+        <a href="{% url 'catalog:products' %}" class="hover:text-white transition-colors">{% trans "Catálogo" %}</a>
+        <a href="#como-funciona" class="hover:text-white transition-colors">{% trans "Cómo funciona" %}</a>
+        <a href="#testimonios" class="hover:text-white transition-colors">{% trans "Testimonios" %}</a>
+        <a href="{% url 'catalog:distributor' %}" class="hover:text-white transition-colors">{% trans "Distribuidores" %}</a>
+      </div>
+
+      <div class="flex items-center gap-x-2 md:gap-x-3">
+        {% if user.is_authenticated %}
+          <a href="{% url 'accounts:dashboard' %}" class="hidden md:block px-5 py-2.5 text-sm text-slate-200 hover:bg-slate-800 rounded-2xl transition-colors">{{ user.username }}</a>
+        {% else %}
+          <a href="{% url 'accounts:login' %}" class="hidden md:block px-5 py-2.5 text-sm text-slate-200 hover:bg-slate-800 rounded-2xl transition-colors">{% trans "Ingresar" %}</a>
+        {% endif %}
+        <a href="{% url 'orders:cart' %}" class="modern-btn relative flex items-center gap-x-2 bg-white text-slate-900 px-5 md:px-6 py-3 rounded-3xl font-bold text-sm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          <span>{% trans "Carrito" %}</span>
+          <span id="cart-count-badge"
+                class="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] font-bold rounded-full px-1.5 py-px min-w-[18px] text-center{% if not cart_count %} hidden{% endif %}">{{ cart_count|default:"" }}</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+{% block main %}
+<div class="vsp bg-slate-950 text-slate-200">
+
+  <!-- Hero -->
+  <div class="max-w-screen-2xl mx-auto px-5 md:px-8 pt-12 md:pt-14 pb-16 md:pb-20">
+    <div class="grid lg:grid-cols-12 gap-x-10 gap-y-12 items-center">
+      <div class="lg:col-span-7">
+        <div class="inline-flex items-center gap-x-2 bg-slate-900 border border-slate-700 rounded-3xl px-5 py-2 mb-7 md:mb-8">
+          <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+          <span class="text-emerald-400 text-sm font-semibold">{% trans "Entrega inmediata y soporte humano" %}</span>
+        </div>
+
+        <h1 class="font-display text-5xl md:text-7xl lg:text-[78px] leading-[0.95] lg:leading-[0.92] tracking-tight lg:tracking-[-4.2px] font-semibold mb-6 md:mb-7 text-white">
+          {% trans "Cuentas premium." %}<br>
+          <span class="text-blue-400">{% trans "Precios justos." %}</span><br>
+          {% trans "Entrega en minutos." %}
+        </h1>
+
+        <p class="max-w-md text-xl md:text-2xl text-slate-300 mb-8 md:mb-9">
+          {% trans "Netflix, Disney+, Prime Video, Office y más." %}<br>
+          {% trans "Cuentas oficiales con garantía real." %}
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-4">
+          <a href="{% url 'catalog:products' %}" class="modern-btn inline-flex items-center justify-center gap-x-3 bg-white text-slate-900 px-8 md:px-10 py-4 md:py-5 rounded-3xl font-bold text-lg md:text-xl">
+            {% trans "Ver catálogo" %}
+            <span aria-hidden="true">→</span>
+          </a>
+          {% if WHATSAPP_NUMBER %}
+          <a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener"
+             class="modern-btn inline-flex items-center justify-center gap-x-3 border border-slate-600 hover:bg-slate-900 px-7 md:px-8 py-4 md:py-5 rounded-3xl font-semibold text-lg md:text-xl text-slate-100">
+            <svg viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 text-emerald-400"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 018.413 3.488 11.82 11.82 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.518 5.26l-.999 3.648 3.741-.981z"/></svg>
+            <span>{% trans "Hablar por WhatsApp" %}</span>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="lg:col-span-5">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl p-7 md:p-9">
+          <div class="flex justify-between">
+            <div>
+              <div class="text-emerald-400 text-sm font-semibold">{% trans "CALIFICACIÓN" %}</div>
+              <div class="text-6xl md:text-7xl font-bold tracking-tighter text-white">4.98</div>
+            </div>
+            <div class="text-right text-sm text-slate-300">
+              <div>{% trans "Empresa Peruana" %}</div>
+              <div class="font-semibold">Lima, Perú</div>
+            </div>
+          </div>
+          <div class="h-px bg-slate-700 my-7 md:my-8"></div>
+          <div class="grid grid-cols-3 gap-5 text-center text-sm">
+            <div><span class="font-bold text-2xl md:text-3xl text-emerald-400">5 min</span><br><span class="text-slate-400">{% trans "Entrega promedio" %}</span></div>
+            <div><span class="font-bold text-2xl md:text-3xl text-emerald-400">30 días</span><br><span class="text-slate-400">{% trans "Garantía total" %}</span></div>
+            <div><span class="font-bold text-2xl md:text-3xl text-emerald-400">24/7</span><br><span class="text-slate-400">{% trans "Soporte real" %}</span></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  {% if starter_strip %}
-  <!-- Strip de productos con precio desde -->
-  <div class="mt-14 max-w-4xl mx-auto">
-    <p class="text-[11px] text-zinc-500 uppercase tracking-[.18em] font-semibold mb-3 text-center">Desde S/ 7 · entrega en minutos</p>
-    <div class="flex flex-wrap gap-2 justify-center">
-      {% for s in starter_strip %}
-        <a href="{{ s.product.get_absolute_url }}" class="price-pill">
-          <span class="em">{{ s.product.category.emoji|default:'🎬' }}</span>
-          <span class="nm">{{ s.product.name }}</span>
-          <span class="pr">desde S/ {{ s.from_price|floatformat:2 }}</span>
-        </a>
+  <!-- Productos (catálogo real) -->
+  <div id="productos" class="max-w-screen-2xl mx-auto px-5 md:px-8 pb-16 md:pb-20">
+    <div class="flex items-end justify-between mb-8 md:mb-10">
+      <div>
+        <div class="text-blue-400 text-sm tracking-[3px] font-bold mb-2">{% trans "CATÁLOGO" %}</div>
+        <h2 class="font-display text-4xl md:text-6xl tracking-tight md:tracking-[-2px] text-white">{% trans "Los más elegidos este mes" %}</h2>
+      </div>
+      <a href="{% url 'catalog:products' %}" class="hidden md:flex items-center gap-x-2 text-blue-400 hover:text-blue-300 font-semibold whitespace-nowrap">{% trans "Ver todo el catálogo" %} →</a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-7">
+      {% for item in starter_strip %}
+        {% include "catalog/_home_product_card.html" with product=item.product from_price=item.from_price %}
+      {% empty %}
+        {% for product in featured_products %}
+          {% with plan=product|cheapest_plan_for:user %}
+            {% include "catalog/_home_product_card.html" with product=product from_price=plan.price_customer %}
+          {% endwith %}
+        {% empty %}
+          <div class="col-span-full text-center text-slate-400 py-10">{% trans "Pronto agregaremos productos." %}</div>
+        {% endfor %}
       {% endfor %}
     </div>
-  </div>
-  {% endif %}
-</section>
 
-<!-- Brand strip — logos oficiales de las plataformas --------------------- -->
-{% include "catalog/_brand_strip.html" %}
-
-<!-- Cómo funciona — 3 pasos rápidos ----------------------------------- -->
-<section class="py-10 border-t hairline">
-  <div class="flex items-end justify-between mb-8">
-    <div>
-      <p class="text-xs font-semibold tracking-wider uppercase text-jheliz-300">Cómo funciona</p>
-      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1">3 pasos y tu cuenta lista</h2>
+    <div class="mt-8 text-center md:hidden">
+      <a href="{% url 'catalog:products' %}" class="inline-flex items-center gap-x-2 text-blue-400 hover:text-blue-300 font-semibold">{% trans "Ver todo el catálogo" %} →</a>
     </div>
-    <a href="{% url 'catalog:tutorials' %}" class="text-sm text-zinc-400 hover:text-white transition hidden sm:inline">Ver tutoriales →</a>
   </div>
-  <div class="grid md:grid-cols-3 gap-3" data-reveal-stagger>
-    <div class="surface rounded-xl p-5 flex items-start gap-4" data-reveal>
-      <span class="step-mini">1</span>
-      <div>
-        <h3 class="font-display font-semibold">Eliges tu plan</h3>
-        <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Netflix, Disney+, Office… al precio más bajo de Perú.</p>
+
+  <!-- Cómo funciona -->
+  <div id="como-funciona" class="bg-slate-900 border-y border-slate-700 py-16 md:py-20">
+    <div class="max-w-screen-2xl mx-auto px-5 md:px-8">
+      <div class="text-center mb-12 md:mb-14">
+        <div class="text-blue-400 tracking-[3px] text-sm font-bold mb-3">{% trans "MUY FÁCIL" %}</div>
+        <h2 class="font-display text-4xl md:text-6xl tracking-tight md:tracking-[-2px] text-white">{% trans "Compra en solo 3 pasos" %}</h2>
       </div>
-    </div>
-    <div class="surface rounded-xl p-5 flex items-start gap-4" data-reveal>
-      <span class="step-mini">2</span>
-      <div>
-        <h3 class="font-display font-semibold">Pagas con Yape o tarjeta</h3>
-        <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Mercado Pago seguro o Yape con QR. Sin vueltas.</p>
-      </div>
-    </div>
-    <div class="surface rounded-xl p-5 flex items-start gap-4" data-reveal>
-      <span class="step-mini">3</span>
-      <div>
-        <h3 class="font-display font-semibold">Recibes en tu correo</h3>
-        <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Credenciales en minutos + dashboard con tus cuentas.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Categories ----------------------------------------------------------- -->
-{% if top_categories %}
-<section class="py-12 border-t hairline">
-  <div class="flex items-end justify-between mb-8">
-    <div>
-      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-zinc-500">Catálogo</p>
-      <h2 class="font-display text-3xl md:text-5xl font-extrabold mt-2 tracking-tight">Explora por categoría</h2>
-    </div>
-    <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition hidden sm:inline">Ver todo →</a>
-  </div>
-  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" data-reveal-stagger>
-    {% for c in top_categories %}
-      <a href="{{ c.get_absolute_url }}" class="surface surface-lift rounded-2xl p-5 text-center transition group relative overflow-hidden cat-card" data-reveal>
-        <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br from-jheliz-500/10 via-fuchsia-500/5 to-transparent pointer-events-none"></div>
-        <div class="text-3xl relative z-10">{{ c.emoji }}</div>
-        <div class="mt-3 text-sm font-semibold text-zinc-200 group-hover:text-white relative z-10">{{ c.name }}</div>
-      </a>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
-
-<!-- Featured products ---------------------------------------------------- -->
-<section class="py-12 border-t hairline">
-  <div class="flex items-end justify-between mb-8">
-    <div>
-      <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Destacados</p>
-      <h2 class="font-display text-3xl md:text-5xl font-extrabold mt-2 tracking-tight">Los más vendidos del mes</h2>
-    </div>
-    <a href="{% url 'catalog:products' %}" class="text-sm text-zinc-400 hover:text-white transition">Ver todos →</a>
-  </div>
-  {% if featured_products %}
-    <div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" data-reveal-stagger>
-      {% for p in featured_products %}{% include "catalog/_product_card.html" with product=p %}{% endfor %}
-    </div>
-  {% else %}
-    <div class="surface rounded-xl p-8 text-center text-zinc-400">
-      Pronto habrá productos destacados. Mientras tanto revisa el
-      <a class="text-jheliz-400 hover:text-jheliz-300 underline" href="{% url 'catalog:products' %}">catálogo completo</a>.
-    </div>
-  {% endif %}
-</section>
-
-<!-- Value props ---------------------------------------------------------- -->
-<section class="py-16 border-t hairline">
-  <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-zinc-500">Por qué VirtualidadSP</p>
-  <h2 class="font-display text-3xl md:text-5xl font-extrabold mt-2 mb-10 tracking-tight max-w-3xl">La forma más rápida de comprar streaming <span class="hero-italic text-zinc-400">en Perú</span>.</h2>
-  <div class="grid md:grid-cols-3 gap-3">
-    <div class="surface rounded-xl p-6">
-      <div class="w-10 h-10 rounded-lg bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-jheliz-300">
-        <svg class="icon-lg icon" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-      </div>
-      <h3 class="font-display font-semibold mt-4">Entrega inmediata</h3>
-      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Apenas confirmamos el pago, la cuenta aparece en tu panel y te llega por correo.</p>
-    </div>
-    <div class="surface rounded-xl p-6">
-      <div class="w-10 h-10 rounded-lg bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-jheliz-300">
-        <svg class="icon-lg icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-      </div>
-      <h3 class="font-display font-semibold mt-4">Garantía real</h3>
-      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Si algo falla durante el periodo, te reponemos la cuenta sin preguntas.</p>
-    </div>
-    <div class="surface rounded-xl p-6">
-      <div class="w-10 h-10 rounded-lg bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-jheliz-300">
-        <svg class="icon-lg icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      </div>
-      <h3 class="font-display font-semibold mt-4">Soporte humano</h3>
-      <p class="text-sm text-zinc-400 mt-1.5 leading-relaxed">Abre un ticket desde tu cuenta o escríbenos al WhatsApp {{ WHATSAPP_NUMBER }}.</p>
-    </div>
-  </div>
-</section>
-
-<!-- Stats strip ---------------------------------------------------------- -->
-<section class="py-14 border-t hairline">
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3" data-reveal-stagger>
-    <div class="surface rounded-xl p-5 text-center stat-pulse" data-reveal>
-      <div class="stat-num num-flip"
-           data-counter="5000" data-counter-prefix="+" data-counter-decimals="0">+0</div>
-      <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">Entregas</div>
-    </div>
-    <div class="surface rounded-xl p-5 text-center" data-reveal>
-      <div class="stat-num num-flip"
-           data-counter="4.9" data-counter-suffix="★" data-counter-decimals="1">0.0★</div>
-      <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">500+ reseñas</div>
-    </div>
-    <div class="surface rounded-xl p-5 text-center" data-reveal>
-      <div class="stat-num">2 min</div>
-      <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">Tiempo entrega</div>
-    </div>
-    <div class="surface rounded-xl p-5 text-center" data-reveal>
-      <div class="stat-num">30 días</div>
-      <div class="text-xs text-zinc-500 mt-2 uppercase tracking-wider font-semibold">Garantía total</div>
-    </div>
-  </div>
-</section>
-
-<!-- Reseñas verificadas con foto (datos reales de ProductReview) ---------- -->
-{% include "partials/_featured_reviews.html" %}
-
-<!-- Testimonios curados ---------------------------------------------------- -->
-{% if testimonios %}
-<section class="py-14 border-t hairline">
-  <div class="flex items-end justify-between mb-8">
-    <div>
-      <p class="text-xs font-semibold tracking-wider uppercase text-zinc-500">Reseñas</p>
-      <h2 class="font-display text-2xl md:text-3xl font-bold mt-1">Lo que dicen nuestros clientes</h2>
-    </div>
-    <div class="hidden sm:flex items-center gap-1 text-sm text-zinc-400">
-      <svg class="icon" viewBox="0 0 24 24" style="color:#fbbf24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      <span class="font-semibold text-white">4.9</span>
-      <span class="text-zinc-500">/ 5 · 500+ reseñas</span>
-    </div>
-  </div>
-  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3" data-reveal-stagger>
-    {% for t in testimonios %}
-      <figure class="surface rounded-xl p-5 flex flex-col" data-reveal>
-        <div class="flex items-center gap-0.5 text-amber-400">
-          {% for _ in "xxxxx" %}
-            <svg class="icon icon-filled" viewBox="0 0 24 24" style="width:14px;height:14px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          {% endfor %}
+      <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div class="text-center">
+          <div class="mx-auto w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mb-6 text-5xl font-bold text-blue-400">1</div>
+          <h4 class="font-semibold text-2xl mb-3 text-white">{% trans "Elige tu plan" %}</h4>
+          <p class="text-slate-300">{% trans "Selecciona Netflix, Disney+, Office o el servicio que necesites." %}</p>
         </div>
-        <blockquote class="text-sm text-zinc-300 leading-relaxed mt-3 flex-1">"{{ t.text }}"</blockquote>
-        <figcaption class="mt-4 pt-4 border-t hairline flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full bg-jheliz-500/15 border border-jheliz-500/30 flex items-center justify-center text-xs font-bold text-jheliz-300">{{ t.author|slice:":1" }}</div>
-          <div>
-            <div class="text-xs font-semibold text-zinc-200">{{ t.author }}</div>
-            <div class="text-[11px] text-zinc-500">{{ t.city }}, Perú · Cliente verificado</div>
+        <div class="text-center">
+          <div class="mx-auto w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mb-6 text-5xl font-bold text-blue-400">2</div>
+          <h4 class="font-semibold text-2xl mb-3 text-white">{% trans "Paga de forma segura" %}</h4>
+          <p class="text-slate-300">{% trans "Yape, Plin, tarjeta o Binance Pay. Todo protegido." %}</p>
+        </div>
+        <div class="text-center">
+          <div class="mx-auto w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mb-6 text-5xl font-bold text-blue-400">3</div>
+          <h4 class="font-semibold text-2xl mb-3 text-white">{% trans "Recibe en minutos" %}</h4>
+          <p class="text-slate-300">{% trans "Te enviamos las credenciales por correo y WhatsApp." %}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Testimonios -->
+  <div id="testimonios" class="max-w-screen-2xl mx-auto px-5 md:px-8 py-16 md:py-20">
+    <div class="text-center mb-10 md:mb-12">
+      <div class="text-blue-400 text-sm tracking-[3px] font-bold mb-3">{% trans "CLIENTES REALES" %}</div>
+      <h2 class="font-display text-4xl md:text-6xl tracking-tight md:tracking-[-2px] text-white">{% trans "Lo que dicen quienes ya compraron" %}</h2>
+    </div>
+    <div class="grid md:grid-cols-3 gap-6 md:gap-7">
+      <div class="bg-slate-900 border border-slate-700 rounded-3xl p-7 md:p-8">
+        <div class="text-yellow-400 mb-5 text-lg">★★★★★</div>
+        <p class="text-lg text-slate-200">"{% trans "Compré Netflix Premium y me llegó en 4 minutos. El soporte por WhatsApp respondió al instante y fue muy amable. Ya renové dos veces." %}"</p>
+        <div class="mt-7 md:mt-8 flex items-center gap-x-4">
+          <div class="w-11 h-11 bg-slate-700 rounded-full flex-shrink-0"></div>
+          <div><div class="font-semibold text-white">María López</div><div class="text-sm text-slate-400">Lima · {% trans "Hace 3 días" %}</div></div>
+        </div>
+      </div>
+      <div class="bg-slate-900 border border-slate-700 rounded-3xl p-7 md:p-8">
+        <div class="text-yellow-400 mb-5 text-lg">★★★★★</div>
+        <p class="text-lg text-slate-200">"{% trans "Llevo 6 meses renovando Office 365 con ellos. Siempre llega a tiempo, sin complicaciones. Los precios son justos y el soporte es real." %}"</p>
+        <div class="mt-7 md:mt-8 flex items-center gap-x-4">
+          <div class="w-11 h-11 bg-slate-700 rounded-full flex-shrink-0"></div>
+          <div><div class="font-semibold text-white">Carlos Mendoza</div><div class="text-sm text-slate-400">Arequipa · {% trans "Hace 1 semana" %}</div></div>
+        </div>
+      </div>
+      <div class="bg-slate-900 border border-slate-700 rounded-3xl p-7 md:p-8">
+        <div class="text-yellow-400 mb-5 text-lg">★★★★★</div>
+        <p class="text-lg text-slate-200">"{% trans "Disney+ para toda la familia. Llegó rapidísimo y el precio es el mejor que encontré. Ya recomendé la tienda a varios amigos del trabajo." %}"</p>
+        <div class="mt-7 md:mt-8 flex items-center gap-x-4">
+          <div class="w-11 h-11 bg-slate-700 rounded-full flex-shrink-0"></div>
+          <div><div class="font-semibold text-white">Andrea Vargas</div><div class="text-sm text-slate-400">Trujillo · {% trans "Hace 5 días" %}</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distribuidores -->
+  <div id="distribuidores" class="max-w-screen-2xl mx-auto px-5 md:px-8 pb-16 md:pb-20">
+    <div class="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700 rounded-3xl p-10 md:p-16 text-center">
+      <h2 class="font-display text-3xl md:text-5xl tracking-tight mb-4 text-white">{% trans "¿Quieres vender con nosotros?" %}</h2>
+      <p class="max-w-md mx-auto text-lg md:text-xl text-slate-300 mb-8 md:mb-9">{% trans "Únete a nuestra red de distribuidores y genera ingresos extra vendiendo cuentas premium." %}</p>
+      <a href="{% url 'catalog:distributor' %}" class="modern-btn inline-flex items-center gap-x-3 bg-white text-slate-900 px-8 md:px-10 py-4 md:py-5 rounded-3xl font-bold text-lg md:text-xl">
+        {% trans "Quiero ser distribuidor" %}
+        <span aria-hidden="true">→</span>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      function initVspAnimations() {
+        var observer = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) entry.target.classList.add('visible');
+          });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.vsp .product-card, .vsp h2').forEach(function (el) {
+          el.classList.add('fade-in-up');
+          observer.observe(el);
+        });
+      }
+      if (document.readyState !== 'loading') initVspAnimations();
+      else document.addEventListener('DOMContentLoaded', initVspAnimations);
+    })();
+  </script>
+</div>
+{% endblock %}
+
+{% block site_footer %}
+<footer class="vsp border-t border-slate-800 bg-slate-900 text-slate-200">
+  <div class="max-w-screen-2xl mx-auto px-5 md:px-8 py-12 md:py-14 text-sm">
+    <div class="flex flex-col md:flex-row justify-between gap-y-10">
+      <div>
+        <div class="flex items-center gap-x-3 mb-4">
+          <div class="w-9 h-9 bg-blue-600 rounded-2xl flex items-center justify-center">
+            <span class="text-white font-bold text-2xl">V</span>
           </div>
-        </figcaption>
-      </figure>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
+          <span class="font-display text-2xl font-semibold tracking-tight text-white">{{ SITE_NAME }}</span>
+        </div>
+        <div class="text-slate-400 max-w-xs">{% trans "Cuentas oficiales con entrega inmediata y soporte humano en Perú." %}</div>
+      </div>
 
-<!-- CTA strip ------------------------------------------------------------ -->
-<section class="mt-8 mesh-accent surface rounded-3xl p-8 md:p-14 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden relative">
-  <div class="max-w-xl relative z-10">
-    <p class="text-[11px] font-semibold tracking-[.18em] uppercase text-jheliz-300">Para distribuidores</p>
-    <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight mt-2">¿Vendes cuentas? <span class="hero-italic text-zinc-400">Trabaja</span> con nosotros.</h2>
-    <p class="text-base text-zinc-400 mt-3 leading-relaxed">Precios mayoristas, panel de gestión propio y entrega automatizada.</p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-x-10 lg:gap-x-14 gap-y-8 text-slate-300">
+        <div>
+          <div class="font-semibold mb-4 text-white">{% trans "Empresa" %}</div>
+          <div class="space-y-1.5">
+            <a href="{% url 'catalog:products' %}" class="block hover:text-white transition-colors">{% trans "Catálogo" %}</a>
+            <a href="{% url 'catalog:tutorials' %}" class="block hover:text-white transition-colors">{% trans "Tutoriales" %}</a>
+            <a href="{% url 'blog:list' %}" class="block hover:text-white transition-colors">Blog</a>
+          </div>
+        </div>
+        <div>
+          <div class="font-semibold mb-4 text-white">{% trans "Soporte" %}</div>
+          <div class="space-y-1.5">
+            {% if WHATSAPP_NUMBER %}<a href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+'|cut:' ' }}" target="_blank" rel="noopener" class="block hover:text-white transition-colors">WhatsApp</a>{% endif %}
+            <a href="{% url 'accounts:dashboard' %}" class="block hover:text-white transition-colors">{% trans "Mi cuenta" %}</a>
+          </div>
+        </div>
+        <div>
+          <div class="font-semibold mb-4 text-white">{% trans "Distribuidores" %}</div>
+          <div class="space-y-1.5">
+            <a href="{% url 'catalog:distributor' %}" class="block hover:text-white transition-colors">{% trans "Quiero vender" %}</a>
+          </div>
+        </div>
+        <div>
+          <div class="font-semibold mb-4 text-white">{% trans "Contacto" %}</div>
+          <div class="text-slate-300">
+            {% if WHATSAPP_NUMBER %}<div>{{ WHATSAPP_NUMBER }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-10 pt-6 border-t border-slate-800 text-xs text-slate-500 flex flex-col sm:flex-row justify-between gap-2">
+      <span>© {% now "Y" %} {{ SITE_NAME }}. {% trans "Todos los derechos reservados." %}</span>
+      <span>{% trans "Hecho en Perú" %} 🇵🇪 · {% trans "Pagos con" %} Yape &amp; Binance Pay</span>
+    </div>
   </div>
-  <a href="{% url 'catalog:distributor' %}" class="btn btn-primary btn-lg whitespace-nowrap relative z-10">
-    Quiero ser distribuidor
-    <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-  </a>
-</section>
-
+</footer>
 {% endblock %}

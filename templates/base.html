@@ -237,6 +237,7 @@
   {% include "catalog/_promo_banner.html" %}
 
   <!-- Header (floating pill) --------------------------------------------- -->
+  {% block site_header %}
   <header class="sticky top-3 z-40 px-3 md:px-6">
     <div class="max-w-6xl mx-auto rounded-2xl border hairline backdrop-blur-xl bg-[#08070d]/70 shadow-[0_10px_40px_-20px_rgba(236,72,153,.35)] flex items-center justify-between gap-4 px-4 md:px-5 h-14">
       <a href="{% url 'catalog:home' %}" class="flex items-center gap-2.5 group" aria-label="{{ SITE_NAME }}">
@@ -279,6 +280,7 @@
       </div>
     </div>
   </header>
+  {% endblock %}
 
   {% block above_content %}{% endblock %}
 
@@ -292,11 +294,14 @@
   {% endif %}
 
   <!-- Main content ------------------------------------------------------- -->
+  {% block main %}
   <main class="max-w-6xl mx-auto px-6 py-10 md:py-14">
     {% block content %}{% endblock %}
   </main>
+  {% endblock %}
 
   <!-- Footer ------------------------------------------------------------- -->
+  {% block site_footer %}
   <footer class="site-footer mt-24">
     <div class="site-footer__glow" aria-hidden="true"></div>
 
@@ -465,6 +470,7 @@
       </div>
     </div>
   </footer>
+  {% endblock %}
 
   <style>
     /* Footer modernization styles — scoped to .site-footer to avoid breaking
