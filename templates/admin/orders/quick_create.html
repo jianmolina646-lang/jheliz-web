@@ -89,7 +89,7 @@
                 {% for plan in plans %}
                   <option value="{{ plan.pk }}"
                           {% if preset.plan_id|stringformat:'s' == plan.pk|stringformat:'s' %}selected{% endif %}>
-                    {{ plan.name }} — S/ {{ plan.price_customer }}
+                    {{ plan.name }} — $ {{ plan.price_customer }}
                     {% if plan.duration_days %}· {{ plan.duration_days }}d{% else %}· perpetuo{% endif %}
                   </option>
                 {% endfor %}

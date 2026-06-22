@@ -28,19 +28,6 @@
           {% endfor %}
         </select>
       </form>
-
-      <form action="{% url 'set_country' %}" method="post" class="flex items-center gap-1">
-        {% csrf_token %}
-        <input type="hidden" name="next" value="{{ request.path }}">
-        <select name="code"
-                onchange="this.form.submit()"
-                class="bg-zinc-900/60 border border-zinc-800 rounded-lg px-2 py-1 text-zinc-300 text-xs cursor-pointer hover:border-jheliz-500/40 focus:border-jheliz-500 focus:outline-none transition"
-                style="appearance:none; -webkit-appearance:none; padding-right:2rem; background-image:url('data:image/svg+xml;utf8,<svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 20 20&quot; fill=&quot;%2371717a&quot;><path d=&quot;M5 8l5 5 5-5z&quot;/></svg>'); background-repeat:no-repeat; background-position:right .3rem center; background-size:1rem;">
-          {% for c in AVAILABLE_COUNTRIES %}
-            <option value="{{ c.code }}" {% if c.code == COUNTRY_CODE %}selected{% endif %}>{{ c.flag }} {{ c.name }} · {{ c.symbol }}</option>
-          {% endfor %}
-        </select>
-      </form>
     </div>
   </div>
 </div>

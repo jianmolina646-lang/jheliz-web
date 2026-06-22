@@ -136,7 +136,7 @@
          style="background:linear-gradient(135deg,rgba(252,211,77,.12),rgba(245,158,11,.08));border:1px solid rgba(252,211,77,.35)">
   <div class="text-2xl">⏳</div>
   <div class="flex-1 min-w-[200px]">
-    <div class="font-semibold text-amber-200">Tu recarga de S/ {{ pending_recharge.amount|floatformat:2|intcomma }} está en revisión.</div>
+    <div class="font-semibold text-amber-200">Tu recarga de $ {{ pending_recharge.amount|floatformat:2|intcomma }} está en revisión.</div>
     <div class="text-xs text-amber-100/70 mt-0.5">Solicitada {{ pending_recharge.created_at|naturaltime }} · método {{ pending_recharge.get_method_display }}. Te llegará una notificación cuando se acredite.</div>
   </div>
 </section>
@@ -177,7 +177,7 @@
               {% else %}
                 <div class="tx-amount-pos">{{ CURRENCY_SYMBOL }} {{ t.amount|floatformat:2|intcomma }}</div>
               {% endif %}
-              <div class="text-[10.5px] text-zinc-500 mt-0.5">Saldo: S/ {{ t.balance_after|floatformat:2|intcomma }}</div>
+              <div class="text-[10.5px] text-zinc-500 mt-0.5">Saldo: $ {{ t.balance_after|floatformat:2|intcomma }}</div>
             </div>
           </div>
         {% endfor %}

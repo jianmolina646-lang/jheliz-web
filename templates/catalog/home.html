@@ -226,13 +226,13 @@
   {% if starter_strip %}
   <!-- Strip de productos con precio desde -->
   <div class="mt-14 max-w-4xl mx-auto">
-    <p class="text-[11px] text-zinc-500 uppercase tracking-[.18em] font-semibold mb-3 text-center">Desde S/ 7 · entrega en minutos</p>
+    <p class="text-[11px] text-zinc-500 uppercase tracking-[.18em] font-semibold mb-3 text-center">Entrega en minutos</p>
     <div class="flex flex-wrap gap-2 justify-center">
       {% for s in starter_strip %}
         <a href="{{ s.product.get_absolute_url }}" class="price-pill">
           <span class="em">{{ s.product.category.emoji|default:'🎬' }}</span>
           <span class="nm">{{ s.product.name }}</span>
-          <span class="pr">desde S/ {{ s.from_price|floatformat:2 }}</span>
+          <span class="pr">desde {{ CURRENCY_SYMBOL }} {{ s.from_price|floatformat:2 }}</span>
         </a>
       {% endfor %}
     </div>

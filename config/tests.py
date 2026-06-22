@@ -350,19 +350,18 @@ class CountryMiddlewareTests(TestCase):
     def test_default_country_when_no_cookie(self):
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
-        # Por default debería ser PE.
-        self.assertContains(resp, "🇵🇪")
+        # Por default debería ser PE (idioma español).
+        self.assertEqual(resp.context["COUNTRY_CODE"], "PE")
 
     def test_country_from_cookie(self):
         self.client.cookies["jheliz_country"] = "BR"
         resp = self.client.get("/")
-        # El selector del footer renderiza la bandera del país activo.
-        self.assertContains(resp, "🇧🇷")
+        self.assertEqual(resp.context["COUNTRY_CODE"], "BR")
 
     def test_country_from_geo_header(self):
         # Sin cookie pero con header CF-IPCountry → debería resolver MX.
         resp = self.client.get("/", HTTP_CF_IPCOUNTRY="MX")
-        self.assertContains(resp, "🇲🇽")
+        self.assertEqual(resp.context["COUNTRY_CODE"], "MX")
 
     def test_set_country_persists_cookie(self):
         resp = self.client.post(
@@ -432,16 +431,17 @@ class LanguageSwitcherTests(TestCase):
 
 
 class FooterPickerRenderTests(TestCase):
-    """El footer renderiza los selectores con todos los países."""
+    """El footer mantiene el selector de idioma; el de país/moneda fue removido
+    (tienda en dólar único)."""
 
-    def test_footer_lists_all_countries(self):
+    def test_footer_has_language_picker_without_country_selector(self):
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
         body = resp.content.decode()
-        # Que aparezca al menos un país de cada continente (sanity).
-        self.assertIn("Perú", body)
-        self.assertIn("Brasil", body)
-        self.assertIn("Argentina", body)
+        # El selector de idioma sigue presente.
+        self.assertIn(reverse("set_language"), body)
+        # El selector de país/moneda ya no se renderiza.
+        self.assertNotIn(reverse("set_country"), body)
 
 
 class AdminDesignSystem2026Tests(TestCase):

@@ -446,7 +446,7 @@ class CheapestVisiblePlanTests(TestCase):
         self.assertIsNone(self.product.cheapest_visible_plan(None))
 
     def test_card_shows_nonzero_price_when_zero_plan_exists(self):
-        """Regresión: la card pública no debe mostrar `S/ 0,00` como `DESDE`."""
+        """Regresión: la card pública no debe mostrar `$ 0,00` como `DESDE`."""
         Plan.objects.create(
             product=self.product, name="Borrador", duration_days=15,
             price_customer=Decimal("0.00"), order=0,
@@ -458,8 +458,8 @@ class CheapestVisiblePlanTests(TestCase):
         resp = self.client.get(reverse("catalog:products"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Prime Video Demo")
-        self.assertContains(resp, "S/ 8,00")
-        self.assertNotContains(resp, "S/ 0,00")
+        self.assertContains(resp, "$ 8,00")
+        self.assertNotContains(resp, "$ 0,00")
 
 
 class DistributorPanelTests(TestCase):

@@ -177,8 +177,8 @@ LANGUAGES = [
 LOCALE_PATHS = [BASE_DIR / "locale"]
 
 # Currency (default cuando no se conoce el país del visitante).
-DEFAULT_CURRENCY = "PEN"
-DEFAULT_CURRENCY_SYMBOL = "S/"
+DEFAULT_CURRENCY = "USD"
+DEFAULT_CURRENCY_SYMBOL = "$"
 
 # Países soportados. Cada uno define su moneda, su flag emoji y su locale
 # preferido. El selector se renderiza en el footer; las páginas pueden
@@ -366,7 +366,7 @@ DISCORD_APPLICATION_ID = config("DISCORD_APPLICATION_ID", default="")
 
 # Brand
 SITE_NAME = "VirtualidadSP"
-SITE_TAGLINE = "Netflix, Disney+ y Office en Perú desde S/ 7"
+SITE_TAGLINE = "Netflix, Disney+ y Office con entrega inmediata"
 
 def _hashed_static(path: str) -> str:
     """Devuelve la URL de un static asset con hash de manifiesto si existe.
