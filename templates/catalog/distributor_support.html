@@ -29,9 +29,9 @@
   .motive-1:hover { border-color: rgba(248,113,113,.55); box-shadow: 0 24px 50px -28px rgba(248,113,113,.6); }
   .motive-1 .ico { background: linear-gradient(135deg,#ef4444,#f97316); }
   .motive-1 .label { color: #fca5a5; }
-  .motive-2 .halo { background: #8b5cf6; }
-  .motive-2:hover { border-color: rgba(139,92,246,.55); box-shadow: 0 24px 50px -28px rgba(139,92,246,.6); }
-  .motive-2 .ico { background: linear-gradient(135deg,#8b5cf6,#d946ef); }
+  .motive-2 .halo { background: #2563eb; }
+  .motive-2:hover { border-color: rgba(37,99,235,.55); box-shadow: 0 24px 50px -28px rgba(37,99,235,.6); }
+  .motive-2 .ico { background: linear-gradient(135deg,#2563eb,#3b82f6); }
   .motive-2 .label { color: #c4b5fd; }
   .motive-3 .halo { background: #fbbf24; }
   .motive-3:hover { border-color: rgba(251,191,36,.55); box-shadow: 0 24px 50px -28px rgba(251,191,36,.55); }
@@ -45,7 +45,7 @@
   }
   .st-open { background: rgba(56,189,248,.14); border:1px solid rgba(56,189,248,.4); color: #7dd3fc; }
   .st-padmin { background: rgba(251,191,36,.14); border:1px solid rgba(251,191,36,.4); color: #fde68a; }
-  .st-puser { background: rgba(244,114,182,.14); border:1px solid rgba(244,114,182,.4); color: #f9a8d4; }
+  .st-puser { background: rgba(244,114,182,.14); border:1px solid rgba(244,114,182,.4); color: #93c5fd; }
   .st-resolved { background: rgba(134,239,172,.14); border:1px solid rgba(134,239,172,.4); color: #86efac; }
   .st-closed { background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color: #a1a1aa; }
 </style>
@@ -55,11 +55,11 @@
 <section>
   <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
     <div>
-      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-pink-300">Centro de soporte</p>
+      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-blue-300">Centro de soporte</p>
       <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight mt-1" style="letter-spacing:-0.03em">
-        ¿Qué <span style="background:linear-gradient(135deg,#ec4899,#d946ef,#8b5cf6);-webkit-background-clip:text;background-clip:text;color:transparent">pasa con la cuenta</span>?
+        ¿Qué <span style="background:linear-gradient(135deg,#3b82f6,#3b82f6,#2563eb);-webkit-background-clip:text;background-clip:text;color:transparent">pasa con la cuenta</span>?
       </h1>
-      <p class="text-sm text-zinc-400 mt-1">Elegí un motivo y te respondemos en minutos. {% if open_count %}<span class="text-pink-300 font-semibold">· Tienes {{ open_count }} ticket{{ open_count|pluralize }} abierto{{ open_count|pluralize }}</span>{% endif %}</p>
+      <p class="text-sm text-zinc-400 mt-1">Elegí un motivo y te respondemos en minutos. {% if open_count %}<span class="text-blue-300 font-semibold">· Tienes {{ open_count }} ticket{{ open_count|pluralize }} abierto{{ open_count|pluralize }}</span>{% endif %}</p>
     </div>
     <a href="{% url 'catalog:distributor_panel' %}" class="text-sm text-zinc-400 hover:text-white">← Panel</a>
   </div>
@@ -103,14 +103,14 @@
       </div>
     </div>
     <a href="{% url 'support:create' %}" class="text-sm font-bold px-4 py-2 rounded-full text-white"
-       style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">Abrir ticket</a>
+       style="background:linear-gradient(135deg,#3b82f6,#2563eb)">Abrir ticket</a>
   </div>
 
   <!-- Mis tickets -->
   <div class="rounded-2xl p-5" style="background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.08)">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-display text-lg font-bold tracking-tight">🎫 Mis tickets recientes</h2>
-      <a href="{% url 'support:list' %}" class="text-xs text-pink-300 hover:underline">Ver todos →</a>
+      <a href="{% url 'support:list' %}" class="text-xs text-blue-300 hover:underline">Ver todos →</a>
     </div>
     {% if tickets %}
       <div class="space-y-2">

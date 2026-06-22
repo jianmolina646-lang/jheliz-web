@@ -20,7 +20,7 @@
   .modal-backdrop.is-open { display: flex; }
   .modal-card { background: #18181b; border: 1px solid var(--line); border-radius: 1rem; padding: 1.5rem; max-width: 28rem; width: 92%; }
   .input-dark { background: rgba(255,255,255,.03); border: 1px solid var(--line); color: white; padding: 0.55rem 0.75rem; border-radius: 0.55rem; width: 100%; font-size: 14px; }
-  .input-dark:focus { outline: none; border-color: rgba(236,72,153,.4); }
+  .input-dark:focus { outline: none; border-color: rgba(59,130,246,.4); }
 </style>
 {% endblock %}
 
@@ -47,11 +47,11 @@
       </a>
     {% endif %}
     <a href="{% url 'code_distrib_create' %}" class="btn btn-secondary"
-       style="background:rgba(168,85,247,.12); border-color:rgba(168,85,247,.45); color:#d8b4fe">
+       style="background:rgba(37,99,235,.12); border-color:rgba(37,99,235,.45); color:#bfdbfe">
       📬 Pedir código
     </a>
     <a href="{% url 'catalog:distributor_accounts' %}" class="btn btn-secondary"
-       style="background:rgba(236,72,153,.12); border-color:rgba(236,72,153,.45); color:#fbcfe8">
+       style="background:rgba(59,130,246,.12); border-color:rgba(59,130,246,.45); color:#dbeafe">
       🔑 Mis cuentas
     </a>
     <a href="{% url 'catalog:distributor_support' %}" class="btn btn-secondary"
@@ -59,7 +59,7 @@
       🛟 Soporte
     </a>
     <a href="{% url 'catalog:distributor_calendar' %}" class="btn btn-secondary"
-       style="background:rgba(139,92,246,.12); border-color:rgba(139,92,246,.45); color:#c4b5fd">
+       style="background:rgba(37,99,235,.12); border-color:rgba(37,99,235,.45); color:#c4b5fd">
       📅 Calendario
     </a>
     <div class="surface rounded-xl px-4 py-2.5">
@@ -73,7 +73,7 @@
 <section class="mt-5">
   <a href="{{ TELEGRAM_DISTRIBUTOR_CHANNEL_URL }}" target="_blank" rel="noopener"
      class="block rounded-2xl px-5 py-4 transition hover:translate-y-[-1px]"
-     style="background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(99,102,241,.18)); border:1px solid rgba(56,189,248,.35);">
+     style="background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(59,130,246,.18)); border:1px solid rgba(56,189,248,.35);">
     <div class="flex items-center gap-3">
       <div class="text-3xl">📣</div>
       <div class="flex-1">
@@ -122,7 +122,7 @@
               {% endif %}
               <a href="{% url 'orders:renew_item' item_id=item.id %}"
                  class="text-xs px-2.5 py-1 rounded-md font-bold text-white"
-                 style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">💳 Renovar</a>
+                 style="background:linear-gradient(135deg,#3b82f6,#2563eb)">💳 Renovar</a>
             </div>
           </div>
         {% endfor %}

@@ -42,9 +42,9 @@
   .cal-cell.out-of-month { background: rgba(15,10,25,.35); }
   .cal-cell.out-of-month .cal-day-num { color: #52525b; }
   .cal-cell.is-past .cal-day-num { color: #6b6b78; }
-  .cal-cell.is-today { background: linear-gradient(180deg, rgba(236,72,153,.18), rgba(139,92,246,.10)); }
+  .cal-cell.is-today { background: linear-gradient(180deg, rgba(59,130,246,.18), rgba(37,99,235,.10)); }
   .cal-cell.is-today .cal-day-num {
-    background: linear-gradient(135deg, #ec4899, #8b5cf6);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     color: white;
     width: 26px; height: 26px;
     border-radius: 50%;
@@ -61,9 +61,9 @@
     font-size: 10px;
     padding: 2px 5px;
     border-radius: 5px;
-    background: rgba(236,72,153,.18);
-    border: 1px solid rgba(236,72,153,.4);
-    color: #fbcfe8;
+    background: rgba(59,130,246,.18);
+    border: 1px solid rgba(59,130,246,.4);
+    color: #dbeafe;
     font-weight: 700;
     line-height: 1;
     max-width: 100%;
@@ -85,7 +85,7 @@
     }
     .cal-cell .dot {
       width: 6px; height: 6px; border-radius: 50%;
-      background: #ec4899;
+      background: #3b82f6;
     }
   }
   .agenda-item {
@@ -96,19 +96,19 @@
     border: 1px solid rgba(255,255,255,.06);
     transition: border-color .12s, transform .12s;
   }
-  .agenda-item:hover { border-color: rgba(236,72,153,.4); transform: translateY(-1px); }
+  .agenda-item:hover { border-color: rgba(59,130,246,.4); transform: translateY(-1px); }
   .agenda-day {
     flex-shrink: 0;
     width: 56px;
     text-align: center;
     padding: .3rem 0;
     border-radius: .65rem;
-    background: linear-gradient(135deg, rgba(236,72,153,.18), rgba(139,92,246,.12));
-    border: 1px solid rgba(236,72,153,.35);
+    background: linear-gradient(135deg, rgba(59,130,246,.18), rgba(37,99,235,.12));
+    border: 1px solid rgba(59,130,246,.35);
   }
   .agenda-day .num { font-size: 1.4rem; font-weight: 900; line-height: 1; color: white; }
-  .agenda-day .lbl { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: #fbcfe8; }
-  .agenda-day.is-today { background: linear-gradient(135deg, #ec4899, #8b5cf6); border-color: transparent; }
+  .agenda-day .lbl { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: #dbeafe; }
+  .agenda-day.is-today { background: linear-gradient(135deg, #3b82f6, #2563eb); border-color: transparent; }
   .agenda-day.is-past { background: rgba(248,113,113,.12); border-color: rgba(248,113,113,.4); }
   .agenda-day.is-past .num, .agenda-day.is-past .lbl { color: #fca5a5; }
 </style>
@@ -118,11 +118,11 @@
 <section>
   <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
     <div>
-      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-pink-300">Calendario distribuidor</p>
+      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-blue-300">Calendario distribuidor</p>
       <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight mt-1" style="letter-spacing:-0.03em">
-        Tu mes en <span style="background:linear-gradient(135deg,#ec4899,#d946ef,#8b5cf6);-webkit-background-clip:text;background-clip:text;color:transparent">un vistazo</span>
+        Tu mes en <span style="background:linear-gradient(135deg,#3b82f6,#3b82f6,#2563eb);-webkit-background-clip:text;background-clip:text;color:transparent">un vistazo</span>
       </h1>
-      <p class="text-sm text-zinc-400 mt-1">Vencimientos, renovaciones y eventos. <span class="text-pink-300 font-semibold">{{ month_total }}</span> vencimiento{{ month_total|pluralize }} este mes.</p>
+      <p class="text-sm text-zinc-400 mt-1">Vencimientos, renovaciones y eventos. <span class="text-blue-300 font-semibold">{{ month_total }}</span> vencimiento{{ month_total|pluralize }} este mes.</p>
     </div>
     <a href="{% url 'catalog:distributor_panel' %}" class="text-sm text-zinc-400 hover:text-white">← Panel</a>
   </div>
@@ -206,7 +206,7 @@
               {% endif %}
               <a href="{% url 'orders:renew_item' item_id=it.id %}"
                  class="text-xs px-2.5 py-1 rounded-md font-bold text-white"
-                 style="background:linear-gradient(135deg,#ec4899,#8b5cf6)">💳 Renovar</a>
+                 style="background:linear-gradient(135deg,#3b82f6,#2563eb)">💳 Renovar</a>
             </div>
           </div>
         {% endfor %}

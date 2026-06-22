@@ -14,14 +14,14 @@
 <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ landing.get_absolute_url }}" />
 <style>
   .landing-hero {
-    background: linear-gradient(135deg, {{ landing.accent_color|default:"#ec4899" }}33 0%, transparent 60%), radial-gradient(1000px 400px at 10% 0%, {{ landing.accent_color|default:"#ec4899" }}1f, transparent 70%);
-    border: 1px solid {{ landing.accent_color|default:"#ec4899" }}40;
+    background: linear-gradient(135deg, {{ landing.accent_color|default:"#3b82f6" }}33 0%, transparent 60%), radial-gradient(1000px 400px at 10% 0%, {{ landing.accent_color|default:"#3b82f6" }}1f, transparent 70%);
+    border: 1px solid {{ landing.accent_color|default:"#3b82f6" }}40;
   }
-  .landing-accent-text { color: {{ landing.accent_color|default:"#ec4899" }}; }
-  .landing-accent-bg { background: {{ landing.accent_color|default:"#ec4899" }}; }
-  .landing-accent-border { border-color: {{ landing.accent_color|default:"#ec4899" }}; }
+  .landing-accent-text { color: {{ landing.accent_color|default:"#3b82f6" }}; }
+  .landing-accent-bg { background: {{ landing.accent_color|default:"#3b82f6" }}; }
+  .landing-accent-border { border-color: {{ landing.accent_color|default:"#3b82f6" }}; }
   .landing-cta {
-    background: linear-gradient(135deg, {{ landing.accent_color|default:"#ec4899" }}, {{ landing.accent_color|default:"#a855f7" }});
+    background: linear-gradient(135deg, {{ landing.accent_color|default:"#3b82f6" }}, {{ landing.accent_color|default:"#2563eb" }});
   }
 </style>
 {% endblock %}
@@ -103,22 +103,22 @@
   <h2 class="font-display text-2xl md:text-4xl font-extrabold tracking-tight text-white mb-6">¿Por qué comprar {{ landing.name }} en {{ SITE_NAME }}?</h2>
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
     <div class="surface rounded-xl p-5">
-      <div class="w-12 h-12 rounded-xl landing-accent-bg/20 flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#ec4899' }}22">⚡</div>
+      <div class="w-12 h-12 rounded-xl landing-accent-bg/20 flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#3b82f6' }}22">⚡</div>
       <h3 class="font-bold text-white text-lg mb-1">Entrega inmediata</h3>
       <p class="text-sm text-zinc-400">En menos de 5 minutos recibes las credenciales por WhatsApp y correo.</p>
     </div>
     <div class="surface rounded-xl p-5">
-      <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#ec4899' }}22">🛡️</div>
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#3b82f6' }}22">🛡️</div>
       <h3 class="font-bold text-white text-lg mb-1">Garantía real 30 días</h3>
       <p class="text-sm text-zinc-400">Si algo deja de funcionar, reemplazamos tu cuenta sin costo extra.</p>
     </div>
     <div class="surface rounded-xl p-5">
-      <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#ec4899' }}22">💬</div>
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#3b82f6' }}22">💬</div>
       <h3 class="font-bold text-white text-lg mb-1">Soporte por WhatsApp</h3>
       <p class="text-sm text-zinc-400">Respondemos en minutos, incluyendo fines de semana y feriados.</p>
     </div>
     <div class="surface rounded-xl p-5">
-      <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#ec4899' }}22">💳</div>
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3" style="background:{{ landing.accent_color|default:'#3b82f6' }}22">💳</div>
       <h3 class="font-bold text-white text-lg mb-1">Paga como prefieras</h3>
       <p class="text-sm text-zinc-400">Yape, Plin, Mercado Pago, tarjeta. Todo 100% verificado.</p>
     </div>

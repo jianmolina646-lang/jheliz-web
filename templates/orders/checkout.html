@@ -35,7 +35,7 @@
             <div class="grid sm:grid-cols-2 gap-3" data-pay-options>
               {% for choice in field %}
               <label class="pay-option {% if choice.data.value == 'yape' %}logo--yape{% elif choice.data.value == 'wallet' %}logo--wallet{% elif choice.data.value == 'binance' %}logo--binance{% else %}logo--mp{% endif %}{% if choice.data.selected %} is-checked{% endif %}"
-                     {% if choice.data.value == 'wallet' %}style="background:linear-gradient(135deg,rgba(236,72,153,.08),rgba(139,92,246,.06))"{% elif choice.data.value == 'binance' %}style="background:linear-gradient(135deg,rgba(240,185,11,.08),rgba(240,185,11,.03))"{% endif %}>
+                     {% if choice.data.value == 'wallet' %}style="background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(37,99,235,.06))"{% elif choice.data.value == 'binance' %}style="background:linear-gradient(135deg,rgba(240,185,11,.08),rgba(240,185,11,.03))"{% endif %}>
                 {{ choice.tag }}
                 <div class="pay-option__logo" aria-hidden="true">
                   {% if choice.data.value == 'yape' %}
@@ -53,8 +53,8 @@
                     <span class="font-display font-semibold text-zinc-100 block">Yape / Plin</span>
                     <span class="text-xs text-zinc-500">{% trans "Escanea QR y sube comprobante" %}</span>
                   {% elif choice.data.value == 'wallet' %}
-                    <span class="font-display font-semibold block" style="color:#fbcfe8">{% trans "Saldo wallet" %}</span>
-                    <span class="text-xs text-pink-200/70">S/ {{ wallet_balance|floatformat:2 }} {% trans "disponible" %} {% if not wallet_enough %}· {% trans "insuficiente" %}{% endif %}</span>
+                    <span class="font-display font-semibold block" style="color:#dbeafe">{% trans "Saldo wallet" %}</span>
+                    <span class="text-xs text-blue-200/70">S/ {{ wallet_balance|floatformat:2 }} {% trans "disponible" %} {% if not wallet_enough %}· {% trans "insuficiente" %}{% endif %}</span>
                   {% elif choice.data.value == 'binance' %}
                     <span class="font-display font-semibold block" style="color:#fde68a">Binance Pay</span>
                     <span class="text-xs text-amber-200/70">{% trans "Paga con USDT, BNB o crypto · QR" %}</span>
@@ -137,10 +137,10 @@
       </div>
       {% if discount > 0 %}
       <div class="flex justify-between text-sm">
-        <span class="text-pink-300">
+        <span class="text-blue-300">
           {% trans "Cupón" %} <span class="font-mono text-xs">{{ coupon.code }}</span>
         </span>
-        <span class="text-pink-300">−{{ CURRENCY_SYMBOL }} {{ discount|floatformat:2|intcomma }}</span>
+        <span class="text-blue-300">−{{ CURRENCY_SYMBOL }} {{ discount|floatformat:2|intcomma }}</span>
       </div>
       {% endif %}
       {% if combo_discount > 0 %}
