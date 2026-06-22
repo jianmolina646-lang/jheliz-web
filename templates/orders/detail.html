@@ -19,7 +19,7 @@
 </div>
 
 {% if order.status == 'pending' and order.payment_provider == 'yape' %}
-  <div class="mt-5 rounded-2xl border border-fuchsia-400/30 bg-fuchsia-500/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+  <div class="mt-5 rounded-2xl border border-blue-400/30 bg-blue-500/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
     <div>
       <div class="font-bold">Te falta subir el comprobante Yape</div>
       <div class="text-sm text-white/70">Termina tu compra pagando por QR y enviando la captura.</div>
@@ -66,13 +66,13 @@
 
         {% if it.delivered_credentials %}
           {% if it.credentials_replaced_at %}
-            <div class="mt-4 rounded-xl border border-fuchsia-400/40 bg-fuchsia-500/10 p-3 text-sm flex items-start gap-2.5">
+            <div class="mt-4 rounded-xl border border-blue-400/40 bg-blue-500/10 p-3 text-sm flex items-start gap-2.5">
               <svg class="icon shrink-0 mt-0.5" viewBox="0 0 24 24" style="color:#f0abfc"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               <div>
-                <div class="font-semibold text-fuchsia-100">Actualizamos esta cuenta el {{ it.credentials_replaced_at|date:"d/m/Y" }}</div>
+                <div class="font-semibold text-blue-100">Actualizamos esta cuenta el {{ it.credentials_replaced_at|date:"d/m/Y" }}</div>
                 <div class="text-xs text-white/70 mt-0.5">
                   Tu perfil y PIN siguen siendo los mismos — solo cambia el correo y la contraseña.
-                  <span class="text-fuchsia-200">({{ it.credentials_replaced_at|naturaltime }})</span>
+                  <span class="text-blue-200">({{ it.credentials_replaced_at|naturaltime }})</span>
                 </div>
               </div>
             </div>
@@ -82,7 +82,7 @@
         {% elif order.status == 'pending' %}
           <p class="text-amber-300 text-sm mt-3">Esperando confirmación del pago.</p>
         {% elif order.status == 'preparing' %}
-          <p class="text-fuchsia-300 text-sm mt-3">Estamos creando tu perfil con el nombre y PIN que pediste. Te avisamos por correo en cuanto esté listo.</p>
+          <p class="text-blue-300 text-sm mt-3">Estamos creando tu perfil con el nombre y PIN que pediste. Te avisamos por correo en cuanto esté listo.</p>
         {% else %}
           <p class="text-white/60 text-sm mt-3">La entrega se está procesando.</p>
         {% endif %}
@@ -95,7 +95,7 @@
       <h3 class="font-bold">Resumen</h3>
       {% if order.discount_amount > 0 %}
         <div class="mt-3 flex justify-between text-sm text-white/70"><span>Subtotal</span><span>{{ CURRENCY_SYMBOL }} {{ order.subtotal|floatformat:2|intcomma }}</span></div>
-        <div class="mt-1 flex justify-between text-sm text-pink-300"><span>Cupón {{ order.coupon_code }}</span><span>−{{ CURRENCY_SYMBOL }} {{ order.discount_amount|floatformat:2|intcomma }}</span></div>
+        <div class="mt-1 flex justify-between text-sm text-blue-300"><span>Cupón {{ order.coupon_code }}</span><span>−{{ CURRENCY_SYMBOL }} {{ order.discount_amount|floatformat:2|intcomma }}</span></div>
       {% endif %}
       <div class="mt-3 flex justify-between text-sm"><span>Total</span><span class="font-bold">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</span></div>
       {% if order.payment_reference %}

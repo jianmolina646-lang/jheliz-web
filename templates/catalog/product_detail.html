@@ -26,7 +26,7 @@
   .pd-hero__glow {
     position: absolute; inset: -30% -20% auto auto;
     width: 70%; height: 140%;
-    background: radial-gradient(closest-side, rgba(236,72,153,.35), transparent 70%);
+    background: radial-gradient(closest-side, rgba(59,130,246,.35), transparent 70%);
     filter: blur(30px);
     pointer-events: none;
   }
@@ -42,7 +42,7 @@
   .plan-cmp__eyebrow {
     font-size: 11px; font-weight: 700;
     letter-spacing: .18em; text-transform: uppercase;
-    color: #f9a8d4;
+    color: #93c5fd;
   }
   .plan-cmp__title {
     font-family: 'Geist', sans-serif;
@@ -68,11 +68,11 @@
     display: flex; flex-direction: column;
     transition: border-color .18s ease, transform .18s ease;
   }
-  .plan-cmp__card:hover { border-color: rgba(236,72,153,.35); transform: translateY(-2px); }
+  .plan-cmp__card:hover { border-color: rgba(59,130,246,.35); transform: translateY(-2px); }
   .plan-cmp__card--popular {
-    border-color: rgba(236,72,153,.5);
-    background: linear-gradient(160deg, rgba(236,72,153,.08), rgba(168,85,247,.04));
-    box-shadow: 0 18px 40px -22px rgba(236,72,153,.6);
+    border-color: rgba(59,130,246,.5);
+    background: linear-gradient(160deg, rgba(59,130,246,.08), rgba(37,99,235,.04));
+    box-shadow: 0 18px 40px -22px rgba(59,130,246,.6);
   }
   .plan-cmp__ribbon {
     position: absolute; top: -.7rem; left: 50%;
@@ -82,9 +82,9 @@
     text-transform: uppercase;
     padding: .25rem .65rem;
     border-radius: 9999px;
-    background: linear-gradient(135deg, #ec4899, #a855f7);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     color: #fff;
-    box-shadow: 0 6px 18px -8px rgba(236,72,153,.7);
+    box-shadow: 0 6px 18px -8px rgba(59,130,246,.7);
   }
   .plan-cmp__name { font-family: 'Geist', sans-serif; font-weight: 700; font-size: .98rem; color: #fafafa; }
   .plan-cmp__duration {
@@ -102,9 +102,9 @@
     font-size: .65rem; font-weight: 700; letter-spacing: .04em;
     text-transform: uppercase;
     padding: .2rem .5rem; border-radius: 9999px;
-    background: rgba(168,85,247,.15);
-    border: 1px solid rgba(168,85,247,.3);
-    color: #d8b4fe; margin-left: auto;
+    background: rgba(37,99,235,.15);
+    border: 1px solid rgba(37,99,235,.3);
+    color: #bfdbfe; margin-left: auto;
   }
   .plan-cmp__perday { font-size: .72rem; color: #71717a; margin-top: .15rem; }
   .plan-cmp__features {
@@ -125,13 +125,13 @@
     color: #fafafa; cursor: pointer; text-decoration: none;
     transition: background .15s ease, border-color .15s ease;
   }
-  .plan-cmp__cta:hover { background: rgba(236,72,153,.12); border-color: rgba(236,72,153,.4); }
+  .plan-cmp__cta:hover { background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.4); }
   .plan-cmp__card--popular .plan-cmp__cta {
-    background: linear-gradient(135deg, #ec4899, #a855f7);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     border-color: transparent; color: #fff;
-    box-shadow: 0 10px 28px -10px rgba(236,72,153,.7);
+    box-shadow: 0 10px 28px -10px rgba(59,130,246,.7);
   }
-  .plan-cmp__card--popular .plan-cmp__cta:hover { background: linear-gradient(135deg, #f472b6, #c084fc); }
+  .plan-cmp__card--popular .plan-cmp__cta:hover { background: linear-gradient(135deg, #60a5fa, #60a5fa); }
 
   /* Skeleton loader (item 10) */
   .skeleton {
@@ -172,7 +172,7 @@
     background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
     transition: all 180ms ease;
   }
-  .share-btn:hover { background: rgba(236,72,153,.12); border-color: rgba(236,72,153,.35); color: #fff; }
+  .share-btn:hover { background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.35); color: #fff; }
   /* Sticky mobile CTA */
   .pd-mobile-cta {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
@@ -192,7 +192,7 @@
     padding: 0.85rem 1rem; background: rgba(255,255,255,.025);
     transition: background 180ms ease, border-color 180ms ease;
   }
-  details.faq-item[open] { background: rgba(236,72,153,.05); border-color: rgba(236,72,153,.25); }
+  details.faq-item[open] { background: rgba(59,130,246,.05); border-color: rgba(59,130,246,.25); }
   details.faq-item summary {
     cursor: pointer; font-weight: 600; color: #e4e4e7;
     display: flex; align-items: center; justify-content: space-between; gap: .75rem;
@@ -203,7 +203,7 @@
     content: '+'; font-size: 1.35rem; color: #a1a1aa; font-weight: 400;
     transition: transform 220ms ease;
   }
-  details.faq-item[open] summary::after { transform: rotate(45deg); color: #f472b6; }
+  details.faq-item[open] summary::after { transform: rotate(45deg); color: #60a5fa; }
   details.faq-item > div { margin-top: .65rem; color: #a1a1aa; font-size: .9rem; line-height: 1.55; }
 </style>
 {% endblock %}
@@ -353,7 +353,7 @@
     {# Back-in-stock alert form: visible solo cuando no hay stock disponible #}
     {% if product.available_stock == 0 %}
       <div class="mt-5 rounded-xl p-4 md:p-5 border"
-           style="background:linear-gradient(135deg, rgba(244,114,182,0.10), rgba(168,85,247,0.10));border-color:rgba(244,114,182,0.35);">
+           style="background:linear-gradient(135deg, rgba(244,114,182,0.10), rgba(37,99,235,0.10));border-color:rgba(244,114,182,0.35);">
         <div class="flex items-start gap-3">
           <span aria-hidden="true" style="font-size:22px;line-height:1">🔔</span>
           <div class="flex-1 min-w-0">

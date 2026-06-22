@@ -153,7 +153,7 @@
       {% if coupon and discount > 0 %}
         <div class="flex items-center justify-between text-sm">
           <div>
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md surface-soft text-pink-300 font-mono text-xs">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md surface-soft text-blue-300 font-mono text-xs">
               <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
               {{ coupon.code }}
             </span>
@@ -165,8 +165,8 @@
           </form>
         </div>
         <div class="mt-2 flex justify-between text-sm">
-          <span class="text-pink-300">{% trans "Descuento" %}</span>
-          <span class="text-pink-300">−{{ CURRENCY_SYMBOL }} {{ discount|floatformat:2|intcomma }}</span>
+          <span class="text-blue-300">{% trans "Descuento" %}</span>
+          <span class="text-blue-300">−{{ CURRENCY_SYMBOL }} {{ discount|floatformat:2|intcomma }}</span>
         </div>
       {% else %}
         <details class="text-sm">
@@ -207,12 +207,12 @@
       </div>
     {% elif distinct_products == 1 and not user.is_distributor %}
       <div class="mt-3 pt-4 border-t hairline">
-        <a href="{% url 'catalog:combo_builder' %}" class="flex items-center justify-between gap-2 p-2.5 rounded-xl hover:bg-pink-500/5 transition group">
+        <a href="{% url 'catalog:combo_builder' %}" class="flex items-center justify-between gap-2 p-2.5 rounded-xl hover:bg-blue-500/5 transition group">
           <span class="text-xs text-zinc-400">
             <span class="text-base mr-1">💡</span>
             {% trans "Agregá otra plataforma y ahorrá" %} <span class="text-emerald-400 font-semibold">{% trans "hasta 15%" %}</span>
           </span>
-          <span class="text-xs text-pink-300 font-semibold group-hover:text-pink-200">{% trans "Armar combo" %} →</span>
+          <span class="text-xs text-blue-300 font-semibold group-hover:text-blue-200">{% trans "Armar combo" %} →</span>
         </a>
       </div>
     {% endif %}

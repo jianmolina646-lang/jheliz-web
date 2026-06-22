@@ -9,9 +9,9 @@
   .tx-row:last-child { border-bottom:none; }
   .tx-icon { width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
   .tx-icon-in { background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(5,150,105,.15)); color:#6ee7b7; }
-  .tx-icon-out { background:linear-gradient(135deg,rgba(236,72,153,.18),rgba(168,85,247,.18)); color:#f9a8d4; }
-  .tx-icon-refund { background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(99,102,241,.18)); color:#7dd3fc; }
-  .tx-icon-adjust { background:linear-gradient(135deg,rgba(168,85,247,.2),rgba(139,92,246,.18)); color:#d8b4fe; }
+  .tx-icon-out { background:linear-gradient(135deg,rgba(59,130,246,.18),rgba(37,99,235,.18)); color:#93c5fd; }
+  .tx-icon-refund { background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(59,130,246,.18)); color:#7dd3fc; }
+  .tx-icon-adjust { background:linear-gradient(135deg,rgba(37,99,235,.2),rgba(37,99,235,.18)); color:#bfdbfe; }
   .tx-amount-pos { color:#6ee7b7; font-weight:700; }
   .tx-amount-neg { color:#fda4af; font-weight:700; }
 </style>
@@ -21,7 +21,7 @@
 <section class="max-w-4xl mx-auto">
   <div class="flex items-center justify-between mb-5">
     <div>
-      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-pink-300">Wallet · historial</p>
+      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-blue-300">Wallet · historial</p>
       <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight mt-1" style="letter-spacing:-0.03em">Todos mis movimientos</h1>
       <p class="text-sm text-zinc-400 mt-1">Saldo actual: <strong class="text-white">{{ CURRENCY_SYMBOL }} {{ balance|floatformat:2|intcomma }}</strong></p>
     </div>

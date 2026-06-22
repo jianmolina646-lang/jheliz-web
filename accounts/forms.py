@@ -14,8 +14,8 @@ class StyledMixin:
 
     default_input_class = (
         "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 "
-        "text-white placeholder-white/40 focus:border-fuchsia-400 focus:outline-none "
-        "focus:ring-2 focus:ring-fuchsia-400/40"
+        "text-white placeholder-white/40 focus:border-blue-400 focus:outline-none "
+        "focus:ring-2 focus:ring-blue-400/40"
     )
 
     def _style_fields(self):

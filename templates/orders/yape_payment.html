@@ -46,7 +46,7 @@
         <p><span class="text-white/60">Número Yape:</span> <strong>{{ settings.yape_phone }}</strong></p>
         {% endif %}
         <p>
-          <a href="{{ settings.yape_qr.url }}" target="_blank" rel="noopener" class="underline text-fuchsia-300">
+          <a href="{{ settings.yape_qr.url }}" target="_blank" rel="noopener" class="underline text-blue-300">
             Abrir QR en una pestaña nueva
           </a>
         </p>
@@ -61,7 +61,7 @@
         {% endif %}
         <div class="text-lg mt-2">
           Monto a transferir:
-          <strong class="text-fuchsia-300">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</strong>
+          <strong class="text-blue-300">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</strong>
         </div>
       </div>
       {% if settings.yape_instructions %}
@@ -91,7 +91,7 @@
       </form>
       <div class="mt-6 pt-6 border-t border-white/10 text-xs text-white/60">
         ¿Tienes problemas? Escríbenos por WhatsApp al
-        {% if WHATSAPP_NUMBER %}<a class="text-fuchsia-300 font-semibold" href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+' }}?text=Hola,%20pedido%20%23{{ order.display_number }}">{{ WHATSAPP_NUMBER }}</a>{% else %}nuestro soporte{% endif %}.
+        {% if WHATSAPP_NUMBER %}<a class="text-blue-300 font-semibold" href="https://wa.me/{{ WHATSAPP_NUMBER|cut:'+' }}?text=Hola,%20pedido%20%23{{ order.display_number }}">{{ WHATSAPP_NUMBER }}</a>{% else %}nuestro soporte{% endif %}.
       </div>
     </div>
   </div>

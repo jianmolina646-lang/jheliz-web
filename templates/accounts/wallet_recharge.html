@@ -7,10 +7,10 @@
 <style>
   .form-card {
     border-radius: 1.5rem;
-    background: radial-gradient(120% 90% at 0% 0%, rgba(236, 72, 153, .12), transparent 55%),
-                radial-gradient(110% 90% at 100% 100%, rgba(139, 92, 246, .12), transparent 55%),
+    background: radial-gradient(120% 90% at 0% 0%, rgba(59, 130, 246, .12), transparent 55%),
+                radial-gradient(110% 90% at 100% 100%, rgba(37, 99, 235, .12), transparent 55%),
                 rgba(255,255,255,.025);
-    border: 1px solid rgba(236, 72, 153, .25);
+    border: 1px solid rgba(59, 130, 246, .25);
     padding: 1.75rem;
   }
   .preset-pill {
@@ -21,12 +21,12 @@
     font-weight: 700; color: #e5e7eb;
     cursor: pointer; transition: all .15s;
   }
-  .preset-pill:hover { border-color: rgba(236,72,153,.55); color: #f9a8d4; transform: translateY(-1px); }
+  .preset-pill:hover { border-color: rgba(59,130,246,.55); color: #93c5fd; transform: translateY(-1px); }
   .preset-pill.is-active {
-    background: linear-gradient(135deg, rgba(236,72,153,.25), rgba(139,92,246,.2));
-    border-color: rgba(236,72,153,.6);
+    background: linear-gradient(135deg, rgba(59,130,246,.25), rgba(37,99,235,.2));
+    border-color: rgba(59,130,246,.6);
     color: white;
-    box-shadow: 0 8px 24px -6px rgba(236,72,153,.45);
+    box-shadow: 0 8px 24px -6px rgba(59,130,246,.45);
   }
   .method-card {
     display: flex; align-items: center; gap: .8rem;
@@ -35,13 +35,13 @@
     background: rgba(255,255,255,.03);
     cursor: pointer; transition: all .15s;
   }
-  .method-card:hover { border-color: rgba(236,72,153,.45); transform: translateY(-1px); }
+  .method-card:hover { border-color: rgba(59,130,246,.45); transform: translateY(-1px); }
   .method-card input { position: absolute; opacity: 0; pointer-events: none; }
-  .method-card.is-checked { border-color: rgba(236,72,153,.7); background: linear-gradient(135deg, rgba(236,72,153,.12), rgba(139,92,246,.08)); }
+  .method-card.is-checked { border-color: rgba(59,130,246,.7); background: linear-gradient(135deg, rgba(59,130,246,.12), rgba(37,99,235,.08)); }
   .step-num {
     width: 26px; height: 26px; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg,#ec4899,#8b5cf6);
+    background: linear-gradient(135deg,#3b82f6,#2563eb);
     color: white; font-weight: 800; font-size: 12px;
   }
 </style>
@@ -51,9 +51,9 @@
 <section class="max-w-3xl mx-auto">
   <div class="flex items-center justify-between mb-5">
     <div>
-      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-pink-300">Recargar wallet</p>
+      <p class="text-[11px] uppercase tracking-[.18em] font-semibold text-blue-300">Recargar wallet</p>
       <h1 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight mt-1" style="letter-spacing:-0.03em">
-        Suma saldo a tu <span style="background:linear-gradient(135deg,#ec4899,#d946ef,#8b5cf6);-webkit-background-clip:text;background-clip:text;color:transparent">wallet</span>
+        Suma saldo a tu <span style="background:linear-gradient(135deg,#3b82f6,#3b82f6,#2563eb);-webkit-background-clip:text;background-clip:text;color:transparent">wallet</span>
       </h1>
       <p class="text-sm text-zinc-400 mt-1">Saldo actual: <strong class="text-white">{{ CURRENCY_SYMBOL }} {{ user.wallet_balance|floatformat:2|intcomma }}</strong></p>
     </div>
@@ -169,7 +169,7 @@
       <p class="text-xs text-zinc-500 max-w-md">Tu solicitud queda <strong class="text-amber-300">pendiente</strong> hasta que un admin confirme el pago. Suele tomar &lt; 15 minutos en horario de atención.</p>
       <button type="submit"
               class="inline-flex items-center gap-2 rounded-full px-7 py-3.5 text-sm font-bold text-white"
-              style="background:linear-gradient(135deg,#ec4899,#d946ef,#8b5cf6); box-shadow:0 18px 40px -10px rgba(236,72,153,.6)">
+              style="background:linear-gradient(135deg,#3b82f6,#3b82f6,#2563eb); box-shadow:0 18px 40px -10px rgba(59,130,246,.6)">
         🚀 Enviar solicitud
       </button>
     </div>
