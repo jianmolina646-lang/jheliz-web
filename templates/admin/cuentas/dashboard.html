@@ -26,7 +26,7 @@
     width: 56px; height: 56px;
     border-radius: 16px;
     display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg, #a78bfa, #ec4899);
+    background: linear-gradient(135deg, #a78bfa, #3b82f6);
     color: white;
     box-shadow: 0 12px 32px -10px rgba(167,139,250,.55);
   }
@@ -289,13 +289,13 @@
     .jh-cc-search__btn {
       flex-shrink: 0;
       padding: 8px 18px; border-radius: 10px;
-      background: linear-gradient(135deg, #a78bfa, #ec4899);
+      background: linear-gradient(135deg, #a78bfa, #3b82f6);
       color: white; font-size: 13px; font-weight: 600;
       border: 0; cursor: pointer;
-      box-shadow: 0 6px 18px -6px rgba(236,72,153,.55);
+      box-shadow: 0 6px 18px -6px rgba(59, 130, 246,.55);
       transition: transform .15s, box-shadow .15s;
     }
-    .jh-cc-search__btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgba(236,72,153,.65); }
+    .jh-cc-search__btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -8px rgba(59, 130, 246,.65); }
   </style>
 
   {% if q %}
@@ -373,7 +373,7 @@
     .jh-cc-fchip--purple .jh-cc-fchip__count { background: rgba(167,139,250,.18); color:#ddd6fe; }
     /* active state */
     .jh-cc-fchip--active {
-      background: linear-gradient(135deg, rgba(167,139,250,.22), rgba(236,72,153,.18));
+      background: linear-gradient(135deg, rgba(167,139,250,.22), rgba(59, 130, 246,.18));
       border-color: rgba(167,139,250,.55);
       color: #fff;
       box-shadow: 0 4px 14px -4px rgba(167,139,250,.35);
@@ -478,7 +478,7 @@
       border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
       font-size: 15px; font-weight: 800; color: white;
-      background: linear-gradient(135deg, var(--av-a, #a78bfa), var(--av-b, #ec4899));
+      background: linear-gradient(135deg, var(--av-a, #a78bfa), var(--av-b, #3b82f6));
       box-shadow: 0 6px 18px -8px rgba(0,0,0,.45);
     }
     .jh-cc-plat__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -509,12 +509,12 @@
       display: inline-flex; align-items: center; gap: 5px;
       padding: 6px 12px; border-radius: 10px;
       font-size: 12.5px; font-weight: 700;
-      background: linear-gradient(135deg, #a78bfa, #ec4899);
+      background: linear-gradient(135deg, #a78bfa, #3b82f6);
       color: #fff; border: 0; cursor: pointer;
-      box-shadow: 0 6px 14px -6px rgba(236,72,153,.55);
+      box-shadow: 0 6px 14px -6px rgba(59, 130, 246,.55);
       transition: transform .15s, box-shadow .15s;
     }
-    .jh-cc-plat__add:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -8px rgba(236,72,153,.65); }
+    .jh-cc-plat__add:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -8px rgba(59, 130, 246,.65); }
     .jh-cc-plat__add .material-symbols-outlined { font-size: 14px; }
     .jh-cc-plat__mode-badge {
       display: inline-flex; align-items: center; gap: 4px;
@@ -681,8 +681,8 @@
         </span>
         {% with first_char=g.product.name|slice:":1"|upper %}
         <span class="jh-cc-plat__avatar"
-              style="--av-a:{% if first_char == 'A' %}#fb7185{% elif first_char == 'C' %}#f97316{% elif first_char == 'H' %}#8b5cf6{% elif first_char == 'N' %}#dc2626{% elif first_char == 'P' %}#0ea5e9{% elif first_char == 'D' %}#3b82f6{% else %}#a78bfa{% endif %};
-                     --av-b:{% if first_char == 'A' %}#ec4899{% elif first_char == 'C' %}#ea580c{% elif first_char == 'H' %}#6366f1{% elif first_char == 'N' %}#991b1b{% elif first_char == 'P' %}#0284c7{% elif first_char == 'D' %}#1d4ed8{% else %}#ec4899{% endif %};">
+              style="--av-a:{% if first_char == 'A' %}#fb7185{% elif first_char == 'C' %}#f97316{% elif first_char == 'H' %}#2563eb{% elif first_char == 'N' %}#dc2626{% elif first_char == 'P' %}#0ea5e9{% elif first_char == 'D' %}#3b82f6{% else %}#a78bfa{% endif %};
+                     --av-b:{% if first_char == 'A' %}#3b82f6{% elif first_char == 'C' %}#ea580c{% elif first_char == 'H' %}#6366f1{% elif first_char == 'N' %}#991b1b{% elif first_char == 'P' %}#0284c7{% elif first_char == 'D' %}#1d4ed8{% else %}#3b82f6{% endif %};">
           {{ first_char }}
         </span>
         {% endwith %}
@@ -1565,7 +1565,7 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
     const lines = this.value.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith('#'));
     const n = lines.length;
     counter.textContent = n + ' reemplazo' + (n === 1 ? '' : 's') + ' detectado' + (n === 1 ? '' : 's');
-    counter.className = n > 0 ? 'text-xs text-violet-300' : 'text-xs text-base-400';
+    counter.className = n > 0 ? 'text-xs text-blue-400' : 'text-xs text-base-400';
   });
 })();
 

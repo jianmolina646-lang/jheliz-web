@@ -177,8 +177,8 @@ LANGUAGES = [
 LOCALE_PATHS = [BASE_DIR / "locale"]
 
 # Currency (default cuando no se conoce el país del visitante).
-DEFAULT_CURRENCY = "PEN"
-DEFAULT_CURRENCY_SYMBOL = "S/"
+DEFAULT_CURRENCY = "USD"
+DEFAULT_CURRENCY_SYMBOL = "$"
 
 # Países soportados. Cada uno define su moneda, su flag emoji y su locale
 # preferido. El selector se renderiza en el footer; las páginas pueden
@@ -195,7 +195,7 @@ COUNTRIES = [
     {"code": "BR", "name": "Brasil", "flag": "🇧🇷", "currency": "BRL", "symbol": "R$", "locale": "pt", "phone_cc": "+55"},
     {"code": "US", "name": "USA", "flag": "🇺🇸", "currency": "USD", "symbol": "$", "locale": "en", "phone_cc": "+1"},
 ]
-DEFAULT_COUNTRY = "PE"
+DEFAULT_COUNTRY = "EC"
 
 # Static & media
 STATIC_URL = "/static/"
@@ -431,17 +431,17 @@ UNFOLD = {
     ],
     "COLORS": {
         "primary": {
-            "50": "253 244 255",
-            "100": "250 232 255",
-            "200": "245 208 254",
-            "300": "240 171 252",
-            "400": "232 121 249",
-            "500": "217 70 239",
-            "600": "192 38 211",
-            "700": "162 28 175",
-            "800": "134 25 143",
-            "900": "112 26 117",
-            "950": "74 4 78",
+            "50": "239 246 255",
+            "100": "219 234 254",
+            "200": "191 219 254",
+            "300": "147 197 253",
+            "400": "96 165 250",
+            "500": "59 130 246",
+            "600": "37 99 235",
+            "700": "29 78 216",
+            "800": "30 64 175",
+            "900": "30 58 138",
+            "950": "23 37 84",
         },
     },
     "DASHBOARD_CALLBACK": "config.admin_dashboard.dashboard_callback",

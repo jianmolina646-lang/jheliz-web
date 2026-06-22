@@ -8,8 +8,8 @@
 /* ---------- Avatar circular con iniciales ---------- */
 .jh-avatar {
     --s: 36px;
-    --g1: #f472b6;
-    --g2: #a855f7;
+    --g1: #60a5fa;
+    --g2: #2563eb;
     width: var(--s);
     height: var(--s);
     border-radius: 50%;
@@ -101,7 +101,7 @@
 }
 .jh-act .material-symbols-outlined { font-size: 18px; }
 .jh-act--wa:hover  { background: rgba(37,211,102,.18); color: #4ade80; }
-.jh-act--mail:hover{ background: rgba(244,114,182,.18); color: #f9a8d4; }
+.jh-act--mail:hover{ background: rgba(96,165,250,.18); color: #f9a8d4; }
 .jh-act--tg:hover  { background: rgba(56,189,248,.18); color: #38bdf8; }
 
 .jh-muted { color: rgb(148 163 184 / 0.7); font-size: 12px; }
@@ -119,15 +119,15 @@
     padding: 16px 18px;
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.06);
-    background-image: linear-gradient(160deg, rgba(168,85,247,.10), rgba(15,23,42,0));
+    background-image: linear-gradient(160deg, rgba(37,99,235,.10), rgba(15,23,42,0));
     background-color: rgb(15 23 42 / 0.55);
     transition: transform .25s ease, border-color .25s ease;
 }
-.jh-stat:hover { transform: translateY(-2px); border-color: rgba(244,114,182,.35); }
+.jh-stat:hover { transform: translateY(-2px); border-color: rgba(96,165,250,.35); }
 .jh-stat.from-emerald-500\/15 { background-image: linear-gradient(160deg, rgba(16,185,129,.16), rgba(15,23,42,0)); }
 .jh-stat.from-cyan-500\/15    { background-image: linear-gradient(160deg, rgba(6,182,212,.16),  rgba(15,23,42,0)); }
 .jh-stat.from-violet-500\/15  { background-image: linear-gradient(160deg, rgba(139,92,246,.16), rgba(15,23,42,0)); }
-.jh-stat.from-pink-500\/15    { background-image: linear-gradient(160deg, rgba(236,72,153,.16), rgba(15,23,42,0)); }
+.jh-stat.from-pink-500\/15    { background-image: linear-gradient(160deg, rgba(59,130,246,.16), rgba(15,23,42,0)); }
 .jh-stat.from-amber-500\/15   { background-image: linear-gradient(160deg, rgba(245,158,11,.16), rgba(15,23,42,0)); }
 .jh-stat__head {
     display: flex;
@@ -189,8 +189,8 @@
     vertical-align: middle;
 }
 .jh-table tbody tr:first-child td { border-top: none; }
-.jh-table tbody tr:hover td { background: rgba(244, 114, 182, 0.045); }
-.jh-table a { color: #f472b6; text-decoration: none; font-weight: 600; }
+.jh-table tbody tr:hover td { background: rgba(96, 165, 250, 0.045); }
+.jh-table a { color: #60a5fa; text-decoration: none; font-weight: 600; }
 .jh-table a:hover { text-decoration: underline; }
 
 .jh-empty {
@@ -248,7 +248,7 @@ body.change-list #result_list .field-user_card {
 }
 .jh-cell__name a {
     color: inherit;
-    border-bottom: 1px dotted rgba(244, 114, 182, 0.6);
+    border-bottom: 1px dotted rgba(96, 165, 250, 0.6);
     text-decoration: none;
 }
 .jh-cell__name a:hover {
@@ -302,7 +302,7 @@ body.change-list #result_list .field-user_card {
 }
 .jh-btn--success { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; }
 .jh-btn--danger  { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; }
-.jh-btn--pink    { background: linear-gradient(135deg, #db2777, #f472b6); color: #fff; }
+.jh-btn--pink    { background: linear-gradient(135deg, #2563eb, #60a5fa); color: #fff; }
 .jh-btn--info    { background: linear-gradient(135deg, #0284c7, #0ea5e9); color: #fff; }
 .jh-btn--violet  { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: #fff; }
 
@@ -330,7 +330,7 @@ body.change-list #result_list .field-user_card {
     align-items: center;
     justify-content: center;
     border-radius: 8px;
-    background: linear-gradient(135deg, rgba(168, 85, 247, .12), rgba(244, 114, 182, .10));
+    background: linear-gradient(135deg, rgba(37, 99, 235, .12), rgba(96, 165, 250, .10));
     border: 1px solid rgba(255, 255, 255, 0.05);
     flex-shrink: 0;
     line-height: 1;
@@ -388,7 +388,7 @@ body.change-list #result_list .field-user_card {
     width: 18px;
     height: 18px;
     border-radius: 5px;
-    background: var(--c, #ec4899);
+    background: var(--c, #3b82f6);
     border: 1px solid rgba(255, 255, 255, 0.12);
     vertical-align: middle;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);

@@ -458,8 +458,8 @@ class CheapestVisiblePlanTests(TestCase):
         resp = self.client.get(reverse("catalog:products"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Prime Video Demo")
-        self.assertContains(resp, "S/ 8,00")
-        self.assertNotContains(resp, "S/ 0,00")
+        self.assertContains(resp, "$ 8,00")
+        self.assertNotContains(resp, "$ 0,00")
 
 
 class DistributorPanelTests(TestCase):
@@ -1795,7 +1795,7 @@ class PlanAdminChangelistDesignTests(TestCase):
         # Duración chip
         self.assertContains(resp, "1 mes")
         # Precio chip cliente
-        self.assertContains(resp, "S/ 35.00")
+        self.assertContains(resp, "$ 35.00")
         # Estado activo
         self.assertContains(resp, "Activo")
         # Chip class debe aparecer
@@ -1808,7 +1808,7 @@ class PlanAdminChangelistDesignTests(TestCase):
         # Solo se ve el plan distri (Perpetua)
         self.assertContains(resp, "Perpetua")
         # Precio chip distri
-        self.assertContains(resp, "S/ 55.00")
+        self.assertContains(resp, "$ 55.00")
         # Inactivo
         self.assertContains(resp, "Inactivo")
 
@@ -1821,8 +1821,8 @@ class PlanAdminChangelistDesignTests(TestCase):
         self.assertContains(resp, "1 mes")
         self.assertContains(resp, "Perpetua")
         # Chips de precios ambos
-        self.assertContains(resp, "S/ 35.00")
-        self.assertContains(resp, "S/ 55.00")
+        self.assertContains(resp, "$ 35.00")
+        self.assertContains(resp, "$ 55.00")
 
 
 class CachePerLanguageTests(TestCase):

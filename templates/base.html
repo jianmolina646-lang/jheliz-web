@@ -12,15 +12,15 @@
   {% endcomment %}
   <meta name="google" content="notranslate">
   <meta http-equiv="Content-Language" content="{{ LANG }}">
-  <title>{% block title %}{% blocktrans with site=SITE_NAME %}Netflix, Disney+ y Office en Perú ✦ desde S/ 7 — {{ site }}{% endblocktrans %}{% endblock %}</title>
-  <meta name="description" content="{% block meta_description %}{% trans "🎬 Cuentas premium con entrega en 2 min, pago con Yape o Binance Pay, garantía 30 días. +5 000 entregas. Desde S/ 7." %}{% endblock %}" />
+  <title>{% block title %}{% blocktrans with site=SITE_NAME %}Netflix, Disney+ y Office ✦ entrega en 2 min — {{ site }}{% endblocktrans %}{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}{% trans "🎬 Cuentas premium con entrega en 2 min, pago con Binance Pay, garantía 30 días. +5 000 entregas." %}{% endblock %}" />
   <link rel="canonical" href="{% block canonical_url %}{{ CANONICAL_URL }}{% endblock %}">
 
   <!-- Open Graph (compartido en redes / WhatsApp) -->
   <meta property="og:type" content="{% block og_type %}website{% endblock %}">
   <meta property="og:site_name" content="{{ SITE_NAME }}">
-  <meta property="og:title" content="{% block og_title %}{% blocktrans with site=SITE_NAME %}Netflix, Disney+ y Office en Perú ✦ desde S/ 7 — {{ site }}{% endblocktrans %}{% endblock %}">
-  <meta property="og:description" content="{% block og_description %}{% trans "🎬 Cuentas premium con entrega en 2 min, pago con Yape o Binance Pay, garantía 30 días. +5 000 entregas. Desde S/ 7." %}{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}{% blocktrans with site=SITE_NAME %}Netflix, Disney+ y Office ✦ entrega en 2 min — {{ site }}{% endblocktrans %}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}{% trans "🎬 Cuentas premium con entrega en 2 min, pago con Binance Pay, garantía 30 días. +5 000 entregas." %}{% endblock %}">
   <meta property="og:url" content="{{ CANONICAL_URL }}">
   <meta property="og:image" content="{% block og_image %}{{ SITE_URL_BASE }}{% static 'img/og-image.jpg' %}{% endblock %}">
   <meta property="og:locale" content="{% if LANG == 'en' %}en_US{% elif LANG == 'pt' %}pt_BR{% else %}es_PE{% endif %}">
@@ -319,7 +319,7 @@
             {% trans "¿Listo para tu próximo plan?" %}
           </h2>
           <p class="text-zinc-400 mt-2 max-w-lg">
-            {% trans "Mirá el catálogo, armá tu combo y pagá con Yape o Binance Pay. Entrega en minutos, garantía 30 días." %}
+            {% trans "Mirá el catálogo, armá tu combo y pagá con Binance Pay. Entrega en minutos, garantía 30 días." %}
           </p>
         </div>
         <div class="site-footer__hero-cta">
@@ -470,7 +470,7 @@
         <span class="inline-flex flex-wrap items-center gap-1.5">
           <span>{% trans "Hecho en Perú" %} 🇵🇪</span>
           <span class="text-zinc-700">·</span>
-          <span>{% trans "Pagos con" %} Yape &amp; Binance Pay</span>
+          <span>{% trans "Pagos con" %} Binance Pay</span>
         </span>
       </div>
     </div>
