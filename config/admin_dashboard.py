@@ -10,6 +10,7 @@ import json
 from datetime import timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Count, Max, Min, Sum
 from django.urls import reverse
@@ -63,6 +64,7 @@ def dashboard_callback(request, context):
     from accounts.models import User
     from catalog.models import Plan, Product, ProductReview, StockItem
 
+    cur = settings.DEFAULT_CURRENCY_SYMBOL
     now = timezone.localtime()
     today = now.date()
     yesterday = today - timedelta(days=1)
@@ -500,8 +502,8 @@ def dashboard_callback(request, context):
             "kpi": [
                 {
                     "title": "Ventas hoy",
-                    "metric": f"S/ {sales_today:,.2f}",
-                    "footer": f"{arrow} {abs(delta_pct):.0f}% vs ayer (S/ {sales_yesterday:,.2f})",
+                    "metric": f"{cur} {sales_today:,.2f}",
+                    "footer": f"{arrow} {abs(delta_pct):.0f}% vs ayer ({cur} {sales_yesterday:,.2f})",
                     "icon": "trending_up",
                     "tone": "emerald",
                     "delta_pct": float(delta_pct),
@@ -522,7 +524,7 @@ def dashboard_callback(request, context):
                 },
                 {
                     "title": "Ventas del mes",
-                    "metric": f"S/ {sales_month:,.2f}",
+                    "metric": f"{cur} {sales_month:,.2f}",
                     "footer": f"Desde {first_of_month.strftime('%d %b')}",
                     "icon": "payments",
                     "tone": "violet",
@@ -533,7 +535,7 @@ def dashboard_callback(request, context):
                 },
                 {
                     "title": "Ticket promedio",
-                    "metric": f"S/ {avg_ticket:,.2f}",
+                    "metric": f"{cur} {avg_ticket:,.2f}",
                     "footer": f"{paid_month_count} pedidos pagados",
                     "icon": "receipt_long",
                     "tone": "blue",

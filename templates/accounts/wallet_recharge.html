@@ -80,7 +80,7 @@
         {% endfor %}
       </div>
       <label class="block">
-        <span class="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Monto exacto (S/)</span>
+        <span class="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Monto exacto ({{ CURRENCY_SYMBOL|default:"$" }})</span>
         {{ form.amount }}
         {% if form.amount.errors %}<div class="text-xs text-red-300 mt-1">{{ form.amount.errors|join:", " }}</div>{% endif %}
       </label>

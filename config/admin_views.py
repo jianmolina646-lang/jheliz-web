@@ -592,10 +592,10 @@ def _humanize_delta(delta: timedelta) -> str:
 
 
 def _format_money(amount: Decimal | None, currency: str | None = None) -> str:
-    """Formatea un Decimal como 'S/49.90' (o el símbolo configurado)."""
+    """Formatea un Decimal como '$49.90' (o el símbolo configurado)."""
     if amount is None:
         return ""
-    symbol = (currency or settings.DEFAULT_CURRENCY_SYMBOL or "S/").strip()
+    symbol = (currency or settings.DEFAULT_CURRENCY_SYMBOL or "$").strip()
     try:
         return f"{symbol}{Decimal(amount).quantize(Decimal('0.01'))}"
     except Exception:
@@ -4159,7 +4159,7 @@ def quick_order_create(request):
             label = "creado" if not delivered else "creado + entregado"
             order_telegram.notify_admin(
                 f"📝 Pedido manual {label}: #{order.display_number} · "
-                f"{plan.product.name} {plan.name} · S/ {order.total} · {email}"
+                f"{plan.product.name} {plan.name} · {settings.DEFAULT_CURRENCY_SYMBOL} {order.total} · {email}"
                 + (" (cliente nuevo)" if created_user else "")
             )
         except Exception:

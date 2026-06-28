@@ -41,7 +41,7 @@
                     Hoy llevas
                     <strong class="text-white">{{ dashboard_orders_today }} pedido{{ dashboard_orders_today|pluralize }}</strong>
                     y
-                    <strong class="text-emerald-300">S/ {{ dashboard_sales_today|floatformat:2 }}</strong>
+                    <strong class="text-emerald-300">{{ CURRENCY_SYMBOL|default:"$" }} {{ dashboard_sales_today|floatformat:2 }}</strong>
                     en ventas{% if dashboard_pending_orders_count %} ·
                     <a href="{% url 'admin:orders_order_changelist' %}?status__exact=verifying" class="text-amber-300 underline-offset-2 hover:underline">
                         {{ dashboard_pending_orders_count }} pendiente{{ dashboard_pending_orders_count|pluralize }} de revisar
@@ -390,7 +390,7 @@
         <div class="border border-base-200 dark:border-base-800 rounded-lg bg-white dark:bg-base-900 p-5">
             <div class="flex items-center justify-between mb-3">
                 <h2 class="font-semibold text-base-900 dark:text-white">Ventas por día (últimos 14)</h2>
-                <span class="text-xs text-base-500">S/</span>
+                <span class="text-xs text-base-500">{{ CURRENCY_SYMBOL|default:"$" }}</span>
             </div>
             <canvas id="salesChart" height="90"></canvas>
         </div>
@@ -536,7 +536,7 @@
             data: {
                 labels: sales.labels,
                 datasets: [{
-                    label: "Ventas (S/)",
+                    label: "Ventas ({{ CURRENCY_SYMBOL|default:'$' }})",
                     data: sales.data,
                     borderColor: pink,
                     backgroundColor: "rgba(244,114,182,0.15)",

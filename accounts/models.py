@@ -24,7 +24,7 @@ class User(AbstractUser):
         help_text="Opcional, con o sin @",
     )
     wallet_balance = models.DecimalField(
-        "Saldo (S/)", max_digits=10, decimal_places=2, default=Decimal("0.00")
+        "Saldo", max_digits=10, decimal_places=2, default=Decimal("0.00")
     )
     distributor_approved = models.BooleanField(
         "Distribuidor aprobado", default=False,
