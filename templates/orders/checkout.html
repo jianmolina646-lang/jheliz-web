@@ -54,7 +54,7 @@
                     <span class="text-xs text-zinc-500">{% trans "Escanea QR y sube comprobante" %}</span>
                   {% elif choice.data.value == 'wallet' %}
                     <span class="font-display font-semibold block" style="color:#dbeafe">{% trans "Saldo wallet" %}</span>
-                    <span class="text-xs text-blue-200/70">S/ {{ wallet_balance|floatformat:2 }} {% trans "disponible" %} {% if not wallet_enough %}· {% trans "insuficiente" %}{% endif %}</span>
+                    <span class="text-xs text-blue-200/70">{{ CURRENCY_SYMBOL }} {{ wallet_balance|floatformat:2 }} {% trans "disponible" %} {% if not wallet_enough %}· {% trans "insuficiente" %}{% endif %}</span>
                   {% elif choice.data.value == 'binance' %}
                     <span class="font-display font-semibold block" style="color:#fde68a">Binance Pay</span>
                     <span class="text-xs text-amber-200/70">{% trans "Paga con USDT, BNB o crypto · QR" %}</span>

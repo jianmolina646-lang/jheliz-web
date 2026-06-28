@@ -833,7 +833,7 @@ class OrdersKanbanTests(TestCase):
 
 
 class GlobalSearchTests(TestCase):
-    """Endpoint /panel-jheliz-2026/search/ con y sin ?full=1."""
+    """Endpoint /panel-virtualidadsp/search/ con y sin ?full=1."""
 
     def setUp(self):
         User = get_user_model()
@@ -3327,7 +3327,7 @@ class BackfillGuestUsersCommandTests(TestCase):
 
 
 class OrderItemAdminChangelistDesignTests(TestCase):
-    """Verifica el rediseño con chips de /panel-jheliz-2026/orders/orderitem/."""
+    """Verifica el rediseño con chips de /panel-virtualidadsp/orders/orderitem/."""
 
     def setUp(self):
         User = get_user_model()
@@ -3369,7 +3369,7 @@ class OrderItemAdminChangelistDesignTests(TestCase):
 
     def test_changelist_renders_chips(self):
         self.client.force_login(self.staff)
-        resp = self.client.get("/panel-jheliz-2026/orders/orderitem/")
+        resp = self.client.get("/panel-virtualidadsp/orders/orderitem/")
         self.assertEqual(resp.status_code, 200)
         # Producto + categoría
         self.assertContains(resp, "Netflix OI")

@@ -47,7 +47,7 @@
           {% else %}
             <div class="tx-amount-pos">{{ CURRENCY_SYMBOL }} {{ t.amount|floatformat:2|intcomma }}</div>
           {% endif %}
-          <div class="text-[10.5px] text-zinc-500 mt-0.5">Saldo: S/ {{ t.balance_after|floatformat:2|intcomma }}</div>
+          <div class="text-[10.5px] text-zinc-500 mt-0.5">Saldo: {{ CURRENCY_SYMBOL }} {{ t.balance_after|floatformat:2|intcomma }}</div>
         </div>
       </div>
     {% empty %}

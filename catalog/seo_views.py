@@ -13,7 +13,7 @@ def robots_txt(request):
     sitemap_url = request.build_absolute_uri(reverse("django.contrib.sitemaps.views.sitemap"))
     body = "\n".join([
         "User-agent: *",
-        "Disallow: /panel-jheliz-2026/",
+        "Disallow: /panel-virtualidadsp/",
         "Disallow: /cuenta/",
         "Disallow: /pedidos/",
         "Disallow: /soporte/",
@@ -130,7 +130,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   // Don't cache admin, auth, checkout or anything POST-sensitive.
-  if (url.pathname.startsWith('/panel-jheliz-2026') ||
+  if (url.pathname.startsWith('/panel-virtualidadsp') ||
       url.pathname.startsWith('/cuenta') ||
       url.pathname.startsWith('/pedidos') ||
       url.pathname.startsWith('/soporte') ||
@@ -214,15 +214,15 @@ def service_worker(request):
 # ---------------------------------------------------------------------------
 # Admin PWA
 #
-# El panel admin (/panel-jheliz-2026/) tiene su propio manifest y service worker
+# El panel admin (/panel-virtualidadsp/) tiene su propio manifest y service worker
 # para que el operador pueda instalarlo como app independiente en celular /
 # escritorio. Scope dedicado para que no se mezcle con el SW del sitio público.
 # ---------------------------------------------------------------------------
 
 _ADMIN_SERVICE_WORKER_JS = """// VirtualidadSP Admin PWA service worker
-// Scope: /panel-jheliz-2026/. Network-only para todas las requests dentro
+// Scope: /panel-virtualidadsp/. Network-only para todas las requests dentro
 // del admin (queremos siempre datos frescos: pedidos, tickets, stock).
-const VERSION = 'jheliz-admin-v1';
+const VERSION = 'virtualidadsp-admin-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -250,8 +250,8 @@ self.addEventListener('push', (event) => {
     body: payload.body || '',
     icon: payload.icon || '/static/img/icon-192.png',
     badge: '/static/img/icon-192.png',
-    data: { url: payload.url || '/panel-jheliz-2026/' },
-    tag: payload.tag || 'jheliz-admin',
+    data: { url: payload.url || '/panel-virtualidadsp/' },
+    tag: payload.tag || 'virtualidadsp-admin',
     renotify: true,
   };
   event.waitUntil(self.registration.showNotification(title, options));
@@ -259,7 +259,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/panel-jheliz-2026/';
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/panel-virtualidadsp/';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
       for (const w of wins) {
@@ -277,7 +277,7 @@ def manifest_admin_json(request):
     """PWA manifest del panel admin — instalable como app independiente."""
     icon192 = request.build_absolute_uri("/static/img/icon-192.png")
     icon512 = request.build_absolute_uri("/static/img/icon-512.png")
-    admin_root = "/panel-jheliz-2026/"
+    admin_root = "/panel-virtualidadsp/"
     return JsonResponse({
         "id": admin_root + "?source=pwa",
         "name": "VirtualidadSP Admin",
@@ -315,9 +315,9 @@ def manifest_admin_json(request):
 
 @cache_control(public=True, max_age=3600)
 def service_worker_admin(request):
-    """Service worker dedicado al admin (scope /panel-jheliz-2026/)."""
+    """Service worker dedicado al admin (scope /panel-virtualidadsp/)."""
     response = HttpResponse(_ADMIN_SERVICE_WORKER_JS, content_type="application/javascript")
-    response["Service-Worker-Allowed"] = "/panel-jheliz-2026/"
+    response["Service-Worker-Allowed"] = "/panel-virtualidadsp/"
     return response
 
 

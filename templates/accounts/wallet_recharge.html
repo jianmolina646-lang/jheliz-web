@@ -76,7 +76,7 @@
       </div>
       <div class="flex flex-wrap gap-2 mb-3">
         {% for p in presets %}
-          <button type="button" class="preset-pill" data-amount="{{ p }}">S/ {{ p }}</button>
+          <button type="button" class="preset-pill" data-amount="{{ p }}">{{ CURRENCY_SYMBOL }} {{ p }}</button>
         {% endfor %}
       </div>
       <label class="block">

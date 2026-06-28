@@ -40,7 +40,7 @@ def _headers() -> dict[str, str]:
     return {
         "Authorization": f"Bot {_token()}",
         "Content-Type": "application/json",
-        "User-Agent": "JhelizWeb (https://ecormecejhelizstore.com, 1.0)",
+        "User-Agent": "VirtualidadSP (https://virtualidadsp.com, 1.0)",
     }
 
 

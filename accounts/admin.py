@@ -173,7 +173,7 @@ class UserAdmin(BaseUserAdmin, ModelAdmin):
                         message=(
                             f"Hola {user.get_full_name() or user.username},\n\n"
                             "Tu solicitud de distribuidor fue aprobada. Ya puedes ver los precios mayoristas "
-                            "entrando a https://ecormecejhelizstore.com/distribuidor/panel/"
+                            "entrando a https://virtualidadsp.com/distribuidor/panel/"
                         ),
                         from_email=None,
                         recipient_list=[user.email],
@@ -627,7 +627,7 @@ class DistributorAdmin(ModelAdmin):
                         message=(
                             f"Hola {user.get_full_name() or user.username},\n\n"
                             "Tu solicitud de distribuidor fue aprobada. Ya puedes ver los precios mayoristas "
-                            "entrando a https://ecormecejhelizstore.com/distribuidor/panel/"
+                            "entrando a https://virtualidadsp.com/distribuidor/panel/"
                         ),
                         from_email=None,
                         recipient_list=[user.email],

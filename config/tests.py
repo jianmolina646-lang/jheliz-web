@@ -48,7 +48,7 @@ class SecurityHeadersTests(TestCase):
         # Aunque el admin redirige a login (no autenticado), el middleware
         # ya añadió la cabecera. Eso es defense-in-depth: incluso un 302
         # accidentalmente filtrado en logs no se indexa.
-        resp = self.client.get("/panel-jheliz-2026/")
+        resp = self.client.get("/panel-virtualidadsp/")
         self.assertEqual(
             resp.headers.get("X-Robots-Tag"), "noindex, nofollow, noarchive"
         )
@@ -209,7 +209,7 @@ class NotificationsBellEndpointTests(TestCase):
 
 
 class AuditLogViewerTests(TestCase):
-    """Tests del visor de auditoría (`/panel-jheliz-2026/auditoria/`)."""
+    """Tests del visor de auditoría (`/panel-virtualidadsp/auditoria/`)."""
 
     def setUp(self):
         User = get_user_model()
@@ -467,10 +467,10 @@ class AdminDesignSystem2026Tests(TestCase):
         self.client.force_login(self.staff)
 
     def test_admin_loads_jheliz_2026_css(self):
-        # Usamos /panel-jheliz-2026/ (la home del admin) para verificar que
+        # Usamos /panel-virtualidadsp/ (la home del admin) para verificar que
         # Unfold inyecta nuestra capa CSS 2026. Manifest static storage le
         # añade un hash al filename, por eso buscamos el prefijo.
-        resp = self.client.get("/panel-jheliz-2026/")
+        resp = self.client.get("/panel-virtualidadsp/")
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "jheliz_2026")
 
@@ -520,7 +520,7 @@ class AdminDesignSystem2026Tests(TestCase):
 
 
 class ReportsViewDesignTests(TestCase):
-    """Verifica que la vista /panel-jheliz-2026/reports/ renderiza el nuevo
+    """Verifica que la vista /panel-virtualidadsp/reports/ renderiza el nuevo
     diseño basado en chips, KPIs con delta y sparkline.
     """
 
@@ -600,7 +600,7 @@ class ReportsViewDesignTests(TestCase):
 
 
 class RenewalsViewDesignTests(TestCase):
-    """Verifica que `/panel-jheliz-2026/renewals/` renderiza con chips,
+    """Verifica que `/panel-virtualidadsp/renewals/` renderiza con chips,
     conteo por ventana y empty state cuando no hay items."""
 
     def setUp(self) -> None:

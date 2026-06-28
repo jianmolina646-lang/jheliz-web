@@ -130,7 +130,7 @@
 
 {% else %}
 {% if q or status != 'all' or product_filter %}
-  {% include "admin/components/_empty.html" with icon="search_off" title="Sin coincidencias" desc="No hay cuentas que coincidan con los filtros aplicados." cta_label="Limpiar filtros" cta_href="/panel-jheliz-2026/stock/list/" %}
+  {% include "admin/components/_empty.html" with icon="search_off" title="Sin coincidencias" desc="No hay cuentas que coincidan con los filtros aplicados." cta_label="Limpiar filtros" cta_href="/panel-virtualidadsp/stock/list/" %}
 {% else %}
   {% include "admin/components/_empty.html" with icon="inbox" title="Sin cuentas" desc="Aún no agregaste cuentas. Usá la pestaña Importar o el botón de cada producto en Resumen." %}
 {% endif %}

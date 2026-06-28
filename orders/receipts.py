@@ -413,7 +413,7 @@ def generate_receipt_pdf(order: "Order") -> bytes:
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]))
 
-    site_url = getattr(settings, "SITE_URL", "https://ecormecejhelizstore.com") or "https://ecormecejhelizstore.com"
+    site_url = getattr(settings, "SITE_URL", "https://virtualidadsp.com") or "https://virtualidadsp.com"
     qr_link = f"{site_url.rstrip('/')}/pedidos/{order.uuid}/"
     qr_img = _qr_image(qr_link, size_mm=22)
     qr_cell = qr_img if qr_img else Paragraph(qr_link, styles["small"])

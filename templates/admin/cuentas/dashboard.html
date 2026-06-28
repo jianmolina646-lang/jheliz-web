@@ -1598,7 +1598,7 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
   function openModal(btn) {
     const itemId = btn.dataset.itemId;
     if (!itemId) return;
-    form.action = '/panel-jheliz-2026/control-cuentas/' + itemId + '/edit-buyer/';
+    form.action = '/panel-virtualidadsp/control-cuentas/' + itemId + '/edit-buyer/';
     labelEl.textContent = btn.dataset.accountLabel || ('Cuenta #' + itemId);
     nameInput.value = btn.dataset.customerName || '';
     waInput.value = btn.dataset.customerWhatsapp || '';

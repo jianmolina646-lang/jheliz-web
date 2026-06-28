@@ -904,7 +904,7 @@ body > a.jh-fab {
 }
 
 /* ---------- Logo / brand en header con gradient ----------------- */
-header a[href="/jheliz-admin/"],
+header a[href="/panel-virtualidadsp/"],
 header .font-semibold,
 aside [class*="site-header"] a {
     font-weight: 800;
@@ -1274,7 +1274,7 @@ div.breadcrumbs a {
 header .font-semibold,
 header #site-name,
 header h1,
-header a[href="/jheliz-admin/"] {
+header a[href="/panel-virtualidadsp/"] {
     font-weight: 800 !important;
     letter-spacing: -0.02em;
 }

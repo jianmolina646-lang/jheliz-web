@@ -147,7 +147,7 @@ class NotifyNewCodeRequestTests(TestCase):
     DISCORD_CHANNEL_YAPE="1002",
     DISCORD_CHANNEL_ALERTAS="1003",
     SITE_URL="https://test.local",
-    ADMIN_URL_PATH="panel-jheliz-2026",
+    ADMIN_URL_PATH="panel-virtualidadsp",
 )
 class NotifyOrderTests(TestCase):
 

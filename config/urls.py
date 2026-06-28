@@ -27,251 +27,251 @@ SITEMAPS_ALL = {**SITEMAPS, "blog": BlogPostSitemap}
 urlpatterns = [
     # Vistas extra del admin (deben ir antes de admin.site.urls).
     path(
-        "panel-jheliz-2026/inbox/",
+        "panel-virtualidadsp/inbox/",
         admin_views.inbox_view,
         name="admin_inbox",
     ),
     path(
-        "panel-jheliz-2026/reports/charts/",
+        "panel-virtualidadsp/reports/charts/",
         admin_views.reports_charts_view,
         name="admin_reports_charts",
     ),
     path(
-        "panel-jheliz-2026/push/broadcast/",
+        "panel-virtualidadsp/push/broadcast/",
         admin_views.push_broadcast_view,
         name="admin_push_broadcast",
     ),
     path(
-        "panel-jheliz-2026/dashboard/avanzado/",
+        "panel-virtualidadsp/dashboard/avanzado/",
         admin_views.advanced_dashboard_view,
         name="admin_advanced_dashboard",
     ),
     path(
-        "panel-jheliz-2026/security/2fa/",
+        "panel-virtualidadsp/security/2fa/",
         admin_views.admin_2fa_setup,
         name="admin_2fa_setup",
     ),
     path(
-        "panel-jheliz-2026/auditoria/",
+        "panel-virtualidadsp/auditoria/",
         admin_views.auditlog_view,
         name="admin_auditlog",
     ),
     path(
-        "panel-jheliz-2026/auditoria/<int:pk>/",
+        "panel-virtualidadsp/auditoria/<int:pk>/",
         admin_views.auditlog_detail,
         name="admin_auditlog_detail",
     ),
-    path("panel-jheliz-2026/reports/", admin_views.reports_view, name="admin_reports"),
+    path("panel-virtualidadsp/reports/", admin_views.reports_view, name="admin_reports"),
     path(
-        "panel-jheliz-2026/reports/export.csv",
+        "panel-virtualidadsp/reports/export.csv",
         admin_views.reports_export_csv,
         name="admin_reports_export_csv",
     ),
     path(
-        "panel-jheliz-2026/top-customers/",
+        "panel-virtualidadsp/top-customers/",
         admin_views.top_customers_view,
         name="admin_top_customers",
     ),
     path(
-        "panel-jheliz-2026/health/",
+        "panel-virtualidadsp/health/",
         admin_views.health_check_view,
         name="admin_health_check",
     ),
     path(
-        "panel-jheliz-2026/locked-logins/",
+        "panel-virtualidadsp/locked-logins/",
         admin_views.locked_logins_view,
         name="admin_locked_logins",
     ),
     path(
-        "panel-jheliz-2026/mp-diagnose/",
+        "panel-virtualidadsp/mp-diagnose/",
         admin_views.mp_diagnose_view,
         name="admin_mp_diagnose",
     ),
     path(
-        "panel-jheliz-2026/locked-logins/<int:pk>/unlock/",
+        "panel-virtualidadsp/locked-logins/<int:pk>/unlock/",
         admin_views.unlock_login,
         name="admin_unlock_login",
     ),
     path(
-        "panel-jheliz-2026/locked-logins/unlock-all/",
+        "panel-virtualidadsp/locked-logins/unlock-all/",
         admin_views.unlock_all_logins,
         name="admin_unlock_all_logins",
     ),
     path(
-        "panel-jheliz-2026/notifications/count.json",
+        "panel-virtualidadsp/notifications/count.json",
         admin_views.notifications_count,
         name="admin_notifications_count",
     ),
     path(
-        "panel-jheliz-2026/search/",
+        "panel-virtualidadsp/search/",
         admin_views.global_search,
         name="admin_global_search",
     ),
     path(
-        "panel-jheliz-2026/reply-templates.json",
+        "panel-virtualidadsp/reply-templates.json",
         admin_views.reply_templates_json,
         name="admin_reply_templates_json",
     ),
     path(
-        "panel-jheliz-2026/replace-blocked-account/",
+        "panel-virtualidadsp/replace-blocked-account/",
         admin_views.replace_blocked_account_view,
         name="admin_replace_blocked_account",
     ),
     path(
-        "panel-jheliz-2026/renewals/",
+        "panel-virtualidadsp/renewals/",
         admin_views.renewals_view,
         name="admin_renewals",
     ),
     path(
-        "panel-jheliz-2026/pedidos/rapido/",
+        "panel-virtualidadsp/pedidos/rapido/",
         admin_views.quick_order_create,
         name="admin_quick_order_create",
     ),
     path(
-        "panel-jheliz-2026/bulk-delivery/",
+        "panel-virtualidadsp/bulk-delivery/",
         admin_views.bulk_delivery_view,
         name="admin_bulk_delivery",
     ),
     path(
-        "panel-jheliz-2026/bulk-delivery/deliver/<int:order_id>/",
+        "panel-virtualidadsp/bulk-delivery/deliver/<int:order_id>/",
         admin_views.bulk_deliver_one,
         name="admin_bulk_deliver_one",
     ),
     path(
-        "panel-jheliz-2026/bulk-delivery/deliver-all/",
+        "panel-virtualidadsp/bulk-delivery/deliver-all/",
         admin_views.bulk_deliver_all,
         name="admin_bulk_deliver_all",
     ),
     path(
-        "panel-jheliz-2026/renewals/<int:item_id>/renew/",
+        "panel-virtualidadsp/renewals/<int:item_id>/renew/",
         admin_views.renew_item,
         name="admin_renew_item",
     ),
     path(
-        "panel-jheliz-2026/stock/",
+        "panel-virtualidadsp/stock/",
         admin_views.stock_overview,
         name="admin_stock_overview",
     ),
     path(
-        "panel-jheliz-2026/stock/cuentas/",
+        "panel-virtualidadsp/stock/cuentas/",
         admin_views.stock_list,
         name="admin_stock_list",
     ),
     path(
-        "panel-jheliz-2026/stock/quick-add/",
+        "panel-virtualidadsp/stock/quick-add/",
         admin_views.stock_quick_add,
         name="admin_stock_quick_add",
     ),
     path(
-        "panel-jheliz-2026/stock/<int:item_id>/action/",
+        "panel-virtualidadsp/stock/<int:item_id>/action/",
         admin_views.stock_quick_action,
         name="admin_stock_quick_action",
     ),
     path(
-        "panel-jheliz-2026/control-cuentas/",
+        "panel-virtualidadsp/control-cuentas/",
         admin_views.cuentas_dashboard,
         name="admin_cuentas_dashboard",
     ),
     path(
-        "panel-jheliz-2026/control-cuentas/bulk-replace/",
+        "panel-virtualidadsp/control-cuentas/bulk-replace/",
         admin_views.stock_bulk_replace_credentials,
         name="admin_stock_bulk_replace_credentials",
     ),
     path(
-        "panel-jheliz-2026/control-cuentas/<int:item_id>/edit-buyer/",
+        "panel-virtualidadsp/control-cuentas/<int:item_id>/edit-buyer/",
         admin_views.cuentas_edit_buyer,
         name="admin_cuentas_edit_buyer",
     ),
     path(
-        "panel-jheliz-2026/customers/",
+        "panel-virtualidadsp/customers/",
         admin_views.customer_index,
         name="admin_customer_index",
     ),
     path(
-        "panel-jheliz-2026/customers/<path:email>/",
+        "panel-virtualidadsp/customers/<path:email>/",
         admin_views.customer_detail,
         name="admin_customer_detail",
     ),
     path(
-        "panel-jheliz-2026/support/ticket/<int:ticket_id>/chat/",
+        "panel-virtualidadsp/support/ticket/<int:ticket_id>/chat/",
         admin_views.support_chat_view,
         name="admin_support_chat",
     ),
     path(
-        "panel-jheliz-2026/support/ticket/<int:ticket_id>/chat/reply/",
+        "panel-virtualidadsp/support/ticket/<int:ticket_id>/chat/reply/",
         admin_views.support_chat_reply,
         name="admin_support_chat_reply",
     ),
     path(
-        "panel-jheliz-2026/support/ticket/<int:ticket_id>/chat/messages/",
+        "panel-virtualidadsp/support/ticket/<int:ticket_id>/chat/messages/",
         admin_views.support_chat_messages,
         name="admin_support_chat_messages",
     ),
     # ---- Live chat (cliente <-> admin) -----------------------------------
     path(
-        "panel-jheliz-2026/livechat/",
+        "panel-virtualidadsp/livechat/",
         livechat_admin_views.chat_index,
         name="admin_livechat_index",
     ),
     path(
-        "panel-jheliz-2026/livechat/unread-count.json",
+        "panel-virtualidadsp/livechat/unread-count.json",
         livechat_admin_views.chat_unread_count,
         name="admin_livechat_unread_count",
     ),
     path(
-        "panel-jheliz-2026/livechat/<int:room_id>/",
+        "panel-virtualidadsp/livechat/<int:room_id>/",
         livechat_admin_views.chat_detail,
         name="admin_livechat_detail",
     ),
     path(
-        "panel-jheliz-2026/livechat/<int:room_id>/pane/",
+        "panel-virtualidadsp/livechat/<int:room_id>/pane/",
         livechat_admin_views.chat_room_partial,
         name="admin_livechat_room_pane",
     ),
     path(
-        "panel-jheliz-2026/livechat/<int:room_id>/reply/",
+        "panel-virtualidadsp/livechat/<int:room_id>/reply/",
         livechat_admin_views.chat_reply,
         name="admin_livechat_reply",
     ),
     path(
-        "panel-jheliz-2026/livechat/<int:room_id>/messages/",
+        "panel-virtualidadsp/livechat/<int:room_id>/messages/",
         livechat_admin_views.chat_messages_partial,
         name="admin_livechat_messages",
     ),
     path(
-        "panel-jheliz-2026/livechat/<int:room_id>/close/",
+        "panel-virtualidadsp/livechat/<int:room_id>/close/",
         livechat_admin_views.chat_close,
         name="admin_livechat_close",
     ),
     path(
-        "panel-jheliz-2026/livechat/<int:room_id>/reopen/",
+        "panel-virtualidadsp/livechat/<int:room_id>/reopen/",
         livechat_admin_views.chat_reopen,
         name="admin_livechat_reopen",
     ),
     # PWA del admin: deben ir ANTES de admin.site.urls porque django.contrib.admin
-    # captura cualquier path debajo de /panel-jheliz-2026/.
+    # captura cualquier path debajo de /panel-virtualidadsp/.
     #
     # Reset de contraseña del admin: alias al flujo público (misma view, mismo template).
     # El template templates/admin/login.html referencia el url-name `admin_password_reset`
     # para mostrar el link "¿Olvidaste tu contraseña?".
     path(
-        "panel-jheliz-2026/password_reset/",
+        "panel-virtualidadsp/password_reset/",
         accounts_views.JhelizPasswordResetView.as_view(),
         name="admin_password_reset",
     ),
     path(
-        "panel-jheliz-2026/manifest.webmanifest",
+        "panel-virtualidadsp/manifest.webmanifest",
         manifest_admin_json,
         name="pwa-admin-manifest",
     ),
     path(
-        "panel-jheliz-2026/sw.js",
+        "panel-virtualidadsp/sw.js",
         service_worker_admin,
         name="pwa-admin-service-worker",
     ),
     # VirtualidadSP Control (módulo nuevo de gestión). Debe ir ANTES de admin.site.urls.
-    path("panel-jheliz-2026/jheliz-control/", include("gestion.urls")),
-    path("panel-jheliz-2026/", admin.site.urls),
+    path("panel-virtualidadsp/jheliz-control/", include("gestion.urls")),
+    path("panel-virtualidadsp/", admin.site.urls),
     # SEO / PWA endpoints (root-level)
     path("robots.txt", robots_txt, name="robots_txt"),
     re_path(

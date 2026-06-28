@@ -20,7 +20,7 @@
     if (!head.querySelector('link[rel="manifest"]')) {
       var link = document.createElement("link");
       link.rel = "manifest";
-      link.href = "/panel-jheliz-2026/manifest.webmanifest";
+      link.href = "/panel-virtualidadsp/manifest.webmanifest";
       head.appendChild(link);
     }
 
@@ -61,7 +61,7 @@
     if (!("serviceWorker" in navigator)) return;
     // Cumple los requisitos de PWA "instalable" (Chrome necesita SW + manifest).
     navigator.serviceWorker
-      .register("/panel-jheliz-2026/sw.js", { scope: "/panel-jheliz-2026/" })
+      .register("/panel-virtualidadsp/sw.js", { scope: "/panel-virtualidadsp/" })
       .catch(function () {
         // Si falla, la web sigue andando. No mostramos error al usuario.
       });

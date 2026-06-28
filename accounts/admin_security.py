@@ -112,7 +112,7 @@ def _is_admin_request(request) -> bool:
     if request is None:
         return False
     path = request.path or ""
-    admin_prefix = f"/{getattr(settings, 'ADMIN_URL_PATH', 'panel-jheliz-2026')}/"
+    admin_prefix = f"/{getattr(settings, 'ADMIN_URL_PATH', 'panel-virtualidadsp')}/"
     return path.startswith(admin_prefix) or path.endswith("/login/")
 
 
@@ -152,7 +152,7 @@ def notify_admin_login(sender, request, user, **kwargs: Any) -> None:
         f"• IP: {ip}\n"
         f"• Dispositivo: {ua}\n\n"
         f"Si NO fuiste vos, cambiá tu contraseña inmediatamente y revisá los\n"
-        f"logs en /panel-jheliz-2026/auditoria/.\n"
+        f"logs en /panel-virtualidadsp/auditoria/.\n"
     )
 
     # Email.

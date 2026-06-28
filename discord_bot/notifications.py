@@ -54,7 +54,7 @@ def _admin_url(request, view_name: str, *args) -> str:
 
 
 def _site_url(path: str = "") -> str:
-    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://ecormecejhelizstore.com"
+    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://virtualidadsp.com"
     return f"{base}{path}"
 
 
@@ -312,9 +312,9 @@ def _order_admin_buttons(order) -> list[dict]:
         ``order:<accion>:<pk>``); el handler valida la identidad del
         clicker contra ``DISCORD_ADMIN_USER_IDS`` y muta el pedido.
     """
-    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://ecormecejhelizstore.com"
+    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://virtualidadsp.com"
     admin_path = "/" + str(
-        getattr(settings, "ADMIN_URL_PATH", "panel-jheliz-2026"),
+        getattr(settings, "ADMIN_URL_PATH", "panel-virtualidadsp"),
     ).strip("/")
     view_url = f"{base}{admin_path}/orders/order/{order.pk}/change/"
     deliver_url = f"{base}{admin_path}/orders/order/{order.pk}/deliver/"
@@ -439,9 +439,9 @@ def notify_yape_pending(order) -> dict | None:
             "inline": False,
         })
 
-    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://ecormecejhelizstore.com"
+    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://virtualidadsp.com"
     admin_path = "/" + str(
-        getattr(settings, "ADMIN_URL_PATH", "panel-jheliz-2026"),
+        getattr(settings, "ADMIN_URL_PATH", "panel-virtualidadsp"),
     ).strip("/")
     inbox_url = f"{base}{admin_path}/orders/order/?status__exact=verifying"
     order_url = f"{base}{admin_path}/orders/order/{order.pk}/change/"
