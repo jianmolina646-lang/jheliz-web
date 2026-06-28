@@ -18,18 +18,16 @@
 
     <style>
         :root {
-            --pink-300: #f9a8d4;
-            --pink-400: #f472b6;
-            --pink-500: #ec4899;
-            --pink-600: #db2777;
-            --violet-400: #c084fc;
-            --violet-500: #a855f7;
-            --violet-600: #9333ea;
+            --blue-300: #93c5fd;
+            --blue-400: #60a5fa;
+            --blue-500: #3b82f6;
+            --blue-600: #2563eb;
+            --violet-600: #1d4ed8;
             --indigo-700: #4338ca;
-            --bg-1: #0a0612;
-            --bg-2: #150a26;
-            --text: #f5f3ff;
-            --text-muted: rgba(245, 243, 255, 0.65);
+            --bg-1: #020617;
+            --bg-2: #0f172a;
+            --text: #f1f5f9;
+            --text-muted: rgba(241, 245, 249, 0.65);
             --border: rgba(255, 255, 255, 0.10);
             --error: #fda4af;
             --error-bg: rgba(244, 63, 94, 0.12);
@@ -59,10 +57,10 @@
         }
         body::before {
             background:
-                radial-gradient(60% 50% at 15% 20%, rgba(236, 72, 153, 0.45), transparent 60%),
-                radial-gradient(45% 40% at 85% 15%, rgba(168, 85, 247, 0.45), transparent 60%),
+                radial-gradient(60% 50% at 15% 20%, rgba(59, 130, 246, 0.45), transparent 60%),
+                radial-gradient(45% 40% at 85% 15%, rgba(37, 99, 235, 0.45), transparent 60%),
                 radial-gradient(55% 50% at 70% 85%, rgba(99, 102, 241, 0.40), transparent 60%),
-                radial-gradient(40% 40% at 25% 90%, rgba(236, 72, 153, 0.30), transparent 70%);
+                radial-gradient(40% 40% at 25% 90%, rgba(59, 130, 246, 0.30), transparent 70%);
             animation: meshDrift 24s ease-in-out infinite alternate;
         }
         body::after {
@@ -111,8 +109,8 @@
         }
         .brand-pill .dot {
             width: 8px; height: 8px; border-radius: 50%;
-            background: linear-gradient(135deg, var(--pink-400), var(--violet-500));
-            box-shadow: 0 0 12px rgba(236, 72, 153, 0.7);
+            background: linear-gradient(135deg, var(--blue-400), var(--blue-600));
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.7);
             animation: pulse 2.4s ease-in-out infinite;
         }
         @keyframes pulse {
@@ -139,7 +137,7 @@
             inset: -1px;
             border-radius: inherit;
             padding: 1px;
-            background: linear-gradient(135deg, rgba(236,72,153,.5), rgba(168,85,247,.5), rgba(99,102,241,.3));
+            background: linear-gradient(135deg, rgba(59, 130, 246,.5), rgba(37, 99, 235,.5), rgba(99,102,241,.3));
             -webkit-mask:
                 linear-gradient(#fff 0 0) content-box,
                 linear-gradient(#fff 0 0);
@@ -188,8 +186,8 @@
             outline: none;
         }
         .field input:focus {
-            border-color: rgba(236, 72, 153, 0.7);
-            box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.15);
+            border-color: rgba(59, 130, 246, 0.7);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
             background: rgba(20, 13, 33, 0.85);
         }
         .field .help {
@@ -223,13 +221,13 @@
             font-weight: 600;
             letter-spacing: 0.01em;
             color: #fff;
-            background: linear-gradient(135deg, var(--pink-500) 0%, var(--violet-500) 60%, var(--indigo-700) 110%);
+            background: linear-gradient(135deg, var(--blue-500) 0%, var(--blue-600) 60%, var(--indigo-700) 110%);
             border: 0;
             border-radius: 12px;
             cursor: pointer;
             transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
             box-shadow:
-                0 10px 30px -10px rgba(168, 85, 247, 0.6),
+                0 10px 30px -10px rgba(37, 99, 235, 0.6),
                 0 1px 0 rgba(255,255,255,.15) inset;
         }
         button.submit:hover { transform: translateY(-1px); filter: brightness(1.05); }
@@ -275,7 +273,7 @@
             align-items: center;
             gap: 8px;
         }
-        .last-login .material-symbols-outlined { font-size: 16px; color: var(--pink-400); }
+        .last-login .material-symbols-outlined { font-size: 16px; color: var(--blue-400); }
 
         .footer {
             text-align: center;

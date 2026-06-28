@@ -134,8 +134,8 @@
 }
 
 #jheliz-bell-list .jheliz-bell-item-link.is-new {
-    border-left-color: #ec4899;
-    background: rgba(236, 72, 153, 0.06);
+    border-left-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.06);
 }
 
 #jheliz-bell-list .jheliz-bell-item-icon {
@@ -202,7 +202,7 @@
 #jheliz-bell-panel .jheliz-bell-footer-link {
     font-size: 12px;
     font-weight: 600;
-    color: #f0abfc;
+    color: #93c5fd;
     text-decoration: none;
 }
 

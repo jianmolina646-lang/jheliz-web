@@ -458,8 +458,8 @@ class CheapestVisiblePlanTests(TestCase):
         resp = self.client.get(reverse("catalog:products"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Prime Video Demo")
-        self.assertContains(resp, "S/ 8,00")
-        self.assertNotContains(resp, "S/ 0,00")
+        self.assertContains(resp, "$ 8,00")
+        self.assertNotContains(resp, "$ 0,00")
 
 
 class DistributorPanelTests(TestCase):
@@ -846,23 +846,23 @@ class AdminPWAEndpointsTests(TestCase):
     para poder instalarse como PWA."""
 
     def test_admin_manifest_returns_json(self):
-        resp = self.client.get("/panel-jheliz-2026/manifest.webmanifest")
+        resp = self.client.get("/panel-virtualidadsp/manifest.webmanifest")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("application/json", resp["Content-Type"])
         import json as _json
         data = _json.loads(resp.content)
         self.assertEqual(data["short_name"], "VirtualidadSP Admin")
-        self.assertEqual(data["scope"], "/panel-jheliz-2026/")
+        self.assertEqual(data["scope"], "/panel-virtualidadsp/")
         self.assertEqual(data["display"], "standalone")
         # Debe declarar al menos 1 icono.
         self.assertGreaterEqual(len(data["icons"]), 1)
 
     def test_admin_service_worker_is_javascript(self):
-        resp = self.client.get("/panel-jheliz-2026/sw.js")
+        resp = self.client.get("/panel-virtualidadsp/sw.js")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("javascript", resp["Content-Type"])
         # Scope dedicado al admin.
-        self.assertEqual(resp["Service-Worker-Allowed"], "/panel-jheliz-2026/")
+        self.assertEqual(resp["Service-Worker-Allowed"], "/panel-virtualidadsp/")
         # Network-only para no servir datos viejos del admin.
         body = resp.content.decode()
         self.assertIn("self.addEventListener('install'", body)
@@ -874,7 +874,7 @@ class AdminPWAEndpointsTests(TestCase):
         # login quedaba como link muerto.
         from django.urls import reverse
         url = reverse("admin_password_reset")
-        self.assertEqual(url, "/panel-jheliz-2026/password_reset/")
+        self.assertEqual(url, "/panel-virtualidadsp/password_reset/")
         resp = self.client.get(url)
         # Misma view que el reset público (200 con el formulario).
         self.assertEqual(resp.status_code, 200)
@@ -1213,13 +1213,13 @@ class CuentasEditBuyerTests(TestCase):
         # del dashboard y le agrega el ancla de la cuenta editada.
         resp = self.client.post(
             reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
-            {"customer_name": "Ana", "next": "/panel-jheliz-2026/control-cuentas/?q=x"},
+            {"customer_name": "Ana", "next": "/panel-virtualidadsp/control-cuentas/?q=x"},
             follow=False,
         )
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(
             resp["Location"],
-            f"/panel-jheliz-2026/control-cuentas/?q=x#cc-item-{self.item.pk}",
+            f"/panel-virtualidadsp/control-cuentas/?q=x#cc-item-{self.item.pk}",
         )
         # Sin ``next`` también vuelve a la cuenta sobre el dashboard por defecto.
         resp2 = self.client.post(
@@ -1738,7 +1738,7 @@ class ProductAdminChangelistDesignTests(TestCase):
 
     def test_changelist_renders_compact_chips(self):
         self.client.force_login(self.staff)
-        resp = self.client.get("/panel-jheliz-2026/catalog/product/")
+        resp = self.client.get("/panel-virtualidadsp/catalog/product/")
         self.assertEqual(resp.status_code, 200)
         # Modo de venta como chips compactos
         self.assertContains(resp, "Por perfil")
@@ -1788,14 +1788,14 @@ class PlanAdminChangelistDesignTests(TestCase):
 
     def test_customer_plan_changelist_renders_chips(self):
         self.client.force_login(self.staff)
-        resp = self.client.get("/panel-jheliz-2026/catalog/customerplan/")
+        resp = self.client.get("/panel-virtualidadsp/catalog/customerplan/")
         self.assertEqual(resp.status_code, 200)
         # Producto con celda combinada
         self.assertContains(resp, "Netflix Plans Test")
         # Duración chip
         self.assertContains(resp, "1 mes")
         # Precio chip cliente
-        self.assertContains(resp, "S/ 35.00")
+        self.assertContains(resp, "$ 35.00")
         # Estado activo
         self.assertContains(resp, "Activo")
         # Chip class debe aparecer
@@ -1803,26 +1803,26 @@ class PlanAdminChangelistDesignTests(TestCase):
 
     def test_distributor_plan_changelist_renders_chips(self):
         self.client.force_login(self.staff)
-        resp = self.client.get("/panel-jheliz-2026/catalog/distributorplan/")
+        resp = self.client.get("/panel-virtualidadsp/catalog/distributorplan/")
         self.assertEqual(resp.status_code, 200)
         # Solo se ve el plan distri (Perpetua)
         self.assertContains(resp, "Perpetua")
         # Precio chip distri
-        self.assertContains(resp, "S/ 55.00")
+        self.assertContains(resp, "$ 55.00")
         # Inactivo
         self.assertContains(resp, "Inactivo")
 
     def test_general_plan_changelist_renders_chips(self):
         self.client.force_login(self.staff)
-        resp = self.client.get("/panel-jheliz-2026/catalog/plan/")
+        resp = self.client.get("/panel-virtualidadsp/catalog/plan/")
         self.assertEqual(resp.status_code, 200)
         # Ambos planes deben aparecer (cliente + distri)
         self.assertContains(resp, "Netflix Plans Test")
         self.assertContains(resp, "1 mes")
         self.assertContains(resp, "Perpetua")
         # Chips de precios ambos
-        self.assertContains(resp, "S/ 35.00")
-        self.assertContains(resp, "S/ 55.00")
+        self.assertContains(resp, "$ 35.00")
+        self.assertContains(resp, "$ 55.00")
 
 
 class CachePerLanguageTests(TestCase):

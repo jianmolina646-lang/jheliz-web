@@ -77,5 +77,5 @@ class Command(BaseCommand):
             "Acordate de configurar la \"Interactions Endpoint URL\" en "
             "Discord Developer Portal → General Information con:",
         )
-        site = getattr(settings, "SITE_URL", "").rstrip("/") or "https://ecormecejhelizstore.com"
+        site = getattr(settings, "SITE_URL", "").rstrip("/") or "https://virtualidadsp.com"
         self.stdout.write(self.style.SUCCESS(f"  {site}/discord/interactions/"))

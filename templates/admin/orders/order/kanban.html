@@ -18,7 +18,7 @@
     margin: 0; font-size: 20px; font-weight: 700; color: #f8fafc;
     display: flex; align-items: center; gap: 8px;
 }
-.jh-kanban-header h1 .material-symbols-outlined { color: #f472b6; }
+.jh-kanban-header h1 .material-symbols-outlined { color: #60a5fa; }
 .jh-kanban-filters {
     display: flex; gap: 6px; align-items: center; margin-left: auto; flex-wrap: wrap;
 }
@@ -32,7 +32,7 @@
 .jh-filter-btn:hover { background: rgba(255,255,255,0.10); color: #f1f5f9; }
 .jh-filter-btn.active {
     background: rgba(244,114,182,0.18); border-color: rgba(244,114,182,0.45);
-    color: #f472b6;
+    color: #60a5fa;
 }
 
 .jh-board {
@@ -106,7 +106,7 @@
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
     font-size: 12px;
 }
-.jh-tile .jh-t-id { font-weight: 700; color: #f472b6; }
+.jh-tile .jh-t-id { font-weight: 700; color: #60a5fa; }
 .jh-tile .jh-t-total { color: #f1f5f9; font-weight: 600; }
 .jh-tile .jh-t-customer {
     color: #e2e8f0; font-size: 12px; margin-top: 3px;
@@ -124,7 +124,7 @@
     background: rgba(255,255,255,0.04); padding: 1px 6px; border-radius: 4px;
     color: #cbd5e1;
 }
-.jh-tile .jh-t-pay.yape { color: #a855f7; background: rgba(168,85,247,0.12); }
+.jh-tile .jh-t-pay.yape { color: #2563eb; background: rgba(37, 99, 235,0.12); }
 .jh-tile .jh-t-pay.mercadopago { color: #0ea5e9; background: rgba(14,165,233,0.12); }
 </style>
 {% endblock %}
@@ -190,7 +190,7 @@
                 <div class="jh-col-capped">
                     Mostrando 50 de {{ col.count }}.
                     <a href="{% url 'admin:orders_order_changelist' %}?status__exact={{ col.key }}"
-                       style="color:#f472b6">Ver todos →</a>
+                       style="color:#60a5fa">Ver todos →</a>
                 </div>
                 {% endif %}
             </div>

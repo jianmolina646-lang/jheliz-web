@@ -143,7 +143,7 @@
 
   // No molestar en panel admin ni en checkout/dashboard del cliente.
   const path = window.location.pathname;
-  const BLOCKED = ['/panel-jheliz', '/admin', '/carrito', '/mi-cuenta', '/distribuidor/panel'];
+  const BLOCKED = ['/panel-virtualidadsp', '/admin', '/carrito', '/mi-cuenta', '/distribuidor/panel'];
   if (BLOCKED.some((p) => path.startsWith(p))) return;
 
   let items = [];

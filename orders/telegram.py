@@ -24,7 +24,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
-ADMIN_BASE = "https://ecormecejhelizstore.com/panel-jheliz-2026"
+ADMIN_BASE = "https://virtualidadsp.com/panel-virtualidadsp"
 
 
 # ---------- Configuración ----------
@@ -316,7 +316,7 @@ def notify_admin_about_yape(order) -> None:
 
 # ---------- Canales públicos de avisos ----------
 
-SITE_BASE = "https://ecormecejhelizstore.com"
+SITE_BASE = "https://virtualidadsp.com"
 
 # Audiencias para anuncios. Cada anuncio se publica en uno o ambos canales
 # y los precios mostrados varían según la audiencia.
@@ -870,7 +870,7 @@ def _cmd_catalogo(chat_id: int | str) -> None:
         )
         lines.append(f"• <b>{p.name}</b> desde {precio}")
     lines.append("")
-    lines.append("Compra en https://ecormecejhelizstore.com/productos/")
+    lines.append("Compra en https://virtualidadsp.com/productos/")
     send_message(chat_id, "\n".join(lines))
 
 
@@ -891,7 +891,7 @@ def _cmd_pedido(chat_id: int | str, rest: str) -> None:
         f"Pedido <b>#{order.display_number}</b>\n"
         f"Estado: <b>{order.get_status_display()}</b>\n"
         f"Total: {order.currency} {order.total}\n"
-        f"https://ecormecejhelizstore.com/pedidos/{order.uuid}/",
+        f"https://virtualidadsp.com/pedidos/{order.uuid}/",
     )
 
 

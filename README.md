@@ -1,6 +1,6 @@
 # VirtualidadSP
 
-Plataforma de venta de **streaming y licencias** para Perú — dominio `ecormecejhelizstore.com`.
+Plataforma de venta de **streaming y licencias** para Perú — dominio `virtualidadsp.com`.
 
 Construida con Django 5, Tailwind (CDN) y PostgreSQL (SQLite en local).
 
@@ -24,7 +24,7 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Luego abre http://127.0.0.1:8000/ y el admin en http://127.0.0.1:8000/panel-jheliz-2026/
+Luego abre http://127.0.0.1:8000/ y el admin en http://127.0.0.1:8000/panel-virtualidadsp/
 
 ## Roadmap
 

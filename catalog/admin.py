@@ -1,4 +1,5 @@
 from django import forms
+from django.conf import settings
 from django.contrib import admin, messages
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
@@ -101,14 +102,14 @@ class _PlanDisplayMixin:
         from decimal import Decimal
         if obj.price_customer is None or obj.price_customer <= Decimal("0"):
             return chip("Sin precio", tone="neutral", icon="block")
-        return chip(f"S/ {obj.price_customer:.2f}", tone="success", icon="payments")
+        return chip(f"{settings.DEFAULT_CURRENCY_SYMBOL} {obj.price_customer:.2f}", tone="success", icon="payments")
 
     @display(description="Precio distri", ordering="price_distributor")
     def plan_price_distributor_chip(self, obj) -> SafeString:
         from decimal import Decimal
         if obj.price_distributor is None or obj.price_distributor <= Decimal("0"):
             return chip("Sin precio", tone="neutral", icon="block")
-        return chip(f"S/ {obj.price_distributor:.2f}", tone="violet", icon="storefront")
+        return chip(f"{settings.DEFAULT_CURRENCY_SYMBOL} {obj.price_distributor:.2f}", tone="violet", icon="storefront")
 
     @display(description="Stock", ordering="-id")
     def plan_stock_chip(self, obj) -> SafeString:

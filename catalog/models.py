@@ -619,16 +619,16 @@ class SiteSettings(models.Model):
     # Canales de Telegram (públicos)
     telegram_customer_channel_url = models.URLField(
         "Canal Telegram – clientes", blank=True,
-        default="https://t.me/jheliztvavisos",
+        default="",
         help_text="Canal público de avisos para clientes finales (ofertas, novedades).",
     )
     telegram_distributor_channel_url = models.URLField(
         "Canal Telegram – distribuidores", blank=True,
-        default="https://t.me/jhelizservicetv",
+        default="",
         help_text="Canal público con info y avisos para distribuidores.",
     )
 
-    # Información legal (Indecopi Perú)
+    # Información legal del negocio
     legal_business_name = models.CharField(
         "Razón social", max_length=160, blank=True,
         help_text="Nombre legal de la empresa, ej: 'VirtualidadSP Services E.I.R.L.'",
@@ -648,7 +648,7 @@ class SiteSettings(models.Model):
     )
     seo_meta_description = models.CharField(
         "Meta descripción (SEO)", max_length=200, blank=True,
-        default="Cuentas premium oficiales: Netflix, Disney+, Spotify, Office y más. Pago Yape o Mercado Pago. Garantía 30 días.",
+        default="Cuentas premium oficiales: Netflix, Disney+, Spotify, Office y más. Pago con Binance Pay. Garantía 30 días.",
     )
 
     # Tracking & analytics
@@ -848,7 +848,7 @@ class PlatformLanding(models.Model):
 
     slug = models.SlugField(
         "Slug (URL)", max_length=80, unique=True,
-        help_text="Se usa en la URL: ecormecejhelizstore.com/plataforma/<slug>/",
+        help_text="Se usa en la URL: virtualidadsp.com/plataforma/<slug>/",
     )
     name = models.CharField(
         "Nombre de plataforma", max_length=80,

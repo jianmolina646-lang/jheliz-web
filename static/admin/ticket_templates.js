@@ -11,11 +11,11 @@
     window.__jhelizTicketTemplatesInstalled = true;
 
     // Detectar que estamos en la página de un ticket.
-    var match = window.location.pathname.match(/\/jheliz-admin\/support\/ticket\/(\d+)\/change\/?$/);
+    var match = window.location.pathname.match(/\/panel-virtualidadsp\/support\/ticket\/(\d+)\/change\/?$/);
     if(!match) return;
     var ticketId = match[1];
 
-    var API_URL = "/jheliz-admin/reply-templates.json?ticket_id=" + encodeURIComponent(ticketId);
+    var API_URL = "/panel-virtualidadsp/reply-templates.json?ticket_id=" + encodeURIComponent(ticketId);
 
     function injectInto(textarea, templates){
         if(textarea.dataset.jhTemplatesAdded) return;

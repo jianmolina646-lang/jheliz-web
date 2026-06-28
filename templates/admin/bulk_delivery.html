@@ -25,7 +25,7 @@
             {% csrf_token %}
             <button type="submit"
                     {% if deliverable_count == 0 %}disabled{% endif %}
-                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary-500 to-violet-500 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-95"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary-500 to-blue-600 text-white text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-95"
                     onclick="return confirm('¿Entregar TODOS los pedidos con stock disponible? ({{ deliverable_count }} pedido(s))');">
                 ⚡ Entregar todos ({{ deliverable_count }})
             </button>

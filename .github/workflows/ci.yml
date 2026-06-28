@@ -94,5 +94,5 @@ jobs:
           SECRET_KEY: "ci-only-9f8a2c1b4e7d6a3b5c8f9e2a1d4c7b6e5f8a2c1b4e7d6a3b5c8f9e2a1d4c7b6e"
           # Hosts incluyen el dominio real para que no rompa por
           # ALLOWED_HOSTS. No conecta a la DB porque `check` no la toca.
-          ALLOWED_HOSTS: ecormecejhelizstore.com,www.ecormecejhelizstore.com,localhost
+          ALLOWED_HOSTS: virtualidadsp.com,www.virtualidadsp.com,localhost
         run: python manage.py check --deploy --fail-level WARNING

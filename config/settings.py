@@ -32,7 +32,7 @@ SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 # URL base del panel admin. Cambiá esto en .env para "esconder" el admin
 # de bots que escanean rutas conocidas (/admin/, /wp-admin/, etc.). El
 # valor NO debe llevar barras al inicio o al final.
-ADMIN_URL_PATH = config("ADMIN_URL_PATH", default="panel-jheliz-2026").strip("/")
+ADMIN_URL_PATH = config("ADMIN_URL_PATH", default="panel-virtualidadsp").strip("/")
 
 CSRF_TRUSTED_ORIGINS = [
     "https://ecormecejhelizstore.com",
@@ -177,8 +177,8 @@ LANGUAGES = [
 LOCALE_PATHS = [BASE_DIR / "locale"]
 
 # Currency (default cuando no se conoce el país del visitante).
-DEFAULT_CURRENCY = "PEN"
-DEFAULT_CURRENCY_SYMBOL = "S/"
+DEFAULT_CURRENCY = "USD"
+DEFAULT_CURRENCY_SYMBOL = "$"
 
 # Países soportados. Cada uno define su moneda, su flag emoji y su locale
 # preferido. El selector se renderiza en el footer; las páginas pueden
@@ -195,7 +195,7 @@ COUNTRIES = [
     {"code": "BR", "name": "Brasil", "flag": "🇧🇷", "currency": "BRL", "symbol": "R$", "locale": "pt", "phone_cc": "+55"},
     {"code": "US", "name": "USA", "flag": "🇺🇸", "currency": "USD", "symbol": "$", "locale": "en", "phone_cc": "+1"},
 ]
-DEFAULT_COUNTRY = "PE"
+DEFAULT_COUNTRY = "EC"
 
 # Static & media
 STATIC_URL = "/static/"
@@ -229,7 +229,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Email
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="VirtualidadSP <no-reply@ecormecejhelizstore.com>")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="VirtualidadSP <no-reply@virtualidadsp.com>")
 SUPPORT_ADMIN_EMAIL = config("SUPPORT_ADMIN_EMAIL", default="")
 
 # SMTP (opcional, para enviar correos reales en prod).
@@ -269,12 +269,12 @@ VAPID_PUBLIC_KEY = config("VAPID_PUBLIC_KEY", default="")
 VAPID_PRIVATE_KEY = config("VAPID_PRIVATE_KEY", default="")
 VAPID_CLAIM_EMAIL = config(
     "VAPID_CLAIM_EMAIL",
-    default="mailto:soporte@ecormecejhelizstore.com",
+    default="mailto:soporte@virtualidadsp.com",
 )
 
 # Contact
-WHATSAPP_NUMBER = config("WHATSAPP_NUMBER", default="+51999999999")
-TELEGRAM_USERNAME = config("TELEGRAM_USERNAME", default="jhelizbot")
+WHATSAPP_NUMBER = config("WHATSAPP_NUMBER", default="+593960546224")
+TELEGRAM_USERNAME = config("TELEGRAM_USERNAME", default="")
 
 # Telegram bot (opcional)
 TELEGRAM_BOT_TOKEN = config("TELEGRAM_BOT_TOKEN", default="")
@@ -286,7 +286,7 @@ TELEGRAM_WEBHOOK_SECRET = config("TELEGRAM_WEBHOOK_SECRET", default="")
 # "-1003689345000"). Si está vacío, las publicaciones automáticas a
 # distribuidores se desactivan.
 TELEGRAM_CHANNEL_ID = config("TELEGRAM_CHANNEL_ID", default="")
-# Canal público de avisos para clientes finales (ej. "@jheliztvavisos").
+# Canal público de avisos para clientes finales (ej. "@tucanal").
 # Si está vacío, las publicaciones automáticas a cliente final se
 # desactivan, pero las del canal distribuidor siguen funcionando.
 TELEGRAM_CUSTOMER_CHANNEL_ID = config("TELEGRAM_CUSTOMER_CHANNEL_ID", default="")
@@ -366,7 +366,7 @@ DISCORD_APPLICATION_ID = config("DISCORD_APPLICATION_ID", default="")
 
 # Brand
 SITE_NAME = "VirtualidadSP"
-SITE_TAGLINE = "Netflix, Disney+ y Office en Perú desde S/ 7"
+SITE_TAGLINE = "Netflix, Disney+ y Office en Ecuador"
 
 def _hashed_static(path: str) -> str:
     """Devuelve la URL de un static asset con hash de manifiesto si existe.
@@ -424,24 +424,24 @@ UNFOLD = {
         lambda request: _hashed_static("admin/keyboard_shortcuts.js"),
         lambda request: _hashed_static("admin/notifications_bell.js"),
         # PWA: inyecta <link rel="manifest"> + theme-color, registra el service
-        # worker dedicado (/panel-jheliz-2026/sw.js) y muestra un banner
+        # worker dedicado (/panel-virtualidadsp/sw.js) y muestra un banner
         # "Instalar app" para que el admin se pueda guardar en el cel como
         # app independiente.
         lambda request: _hashed_static("admin/pwa_install.js"),
     ],
     "COLORS": {
         "primary": {
-            "50": "253 244 255",
-            "100": "250 232 255",
-            "200": "245 208 254",
-            "300": "240 171 252",
-            "400": "232 121 249",
-            "500": "217 70 239",
-            "600": "192 38 211",
-            "700": "162 28 175",
-            "800": "134 25 143",
-            "900": "112 26 117",
-            "950": "74 4 78",
+            "50": "239 246 255",
+            "100": "219 234 254",
+            "200": "191 219 254",
+            "300": "147 197 253",
+            "400": "96 165 250",
+            "500": "59 130 246",
+            "600": "37 99 235",
+            "700": "29 78 216",
+            "800": "30 64 175",
+            "900": "30 58 138",
+            "950": "23 37 84",
         },
     },
     "DASHBOARD_CALLBACK": "config.admin_dashboard.dashboard_callback",
@@ -459,22 +459,22 @@ UNFOLD = {
                     {
                         "title": "Dashboard",
                         "icon": "dashboard",
-                        "link": "/panel-jheliz-2026/",
+                        "link": "/panel-virtualidadsp/",
                     },
                     {
                         "title": "Reportes financieros",
                         "icon": "monitoring",
-                        "link": "/panel-jheliz-2026/reports/",
+                        "link": "/panel-virtualidadsp/reports/",
                     },
                     {
                         "title": "Renovaciones",
                         "icon": "autorenew",
-                        "link": "/panel-jheliz-2026/renewals/",
+                        "link": "/panel-virtualidadsp/renewals/",
                     },
                     {
                         "title": "Estado de servicios",
                         "icon": "health_and_safety",
-                        "link": "/panel-jheliz-2026/health/",
+                        "link": "/panel-virtualidadsp/health/",
                     },
                     {
                         "title": "Ver tienda",
@@ -490,37 +490,37 @@ UNFOLD = {
                     {
                         "title": "Productos",
                         "icon": "inventory_2",
-                        "link": "/panel-jheliz-2026/catalog/product/",
+                        "link": "/panel-virtualidadsp/catalog/product/",
                     },
                     {
                         "title": "Planes — Cliente final",
                         "icon": "sell",
-                        "link": "/panel-jheliz-2026/catalog/customerplan/",
+                        "link": "/panel-virtualidadsp/catalog/customerplan/",
                     },
                     {
                         "title": "Planes — Distribuidor",
                         "icon": "storefront",
-                        "link": "/panel-jheliz-2026/catalog/distributorplan/",
+                        "link": "/panel-virtualidadsp/catalog/distributorplan/",
                     },
                     {
                         "title": "Categorías",
                         "icon": "category",
-                        "link": "/panel-jheliz-2026/catalog/category/",
+                        "link": "/panel-virtualidadsp/catalog/category/",
                     },
                     {
                         "title": "Stock por producto",
                         "icon": "inventory",
-                        "link": "/panel-jheliz-2026/stock/",
+                        "link": "/panel-virtualidadsp/stock/",
                     },
                     {
                         "title": "Stock (todos)",
                         "icon": "list_alt",
-                        "link": "/panel-jheliz-2026/catalog/stockitem/",
+                        "link": "/panel-virtualidadsp/catalog/stockitem/",
                     },
                     {
                         "title": "Avísame cuando vuelva",
                         "icon": "notifications_active",
-                        "link": "/panel-jheliz-2026/catalog/backinstockalert/",
+                        "link": "/panel-virtualidadsp/catalog/backinstockalert/",
                     },
                 ],
             },
@@ -531,27 +531,27 @@ UNFOLD = {
                     {
                         "title": "Pedidos clientes",
                         "icon": "receipt_long",
-                        "link": "/panel-jheliz-2026/orders/order/",
+                        "link": "/panel-virtualidadsp/orders/order/",
                     },
                     {
                         "title": "Bandeja Yape",
                         "icon": "qr_code_scanner",
-                        "link": "/panel-jheliz-2026/orders/order/yape-inbox/",
+                        "link": "/panel-virtualidadsp/orders/order/yape-inbox/",
                     },
                     {
                         "title": "Items de pedidos",
                         "icon": "list_alt",
-                        "link": "/panel-jheliz-2026/orders/orderitem/",
+                        "link": "/panel-virtualidadsp/orders/orderitem/",
                     },
                     {
                         "title": "Pedidos mayoristas",
                         "icon": "local_shipping",
-                        "link": "/panel-jheliz-2026/orders/distributororder/",
+                        "link": "/panel-virtualidadsp/orders/distributororder/",
                     },
                     {
                         "title": "Reemplazar cuenta",
                         "icon": "sync_alt",
-                        "link": "/panel-jheliz-2026/replace-blocked-account/",
+                        "link": "/panel-virtualidadsp/replace-blocked-account/",
                     },
                 ],
             },
@@ -562,27 +562,27 @@ UNFOLD = {
                     {
                         "title": "Clientes",
                         "icon": "person",
-                        "link": "/panel-jheliz-2026/accounts/customer/",
+                        "link": "/panel-virtualidadsp/accounts/customer/",
                     },
                     {
                         "title": "Clientes 360°",
                         "icon": "groups",
-                        "link": "/panel-jheliz-2026/customers/",
+                        "link": "/panel-virtualidadsp/customers/",
                     },
                     {
                         "title": "Clientes valiosos",
                         "icon": "workspace_premium",
-                        "link": "/panel-jheliz-2026/top-customers/",
+                        "link": "/panel-virtualidadsp/top-customers/",
                     },
                     {
                         "title": "Distribuidores",
                         "icon": "badge",
-                        "link": "/panel-jheliz-2026/accounts/distributor/",
+                        "link": "/panel-virtualidadsp/accounts/distributor/",
                     },
                     {
                         "title": "Movimientos de wallet",
                         "icon": "account_balance_wallet",
-                        "link": "/panel-jheliz-2026/accounts/wallettransaction/",
+                        "link": "/panel-virtualidadsp/accounts/wallettransaction/",
                     },
                 ],
             },
@@ -593,22 +593,22 @@ UNFOLD = {
                     {
                         "title": "Cupones / códigos",
                         "icon": "redeem",
-                        "link": "/panel-jheliz-2026/orders/coupon/",
+                        "link": "/panel-virtualidadsp/orders/coupon/",
                     },
                     {
                         "title": "Reseñas",
                         "icon": "reviews",
-                        "link": "/panel-jheliz-2026/catalog/testimonial/",
+                        "link": "/panel-virtualidadsp/catalog/testimonial/",
                     },
                     {
                         "title": "Posts del blog",
                         "icon": "article",
-                        "link": "/panel-jheliz-2026/blog/blogpost/",
+                        "link": "/panel-virtualidadsp/blog/blogpost/",
                     },
                     {
                         "title": "Categorías de blog",
                         "icon": "label",
-                        "link": "/panel-jheliz-2026/blog/blogcategory/",
+                        "link": "/panel-virtualidadsp/blog/blogcategory/",
                     },
                 ],
             },
@@ -619,17 +619,17 @@ UNFOLD = {
                     {
                         "title": "Chats en vivo",
                         "icon": "chat",
-                        "link": "/panel-jheliz-2026/livechat/",
+                        "link": "/panel-virtualidadsp/livechat/",
                     },
                     {
                         "title": "Tickets",
                         "icon": "support_agent",
-                        "link": "/panel-jheliz-2026/support/ticket/",
+                        "link": "/panel-virtualidadsp/support/ticket/",
                     },
                     {
                         "title": "Solicitudes de código",
                         "icon": "mark_email_unread",
-                        "link": "/panel-jheliz-2026/support/coderequest/",
+                        "link": "/panel-virtualidadsp/support/coderequest/",
                     },
                 ],
             },
@@ -640,22 +640,22 @@ UNFOLD = {
                     {
                         "title": "Config. de pagos (Yape)",
                         "icon": "qr_code_2",
-                        "link": "/panel-jheliz-2026/orders/paymentsettings/",
+                        "link": "/panel-virtualidadsp/orders/paymentsettings/",
                     },
                     {
                         "title": "Usuarios (staff)",
                         "icon": "group",
-                        "link": "/panel-jheliz-2026/accounts/user/",
+                        "link": "/panel-virtualidadsp/accounts/user/",
                     },
                     {
                         "title": "2FA / autenticador",
                         "icon": "shield_lock",
-                        "link": "/panel-jheliz-2026/security/2fa/",
+                        "link": "/panel-virtualidadsp/security/2fa/",
                     },
                     {
                         "title": "Auditoría",
                         "icon": "fact_check",
-                        "link": "/panel-jheliz-2026/auditoria/",
+                        "link": "/panel-virtualidadsp/auditoria/",
                     },
                 ],
             },

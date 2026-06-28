@@ -4,11 +4,11 @@
 
 {% with seo_plan=product|cheapest_plan_for:user %}
 {% block title %}{{ product.name }}{% if seo_plan %} — {{ CURRENCY_SYMBOL }} {{ seo_plan.price_customer|floatformat:0 }}{% endif %} · Entrega en 2 min | {{ SITE_NAME }}{% endblock %}
-{% block meta_description %}{% if product.short_description %}{{ product.short_description }} ✦ {% endif %}{{ product.name }}{% if seo_plan %} desde {{ CURRENCY_SYMBOL }} {{ seo_plan.price_customer|floatformat:0 }}{% endif %} en Perú. 🎬 Entrega en minutos, Yape o Mercado Pago, garantía 30 días.{% endblock %}
+{% block meta_description %}{% if product.short_description %}{{ product.short_description }} ✦ {% endif %}{{ product.name }}{% if seo_plan %} desde {{ CURRENCY_SYMBOL }} {{ seo_plan.price_customer|floatformat:0 }}{% endif %}. 🎬 Entrega en minutos, pago con Binance Pay, garantía 30 días.{% endblock %}
 {% block og_type %}product{% endblock %}
 {% block og_title %}{{ product.name }}{% if seo_plan %} — {{ CURRENCY_SYMBOL }} {{ seo_plan.price_customer|floatformat:0 }}{% endif %} | {{ SITE_NAME }}{% endblock %}
 {% endwith %}
-{% block og_description %}{% if product.short_description %}{{ product.short_description }} ✦ {% endif %}🎬 Entrega en 2 min, pago con Yape o Mercado Pago, garantía 30 días.{% endblock %}
+{% block og_description %}{% if product.short_description %}{{ product.short_description }} ✦ {% endif %}🎬 Entrega en 2 min, pago con Binance Pay, garantía 30 días.{% endblock %}
 {% block og_image %}{% if product.image %}{{ SITE_URL_BASE }}{{ product.image.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
 
 {% block extra_head %}
@@ -484,15 +484,9 @@
           <div class="text-right">
             {% if user.is_distributor and plan.price_distributor %}
               <div class="text-lg font-display font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
-              {% with usd_p=plan.price_distributor|to_usd:USD_EXCHANGE_RATE %}
-                {% if usd_p %}<div class="text-xs text-emerald-300 font-semibold">≈ USD {{ usd_p|floatformat:2|intcomma }}</div>{% endif %}
-              {% endwith %}
               <div class="text-[11px] text-jheliz-400 font-medium">Distribuidor</div>
             {% else %}
               <div class="text-lg font-display font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
-              {% with usd_p=plan.price_customer|to_usd:USD_EXCHANGE_RATE %}
-                {% if usd_p %}<div class="text-xs text-emerald-300 font-semibold">≈ USD {{ usd_p|floatformat:2|intcomma }}</div>{% endif %}
-              {% endwith %}
             {% endif %}
           </div>
         </label>
@@ -546,7 +540,7 @@
 
     <p class="text-xs text-zinc-500 mt-4 text-center flex items-center justify-center gap-2">
       <svg class="icon" viewBox="0 0 24 24" style="width:13px;height:13px"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/></svg>
-      Mercado Pago · Yape · Tarjeta
+      Binance Pay · Tarjeta
     </p>
   </div>
 </section>

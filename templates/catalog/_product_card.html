@@ -52,17 +52,11 @@
               <div class="text-[10px] font-semibold uppercase tracking-wider text-jheliz-400">{% trans "Mayorista desde" %}</div>
               <div class="text-2xl font-display font-bold text-white tracking-tight leading-none">{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2|intcomma }}</div>
               <div class="mt-1 flex items-center gap-2">
-                {% with usd_price=plan.price_distributor|to_usd:USD_EXCHANGE_RATE %}
-                  {% if usd_price %}<span class="text-[11px] text-zinc-500">≈ USD {{ usd_price|floatformat:2|intcomma }}</span>{% endif %}
-                {% endwith %}
                 <span class="text-[11px] text-zinc-600 line-through">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</span>
               </div>
             {% else %}
               <div class="text-[10px] uppercase tracking-wider text-zinc-500">{% trans "Desde" %}</div>
               <div class="text-2xl font-display font-bold text-white tracking-tight leading-none">{{ CURRENCY_SYMBOL }} {{ plan.price_customer|floatformat:2|intcomma }}</div>
-              {% with usd_price=plan.price_customer|to_usd:USD_EXCHANGE_RATE %}
-                {% if usd_price %}<div class="mt-1 text-[11px] text-zinc-500">≈ USD {{ usd_price|floatformat:2|intcomma }}</div>{% endif %}
-              {% endwith %}
             {% endif %}
           {% else %}
             <div class="text-xs text-zinc-500">{% trans "Pronto disponible" %}</div>

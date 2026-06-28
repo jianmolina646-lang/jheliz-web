@@ -162,7 +162,7 @@
       {n: 2, pct: {{ tiers.0.pct|default:10 }}},
       {n: 3, pct: {{ tiers.1.pct|default:15 }}}
     ];
-    var currency = '{{ CURRENCY_SYMBOL|default:"S/" }}';
+    var currency = '{{ CURRENCY_SYMBOL|default:"$" }}';
 
     var cards = document.querySelectorAll('.combo-card');
     var totalEl = document.getElementById('combo-total');

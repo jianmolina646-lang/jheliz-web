@@ -1,7 +1,7 @@
 """Vistas auxiliares del panel admin: reportes, clientes valiosos, health check
 y endpoint de notificaciones para polling.
 
-Se montan bajo `/panel-jheliz-2026/...` antes del catch-all `admin.site.urls` para
+Se montan bajo `/panel-virtualidadsp/...` antes del catch-all `admin.site.urls` para
 que Django las matchee primero.
 """
 
@@ -416,7 +416,7 @@ def _perform_global_search(q: str, limit: int):
     """Ejecuta la búsqueda cruzada y devuelve un dict con los grupos encontrados.
 
     Se usa tanto desde el endpoint JSON (modal Cmd+K) como desde la página
-    de resultados HTML (`/panel-jheliz-2026/search/?q=...&full=1`).
+    de resultados HTML (`/panel-virtualidadsp/search/?q=...&full=1`).
     """
     from django.urls import reverse as _reverse
     from django.db.models import Q

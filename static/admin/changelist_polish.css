@@ -54,13 +54,13 @@
   gap: 8px;
   margin: 0 0 16px;
   padding: 12px 14px;
-  background: linear-gradient(135deg, rgba(244,114,182,0.05), rgba(168,85,247,0.04));
-  border: 1px solid rgba(244,114,182,0.12);
+  background: linear-gradient(135deg, rgba(96,165,250,0.05), rgba(37,99,235,0.04));
+  border: 1px solid rgba(96,165,250,0.12);
   border-radius: 12px;
 }
 .dark .jh-filter-tabs {
-  background: linear-gradient(135deg, rgba(244,114,182,0.08), rgba(168,85,247,0.05));
-  border-color: rgba(244,114,182,0.18);
+  background: linear-gradient(135deg, rgba(96,165,250,0.08), rgba(37,99,235,0.05));
+  border-color: rgba(96,165,250,0.18);
 }
 .jh-filter-tabs__label {
   font-size: 11px;
@@ -93,17 +93,17 @@
 }
 .jh-filter-tab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px -6px rgba(244,114,182,0.45);
-  border-color: rgba(244,114,182,0.4);
+  box-shadow: 0 4px 14px -6px rgba(96,165,250,0.45);
+  border-color: rgba(96,165,250,0.4);
 }
 .jh-filter-tab--active {
-  background: linear-gradient(135deg, #ec4899, #a855f7);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   border-color: transparent;
   color: #fff !important;
-  box-shadow: 0 6px 18px -6px rgba(168,85,247,0.55);
+  box-shadow: 0 6px 18px -6px rgba(37,99,235,0.55);
 }
 .dark .jh-filter-tab--active {
-  background: linear-gradient(135deg, #ec4899, #a855f7);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: #fff !important;
 }
 .jh-filter-tab__count {
@@ -134,23 +134,23 @@
   padding: 60px 24px;
   text-align: center;
   margin: 24px 0;
-  border: 1px dashed rgba(244,114,182,0.25);
+  border: 1px dashed rgba(96,165,250,0.25);
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(244,114,182,0.03), rgba(168,85,247,0.02));
+  background: linear-gradient(135deg, rgba(96,165,250,0.03), rgba(37,99,235,0.02));
 }
 .dark .jh-empty-state {
-  border-color: rgba(244,114,182,0.18);
-  background: linear-gradient(135deg, rgba(244,114,182,0.05), rgba(168,85,247,0.03));
+  border-color: rgba(96,165,250,0.18);
+  background: linear-gradient(135deg, rgba(96,165,250,0.05), rgba(37,99,235,0.03));
 }
 .jh-empty-state__icon {
   font-size: 56px;
   line-height: 1;
   margin-bottom: 14px;
-  background: linear-gradient(135deg, #ec4899, #a855f7);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 4px 12px rgba(168,85,247,0.35));
+  filter: drop-shadow(0 4px 12px rgba(37,99,235,0.35));
 }
 .jh-empty-state__title {
   font-size: 18px;
@@ -172,12 +172,12 @@
   gap: 6px;
   padding: 9px 18px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #ec4899, #a855f7);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: #fff !important;
   text-decoration: none !important;
   font-size: 13px;
   font-weight: 600;
-  box-shadow: 0 6px 18px -6px rgba(168,85,247,0.55);
+  box-shadow: 0 6px 18px -6px rgba(37,99,235,0.55);
   transition: transform 140ms ease;
 }
 .jh-empty-state__cta:hover { transform: translateY(-1px); }
@@ -277,17 +277,17 @@
      con fondo gradient y tipografía más grande. */
   #result_list tbody tr.data-row td:first-of-type {
     background: linear-gradient(135deg,
-      rgba(244, 114, 182, 0.10),
-      rgba(168, 85, 247, 0.06));
+      rgba(96, 165, 250, 0.10),
+      rgba(37, 99, 235, 0.06));
     padding-top: 11px !important;
     padding-bottom: 11px !important;
-    border-bottom: 1px solid rgba(244, 114, 182, 0.15) !important;
+    border-bottom: 1px solid rgba(96, 165, 250, 0.15) !important;
   }
   .dark #result_list tbody tr.data-row td:first-of-type {
     background: linear-gradient(135deg,
-      rgba(244, 114, 182, 0.15),
-      rgba(168, 85, 247, 0.10));
-    border-bottom-color: rgba(244, 114, 182, 0.25) !important;
+      rgba(96, 165, 250, 0.15),
+      rgba(37, 99, 235, 0.10));
+    border-bottom-color: rgba(96, 165, 250, 0.25) !important;
   }
   #result_list tbody tr.data-row td:first-of-type::before {
     display: none;  /* el #JH-XXXX ya es autoexplicativo */

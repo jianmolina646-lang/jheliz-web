@@ -21,14 +21,14 @@
 
 :root {
     /* Gradientes core (uso parsimonioso, solo en CTAs y stat cards) */
-    --jh2-grad-primary:   linear-gradient(135deg, #ec4899 0%, #a855f7 50%, #6366f1 100%);
+    --jh2-grad-primary:   linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #6366f1 100%);
     --jh2-grad-success:   linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
     --jh2-grad-warning:   linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
     --jh2-grad-info:      linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
     --jh2-grad-neutral:   linear-gradient(135deg, rgba(148,163,184,0.18), rgba(148,163,184,0.06));
 
     /* Glow aura (para cards activos) */
-    --jh2-glow-primary:   0 0 0 1px rgba(168,85,247,0.25), 0 12px 48px -12px rgba(168,85,247,0.45);
+    --jh2-glow-primary:   0 0 0 1px rgba(37,99,235,0.25), 0 12px 48px -12px rgba(37,99,235,0.45);
     --jh2-glow-success:   0 0 0 1px rgba(16,185,129,0.25), 0 12px 48px -12px rgba(16,185,129,0.45);
 
     /* Tarjetas glass (dark) */
@@ -149,7 +149,7 @@
     padding: 14px 18px;
     border-radius: var(--jh2-radius);
     background:
-        radial-gradient(ellipse 80% 60% at 0% 0%, rgba(236,72,153,.10), transparent 60%),
+        radial-gradient(ellipse 80% 60% at 0% 0%, rgba(59,130,246,.10), transparent 60%),
         radial-gradient(ellipse 80% 60% at 100% 100%, rgba(99,102,241,.10), transparent 60%),
         var(--jh2-card-bg);
     border: 1px solid var(--jh2-card-border);
@@ -194,8 +194,8 @@
     transition: border-color .2s ease, box-shadow .2s ease;
 }
 .jh2-toolbar__search:focus-within {
-    border-color: rgba(236,72,153,.6);
-    box-shadow: 0 0 0 3px rgba(236,72,153,.15);
+    border-color: rgba(59,130,246,.6);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
 }
 .jh2-toolbar__search input {
     flex: 1;
@@ -226,8 +226,8 @@
 }
 .jh2-toolbar__chip[aria-current="true"],
 .jh2-toolbar__chip.is-active {
-    background: rgba(168,85,247,.18);
-    border-color: rgba(168,85,247,.45);
+    background: rgba(37,99,235,.18);
+    border-color: rgba(37,99,235,.45);
     color: #fff;
 }
 .jh2-toolbar__chip-count {
@@ -277,7 +277,7 @@
     transition: background .15s ease;
 }
 .jh2-table tbody tr:hover {
-    background: rgba(168,85,247,.06);
+    background: rgba(37,99,235,.06);
 }
 .jh2-table tbody tr:last-child td { border-bottom: none; }
 .jh2-table .jh2-row-icon {
@@ -317,7 +317,7 @@
 .jh2-pill--info    { background: rgba(59,130,246,.12);  color: #93c5fd; border-color: rgba(59,130,246,.25); }
 .jh2-pill--warning { background: rgba(245,158,11,.12);  color: #fcd34d; border-color: rgba(245,158,11,.30); }
 .jh2-pill--danger  { background: rgba(239,68,68,.12);   color: #fca5a5; border-color: rgba(239,68,68,.30); }
-.jh2-pill--primary { background: rgba(168,85,247,.12);  color: #d8b4fe; border-color: rgba(168,85,247,.30); }
+.jh2-pill--primary { background: rgba(37,99,235,.12);  color: #93c5fd; border-color: rgba(37,99,235,.30); }
 .jh2-pill--neutral { background: rgba(148,163,184,.12); color: #cbd5e1; border-color: rgba(148,163,184,.25); }
 
 /* Variante con dot estático (sin pulse) */
@@ -333,7 +333,7 @@
     padding: 48px 20px;
     border-radius: var(--jh2-radius);
     background:
-        radial-gradient(ellipse 60% 60% at 50% 0%, rgba(168,85,247,.10), transparent 70%),
+        radial-gradient(ellipse 60% 60% at 50% 0%, rgba(37,99,235,.10), transparent 70%),
         var(--jh2-card-bg);
     border: 1px dashed var(--jh2-card-border-hi);
     color: rgba(226,232,240,.75);
@@ -381,7 +381,7 @@
 }
 .jh2-btn--primary {
     background: var(--jh2-grad-primary);
-    box-shadow: 0 6px 20px -4px rgba(168,85,247,.45);
+    box-shadow: 0 6px 20px -4px rgba(37,99,235,.45);
 }
 .jh2-btn--primary::after {
     content: "";
@@ -393,7 +393,7 @@
 .jh2-btn--primary:hover {
     transform: translateY(-1px);
     filter: brightness(1.08);
-    box-shadow: 0 8px 26px -4px rgba(168,85,247,.55);
+    box-shadow: 0 8px 26px -4px rgba(37,99,235,.55);
     color: #fff; text-decoration: none;
 }
 .jh2-btn--primary:hover::after { left: 130%; }
@@ -486,8 +486,8 @@
     overflow: hidden;
     padding: 24px;
     border-radius: 18px;
-    background: linear-gradient(135deg, rgba(244,114,182,.08), rgba(139,92,246,.06) 60%, rgba(15,23,42,.65));
-    border: 1px solid rgba(244,114,182,.18);
+    background: linear-gradient(135deg, rgba(96,165,250,.08), rgba(139,92,246,.06) 60%, rgba(15,23,42,.65));
+    border: 1px solid rgba(96,165,250,.18);
 }
 .jh2-hero__halo {
     position: absolute;
@@ -501,7 +501,7 @@
     font-size: 22px;
     font-weight: 800;
     color: #f8fafc;
-    background: linear-gradient(135deg, #f472b6, #c4b5fd);
+    background: linear-gradient(135deg, #60a5fa, #c4b5fd);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -526,7 +526,7 @@
     position: absolute;
     left: 30px; top: 18px; bottom: 18px;
     width: 2px;
-    background: rgba(244,114,182,.18);
+    background: rgba(96,165,250,.18);
 }
 .jh2-timeline__item {
     position: relative;
@@ -547,7 +547,7 @@
     color: inherit;
     text-decoration: none;
 }
-.jh2-timeline__link:hover .jh2-timeline__title { color: #f0abfc; }
+.jh2-timeline__link:hover .jh2-timeline__title { color: #93c5fd; }
 .jh2-timeline__title {
     font-size: 13.5px;
     font-weight: 600;
@@ -619,7 +619,7 @@
 .jh2-tab--active {
     background: var(--jh2-grad-primary);
     color: #ffffff;
-    box-shadow: 0 4px 12px -4px rgba(168,85,247,.5);
+    box-shadow: 0 4px 12px -4px rgba(37,99,235,.5);
 }
 .jh2-tab--active:hover { color: #ffffff; }
 .jh2-tab__alt {
@@ -650,8 +650,8 @@
 }
 .jh2-input:focus {
     outline: none;
-    border-color: rgba(168,85,247,.5);
-    box-shadow: 0 0 0 3px rgba(168,85,247,.15);
+    border-color: rgba(37,99,235,.5);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.15);
     background: rgba(15,23,42,.85);
 }
 .jh2-input::placeholder { color: rgba(148,163,184,.5); }
@@ -678,7 +678,7 @@ select.jh2-input {
     color: rgba(226,232,240,.6);
 }
 .jh2-chip--active .jh2-chip__count {
-    background: rgba(168,85,247,.25);
+    background: rgba(37,99,235,.25);
     color: #fef3c7;
 }
 
@@ -727,8 +727,8 @@ select.jh2-input {
 }
 .jh2-card--hover:hover {
     transform: translateY(-2px);
-    border-color: rgba(168,85,247,.25);
-    box-shadow: 0 0 0 1px rgba(168,85,247,.15), 0 16px 48px -16px rgba(168,85,247,.4);
+    border-color: rgba(37,99,235,.25);
+    box-shadow: 0 0 0 1px rgba(37,99,235,.15), 0 16px 48px -16px rgba(37,99,235,.4);
 }
 
 /* Pagination footer */
@@ -778,7 +778,7 @@ select.jh2-input {
     text-transform: uppercase;
     letter-spacing: .04em;
 }
-.jh2-field__required { color: #f472b6; margin-left: 2px; }
+.jh2-field__required { color: #60a5fa; margin-left: 2px; }
 .jh2-field__help {
     font-size: 11.5px;
     color: rgba(148,163,184,.6);
@@ -812,8 +812,8 @@ select.jh2-input {
 .jh2-card--padded form select:focus,
 .jh2-card--padded form textarea:focus {
     outline: none;
-    border-color: rgba(168,85,247,.5);
-    box-shadow: 0 0 0 3px rgba(168,85,247,.15);
+    border-color: rgba(37,99,235,.5);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.15);
 }
 
 /* Code block — monospace inside a glass surface */
@@ -833,7 +833,7 @@ select.jh2-input {
     display: inline-block;
     padding: 1px 6px;
     border-radius: 4px;
-    background: rgba(168,85,247,.18);
+    background: rgba(37,99,235,.18);
     color: #ddd6fe;
     font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
     font-size: 10.5px;

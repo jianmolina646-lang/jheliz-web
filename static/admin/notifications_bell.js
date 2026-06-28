@@ -1,7 +1,7 @@
 /**
  * Bell de notificaciones del admin (visible en TODAS las páginas).
  *
- * Hace polling al endpoint JSON `/jheliz-admin/notifications/count.json` cada
+ * Hace polling al endpoint JSON `/panel-virtualidadsp/notifications/count.json` cada
  * 30s y mantiene una lista compartida de pendientes (Yape por aprobar, pedidos
  * en preparación, tickets abiertos). Al detectar un item nuevo (no visto antes
  * por este browser), muestra un badge rojo + opcionalmente un beep y una
@@ -16,7 +16,7 @@
     window.__jhelizBellMounted = true;
 
     var POLL_MS = 30000;
-    var ENDPOINT = "/jheliz-admin/notifications/count.json";
+    var ENDPOINT = "/panel-virtualidadsp/notifications/count.json";
     var SEEN_KEY = "jheliz_admin_seen_notif_ids";
     var SEEN_MAX = 200; // evita que el storage crezca indefinidamente
 
@@ -83,7 +83,7 @@
         if (!("Notification" in window)) return;
         if (Notification.permission !== "granted") return;
         try {
-            new Notification(title, { body: body, icon: "/manifest-icon.png", tag: "jheliz-admin" });
+            new Notification(title, { body: body, icon: "/manifest-icon.png", tag: "virtualidadsp-admin" });
         } catch (_) { /* iOS Safari no implementa */ }
     }
 
@@ -110,7 +110,7 @@
             text: "Sin pendientes. Todo en orden.",
         });
         footerLink = el("a", {
-            href: "/jheliz-admin/orders/order/?status__exact=verifying",
+            href: "/panel-virtualidadsp/orders/order/?status__exact=verifying",
             className: "jheliz-bell-footer-link",
             text: "Ver todos los Yape pendientes",
         });
@@ -254,9 +254,9 @@
     // ----- entry -----
     function init() {
         if (!document.body) return;
-        // Sólo monta dentro del admin (rutas que arrancan con /jheliz-admin/).
+        // Sólo monta dentro del admin (rutas que arrancan con /panel-virtualidadsp/).
         // Evita que toque la web pública si el script se incluye por error.
-        if (location.pathname.indexOf("/jheliz-admin/") !== 0) return;
+        if (location.pathname.indexOf("/panel-virtualidadsp/") !== 0) return;
 
         buildShell();
 

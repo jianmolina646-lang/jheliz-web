@@ -103,9 +103,6 @@
         </div>
         <div class="text-right shrink-0 flex flex-col items-end gap-1">
           <div class="font-display font-bold text-zinc-100 tracking-tight">{{ CURRENCY_SYMBOL }} {{ line.subtotal_for_user|floatformat:2|intcomma }}</div>
-          {% with usd_sub=line.subtotal_for_user|to_usd:USD_EXCHANGE_RATE %}
-            {% if usd_sub %}<div class="text-xs text-emerald-300 font-semibold">≈ USD {{ usd_sub|floatformat:2|intcomma }}</div>{% endif %}
-          {% endwith %}
           {% if user.is_distributor %}
             <form method="post" action="{% url 'orders:cart_duplicate_line' line.index %}">
               {% csrf_token %}
@@ -221,16 +218,13 @@
       <span class="text-sm text-zinc-400">{% trans "Total" %}</span>
       <div class="text-right">
         <span class="font-display text-2xl font-bold tracking-tight">{{ CURRENCY_SYMBOL }} {{ total|floatformat:2|intcomma }}</span>
-        {% with usd_total=total|to_usd:USD_EXCHANGE_RATE %}
-          {% if usd_total %}<div class="text-xs text-emerald-300 font-semibold mt-0.5">≈ USD {{ usd_total|floatformat:2|intcomma }}</div>{% endif %}
-        {% endwith %}
       </div>
     </div>
     <a href="{% url 'orders:checkout' %}" class="btn btn-primary btn-lg btn-block mt-5">
       {% trans "Ir a pagar" %}
       <svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
     </a>
-    <p class="text-xs text-zinc-500 mt-3 text-center">{% trans "Pagos con Yape o Binance Pay." %}</p>
+    <p class="text-xs text-zinc-500 mt-3 text-center">{% trans "Pagos con Binance Pay." %}</p>
   </aside>
 </div>
 {% else %}
@@ -261,7 +255,7 @@
     <ul class="cart-empty__trust" aria-label='{% trans "Garantías VirtualidadSP" %}'>
       <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></svg> {% trans "Garantía 30 días" %}</li>
       <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg> {% trans "Entrega < 5 min" %}</li>
-      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg> Yape · Binance Pay</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg> Binance Pay</li>
     </ul>
   </div>
 

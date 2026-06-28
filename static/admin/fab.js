@@ -1,47 +1,47 @@
 /* Floating Action Button (FAB) — atajos rápidos para acciones frecuentes.
  *
- * Se inyecta automáticamente en cualquier página /jheliz-admin/* y muestra
+ * Se inyecta automáticamente en cualquier página /panel-virtualidadsp/* y muestra
  * un botón flotante abajo a la derecha que abre un menú con shortcuts.
  */
 (function() {
-    if (!location.pathname.startsWith("/jheliz-admin")) return;
+    if (!location.pathname.startsWith("/panel-virtualidadsp")) return;
 
     const ITEMS = [
         {
             label: "Nuevo pedido manual",
             icon: "add_shopping_cart",
             color: "#10b981",
-            href: "/jheliz-admin/orders/order/add/",
+            href: "/panel-virtualidadsp/orders/order/add/",
         },
         {
             label: "Importar stock",
             icon: "inventory",
             color: "#f472b6",
-            href: "/jheliz-admin/catalog/stockitem/importar/",
+            href: "/panel-virtualidadsp/catalog/stockitem/importar/",
         },
         {
             label: "Stock por producto",
             icon: "grid_view",
             color: "#8b5cf6",
-            href: "/jheliz-admin/stock/",
+            href: "/panel-virtualidadsp/stock/",
         },
         {
             label: "Renovaciones",
             icon: "autorenew",
             color: "#06b6d4",
-            href: "/jheliz-admin/renewals/",
+            href: "/panel-virtualidadsp/renewals/",
         },
         {
             label: "Reportes",
             icon: "monitoring",
             color: "#f59e0b",
-            href: "/jheliz-admin/reports/",
+            href: "/panel-virtualidadsp/reports/",
         },
         {
             label: "Nuevo producto",
             icon: "add_box",
             color: "#ec4899",
-            href: "/jheliz-admin/catalog/product/add/",
+            href: "/panel-virtualidadsp/catalog/product/add/",
         },
         {
             label: "Buscar (⌘K)",

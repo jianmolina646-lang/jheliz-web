@@ -70,7 +70,7 @@ h1, h2, h3,
     line-height: 1.15;
 
     /* Gradient text rosa → violeta → índigo (el alma del 2026) */
-    background: linear-gradient(135deg, #f472b6 0%, #c4b5fd 45%, #818cf8 100%);
+    background: linear-gradient(135deg, #60a5fa 0%, #c4b5fd 45%, #818cf8 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -108,7 +108,7 @@ h1, h2, h3,
     letter-spacing: -.03em;
     line-height: 1.1;
 
-    background: linear-gradient(135deg, #f472b6 0%, #c4b5fd 50%, #93c5fd 100%);
+    background: linear-gradient(135deg, #60a5fa 0%, #c4b5fd 50%, #93c5fd 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

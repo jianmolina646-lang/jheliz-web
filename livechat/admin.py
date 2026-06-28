@@ -1,6 +1,6 @@
 """Admin classic para auditoría/listado de salas y mensajes.
 
-La UX principal del operador es ``/panel-jheliz-2026/livechat/`` (vista
+La UX principal del operador es ``/panel-virtualidadsp/livechat/`` (vista
 custom). El admin clásico queda como vista de auditoría / inspección.
 """
 
@@ -22,7 +22,7 @@ class ChatMessageInline(admin.TabularInline):
 
     def has_add_permission(self, request, obj=None):
         # No queremos que el staff cree mensajes desde el admin clásico —
-        # eso vive en /panel-jheliz-2026/livechat/.
+        # eso vive en /panel-virtualidadsp/livechat/.
         return False
 
 

@@ -5,7 +5,7 @@
  * Mantiene los mensajes originales como fallback (solo los oculta visualmente).
  */
 (function() {
-    if (!location.pathname.startsWith("/jheliz-admin")) return;
+    if (!location.pathname.startsWith("/panel-virtualidadsp")) return;
 
     const css = `
         .jh-toast-stack {

@@ -1,4 +1,4 @@
-# Deploy de VirtualidadSP — `ecormecejhelizstore.com`
+# Deploy de VirtualidadSP — `virtualidadsp.com`
 
 Esta guía cubre dos escenarios: **VPS Hostinger** (o cualquier VPS Linux) y **Fly.io** (gratis para empezar, tráfico bajo). Elige una según el plan que tengas.
 
@@ -29,8 +29,8 @@ Campos obligatorios en `.env`:
 
 - `SECRET_KEY` → genera uno con `python -c 'import secrets;print(secrets.token_urlsafe(64))'`
 - `DEBUG=False`
-- `ALLOWED_HOSTS=ecormecejhelizstore.com,www.ecormecejhelizstore.com`
-- `SITE_URL=https://ecormecejhelizstore.com`
+- `ALLOWED_HOSTS=virtualidadsp.com,www.virtualidadsp.com`
+- `SITE_URL=https://virtualidadsp.com`
 - `DATABASE_URL=postgres://jheliz:jheliz@db:5432/jheliz` (o el Postgres que uses)
 - `MERCADOPAGO_ACCESS_TOKEN` y `MERCADOPAGO_PUBLIC_KEY` (producción)
 - `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`
@@ -52,7 +52,7 @@ Crea `/etc/nginx/sites-available/jheliz`:
 ```nginx
 server {
     listen 80;
-    server_name ecormecejhelizstore.com www.ecormecejhelizstore.com;
+    server_name virtualidadsp.com www.virtualidadsp.com;
 
     location /.well-known/acme-challenge/ { root /var/www/certbot; }
 
@@ -71,7 +71,7 @@ server {
 ```bash
 sudo ln -s /etc/nginx/sites-available/jheliz /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d ecormecejhelizstore.com -d www.ecormecejhelizstore.com
+sudo certbot --nginx -d virtualidadsp.com -d www.virtualidadsp.com
 ```
 
 ### 1.5 DNS en Hostinger
@@ -87,7 +87,7 @@ Espera 5–30 min a que propague.
 
 En https://www.mercadopago.com.pe/developers/panel → tu app VIRTUALIDADSP → **Webhooks**:
 
-- URL: `https://ecormecejhelizstore.com/pedidos/webhooks/mercadopago/`
+- URL: `https://virtualidadsp.com/pedidos/webhooks/mercadopago/`
 - Eventos: `payment`
 
 ### 1.7 Bot de códigos (`@codigosjheliz_bot`)
@@ -132,7 +132,7 @@ el servicio `codes_bot` del `docker-compose.yml` (long-polling, `restart: unless
 Hosting compartido solo corre PHP/Node/estáticos. Django necesita Python + Gunicorn, así que la alternativa más sencilla es:
 
 - **Fly.io** → gratis hasta ~3 máquinas pequeñas. Muy rápido de deployar.
-- Apuntas `ecormecejhelizstore.com` desde Hostinger hacia Fly.io por DNS.
+- Apuntas `virtualidadsp.com` desde Hostinger hacia Fly.io por DNS.
 
 ### 2.1 Instala flyctl
 
@@ -156,16 +156,16 @@ fly secrets set \
   EMAIL_HOST=smtp-relay.brevo.com \
   EMAIL_HOST_USER=... \
   EMAIL_HOST_PASSWORD=... \
-  DEFAULT_FROM_EMAIL='VirtualidadSP <no-reply@ecormecejhelizstore.com>'
+  DEFAULT_FROM_EMAIL='VirtualidadSP <no-reply@virtualidadsp.com>'
 fly deploy
 ```
 
 ### 2.3 Dominio personalizado
 
 ```bash
-fly certs create ecormecejhelizstore.com
-fly certs create www.ecormecejhelizstore.com
-fly certs show ecormecejhelizstore.com
+fly certs create virtualidadsp.com
+fly certs create www.virtualidadsp.com
+fly certs show virtualidadsp.com
 ```
 
 Fly te dará un par de registros DNS. En Hostinger hPanel → DNS apunta:
@@ -220,8 +220,8 @@ docker compose --profile bot up -d telegram_bot
 
 ## 3) Checklist post-deploy
 
-- [ ] `ecormecejhelizstore.com` responde con HTTPS y muestra el home
-- [ ] `/panel-jheliz-2026/` carga y puedes entrar como superuser
+- [ ] `virtualidadsp.com` responde con HTTPS y muestra el home
+- [ ] `/panel-virtualidadsp/` carga y puedes entrar como superuser
 - [ ] Carga al menos un Category + Product + Plan desde el admin
 - [ ] `python manage.py seed_catalog` si quieres ejemplos
 - [ ] Haz una compra de prueba con Mercado Pago (tarjeta TEST)
@@ -240,7 +240,7 @@ docker compose --profile bot up -d telegram_bot
 
 ---
 
-## 5) Migración SEO desde el dominio anterior (`jhelizservicestv.xyz` → `ecormecejhelizstore.com`)
+## 5) Migración SEO desde el dominio anterior (`jhelizservicestv.xyz` → `virtualidadsp.com`)
 
 Si vienes del dominio anterior y querés transferir el ranking de Google sin perder
 tráfico, seguí estos 6 pasos en orden. **No** apagues el dominio viejo hasta que
@@ -248,7 +248,7 @@ Google haya migrado el ranking (mínimo 6 meses, idealmente para siempre).
 
 ### 5.1 Verificar ambos dominios en Google Search Console
 1. Entrá a https://search.google.com/search-console.
-2. Agregá la propiedad nueva `ecormecejhelizstore.com` (verificación por DNS TXT).
+2. Agregá la propiedad nueva `virtualidadsp.com` (verificación por DNS TXT).
 3. La propiedad vieja `jhelizservicestv.xyz` debe seguir verificada — no la borres.
 
 ### 5.2 Configurar redirects 301 (página por página, no a home)
@@ -260,16 +260,16 @@ Google haya migrado el ranking (mínimo 6 meses, idealmente para siempre).
   ```bash
   curl -I https://jhelizservicestv.xyz/productos/netflix/
   # Esperado: HTTP/2 301
-  # Location: https://ecormecejhelizstore.com/productos/netflix/
+  # Location: https://virtualidadsp.com/productos/netflix/
   ```
 
 ### 5.3 Update canonical URLs
-- `config/settings.py` ya tiene `SITE_URL=https://ecormecejhelizstore.com` (vía .env).
+- `config/settings.py` ya tiene `SITE_URL=https://virtualidadsp.com` (vía .env).
 - Verificá que `<link rel="canonical">` en cada página apunte al dominio nuevo.
 
 ### 5.4 "Change of Address" tool en Search Console
 1. Search Console → Settings → **Change of Address**.
-2. Source: `jhelizservicestv.xyz`, Destination: `ecormecejhelizstore.com`.
+2. Source: `jhelizservicestv.xyz`, Destination: `virtualidadsp.com`.
 3. Google va a verificar que los redirects 301 funcionen y migra el ranking.
 4. Esto **acelera** la transferencia (si no lo usás, Google también migra pero más lento).
 
@@ -279,7 +279,7 @@ Google haya migrado el ranking (mínimo 6 meses, idealmente para siempre).
   migración en nginx **para siempre** (cuesta 0 mantenerlo).
 
 ### 5.6 Resubmit sitemap a la propiedad nueva
-1. En Search Console (propiedad nueva) → Sitemaps → submit `https://ecormecejhelizstore.com/sitemap.xml`.
+1. En Search Console (propiedad nueva) → Sitemaps → submit `https://virtualidadsp.com/sitemap.xml`.
 2. Monitoreá el coverage report durante las próximas 4-8 semanas para confirmar
    que las URLs nuevas se indexan y las viejas se "consolidan" en las nuevas.
 

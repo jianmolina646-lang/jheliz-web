@@ -167,9 +167,9 @@ def _parse_order_number(query: str) -> int | None:
 def _admin_base() -> str:
     from django.conf import settings
 
-    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://ecormecejhelizstore.com"
+    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://virtualidadsp.com"
     path = "/" + str(
-        getattr(settings, "ADMIN_URL_PATH", "panel-jheliz-2026"),
+        getattr(settings, "ADMIN_URL_PATH", "panel-virtualidadsp"),
     ).strip("/")
     return f"{base}{path}"
 
