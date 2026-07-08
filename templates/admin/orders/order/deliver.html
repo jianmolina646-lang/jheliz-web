@@ -17,11 +17,11 @@
     </div>
   </div>
 
-  {% if order.payment_provider == "yape" and order.payment_proof %}
+  {% if order.payment_proof %}
   <div class="jh2-card jh2-card--padded" style="border-color:rgba(245,158,11,.4);">
     <h3 class="jh2-section-title" style="color:#fcd34d;">
       <span class="material-symbols-outlined" style="color:#fcd34d;">receipt_long</span>
-      Comprobante de pago Yape
+      Comprobante de pago
     </h3>
     <a href="{{ order.payment_proof.url }}" target="_blank" rel="noopener">
       <img src="{{ order.payment_proof.url }}" alt="Comprobante"

@@ -101,7 +101,7 @@ class WalletRecharge(models.Model):
     """Solicitud de recarga de saldo al wallet del distribuidor.
 
     El distribuidor crea la solicitud con un monto y un comprobante
-    (captura de Yape, transferencia, etc.). El admin la aprueba o
+    (captura de Binance, transferencia, etc.). El admin la aprueba o
     rechaza desde el panel; al aprobar se crea una WalletTransaction
     de tipo "recarga" y se acredita el saldo automáticamente.
     """
@@ -112,8 +112,7 @@ class WalletRecharge(models.Model):
         REJECTED = "rejected", "Rechazada"
 
     class Method(models.TextChoices):
-        YAPE = "yape", "Yape"
-        PLIN = "plin", "Plin"
+        BINANCE = "binance", "Binance Pay"
         TRANSFER = "transfer", "Transferencia / depósito"
         MERCADOPAGO = "mp", "Mercado Pago"
         OTHER = "other", "Otro"
@@ -126,7 +125,7 @@ class WalletRecharge(models.Model):
         help_text="Monto a recargar (S/).",
     )
     method = models.CharField(
-        "Método", max_length=20, choices=Method.choices, default=Method.YAPE,
+        "Método", max_length=20, choices=Method.choices, default=Method.TRANSFER,
     )
     status = models.CharField(
         "Estado", max_length=20, choices=Status.choices, default=Status.PENDING,

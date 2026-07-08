@@ -133,8 +133,8 @@
 <div class="jh-inbox-wrap">
     <div class="jh2-page-head">
         <div>
-            <div class="jh2-page-head__eyebrow">Pedidos · Verificación Yape</div>
-            <h1 class="jh2-page-head__title">Bandeja Yape</h1>
+            <div class="jh2-page-head__eyebrow">Pedidos · Verificación de pagos</div>
+            <h1 class="jh2-page-head__title">Bandeja de pagos</h1>
             <p class="jh2-page-head__subtitle">Aprobá o rechazá los comprobantes pendientes en lote.</p>
         </div>
         <div class="jh2-page-head__actions">
@@ -155,7 +155,7 @@
         <article class="jh-card" id="order-{{ order.pk }}">
             <a class="jh-card-proof" href="{{ order.payment_proof.url }}" target="_blank" rel="noopener"
                title="Abrir imagen original">
-                <img src="{{ order.payment_proof.url }}" alt="Comprobante Yape #{{ order.display_number }}" />
+                <img src="{{ order.payment_proof.url }}" alt="Comprobante #{{ order.display_number }}" />
             </a>
             <div class="jh-card-body">
                 <div class="jh-card-row">
@@ -206,7 +206,7 @@
             <div class="jh-card-actions">
                 <a class="jh-btn approve"
                    href="{% url 'admin:orders_order_confirm_yape' order.pk %}"
-                   data-confirm="¿Confirmar el pago Yape del pedido #{{ order.display_number }}?">
+                   data-confirm="¿Confirmar el pago del pedido #{{ order.display_number }}?">
                     <span class="material-symbols-outlined" style="font-size:18px">verified</span>
                     Aprobar
                 </a>
@@ -233,7 +233,7 @@
         {% endfor %}
     </div>
     {% else %}
-    {% include "admin/components/_empty.html" with icon="task_alt" title="Bandeja vacía" desc="No hay comprobantes Yape pendientes de verificación." %}
+    {% include "admin/components/_empty.html" with icon="task_alt" title="Bandeja vacía" desc="No hay comprobantes pendientes de verificación." %}
     {% endif %}
 </div>
 

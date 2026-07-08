@@ -313,7 +313,12 @@ def dashboard_callback(request, context):
     method_data = []
     for r in method_rows:
         name = r["payment_provider"] or "—"
-        pretty = {"mercadopago": "Mercado Pago", "yape": "Yape directo"}.get(name, name)
+        pretty = {
+            "mercadopago": "Mercado Pago",
+            "yape": "Yape directo",
+            "binance": "Binance Pay",
+            "bank": "Depósito bancario",
+        }.get(name, name)
         method_labels.append(pretty)
         method_data.append(r["qty"])
     method_chart = {"labels": method_labels, "data": method_data}
@@ -394,7 +399,7 @@ def dashboard_callback(request, context):
     needs_action = []
     if verifying_orders:
         needs_action.append({
-            "label": "Comprobantes Yape por verificar",
+            "label": "Comprobantes de pago por verificar",
             "count": verifying_orders, "icon": "qr_code_scanner", "tone": "orange",
             "link": reverse("admin:orders_order_yape_inbox"),
         })
@@ -543,7 +548,7 @@ def dashboard_callback(request, context):
                     "link": reverse("admin:orders_order_changelist"),
                 },
                 {
-                    "title": "Yape por verificar",
+                    "title": "Pagos por verificar",
                     "metric": verifying_orders,
                     "footer": "Comprobantes pendientes",
                     "icon": "qr_code_scanner",

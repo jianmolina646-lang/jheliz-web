@@ -15,24 +15,24 @@ def _generate_renewal_token() -> str:
 
 
 class PaymentSettings(models.Model):
-    """Singleton con la config de pagos manuales (Yape) editable desde el admin."""
+    """Singleton con la config de pagos manuales editable desde el admin."""
 
-    yape_enabled = models.BooleanField("Yape activo", default=False)
-    yape_holder_name = models.CharField(
-        "Nombre del titular (Yape)", max_length=120, blank=True,
-        help_text="Nombre que aparece al transferir por Yape, ej: Jhonatan Molina.",
+    # --- Depósito bancario (Ecuador) ---
+    bank_enabled = models.BooleanField("Depósito bancario activo", default=False)
+    bank_holder_name = models.CharField(
+        "Titular de las cuentas", max_length=120, blank=True,
+        help_text="Nombre del titular de las cuentas bancarias.",
     )
-    yape_phone = models.CharField(
-        "Número Yape", max_length=30, blank=True,
-        help_text="Celular asociado a Yape, ej: +51 999 999 999.",
+    bank_accounts = models.TextField(
+        "Cuentas bancarias", blank=True,
+        help_text=(
+            "Datos de las cuentas para depósito/transferencia. "
+            "Una cuenta por bloque, ej: Banco Guayaquil — Ahorros 0022156352."
+        ),
     )
-    yape_qr = models.ImageField(
-        "QR de Yape", upload_to="payments/yape/", blank=True,
-        help_text="Captura o export del QR de tu cuenta Yape.",
-    )
-    yape_instructions = models.TextField(
-        "Instrucciones extra", blank=True,
-        help_text="Texto adicional bajo el QR (ej: horario, verificación extra).",
+    bank_instructions = models.TextField(
+        "Instrucciones extra depósito", blank=True,
+        help_text="Texto adicional bajo las cuentas (ej: enviar comprobante, horario).",
     )
 
     # --- Binance Pay (manual) ---
@@ -247,7 +247,7 @@ class Order(models.Model):
     notes = models.TextField(blank=True)
     payment_proof = models.ImageField(
         "Comprobante de pago", upload_to="payments/proofs/", blank=True,
-        help_text="Captura del comprobante Yape subida por el cliente.",
+        help_text="Captura del comprobante de pago subida por el cliente.",
     )
     payment_proof_uploaded_at = models.DateTimeField(null=True, blank=True)
     payment_rejection_reason = models.TextField(
@@ -385,7 +385,7 @@ class Order(models.Model):
                 "timestamp": self.payment_proof_uploaded_at,
                 "icon": "upload_file",
                 "title": "Comprobante de pago subido",
-                "description": "El cliente adjuntó una captura del pago Yape.",
+                "description": "El cliente adjuntó una captura del pago.",
                 "kind": "proof_uploaded",
                 "actor": "",
             })

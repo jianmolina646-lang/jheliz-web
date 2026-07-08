@@ -18,7 +18,7 @@ from catalog.models import Plan
 
 from . import emails, mercadopago_client, telegram
 from .cart import Cart
-from .forms import AddToCartForm, CheckoutForm, YapeProofForm
+from .forms import AddToCartForm, CheckoutForm, PaymentProofForm
 from .models import Coupon, Order, OrderItem, PaymentSettings
 
 logger = logging.getLogger(__name__)
@@ -325,7 +325,7 @@ def checkout(request):
         }
 
     payment_settings = PaymentSettings.load()
-    yape_available = bool(payment_settings.yape_enabled and payment_settings.yape_qr)
+    bank_available = bool(payment_settings.bank_enabled and payment_settings.bank_accounts)
     binance_available = bool(
         payment_settings.binance_enabled
         and (payment_settings.binance_qr or payment_settings.binance_pay_id)
@@ -343,20 +343,21 @@ def checkout(request):
         if form.is_valid():
             method = form.cleaned_data["payment_method"]
             if method == "mercadopago" and not mp_checkout_enabled:
-                if yape_available:
+                if binance_available or bank_available:
+                    fallback = "binance" if binance_available else "bank"
                     messages.info(
                         request,
-                        "Mercado Pago no est\u00e1 disponible. Te llevamos a pagar con Yape.",
+                        "Mercado Pago no est\u00e1 disponible. Te llevamos a otro m\u00e9todo de pago.",
                     )
-                    method = "yape"
+                    method = fallback
                 else:
                     messages.error(
                         request,
                         "Mercado Pago no est\u00e1 disponible en este momento.",
                     )
                     return redirect("orders:checkout")
-            if method == "yape" and not yape_available:
-                messages.error(request, "Yape no est\u00e1 disponible en este momento.")
+            if method == "bank" and not bank_available:
+                messages.error(request, "El dep\u00f3sito bancario no est\u00e1 disponible en este momento.")
                 return redirect("orders:checkout")
             if method == "binance" and not binance_available:
                 messages.error(request, "Binance Pay no est\u00e1 disponible en este momento.")
@@ -399,10 +400,10 @@ def checkout(request):
                 )
                 return redirect("orders:detail", uuid=order.uuid)
 
-            if method == "yape":
-                order.payment_provider = "yape"
+            if method == "bank":
+                order.payment_provider = "bank"
                 order.save(update_fields=["payment_provider"])
-                return redirect("orders:yape_payment", uuid=order.uuid)
+                return redirect("orders:bank_payment", uuid=order.uuid)
 
             if method == "binance":
                 order.payment_provider = "binance"
@@ -411,9 +412,9 @@ def checkout(request):
 
             # Default: Mercado Pago. Si falla (token vencido, cuenta sin
             # habilitar, error transitorio del SDK), no dejamos al cliente
-            # tirado en una pantalla genérica: lo mandamos a Yape si está
-            # habilitado, así puede pagar de inmediato. Si tampoco hay Yape,
-            # mostramos el detalle del pedido con instrucciones claras.
+            # tirado en una pantalla genérica: lo mandamos a Binance o al
+            # depósito bancario si están habilitados, así puede pagar de
+            # inmediato. Si no, mostramos el detalle del pedido.
             mp_failed = False
             mp_error_msg = ""
             if mercadopago_client.is_configured():
@@ -444,16 +445,19 @@ def checkout(request):
                     if target:
                         return redirect(target)
 
-            if mp_failed and yape_available:
-                # Failover automático a Yape — el cliente igual puede pagar.
-                order.payment_provider = "yape"
+            if mp_failed and (binance_available or bank_available):
+                # Failover automático a otro método manual — el cliente igual puede pagar.
+                fallback = "binance" if binance_available else "bank"
+                order.payment_provider = fallback
                 order.save(update_fields=["payment_provider"])
                 messages.warning(
                     request,
                     "Mercado Pago no respondió en este momento. "
-                    "Te redirigimos a pagar con Yape para que no esperes.",
+                    "Te redirigimos a otro método de pago para que no esperes.",
                 )
-                return redirect("orders:yape_payment", uuid=order.uuid)
+                if fallback == "binance":
+                    return redirect("orders:binance_payment", uuid=order.uuid)
+                return redirect("orders:bank_payment", uuid=order.uuid)
 
             if mp_failed:
                 detail = f" ({mp_error_msg})" if mp_error_msg else ""
@@ -474,11 +478,11 @@ def checkout(request):
         form = CheckoutForm(initial=initial)
 
     # Construir choices del payment_method dinámicamente según disponibilidad.
-    # Filtramos yape si no hay QR configurado, wallet si el usuario no tiene
-    # saldo, y mercadopago si MERCADOPAGO_CHECKOUT_ENABLED está en False.
+    # Filtramos bank si no hay cuentas configuradas, wallet si el usuario no
+    # tiene saldo, y mercadopago si MERCADOPAGO_CHECKOUT_ENABLED está en False.
     available_methods = []
     for value, label in CheckoutForm.PAYMENT_METHODS:
-        if value == "yape" and not yape_available:
+        if value == "bank" and not bank_available:
             continue
         if value == "binance" and not binance_available:
             continue
@@ -489,12 +493,13 @@ def checkout(request):
         available_methods.append((value, label))
     form.fields["payment_method"].choices = available_methods
     # Si MP está deshabilitado y el initial sigue siendo "mercadopago", el
-    # radio queda sin opción seleccionada por defecto. Forzamos yape como
-    # default para que el cliente no tenga que clickear nada.
-    if not mp_checkout_enabled and yape_available:
-        form.fields["payment_method"].initial = "yape"
+    # radio queda sin opción seleccionada por defecto. Forzamos el primer
+    # método manual disponible para que el cliente no tenga que clickear nada.
+    if not mp_checkout_enabled and (binance_available or bank_available):
+        default_method = "binance" if binance_available else "bank"
+        form.fields["payment_method"].initial = default_method
         if not form.is_bound:
-            form.initial["payment_method"] = "yape"
+            form.initial["payment_method"] = default_method
 
     subtotal = cart.subtotal_for(request.user)
     discount = cart.discount_for(request.user)
@@ -511,7 +516,7 @@ def checkout(request):
         "combo_percent_int": int(combo_pct * 100) if combo_pct else 0,
         "total": cart_total,
         "coupon": cart.get_coupon(),
-        "yape_available": yape_available,
+        "bank_available": bank_available,
         "binance_available": binance_available,
         "wallet_available": wallet_available,
         "wallet_balance": user_balance,
@@ -520,8 +525,8 @@ def checkout(request):
     })
 
 
-def yape_payment(request, uuid):
-    """Pantalla para subir comprobante Yape."""
+def bank_payment(request, uuid):
+    """Pantalla para pagar por depósito bancario y subir el comprobante."""
     order = get_object_or_404(Order, uuid=uuid)
     payment_settings = PaymentSettings.load()
 
@@ -533,28 +538,28 @@ def yape_payment(request, uuid):
         return redirect("orders:detail", uuid=order.uuid)
 
     if request.method == "POST":
-        form = YapeProofForm(request.POST, request.FILES)
+        form = PaymentProofForm(request.POST, request.FILES)
         if form.is_valid():
             order.payment_proof = form.cleaned_data["proof"]
             order.payment_proof_uploaded_at = timezone.now()
             order.status = Order.Status.VERIFYING
-            order.payment_provider = "yape"
+            order.payment_provider = "bank"
             order.payment_rejection_reason = ""
             order.save(update_fields=[
                 "payment_proof", "payment_proof_uploaded_at",
                 "status", "payment_provider", "payment_rejection_reason",
             ])
-            emails.send_yape_proof_received(order)
-            telegram.notify_admin_about_yape(order)
+            emails.send_payment_proof_received(order)
+            telegram.notify_admin_about_payment_proof(order)
             messages.success(
                 request,
                 "Recibimos tu comprobante. En menos de 30 minutos lo verificamos y te avisamos por correo.",
             )
             return redirect("orders:detail", uuid=order.uuid)
     else:
-        form = YapeProofForm()
+        form = PaymentProofForm()
 
-    return render(request, "orders/yape_payment.html", {
+    return render(request, "orders/bank_payment.html", {
         "order": order,
         "form": form,
         "settings": payment_settings,
@@ -562,7 +567,7 @@ def yape_payment(request, uuid):
 
 
 def binance_payment(request, uuid):
-    """Pantalla para subir comprobante de Binance Pay (mismo flujo que Yape)."""
+    """Pantalla para subir comprobante de Binance Pay."""
     order = get_object_or_404(Order, uuid=uuid)
     payment_settings = PaymentSettings.load()
 
@@ -574,7 +579,7 @@ def binance_payment(request, uuid):
         return redirect("orders:detail", uuid=order.uuid)
 
     if request.method == "POST":
-        form = YapeProofForm(request.POST, request.FILES)
+        form = PaymentProofForm(request.POST, request.FILES)
         if form.is_valid():
             order.payment_proof = form.cleaned_data["proof"]
             order.payment_proof_uploaded_at = timezone.now()
@@ -585,15 +590,15 @@ def binance_payment(request, uuid):
                 "payment_proof", "payment_proof_uploaded_at",
                 "status", "payment_provider", "payment_rejection_reason",
             ])
-            emails.send_yape_proof_received(order)
-            telegram.notify_admin_about_yape(order)
+            emails.send_payment_proof_received(order)
+            telegram.notify_admin_about_payment_proof(order)
             messages.success(
                 request,
                 "Recibimos tu comprobante de Binance. En menos de 30 minutos lo verificamos y te avisamos por correo.",
             )
             return redirect("orders:detail", uuid=order.uuid)
     else:
-        form = YapeProofForm()
+        form = PaymentProofForm()
 
     # Calculo del equivalente en USD para mostrar al cliente.
     usd_amount = None

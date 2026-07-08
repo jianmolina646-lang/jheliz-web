@@ -106,6 +106,7 @@ def _styles() -> dict:
 def _payment_label(provider: str) -> str:
     return {
         "yape": "Yape QR",
+        "bank": "Depósito bancario",
         "binance": "Binance Pay",
         "mercadopago": "Mercado Pago",
         "wallet": "Saldo wallet",

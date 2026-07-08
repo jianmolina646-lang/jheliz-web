@@ -179,9 +179,9 @@ def order_action_buttons(order) -> list[list[dict]]:
     from .models import Order  # evita ciclo
 
     rows: list[list[dict]] = []
-    if order.status == Order.Status.VERIFYING and order.payment_provider == "yape":
+    if order.status == Order.Status.VERIFYING and order.payment_provider in {"yape", "binance", "bank"}:
         rows.append([
-            {"text": "✅ Confirmar Yape", "callback_data": f"yape:confirm:{order.pk}"},
+            {"text": "✅ Confirmar pago", "callback_data": f"yape:confirm:{order.pk}"},
             {"text": "❌ Rechazar", "callback_data": f"yape:reject:{order.pk}"},
         ])
     if order.status in {Order.Status.PAID, Order.Status.PREPARING, Order.Status.VERIFYING}:
@@ -258,13 +258,14 @@ def format_new_order(order) -> str:
 
 
 def format_yape_proof(order) -> str:
-    """Mensaje moderno para revisar comprobante Yape."""
+    """Mensaje moderno para revisar un comprobante de pago manual."""
     email = order.email or "(sin correo)"
     phone_line = f"  ·  📱 {_escape(order.phone)}" if order.phone else ""
     when = _fmt_datetime(getattr(order, "created_at", None))
 
+    provider = (order.payment_provider or "pago").upper()
     lines = [
-        f"💸 <b>COMPROBANTE YAPE</b>  ·  #{order.display_number}",
+        f"💸 <b>COMPROBANTE {provider}</b>  ·  #{order.display_number}",
         "",
         f"👤 <i>{_escape(email)}</i>{phone_line}",
         f"💰 {_fmt_money(order)}",
@@ -297,8 +298,8 @@ def notify_admin_about_order(order) -> None:
     notify_admin(format_new_order(order), buttons=order_action_buttons(order))
 
 
-def notify_admin_about_yape(order) -> None:
-    """Notifica un comprobante de Yape/Binance recibido.
+def notify_admin_about_payment_proof(order) -> None:
+    """Notifica un comprobante de pago manual (Binance / depósito) recibido.
 
     Ruta a Discord (`#yape-pendientes` + thread del pedido) si el bot
     está configurado, sino sigue con Telegram.
@@ -661,7 +662,7 @@ PUBLIC_HELP = (
 
 ADMIN_HELP = PUBLIC_HELP + (
     "\n\n<b>Comandos admin</b>\n"
-    "/yape — pedidos Yape pendientes (con botones)\n"
+    "/yape — comprobantes de pago pendientes (con botones)\n"
     "/avisar &lt;texto&gt; — publicar a ambos canales (clientes + distribuidores)\n"
     "/avisar_clientes &lt;texto&gt; — solo canal clientes finales\n"
     "/avisar_distrib &lt;texto&gt; — solo canal distribuidores\n"
@@ -899,15 +900,15 @@ def _cmd_yape(chat_id: int | str) -> None:
     from .models import Order
 
     qs = (Order.objects
-          .filter(status=Order.Status.VERIFYING, payment_provider="yape")
+          .filter(status=Order.Status.VERIFYING, payment_provider__in=["yape", "binance", "bank"])
           .order_by("-payment_proof_uploaded_at")[:10])
     items = list(qs)
     if not items:
-        send_message(chat_id, "Sin Yape pendientes 🎉")
+        send_message(chat_id, "Sin comprobantes pendientes 🎉")
         return
-    send_message(chat_id, f"<b>Yape pendientes ({len(items)})</b>")
+    send_message(chat_id, f"<b>Comprobantes pendientes ({len(items)})</b>")
     for o in items:
-        notify_admin_about_yape(o)
+        notify_admin_about_payment_proof(o)
 
 
 def _cmd_hoy(chat_id: int | str) -> None:
@@ -1117,7 +1118,7 @@ def daily_summary_text() -> str:
     cur, t_yest = _money_sum(yest_qs)
 
     pending_yape = Order.objects.filter(
-        status=Order.Status.VERIFYING, payment_provider="yape",
+        status=Order.Status.VERIFYING, payment_provider__in=["yape", "binance", "bank"],
     ).count()
     pending_prep = Order.objects.filter(status=Order.Status.PREPARING).count()
 
@@ -1163,7 +1164,7 @@ def daily_summary_text() -> str:
         f"     • <b>{yest_qs.count()} pedidos</b>  ·  {cur} <b>{t_yest}</b>",
         "",
         "⏳ <b>Pendientes</b>",
-        f"     • Yape por verificar:  <b>{pending_yape}</b>",
+        f"     • Pagos por verificar:  <b>{pending_yape}</b>",
         f"     • En preparación:  <b>{pending_prep}</b>",
         f"     • Tickets abiertos:  <b>{open_tickets}</b>",
     ]

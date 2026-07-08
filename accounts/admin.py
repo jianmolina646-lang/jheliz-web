@@ -787,6 +787,7 @@ class WalletRechargeAdmin(ModelAdmin):
         icon_map = {
             "yape": "phone_iphone",
             "plin": "phone_iphone",
+            "binance": "qr_code_2",
             "transfer": "account_balance",
             "mp": "credit_card",
             "other": "more_horiz",

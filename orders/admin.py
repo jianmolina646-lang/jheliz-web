@@ -215,7 +215,10 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             if quick == "today":
                 qs = qs.filter(created_at__date=today)
             elif quick == "yape_pending":
-                qs = qs.filter(payment_provider="yape", status=Order.Status.VERIFYING)
+                qs = qs.filter(
+                    payment_provider__in=["yape", "binance", "bank"],
+                    status=Order.Status.VERIFYING,
+                )
             elif quick == "undelivered":
                 qs = qs.filter(status__in=[
                     Order.Status.PENDING, Order.Status.VERIFYING,
@@ -241,7 +244,8 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         counts = {
             "today": base_qs.filter(created_at__date=today).count(),
             "yape_pending": base_qs.filter(
-                payment_provider="yape", status=Order.Status.VERIFYING,
+                payment_provider__in=["yape", "binance", "bank"],
+                status=Order.Status.VERIFYING,
             ).count(),
             "undelivered": base_qs.filter(status__in=[
                 Order.Status.PENDING, Order.Status.VERIFYING,
@@ -382,7 +386,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
     @display(description="Acciones rápidas")
     def display_actions(self, obj: Order):
         buttons = []
-        if obj.status == Order.Status.VERIFYING and obj.payment_provider in {"yape", "binance"}:
+        if obj.status == Order.Status.VERIFYING and obj.payment_provider in {"yape", "binance", "bank"}:
             buttons.append(format_html(
                 '<a href="{}" class="jh-btn jh-btn--success">\u2713 Confirmar</a>',
                 reverse("admin:orders_order_confirm_yape", args=[obj.pk]),
@@ -418,7 +422,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             """
 <div>
   <a href="javascript:void(0)" data-yape-open="{modal_id}" style="display:inline-block">
-    <img src="{url}" alt="Comprobante Yape"
+    <img src="{url}" alt="Comprobante de pago"
          style="max-width:320px;max-height:420px;border-radius:8px;
                 border:1px solid #334155;cursor:zoom-in;display:block" />
     <div style="font-size:11px;color:#94a3b8;margin-top:4px">Click para ampliar</div>
@@ -433,7 +437,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
        style="position:absolute;top:20px;left:24px;color:#fff;font-size:13px;
               text-decoration:none;padding:6px 12px;border:1px solid rgba(255,255,255,0.3);
               border-radius:6px">Abrir en pestaña nueva ↗</a>
-    <img src="{url}" alt="Comprobante Yape ampliado"
+    <img src="{url}" alt="Comprobante de pago ampliado"
          style="max-width:92vw;max-height:92vh;border-radius:6px;
                 box-shadow:0 25px 60px rgba(0,0,0,0.6)" />
   </div>
@@ -563,10 +567,10 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         ]
         return custom + urls
 
-    # ---- Bandeja de verificación Yape --------------------------------------
+    # ---- Bandeja de verificación de comprobantes ---------------------------
 
     def yape_inbox_view(self, request):
-        """Pantalla dedicada para aprobar/rechazar comprobantes Yape de un vistazo.
+        """Pantalla dedicada para aprobar/rechazar comprobantes de un vistazo.
 
         Lista solo los pedidos con comprobante subido y pendientes de
         verificación, con vista previa grande y acciones inline.
@@ -574,7 +578,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         qs = (
             Order.objects.filter(
                 status=Order.Status.VERIFYING,
-                payment_provider="yape",
+                payment_provider__in=["yape", "binance", "bank"],
             )
             .exclude(payment_proof="")
             .select_related("user", "coupon")
@@ -584,7 +588,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         context = {
             **self.admin_site.each_context(request),
             "orders": qs,
-            "title": "Bandeja de verificación Yape",
+            "title": "Bandeja de verificación de pagos",
             "opts": self.model._meta,
             "has_view_permission": self.has_view_permission(request),
         }
@@ -656,10 +660,10 @@ class OrderAdmin(ExportMixin, ModelAdmin):
 
     def confirm_yape_view(self, request, pk: int):
         order = get_object_or_404(Order, pk=pk)
-        if order.payment_provider not in {"yape", "binance"} or not order.payment_proof:
+        if order.payment_provider not in {"yape", "binance", "bank"} or not order.payment_proof:
             self.message_user(
                 request,
-                "Este pedido no tiene comprobante Yape para confirmar.",
+                "Este pedido no tiene comprobante de pago para confirmar.",
                 level=messages.WARNING,
             )
             return self._back(request, order)
@@ -674,7 +678,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         if delivered:
             self.message_user(
                 request,
-                f"Pago Yape confirmado y cuenta entregada autom\u00e1ticamente "
+                f"Pago confirmado y cuenta entregada autom\u00e1ticamente "
                 f"al distribuidor de #{order.display_number}. Stock descontado.",
                 level=messages.SUCCESS,
             )
@@ -688,22 +692,22 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         if missing:
             self.message_user(
                 request,
-                f"Pago Yape confirmado para #{order.display_number}, pero falta stock "
+                f"Pago confirmado para #{order.display_number}, pero falta stock "
                 f"para: {', '.join(missing)}. Carg\u00e1 stock o entreg\u00e1 manual.",
                 level=messages.WARNING,
             )
         else:
             self.message_user(
                 request,
-                f"Pago Yape confirmado para #{order.display_number}. Se notific\u00f3 al cliente.",
+                f"Pago confirmado para #{order.display_number}. Se notific\u00f3 al cliente.",
                 level=messages.SUCCESS,
             )
         return redirect("admin:orders_order_deliver", pk=order.pk)
 
     def reject_yape_view(self, request, pk: int):
         order = get_object_or_404(Order, pk=pk)
-        if order.payment_provider not in {"yape", "binance"}:
-            self.message_user(request, "Este pedido no es Yape ni Binance.", level=messages.WARNING)
+        if order.payment_provider not in {"yape", "binance", "bank"}:
+            self.message_user(request, "Este pedido no tiene comprobante de pago manual.", level=messages.WARNING)
             return self._back(request, order)
         if request.method == "POST":
             reason = (request.POST.get("reason") or "").strip()
@@ -715,10 +719,10 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             order.status = Order.Status.PENDING
             order.payment_rejection_reason = reason
             order.save(update_fields=["status", "payment_rejection_reason"])
-            emails.send_yape_proof_rejected(order)
+            emails.send_payment_proof_rejected(order)
             self.message_user(
                 request,
-                f"Comprobante Yape rechazado para #{order.display_number}. Se notificó al cliente.",
+                f"Comprobante rechazado para #{order.display_number}. Se notificó al cliente.",
                 level=messages.WARNING,
             )
             # Si el rechazo vino de la bandeja, volver a la bandeja.
@@ -730,7 +734,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             **self.admin_site.each_context(request),
             "order": order,
             "opts": self.model._meta,
-            "title": f"Rechazar comprobante Yape — #{order.display_number}",
+            "title": f"Rechazar comprobante — #{order.display_number}",
         }
         return TemplateResponse(request, "admin/orders/order/reject_yape.html", context)
 
@@ -845,7 +849,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             count += 1
         self.message_user(request, f"{count} pedidos marcados como entregados.")
 
-    @admin.action(description="✅ Confirmar pago Yape → En preparación")
+    @admin.action(description="✅ Confirmar pago → En preparación")
     def confirm_yape_payment(self, request, queryset):
         from .auto_delivery import auto_deliver_distributor_order
 
@@ -854,7 +858,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         auto_delivered = 0
         skipped = 0
         for order in queryset:
-            if order.payment_provider not in {"yape", "binance"}:
+            if order.payment_provider not in {"yape", "binance", "bank"}:
                 skipped += 1
                 continue
             if not order.payment_proof:
@@ -874,7 +878,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
             order.save(update_fields=["status", "paid_at", "payment_rejection_reason"])
             updated += 1
         if updated:
-            msg = f"{updated} pago(s) Yape confirmado(s). Se envi\u00f3 email al cliente."
+            msg = f"{updated} pago(s) confirmado(s). Se envi\u00f3 email al cliente."
             if auto_delivered:
                 msg += (
                     f" {auto_delivered} pedido(s) de distribuidor entregado(s) "
@@ -884,15 +888,15 @@ class OrderAdmin(ExportMixin, ModelAdmin):
         if skipped:
             self.message_user(
                 request,
-                f"{skipped} pedido(s) ignorado(s) (no son Yape o no tienen comprobante).",
+                f"{skipped} pedido(s) ignorado(s) (sin comprobante de pago manual).",
                 level=messages.WARNING,
             )
 
-    @admin.action(description="❌ Rechazar comprobante Yape")
+    @admin.action(description="❌ Rechazar comprobante de pago")
     def reject_yape_payment(self, request, queryset):
         updated = 0
         for order in queryset:
-            if order.payment_provider not in {"yape", "binance"}:
+            if order.payment_provider not in {"yape", "binance", "bank"}:
                 continue
             if not order.payment_rejection_reason:
                 order.payment_rejection_reason = (
@@ -901,7 +905,7 @@ class OrderAdmin(ExportMixin, ModelAdmin):
                 )
             order.status = Order.Status.PENDING
             order.save(update_fields=["status", "payment_rejection_reason"])
-            emails.send_yape_proof_rejected(order)
+            emails.send_payment_proof_rejected(order)
             updated += 1
         self.message_user(
             request,
@@ -947,14 +951,18 @@ class PaymentSettingsAdmin(ModelAdmin):
     """Singleton: siempre una fila."""
 
     fieldsets = (
-        ("Yape", {
-            "fields": ("yape_enabled", "yape_holder_name", "yape_phone", "yape_qr", "yape_instructions"),
-        }),
         ("Binance Pay", {
             "fields": ("binance_enabled", "binance_holder_name", "binance_pay_id", "binance_qr", "binance_instructions"),
             "description": (
                 "Pago manual con Binance Pay. El cliente verá el QR + Pay ID en checkout, "
-                "pagará desde su app Binance y subirá el comprobante (mismo flujo que Yape)."
+                "pagará desde su app Binance y subirá el comprobante."
+            ),
+        }),
+        ("Depósito bancario (Ecuador)", {
+            "fields": ("bank_enabled", "bank_holder_name", "bank_accounts", "bank_instructions"),
+            "description": (
+                "Pago manual por depósito o transferencia bancaria. El cliente verá "
+                "las cuentas en checkout, depositará y subirá el comprobante."
             ),
         }),
         ("Tipo de cambio USD", {

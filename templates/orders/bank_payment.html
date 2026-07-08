@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}Pagar con Yape — {{ SITE_NAME }}{% endblock %}
+{% block title %}Pagar por depósito bancario — {{ SITE_NAME }}{% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto">
-  <h1 class="text-3xl font-extrabold">Paga tu pedido con Yape</h1>
+  <h1 class="text-3xl font-extrabold">Paga tu pedido por depósito bancario</h1>
   <p class="text-white/60 mt-1">
     Pedido <span class="font-mono">#{{ order.display_number }}</span> · Total
     <span class="font-bold text-white">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</span>
@@ -19,60 +19,30 @@
   {% endif %}
 
   <div class="grid md:grid-cols-2 gap-6 mt-8">
-    <div class="card-glass rounded-2xl p-6 text-center">
-      <h2 class="text-lg font-bold">1. Escanea el QR</h2>
-      <p class="text-white/60 text-sm mt-1">Abre tu app Yape → Escanea QR</p>
-      {% if settings.yape_qr %}
-      <div class="mt-4 bg-white rounded-2xl p-4 inline-block" id="yape-qr-wrapper">
-        <img
-          src="{{ settings.yape_qr.url }}"
-          alt="QR Yape VirtualidadSP"
-          class="w-64 h-64 object-contain"
-          loading="eager"
-          decoding="async"
-          referrerpolicy="same-origin"
-          onerror="document.getElementById('yape-qr-wrapper').classList.add('hidden'); document.getElementById('yape-qr-fallback').classList.remove('hidden');"
-        >
-      </div>
-      <div id="yape-qr-fallback" class="hidden mt-4 rounded-2xl border border-white/15 bg-black/30 p-5 text-left text-sm space-y-3">
-        <p class="text-white/80">
-          No pudimos cargar la imagen del QR en este dispositivo. Puedes pagar
-          de cualquier forma con los datos de abajo:
-        </p>
-        {% if settings.yape_holder_name %}
-        <p><span class="text-white/60">Titular:</span> <strong>{{ settings.yape_holder_name }}</strong></p>
-        {% endif %}
-        {% if settings.yape_phone %}
-        <p><span class="text-white/60">Número Yape:</span> <strong>{{ settings.yape_phone }}</strong></p>
-        {% endif %}
-        <p>
-          <a href="{{ settings.yape_qr.url }}" target="_blank" rel="noopener" class="underline text-blue-300">
-            Abrir QR en una pestaña nueva
-          </a>
-        </p>
-      </div>
+    <div class="card-glass rounded-2xl p-6">
+      <h2 class="text-lg font-bold">1. Deposita o transfiere</h2>
+      <p class="text-white/60 text-sm mt-1">Usa cualquiera de nuestras cuentas bancarias:</p>
+      {% if settings.bank_accounts %}
+      <div class="mt-4 rounded-2xl border border-white/15 bg-black/30 p-5 text-sm whitespace-pre-line font-medium">{{ settings.bank_accounts }}</div>
       {% endif %}
       <div class="mt-4 text-sm space-y-1">
-        {% if settings.yape_holder_name %}
-        <div><span class="text-white/60">Titular:</span> <strong>{{ settings.yape_holder_name }}</strong></div>
-        {% endif %}
-        {% if settings.yape_phone %}
-        <div><span class="text-white/60">Número Yape:</span> <strong>{{ settings.yape_phone }}</strong></div>
+        {% if settings.bank_holder_name %}
+        <div><span class="text-white/60">Titular:</span> <strong>{{ settings.bank_holder_name }}</strong></div>
         {% endif %}
         <div class="text-lg mt-2">
-          Monto a transferir:
+          Monto a depositar:
           <strong class="text-blue-300">{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2|intcomma }}</strong>
         </div>
       </div>
-      {% if settings.yape_instructions %}
-      <p class="text-xs text-white/60 mt-4 whitespace-pre-line">{{ settings.yape_instructions }}</p>
+      {% if settings.bank_instructions %}
+      <p class="text-xs text-white/60 mt-4 whitespace-pre-line">{{ settings.bank_instructions }}</p>
       {% endif %}
     </div>
 
     <div class="card-glass rounded-2xl p-6">
       <h2 class="text-lg font-bold">2. Sube el comprobante</h2>
       <p class="text-white/60 text-sm mt-1">
-        Captura la pantalla de Yape donde aparece el monto transferido y el destinatario.
+        Sube la foto o captura del depósito/transferencia donde se vea el monto.
       </p>
       <form method="post" enctype="multipart/form-data" class="mt-4 space-y-4">
         {% csrf_token %}

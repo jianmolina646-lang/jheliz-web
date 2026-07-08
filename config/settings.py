@@ -534,7 +534,7 @@ UNFOLD = {
                         "link": "/panel-virtualidadsp/orders/order/",
                     },
                     {
-                        "title": "Bandeja Yape",
+                        "title": "Bandeja de pagos",
                         "icon": "qr_code_scanner",
                         "link": "/panel-virtualidadsp/orders/order/yape-inbox/",
                     },
@@ -638,7 +638,7 @@ UNFOLD = {
                 "separator": True,
                 "items": [
                     {
-                        "title": "Config. de pagos (Yape)",
+                        "title": "Config. de pagos",
                         "icon": "qr_code_2",
                         "link": "/panel-virtualidadsp/orders/paymentsettings/",
                     },

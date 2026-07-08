@@ -77,11 +77,11 @@ def _serve_under(subdir: str, rel_path: str) -> FileResponse:
 @login_required
 @user_passes_test(lambda u: u.is_staff, login_url=settings.LOGIN_URL)
 def serve_payment_proof(request, path: str):
-    """Yape payment proofs uploaded by clients. Staff-only."""
+    """Payment proofs uploaded by clients. Staff-only."""
     return _serve_under(os.path.join("payments", "proofs"), path)
 
 
 @cache_control(public=True, max_age=600)
-def serve_yape_qr(request, path: str):
-    """Merchant Yape QR shown to every buyer (incl. guest checkouts)."""
-    return _serve_under(os.path.join("payments", "yape"), path)
+def serve_binance_qr(request, path: str):
+    """Merchant Binance Pay QR shown to every buyer (incl. guest checkouts)."""
+    return _serve_under(os.path.join("payments", "binance"), path)

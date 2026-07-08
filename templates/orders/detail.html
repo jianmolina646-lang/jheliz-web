@@ -18,13 +18,21 @@
   {% endif %}
 </div>
 
-{% if order.status == 'pending' and order.payment_provider == 'yape' %}
+{% if order.status == 'pending' and order.payment_provider == 'binance' %}
   <div class="mt-5 rounded-2xl border border-blue-400/30 bg-blue-500/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
     <div>
-      <div class="font-bold">Te falta subir el comprobante Yape</div>
+      <div class="font-bold">Te falta subir el comprobante de pago</div>
       <div class="text-sm text-white/70">Termina tu compra pagando por QR y enviando la captura.</div>
     </div>
-    <a href="{% url 'orders:yape_payment' uuid=order.uuid %}" class="btn-primary text-white font-semibold px-5 py-2 rounded-xl text-sm text-center">Pagar con Yape →</a>
+    <a href="{% url 'orders:binance_payment' uuid=order.uuid %}" class="btn-primary text-white font-semibold px-5 py-2 rounded-xl text-sm text-center">Pagar con Binance →</a>
+  </div>
+{% elif order.status == 'pending' and order.payment_provider == 'bank' %}
+  <div class="mt-5 rounded-2xl border border-blue-400/30 bg-blue-500/10 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <div class="font-bold">Te falta subir el comprobante de pago</div>
+      <div class="text-sm text-white/70">Termina tu compra depositando en una de nuestras cuentas y enviando la captura.</div>
+    </div>
+    <a href="{% url 'orders:bank_payment' uuid=order.uuid %}" class="btn-primary text-white font-semibold px-5 py-2 rounded-xl text-sm text-center">Pagar por depósito →</a>
   </div>
 {% elif order.status == 'verifying' %}
   <div class="mt-5 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
@@ -37,7 +45,7 @@
       <div class="font-bold text-red-100">Comprobante rechazado</div>
       <div class="text-sm text-white/70 mt-1">{{ order.payment_rejection_reason }}</div>
     </div>
-    <a href="{% url 'orders:yape_payment' uuid=order.uuid %}" class="btn-primary text-white font-semibold px-5 py-2 rounded-xl text-sm text-center">Subir otro comprobante</a>
+    <a href="{% if order.payment_provider == 'binance' %}{% url 'orders:binance_payment' uuid=order.uuid %}{% else %}{% url 'orders:bank_payment' uuid=order.uuid %}{% endif %}" class="btn-primary text-white font-semibold px-5 py-2 rounded-xl text-sm text-center">Subir otro comprobante</a>
   </div>
 {% endif %}
 
