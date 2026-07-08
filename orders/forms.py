@@ -36,8 +36,8 @@ class CheckoutForm(forms.Form):
 
     PAYMENT_METHODS = (
         ("mercadopago", "Mercado Pago"),
-        ("yape", "Yape QR"),
         ("binance", "Binance Pay"),
+        ("bank", "Depósito bancario"),
         ("wallet", "Saldo wallet"),
     )
 
@@ -66,8 +66,8 @@ class CheckoutForm(forms.Form):
     )
 
 
-class YapeProofForm(forms.Form):
-    """Subida del comprobante Yape (captura)."""
+class PaymentProofForm(forms.Form):
+    """Subida del comprobante de pago (captura)."""
 
     proof = forms.ImageField(
         label="Captura del comprobante",
@@ -75,7 +75,7 @@ class YapeProofForm(forms.Form):
             "accept": "image/*",
             "class": "form-input",
         }),
-        help_text="Sube la captura de Yape donde se vea el monto y el destinatario.",
+        help_text="Sube la captura donde se vea el monto y el destinatario.",
     )
 
     def clean_proof(self):

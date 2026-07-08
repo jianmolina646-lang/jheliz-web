@@ -87,7 +87,7 @@
         { kw: "clientes top",          label: "⭐ Clientes valiosos",        url: "/panel-virtualidadsp/top-customers/" },
         { kw: "cliente 360",           label: "👥 Buscar cliente",           url: "/panel-virtualidadsp/customers/" },
         { kw: "salud health",          label: "❤️ Estado de servicios",     url: "/panel-virtualidadsp/health/" },
-        { kw: "yape inbox bandeja",    label: "💸 Bandeja Yape pendientes",  url: "/panel-virtualidadsp/orders/order/yape-inbox/" },
+        { kw: "pagos inbox bandeja comprobantes",    label: "💸 Bandeja de pagos pendientes",  url: "/panel-virtualidadsp/orders/order/yape-inbox/" },
         { kw: "pedido nuevo",          label: "➕ Crear pedido",             url: "/panel-virtualidadsp/orders/order/add/" },
         { kw: "producto nuevo",        label: "➕ Crear producto",           url: "/panel-virtualidadsp/catalog/product/add/" },
         { kw: "cupon descuento",       label: "🎟 Cupones",                  url: "/panel-virtualidadsp/orders/coupon/" },

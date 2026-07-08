@@ -324,8 +324,8 @@ urlpatterns = [
 # ---------------------------------------------------------------------------
 # Media protegida
 #
-# /media/payments/proofs/  -> staff-only (comprobantes Yape de los clientes)
-# /media/payments/yape/    -> público (QR del comerciante, visible a invitados)
+# /media/payments/proofs/  -> staff-only (comprobantes de pago de los clientes)
+# /media/payments/binance/ -> público (QR del comerciante, visible a invitados)
 # /media/...               -> público (imágenes de productos, etc.)
 #
 # Importante: las rutas protegidas se declaran ANTES del catch-all público para
@@ -339,9 +339,9 @@ urlpatterns += [
         name="payment_proof_media",
     ),
     path(
-        f"{_media_prefix}/payments/yape/<path:path>",
-        orders_media_views.serve_yape_qr,
-        name="payment_yape_media",
+        f"{_media_prefix}/payments/binance/<path:path>",
+        orders_media_views.serve_binance_qr,
+        name="payment_binance_media",
     ),
     re_path(
         rf"^{_media_prefix}/(?P<path>.*)$",

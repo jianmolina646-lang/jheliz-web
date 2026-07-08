@@ -338,13 +338,13 @@ fieldset.module > h2::before {
         </span>
     </div>
 
-    {% if original.status == "verifying" and original.payment_provider == "yape" %}
+    {% if original.status == "verifying" and original.payment_proof %}
     <a class="jh-action success"
        href="{% url 'admin:orders_order_confirm_yape' original.pk %}"
-       data-confirm="¿Confirmar el pago Yape de #{{ original.display_number }}?"
-       title="Confirmar pago Yape y pasar a En preparación">
+       data-confirm="¿Confirmar el pago de #{{ original.display_number }}?"
+       title="Confirmar pago y pasar a En preparación">
         <span class="material-symbols-outlined">verified</span>
-        Confirmar Yape
+        Confirmar pago
     </a>
     <a class="jh-action danger"
        href="{% url 'admin:orders_order_reject_yape' original.pk %}"

@@ -20,7 +20,7 @@
     <a href="{% url 'admin:orders_order_changelist' %}?jh_quick=yape_pending"
        class="jh-filter-tab {% if active == 'yape_pending' %}jh-filter-tab--active{% endif %}"
        role="tab" aria-selected="{% if active == 'yape_pending' %}true{% else %}false{% endif %}">
-        💸 Yape pendientes
+        💸 Pagos pendientes
         {% if jh_filter_counts.yape_pending %}<span class="jh-filter-tab__count">{{ jh_filter_counts.yape_pending }}</span>{% endif %}
     </a>
     <a href="{% url 'admin:orders_order_changelist' %}?jh_quick=undelivered"
@@ -39,7 +39,7 @@
     <a href="{% url 'admin_quick_order_create' %}"
        class="jh-filter-tab"
        style="margin-left: auto; background: linear-gradient(135deg, #6366f1, #2563eb); color: white; font-weight: 600;"
-       title="Registrar una venta que ya cerraste (Yape, efectivo, etc.)">
+       title="Registrar una venta que ya cerraste (transferencia, efectivo, etc.)">
         ⚡ Pedido rápido
     </a>
 </div>

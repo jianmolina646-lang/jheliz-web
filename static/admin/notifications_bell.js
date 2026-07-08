@@ -2,7 +2,7 @@
  * Bell de notificaciones del admin (visible en TODAS las páginas).
  *
  * Hace polling al endpoint JSON `/panel-virtualidadsp/notifications/count.json` cada
- * 30s y mantiene una lista compartida de pendientes (Yape por aprobar, pedidos
+ * 30s y mantiene una lista compartida de pendientes (pagos por aprobar, pedidos
  * en preparación, tickets abiertos). Al detectar un item nuevo (no visto antes
  * por este browser), muestra un badge rojo + opcionalmente un beep y una
  * notificación nativa del SO.
@@ -112,7 +112,7 @@
         footerLink = el("a", {
             href: "/panel-virtualidadsp/orders/order/?status__exact=verifying",
             className: "jheliz-bell-footer-link",
-            text: "Ver todos los Yape pendientes",
+            text: "Ver todos los pagos pendientes",
         });
 
         panel = el("div", {

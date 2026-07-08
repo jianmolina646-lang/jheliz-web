@@ -469,16 +469,16 @@ class TenantPayment(models.Model):
 
 
 class SaasSettings(models.Model):
-    """Ajustes del **proveedor** (vos): precio del alquiler y Yape de cobro."""
+    """Ajustes del **proveedor** (vos): precio del alquiler y datos de cobro."""
 
     monthly_price = models.DecimalField(
         "Precio mensual (S/)", max_digits=10, decimal_places=2, default=Decimal("30.00")
     )
-    yape_holder = models.CharField("Titular Yape", max_length=120, blank=True)
-    yape_phone = models.CharField("Número Yape", max_length=30, blank=True)
+    yape_holder = models.CharField("Titular", max_length=120, blank=True)
+    yape_phone = models.CharField("Binance Pay ID / referencia", max_length=30, blank=True)
     yape_qr = models.ImageField(
-        "QR de Yape", upload_to="jheliz_control/yape/", blank=True,
-        help_text="QR de tu Yape para cobrar el alquiler.",
+        "QR de pago", upload_to="jheliz_control/yape/", blank=True,
+        help_text="QR de pago (Binance Pay) para cobrar el alquiler.",
     )
     instructions = models.TextField("Instrucciones extra", blank=True)
 

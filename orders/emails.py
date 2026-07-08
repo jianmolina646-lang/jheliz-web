@@ -81,12 +81,12 @@ def send_order_delivered(order) -> None:
           attach_receipt=True)
 
 
-def send_yape_proof_received(order) -> None:
-    _send(order, f"Recibimos tu comprobante Yape \u2014 pedido #{order.display_number}",
+def send_payment_proof_received(order) -> None:
+    _send(order, f"Recibimos tu comprobante de pago \u2014 pedido #{order.display_number}",
           "emails/order_yape_received.html", kind="yape_received")
 
 
-def send_yape_proof_rejected(order) -> None:
+def send_payment_proof_rejected(order) -> None:
     _send(order, f"Necesitamos otro comprobante \u2014 pedido #{order.display_number}",
           "emails/order_yape_rejected.html", kind="yape_rejected")
 

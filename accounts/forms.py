@@ -129,11 +129,11 @@ class WalletRechargeForm(StyledMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self._style_fields()
         self.fields["amount"].widget.attrs.update({"min": "5", "step": "1"})
-        # Solo aceptamos Yape y Mercado Pago para recargas (los métodos
-        # con menor fricción en el flujo de aprobación). El modelo conserva
+        # Métodos disponibles para recargas. El modelo conserva
         # los demás valores por compatibilidad histórica.
         self.fields["method"].choices = [
-            (WalletRecharge.Method.YAPE, "Yape"),
+            (WalletRecharge.Method.BINANCE, "Binance Pay"),
+            (WalletRecharge.Method.TRANSFER, "Transferencia / depósito"),
             (WalletRecharge.Method.MERCADOPAGO, "Mercado Pago"),
         ]
 

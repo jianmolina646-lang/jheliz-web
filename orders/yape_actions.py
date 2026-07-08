@@ -1,4 +1,4 @@
-"""Acciones core de Yape (confirmar / rechazar) reutilizables.
+"""Acciones core de comprobantes manuales (confirmar / rechazar) reutilizables.
 
 Se llaman desde el admin web y desde el callback del bot de Telegram.
 Devuelven un ``YapeActionResult`` con ``ok`` y ``message`` para que el
@@ -21,11 +21,14 @@ class YapeActionResult:
     message: str
 
 
+MANUAL_PROOF_PROVIDERS = {"yape", "binance", "bank"}
+
+
 def confirm_yape_payment(order: Order) -> YapeActionResult:
-    # Aceptamos también Binance Pay porque comparte el flujo de comprobante
-    # manual: el cliente sube captura y el admin confirma desde la misma acción.
-    if order.payment_provider not in {"yape", "binance"} or not order.payment_proof:
-        return YapeActionResult(False, "Este pedido no tiene comprobante Yape ni Binance.")
+    # Todos los métodos manuales comparten el flujo de comprobante: el
+    # cliente sube captura y el admin confirma desde la misma acción.
+    if order.payment_provider not in MANUAL_PROOF_PROVIDERS or not order.payment_proof:
+        return YapeActionResult(False, "Este pedido no tiene comprobante de pago.")
     from .auto_delivery import auto_deliver_distributor_order
 
     now = timezone.now()
@@ -52,8 +55,8 @@ def confirm_yape_payment(order: Order) -> YapeActionResult:
 
 
 def reject_yape_payment(order: Order, reason: str) -> YapeActionResult:
-    if order.payment_provider not in {"yape", "binance"}:
-        return YapeActionResult(False, "Este pedido no es Yape ni Binance.")
+    if order.payment_provider not in MANUAL_PROOF_PROVIDERS:
+        return YapeActionResult(False, "Este pedido no tiene comprobante de pago manual.")
     reason = (reason or "").strip()
     if not reason:
         reason = (
@@ -64,7 +67,7 @@ def reject_yape_payment(order: Order, reason: str) -> YapeActionResult:
     order.payment_rejection_reason = reason
     order.save(update_fields=["status", "payment_rejection_reason"])
     try:
-        emails.send_yape_proof_rejected(order)
+        emails.send_payment_proof_rejected(order)
     except Exception:
         pass
     return YapeActionResult(

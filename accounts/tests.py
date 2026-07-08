@@ -787,7 +787,7 @@ class WalletServiceTests(TestCase):
         from accounts import wallet
         from accounts.models import WalletRecharge
         rec = WalletRecharge.objects.create(
-            user=self.user, amount=Decimal("25.00"), method=WalletRecharge.Method.YAPE,
+            user=self.user, amount=Decimal("25.00"), method=WalletRecharge.Method.BINANCE,
         )
         result = wallet.approve_recharge(rec)
         self.assertTrue(result.ok)
@@ -802,7 +802,7 @@ class WalletServiceTests(TestCase):
         from accounts import wallet
         from accounts.models import WalletRecharge
         rec = WalletRecharge.objects.create(
-            user=self.user, amount=Decimal("25.00"), method=WalletRecharge.Method.YAPE,
+            user=self.user, amount=Decimal("25.00"), method=WalletRecharge.Method.BINANCE,
         )
         result = wallet.reject_recharge(rec, "Comprobante no coincide.")
         self.assertTrue(result.ok)
@@ -847,7 +847,7 @@ class WalletViewsTests(TestCase):
         from accounts.models import WalletRecharge
         resp = self.client.post(reverse("accounts:wallet_recharge"), {
             "amount": "50",
-            "method": "yape",
+            "method": "binance",
             "user_note": "test",
         })
         self.assertIn(resp.status_code, (200, 302))

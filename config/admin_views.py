@@ -191,6 +191,8 @@ def reports_view(request):
     # Ingresos por método de pago (últimos 30 días) — agrego ícono y tono.
     method_visuals = {
         "yape":         {"icon": "\U0001F4F1", "tone": "violet",  "label": "Yape"},
+        "binance":      {"icon": "\U0001FA99", "tone": "warning", "label": "Binance Pay"},
+        "bank":         {"icon": "\U0001F3E6", "tone": "info",    "label": "Dep\u00f3sito bancario"},
         "mercadopago":  {"icon": "\U0001F4B3", "tone": "info",    "label": "Mercado Pago"},
         "wallet":       {"icon": "\U0001F4B0", "tone": "success", "label": "Saldo wallet"},
         "manual":       {"icon": "\U0001F91D", "tone": "neutral", "label": "Manual"},
@@ -2866,7 +2868,7 @@ def inbox_view(request):
     # Lista de chips (tipos disponibles + total).
     chips = [
         ("all", "Todo", sum(stats.values()), "list"),
-        ("yape_proof", "Yape", stats.get("yape_proof", 0), "qr_code_scanner"),
+        ("yape_proof", "Pagos", stats.get("yape_proof", 0), "qr_code_scanner"),
         ("waiting_stock", "Sin entregar", stats.get("waiting_stock", 0), "inventory_2"),
         ("ticket", "Tickets", stats.get("ticket", 0), "support_agent"),
         ("review", "Reseñas", stats.get("review", 0), "rate_review"),
@@ -4208,8 +4210,8 @@ def _quick_order_render(request, plans_qs, preset=None):
         preset=preset,
         payment_methods=[
             ("manual", "Manual / efectivo"),
-            ("yape", "Yape"),
-            ("plin", "Plin"),
+            ("binance", "Binance Pay"),
+            ("bank", "Dep\u00f3sito bancario"),
             ("transferencia", "Transferencia bancaria"),
             ("mercadopago", "Mercado Pago"),
         ],
