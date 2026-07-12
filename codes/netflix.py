@@ -33,8 +33,10 @@ _NETFLIX_LINK_RE = re.compile(
     r"https?://[a-z0-9.\-]*netflix\.com/[^\s\"'<>)]+", re.IGNORECASE
 )
 
-# Palabras clave por tipo (español, inglés, italiano y portugués: las
-# cuentas de Netflix pueden estar configuradas en cualquier idioma).
+# Palabras clave por tipo, en los idiomas más comunes (es, en, it, pt, fr,
+# de). Las cuentas de Netflix pueden estar en cualquier país/idioma; cuando
+# el idioma no está cubierto, ``_classify`` cae a los links de netflix.com
+# (rutas iguales en todos los idiomas) vía ``_URL_HINTS``.
 # El orden importa: ``_classify`` devuelve el primer tipo que matchea, así que
 # los más específicos van primero.
 _KEYWORDS = {
@@ -57,6 +59,9 @@ _KEYWORDS = {
         "temporary access code",
         "codice di accesso temporaneo",
         "código de acesso temporário",
+        "code d'accès temporaire",
+        "temporärer zugangscode",
+        "travel/verify",
     ),
     "household": (
         "actualizar tu hogar",
@@ -69,6 +74,9 @@ _KEYWORDS = {
         "aggiornare il domicilio",
         "atualizar residência",
         "atualizar a sua residência",
+        "foyer netflix",
+        "mettre à jour votre foyer",
+        "netflix-haushalt",
     ),
     "password_reset": (
         "restablece tu contraseña",
@@ -84,6 +92,8 @@ _KEYWORDS = {
         "reimposta la password",
         "redefinir senha",
         "redefinir sua senha",
+        "réinitialiser votre mot de passe",
+        "passwort zurücksetzen",
     ),
     "signin_code": (
         "código de inicio de sesión",
@@ -93,6 +103,9 @@ _KEYWORDS = {
         "codice per accedere",
         "código de acesso",
         "código para iniciar sesión",
+        "code de connexion",
+        "anmeldecode",
+        "einmalcode",
     ),
 }
 
@@ -132,11 +145,18 @@ class NetflixResult:
         return bool(self.action_url or self.code)
 
 
-def _classify(subject: str, body: str) -> str:
+def _classify(subject: str, body: str, links: list[str] | None = None) -> str:
     haystack = f"{subject}\n{body}".lower()
     for kind, kws in _KEYWORDS.items():
         if any(kw in haystack for kw in kws):
             return kind
+    # Fallback independiente del idioma: las rutas de los links de
+    # netflix.com son iguales en todos los países.
+    for kind, hints in _URL_HINTS.items():
+        for link in links or []:
+            low = link.lower()
+            if any(h in low for h in hints):
+                return kind
     return "other"
 
 
@@ -167,10 +187,14 @@ def _extract_code(kind: str, body_text: str) -> str:
     for m in re.finditer(r"(?<!\d)(\d{4,8})(?!\d)", body_text):
         start = max(0, m.start() - 40)
         context = body_text[start : m.end() + 10].lower()
-        # "code" cubre también "codice" (it); "código" cubre es/pt.
-        if "código" in context or "code" in context or "codice" in context:
+        # "código" cubre es/pt; "cod" code/codice (en/it/fr); "kod" idiomas
+        # germánicos/eslavos.
+        if "código" in context or "cod" in context or "kod" in context:
             return m.group(1)
-    return ""
+    # Fallback independiente del idioma: un número de 4-8 dígitos SOLO en
+    # su propia línea (así muestran el código todos los correos de Netflix).
+    m = re.search(r"^\s*(\d{4,8})\s*$", body_text, re.MULTILINE)
+    return m.group(1) if m else ""
 
 
 def parse_netflix_email(subject: str, html: str = "", text: str = "") -> NetflixResult:
@@ -187,7 +211,7 @@ def parse_netflix_email(subject: str, html: str = "", text: str = "") -> Netflix
             seen.add(link)
             uniq_links.append(link)
 
-    kind = _classify(subject, f"{html}\n{text}")
+    kind = _classify(subject, f"{html}\n{text}", uniq_links)
     action_url = _pick_action_url(kind, uniq_links)
     code = _extract_code(kind, text or html)
     return NetflixResult(
