@@ -10,6 +10,8 @@ tipo es y extrae lo accionable para el cliente:
   Trae un botón para confirmar el dispositivo/hogar.
 - **password_reset**: "Restablece tu contraseña" / "Cómo restablecer tu
   contraseña". Trae un botón/link para crear una contraseña nueva.
+- **tv_signin**: "Inicia sesión en tu TV" / "Es hora de ver Netflix".
+  Trae un botón/link para activar Netflix en el televisor.
 - **other**: correo de Netflix no reconocido.
 
 El resultado siempre incluye el ``action_url`` (link del botón principal)
@@ -35,6 +37,16 @@ _NETFLIX_LINK_RE = re.compile(
 # El orden importa: ``_classify`` devuelve el primer tipo que matchea, así que
 # los más específicos van primero.
 _KEYWORDS = {
+    "tv_signin": (
+        "inicia sesión en tu tv",
+        "iniciar sesión en tu tv",
+        "netflix en tu tv",
+        "es hora de ver netflix",
+        "finish signing in",
+        "sign in to your tv",
+        "/tv/out",
+        "tv/signup",
+    ),
     "temp_code": ("código de acceso temporal", "acceso temporal", "obtener código"),
     "household": (
         "actualizar tu hogar",
@@ -61,6 +73,7 @@ _KEYWORDS = {
 
 # Pistas en la ruta del link para elegir el botón correcto.
 _URL_HINTS = {
+    "tv_signin": ("/tv", "tv/out", "tv-signin", "tv8"),
     "temp_code": ("travel", "verify", "otp", "temporary"),
     "household": ("update-primary-location", "primary-location", "household", "confirm"),
     "password_reset": ("password", "forgotpassword", "loginhelp", "reset"),
@@ -68,6 +81,7 @@ _URL_HINTS = {
 }
 
 _HUMAN = {
+    "tv_signin": "Activar Netflix en tu TV",
     "temp_code": "Código de acceso temporal",
     "household": "Actualizar Hogar con Netflix",
     "password_reset": "Restablecer contraseña",
@@ -122,7 +136,7 @@ def _extract_code(kind: str, body_text: str) -> str:
     Muchos correos de acceso temporal NO traen el número (hay que abrir el
     link); por eso esto es best-effort y puede volver vacío.
     """
-    if kind not in {"temp_code", "signin_code"}:
+    if kind not in {"temp_code", "signin_code", "tv_signin"}:
         return ""
     # Número de 4-8 dígitos en una línea casi sola (típico del código).
     for m in re.finditer(r"(?<!\d)(\d{4,8})(?!\d)", body_text):

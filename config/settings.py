@@ -310,6 +310,12 @@ CODES_IMAP_PORT = config("CODES_IMAP_PORT", default=993, cast=int)
 CODES_IMAP_USER = config("CODES_IMAP_USER", default="")
 # Contraseña de aplicación (Gmail) — NO la contraseña normal de la cuenta.
 CODES_IMAP_PASSWORD = config("CODES_IMAP_PASSWORD", default="")
+# Segunda casilla central (Hostinger) — el bot lee AMBAS y entrega el correo
+# más reciente que encuentre en cualquiera de las dos.
+CODES_IMAP2_HOST = config("CODES_IMAP2_HOST", default="imap.hostinger.com")
+CODES_IMAP2_PORT = config("CODES_IMAP2_PORT", default=993, cast=int)
+CODES_IMAP2_USER = config("CODES_IMAP2_USER", default="")
+CODES_IMAP2_PASSWORD = config("CODES_IMAP2_PASSWORD", default="")
 # Ventana (minutos) hacia atrás para considerar un correo de Netflix vigente.
 CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=30, cast=int)
 

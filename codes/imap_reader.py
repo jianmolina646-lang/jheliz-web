@@ -1,8 +1,9 @@
-"""Lectura de la casilla central por IMAP.
+"""Lectura de las casillas centrales por IMAP.
 
-A esta casilla (un Gmail) se reenvían los correos de Netflix de todas las
-cuentas. Cuando un cliente pide el código de ``cuenta@gmail.com``, buscamos
-el último correo de Netflix dirigido a ESE correo y lo parseamos.
+A estas casillas (Gmail y/o Hostinger) se reenvían los correos de Netflix de
+todas las cuentas. Cuando un cliente pide el código de ``cuenta@gmail.com``,
+buscamos el último correo de Netflix dirigido a ESE correo en TODAS las
+casillas configuradas y devolvemos el más reciente.
 
 Como los correos llegan reenviados, el destinatario original puede estar en
 distintos headers (``To``, ``Delivered-To``, ``X-Forwarded-To``,
@@ -47,12 +48,29 @@ _RECIPIENT_HEADERS = (
 )
 
 
+def _accounts() -> list[dict]:
+    """Casillas centrales configuradas (principal + secundaria).
+
+    La principal usa ``CODES_IMAP_*`` (Gmail) y la secundaria
+    ``CODES_IMAP2_*`` (Hostinger). Solo se incluyen las completas.
+    """
+    accounts: list[dict] = []
+    for prefix in ("CODES_IMAP", "CODES_IMAP2"):
+        host = getattr(settings, f"{prefix}_HOST", "")
+        user = getattr(settings, f"{prefix}_USER", "")
+        password = getattr(settings, f"{prefix}_PASSWORD", "")
+        if host and user and password:
+            accounts.append({
+                "host": host,
+                "port": getattr(settings, f"{prefix}_PORT", 993),
+                "user": user,
+                "password": password,
+            })
+    return accounts
+
+
 def is_configured() -> bool:
-    return bool(
-        getattr(settings, "CODES_IMAP_USER", "")
-        and getattr(settings, "CODES_IMAP_PASSWORD", "")
-        and getattr(settings, "CODES_IMAP_HOST", "")
-    )
+    return bool(_accounts())
 
 
 def _decode(value: str | None) -> str:
@@ -136,7 +154,8 @@ def fetch_latest_for_email(
     Devuelve el resultado parseado o ``None`` si no hay nada reciente que
     coincida.
     """
-    if not is_configured():
+    accounts = _accounts()
+    if not accounts:
         raise RuntimeError("IMAP de la casilla de códigos no configurado")
 
     try:
@@ -150,23 +169,53 @@ def fetch_latest_for_email(
 
     lookback = lookback_minutes or getattr(settings, "CODES_LOOKBACK_MINUTES", 30)
     since_dt = datetime.now(timezone.utc) - timedelta(minutes=lookback)
+
+    candidates: list[tuple[datetime, NetflixResult | DisneyResult]] = []
+    errors = 0
+    for account in accounts:
+        try:
+            candidates.extend(
+                _search_account(
+                    account, account_email, search_term, parser, kind, since_dt
+                )
+            )
+        except Exception:
+            logger.exception("Fallo leyendo IMAP en %s", account["host"])
+            errors += 1
+    if errors == len(accounts):
+        raise RuntimeError("Ninguna casilla de códigos respondió")
+    if not candidates:
+        return None
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    return candidates[0][1]
+
+
+def _search_account(
+    account: dict,
+    account_email: str,
+    search_term: str,
+    parser,
+    kind: str | None,
+    since_dt: datetime,
+) -> list[tuple[datetime, NetflixResult | DisneyResult]]:
+    """Busca en UNA casilla y devuelve los candidatos (fecha, resultado)."""
     # IMAP SINCE tiene granularidad de día; afinamos por hora en Python.
     since_imap = (since_dt - timedelta(days=1)).strftime("%d-%b-%Y")
 
     conn = imaplib.IMAP4_SSL(
-        settings.CODES_IMAP_HOST,
-        getattr(settings, "CODES_IMAP_PORT", 993),
+        account["host"],
+        account["port"],
         timeout=getattr(settings, "CODES_IMAP_TIMEOUT", 20),
     )
     try:
-        conn.login(settings.CODES_IMAP_USER, settings.CODES_IMAP_PASSWORD)
+        conn.login(account["user"], account["password"])
         conn.select("INBOX")
         # TEXT busca en todo el mensaje: agarra tanto los reenvíos automáticos
         # (From: el servicio) como los reenviados a mano (From: la cuenta
         # origen, con el correo del servicio dentro del cuerpo).
         typ, data = conn.search(None, "SINCE", since_imap, "TEXT", search_term)
         if typ != "OK":
-            return None
+            return []
         ids = data[0].split()
         # Recorremos de más nuevo a más viejo y solo los N más recientes:
         # no tiene sentido bajar correos viejos que ya cayeron fuera de la
@@ -198,14 +247,12 @@ def fetch_latest_for_email(
             if kind is not None and result.kind != kind:
                 continue
             # Con tipo puntual, el primer match (ya vamos de más nuevo a más
-            # viejo) es el que buscamos: cortamos sin seguir bajando correos.
-            if kind is not None:
-                return result
+            # viejo) es el más reciente de ESTA casilla: cortamos acá y la
+            # comparación entre casillas se hace por fecha más arriba.
             candidates.append((dt, result))
-        if not candidates:
-            return None
-        candidates.sort(key=lambda x: x[0], reverse=True)
-        return candidates[0][1]
+            if kind is not None:
+                return candidates
+        return candidates
     finally:
         try:
             conn.close()

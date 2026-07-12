@@ -33,7 +33,10 @@ _RETRY_SLEEP = 1.0
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 
-# Los 4 comandos del cliente -> tipo de correo de Netflix que entregan.
+# Marca visible del bot en todos los mensajes.
+BRAND = "TEAM JHELIZ"
+
+# Los comandos del cliente -> tipo de correo de Netflix que entregan.
 # Telegram no permite tildes ni mayúsculas en los comandos, así que el
 # comando real es sin tilde (/codigo, /clave) pero el cliente lo escribe igual.
 COMMAND_KINDS: dict[str, str] = {
@@ -41,6 +44,7 @@ COMMAND_KINDS: dict[str, str] = {
     "/viaje": "temp_code",
     "/hogar": "household",
     "/clave": "password_reset",
+    "/tv": "tv_signin",
 }
 
 # Etiqueta corta de cada tipo, para botones y mensajes.
@@ -49,6 +53,7 @@ KIND_LABELS: dict[str, str] = {
     "temp_code": "✈️ Código de acceso temporal (viaje)",
     "household": "🏠 Actualizar Hogar",
     "password_reset": "🔒 Restablecer contraseña",
+    "tv_signin": "📺 Activar Netflix en tu TV",
 }
 
 
@@ -170,16 +175,21 @@ def _kind_buttons(idx: int) -> list[list[dict]]:
 
 
 def _format_result(email: str, result) -> str:
-    head = f"📧 <b>{html.escape(email)}</b>\n{html.escape(result.human_kind)}"
-    parts = [head]
+    parts = [
+        f"✨ <b>{html.escape(result.human_kind)}</b>",
+        f"📧 <code>{html.escape(email)}</code>",
+        "──────────────────",
+    ]
     if result.code:
-        parts.append(f"\n🔢 Código: <code>{html.escape(result.code)}</code>")
+        parts.append(f"🔢 Código: <code>{html.escape(result.code)}</code>")
     if result.action_url:
         parts.append(
-            f'\n🔗 <a href="{html.escape(result.action_url)}">Abrir en Netflix</a>'
+            f'🔗 <a href="{html.escape(result.action_url)}">Abrir en Netflix</a>'
         )
-    parts.append("\n\n⏱ Suele vencer en ~15 min. Si no funciona, generá uno nuevo y volvé a pedirlo.")
-    return "".join(parts)
+    parts.append("──────────────────")
+    parts.append("⏱ Suele vencer en ~15 min. Si no funciona, generá uno nuevo y volvé a pedirlo.")
+    parts.append(f"👑 <b>{BRAND}</b> · gracias por tu compra")
+    return "\n".join(parts)
 
 
 def _result_cache_key(email: str, kind: str | None) -> str:
@@ -397,9 +407,9 @@ def _send_welcome(client: CodeBotClient) -> None:
     if not client.is_active and not admin:
         send_message(
             chat_id,
-            "👋 <b>¡Bienvenido al Bot de Códigos de VirtualidadSP Store!</b> ✨\n\n"
+            f"👋 <b>¡Bienvenido al Bot de Códigos de {BRAND}!</b> ✨\n\n"
             "Acá vas a obtener al instante los códigos de tu cuenta de Netflix:\n"
-            "🔑 inicio de sesión · ✈️ viaje · 🏠 Hogar · 🔒 contraseña\n\n"
+            "🔑 inicio de sesión · ✈️ viaje · 🏠 Hogar · 🔒 contraseña · 📺 TV\n\n"
             "🔒 Tu acceso todavía <b>no está activado</b>.\n"
             f"Tu ID es <code>{html.escape(str(chat_id))}</code>.\n"
             "Enviáselo al admin para que te active y te asigne tus correos. "
@@ -410,7 +420,7 @@ def _send_welcome(client: CodeBotClient) -> None:
     if admin:
         send_message(
             chat_id,
-            "👋 <b>Hola, admin.</b> Bienvenido al Bot de Códigos de VirtualidadSP Store.\n\n"
+            f"👋 <b>Hola, admin.</b> Bienvenido al Bot de Códigos de {BRAND}.\n\n"
             + _admin_help_text(),
             buttons=_email_buttons(emails) if emails else None,
         )
@@ -445,14 +455,15 @@ def _send_commands_help(client: CodeBotClient) -> None:
 def _client_help_text(emails: list[str]) -> str:
     ejemplo = emails[0] if emails else "tucorreo@gmail.com"
     lines = [
-        "✨ <b>Bot de Códigos · VirtualidadSP Store</b>",
-        "",
+        f"✨ <b>Bot de Códigos · {BRAND}</b>",
+        "──────────────────",
         "Escribí el comando con tu correo al lado 👇",
         "",
         f"🔑 <code>/codigo {ejemplo}</code> — código de inicio de sesión",
         f"✈️ <code>/viaje {ejemplo}</code> — código de acceso temporal (de viaje)",
         f"🏠 <code>/hogar {ejemplo}</code> — link para actualizar Hogar",
         f"🔒 <code>/clave {ejemplo}</code> — link para restablecer contraseña",
+        f"📺 <code>/tv {ejemplo}</code> — activar Netflix en tu TV",
         "",
         "📋 <code>/miscorreos</code> — ver tus correos asignados",
         "❓ <code>/cmds</code> — ver esta ayuda",
@@ -474,8 +485,8 @@ def _client_help_text(emails: list[str]) -> str:
 
 def _admin_help_text() -> str:
     lines = [
-        "🛠 <b>Panel de administrador · VirtualidadSP Store</b>",
-        "",
+        f"🛠 <b>Panel de administrador · {BRAND}</b>",
+        "──────────────────",
         "👥 <code>/clientes</code> — lista de clientes (ID, usuario, correos)",
         "🔓 <code>/activar &lt;ID o @usuario&gt;</code> — activa el acceso (sin asignar correo aún)",
         "⏸ <code>/desactivar &lt;ID o @usuario&gt;</code> — pausa el acceso",
@@ -484,7 +495,7 @@ def _admin_help_text() -> str:
         "📢 <code>/anuncio &lt;mensaje&gt;</code> — enviar un anuncio a todos los registrados",
         "",
         "— También tenés los comandos de cliente —",
-        "🔑 /codigo · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📋 /miscorreos",
+        "🔑 /codigo · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📺 /tv · 📋 /miscorreos",
     ]
     return "\n".join(lines)
 
@@ -592,7 +603,7 @@ def _admin_set_active(chat_id, token: str, active: bool) -> None:
         send_message(
             client.telegram_chat_id,
             "✅ <b>El admin activó tu acceso al bot.</b>\n"
-            "En breve te asigna tus correos y vas a poder pedir /codigo, /viaje, /hogar o /clave.",
+            "En breve te asigna tus correos y vas a poder pedir /codigo, /viaje, /hogar, /clave o /tv.",
         )
     else:
         send_message(chat_id, f"⏸ Desactivé a {label}. Ya no puede pedir códigos hasta que lo reactives.")
@@ -611,7 +622,7 @@ def _admin_broadcast(chat_id, message: str) -> None:
             "Ej: <code>/anuncio Mañana renuevo las cuentas, aviso cuando esté listo.</code>",
         )
         return
-    body = "📢 <b>Anuncio · VirtualidadSP Store</b>\n\n" + html.escape(message)
+    body = f"📢 <b>Anuncio · {BRAND}</b>\n\n" + html.escape(message)
     recipients = (
         CodeBotClient.objects.exclude(telegram_chat_id=str(chat_id))
         .exclude(telegram_chat_id="")
@@ -697,7 +708,7 @@ def _admin_assign(chat_id, rest: str, add: bool) -> None:
             send_message(
                 client.telegram_chat_id,
                 f"✅ El admin te asignó <b>{html.escape(email)}</b>. "
-                "Ya podés pedir /codigo, /viaje, /hogar o /clave.",
+                "Ya podés pedir /codigo, /viaje, /hogar, /clave o /tv.",
             )
         else:
             send_message(chat_id, f"{label} ya tenía <b>{html.escape(email)}</b> asignado.")
@@ -732,6 +743,7 @@ _CLIENT_MENU = [
     {"command": "viaje", "description": "✈️ Código de acceso temporal (viaje)"},
     {"command": "hogar", "description": "🏠 Link para actualizar Hogar"},
     {"command": "clave", "description": "🔒 Link para restablecer contraseña"},
+    {"command": "tv", "description": "📺 Activar Netflix en tu TV"},
     {"command": "miscorreos", "description": "📋 Ver mis correos asignados"},
     {"command": "cmds", "description": "❓ Ver los comandos"},
 ]
