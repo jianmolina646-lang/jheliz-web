@@ -84,6 +84,35 @@ class NetflixParserTests(TestCase):
         self.assertIn("/password", r.action_url)
         self.assertNotIn("&amp;", r.action_url)
 
+    def test_signin_code_italian(self):
+        # Correo real reenviado: cuenta de Netflix configurada en italiano.
+        text = (
+            "Asunto: Netflix: il tuo codice di accesso\n"
+            "Inserisci questo codice per accedere\n"
+            "2056\n"
+            "Inserisci il codice qui sopra sul tuo dispositivo per accedere a "
+            "Netflix. Il codice scadrà tra 15 minuti."
+        )
+        r = parse_netflix_email("RV: Netflix: il tuo codice di accesso", text=text)
+        self.assertEqual(r.kind, "signin_code")
+        self.assertEqual(r.code, "2056")
+
+    def test_temp_code_italian_is_not_signin(self):
+        r = parse_netflix_email(
+            "Netflix: il tuo codice di accesso temporaneo",
+            text="Il tuo codice di accesso temporaneo è 7788. Codice valido 15 minuti.",
+        )
+        self.assertEqual(r.kind, "temp_code")
+        self.assertEqual(r.code, "7788")
+
+    def test_signin_code_portuguese(self):
+        r = parse_netflix_email(
+            "Netflix: seu código de acesso",
+            text="Use este código para entrar\n4471\nO código expira em 15 minutos.",
+        )
+        self.assertEqual(r.kind, "signin_code")
+        self.assertEqual(r.code, "4471")
+
     def test_tv_signin_classification_and_link(self):
         html = (
             "<p>Inicia sesión en tu TV</p>"
