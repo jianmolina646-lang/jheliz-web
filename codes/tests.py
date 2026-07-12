@@ -4,7 +4,7 @@ from django.core.cache import cache
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
 
-from codes import bot
+from codes import bot, imap_reader
 from codes.models import AssignedEmail, BotState, CodeBotClient
 from codes.netflix import NetflixResult, parse_netflix_email
 
@@ -84,9 +84,94 @@ class NetflixParserTests(TestCase):
         self.assertIn("/password", r.action_url)
         self.assertNotIn("&amp;", r.action_url)
 
+    def test_tv_signin_classification_and_link(self):
+        html = (
+            "<p>Inicia sesión en tu TV</p>"
+            '<a href="https://www.netflix.com/tv/out/es?nftoken=abc">'
+            "Iniciar sesión en la TV</a>"
+        )
+        r = parse_netflix_email("Es hora de ver Netflix", html=html)
+        self.assertEqual(r.kind, "tv_signin")
+        self.assertIn("/tv/", r.action_url)
+
+
+class ImapAccountsTests(TestCase):
+    @override_settings(
+        CODES_IMAP_HOST="imap.gmail.com",
+        CODES_IMAP_USER="codigosjheliz@gmail.com",
+        CODES_IMAP_PASSWORD="x",
+        CODES_IMAP2_HOST="imap.hostinger.com",
+        CODES_IMAP2_USER="codigosjheliz@ecormecejhelizstore.com",
+        CODES_IMAP2_PASSWORD="y",
+    )
+    def test_two_accounts_configured(self):
+        accounts = imap_reader._accounts()
+        self.assertEqual(len(accounts), 2)
+        self.assertEqual(accounts[0]["host"], "imap.gmail.com")
+        self.assertEqual(accounts[1]["host"], "imap.hostinger.com")
+        self.assertTrue(imap_reader.is_configured())
+
+    @override_settings(
+        CODES_IMAP_HOST="imap.gmail.com",
+        CODES_IMAP_USER="codigosjheliz@gmail.com",
+        CODES_IMAP_PASSWORD="x",
+        CODES_IMAP2_HOST="imap.hostinger.com",
+        CODES_IMAP2_USER="",
+        CODES_IMAP2_PASSWORD="",
+    )
+    def test_secondary_without_credentials_is_skipped(self):
+        accounts = imap_reader._accounts()
+        self.assertEqual(len(accounts), 1)
+        self.assertEqual(accounts[0]["user"], "codigosjheliz@gmail.com")
+
+    @override_settings(
+        CODES_IMAP_HOST="imap.gmail.com",
+        CODES_IMAP_USER="g@gmail.com",
+        CODES_IMAP_PASSWORD="x",
+        CODES_IMAP2_HOST="imap.hostinger.com",
+        CODES_IMAP2_USER="h@host.com",
+        CODES_IMAP2_PASSWORD="y",
+    )
+    def test_fetch_returns_newest_across_mailboxes(self):
+        from datetime import datetime, timezone
+
+        old = NetflixResult(kind="signin_code", code="1111")
+        new = NetflixResult(kind="signin_code", code="2222")
+
+        def fake_search(account, *args, **kwargs):
+            if account["host"] == "imap.gmail.com":
+                return [(datetime(2026, 1, 1, tzinfo=timezone.utc), old)]
+            return [(datetime(2026, 1, 2, tzinfo=timezone.utc), new)]
+
+        with mock.patch("codes.imap_reader._search_account", side_effect=fake_search):
+            r = imap_reader.fetch_latest_for_email("cliente@gmail.com", kind="signin_code")
+        self.assertEqual(r.code, "2222")
+
+    @override_settings(
+        CODES_IMAP_HOST="imap.gmail.com",
+        CODES_IMAP_USER="g@gmail.com",
+        CODES_IMAP_PASSWORD="x",
+        CODES_IMAP2_HOST="imap.hostinger.com",
+        CODES_IMAP2_USER="h@host.com",
+        CODES_IMAP2_PASSWORD="y",
+    )
+    def test_one_mailbox_failing_still_returns_result(self):
+        from datetime import datetime, timezone
+
+        res = NetflixResult(kind="signin_code", code="3333")
+
+        def fake_search(account, *args, **kwargs):
+            if account["host"] == "imap.gmail.com":
+                raise OSError("gmail caído")
+            return [(datetime(2026, 1, 2, tzinfo=timezone.utc), res)]
+
+        with mock.patch("codes.imap_reader._search_account", side_effect=fake_search):
+            r = imap_reader.fetch_latest_for_email("cliente@gmail.com", kind="signin_code")
+        self.assertEqual(r.code, "3333")
+
 
 class CommandMappingTests(TestCase):
-    def test_four_commands_mapped_to_kinds(self):
+    def test_commands_mapped_to_kinds(self):
         self.assertEqual(
             bot.COMMAND_KINDS,
             {
@@ -94,6 +179,7 @@ class CommandMappingTests(TestCase):
                 "/viaje": "temp_code",
                 "/hogar": "household",
                 "/clave": "password_reset",
+                "/tv": "tv_signin",
             },
         )
 
@@ -376,10 +462,10 @@ class DeliverKindTests(TestCase):
         self.assertIn("no te corresponde", text)
 
     @mock.patch("codes.bot.send_message")
-    def test_offer_kinds_shows_four_options(self, msend):
+    def test_offer_kinds_shows_all_options(self, msend):
         bot._offer_kinds_for_email(self.client_obj, "mine@gmail.com")
         _args, kwargs = msend.call_args
-        self.assertEqual(len(kwargs.get("buttons", [])), 4)
+        self.assertEqual(len(kwargs.get("buttons", [])), len(bot.COMMAND_KINDS))
 
 
 class DeliverCodeTests(TestCase):
