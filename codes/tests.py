@@ -113,6 +113,36 @@ class NetflixParserTests(TestCase):
         self.assertEqual(r.kind, "signin_code")
         self.assertEqual(r.code, "4471")
 
+    def test_signin_code_french(self):
+        r = parse_netflix_email(
+            "Netflix : ton code de connexion",
+            text="Saisis ce code pour te connecter\n8842\nLe code expire dans 15 minutes.",
+        )
+        self.assertEqual(r.kind, "signin_code")
+        self.assertEqual(r.code, "8842")
+
+    def test_unknown_language_falls_back_to_link_path(self):
+        # Idioma no cubierto por keywords (ej. turco): clasifica por la ruta
+        # del link, que es igual en todos los países.
+        html = (
+            "<p>Geçici erişim kodun</p>"
+            '<a href="https://www.netflix.com/account/travel/verify?nftoken=q">'
+            "Kod al</a>"
+        )
+        r = parse_netflix_email("Netflix gecici erisim kodu", html=html)
+        self.assertEqual(r.kind, "temp_code")
+        self.assertIn("travel/verify", r.action_url)
+
+    def test_code_on_its_own_line_any_language(self):
+        # El número solo en su propia línea se extrae aunque el idioma no
+        # tenga la palabra "código"/"code" cerca.
+        r = parse_netflix_email(
+            "Netflix: il tuo codice di accesso",
+            text="Inserisci per accedere:\n\n  591203  \n\nScade tra 15 minuti.",
+        )
+        self.assertEqual(r.kind, "signin_code")
+        self.assertEqual(r.code, "591203")
+
     def test_tv_signin_classification_and_link(self):
         html = (
             "<p>Inicia sesión en tu TV</p>"
