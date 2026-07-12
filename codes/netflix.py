@@ -33,7 +33,8 @@ _NETFLIX_LINK_RE = re.compile(
     r"https?://[a-z0-9.\-]*netflix\.com/[^\s\"'<>)]+", re.IGNORECASE
 )
 
-# Palabras clave por tipo (en español; se cubren variantes comunes).
+# Palabras clave por tipo (español, inglés, italiano y portugués: las
+# cuentas de Netflix pueden estar configuradas en cualquier idioma).
 # El orden importa: ``_classify`` devuelve el primer tipo que matchea, así que
 # los más específicos van primero.
 _KEYWORDS = {
@@ -46,8 +47,17 @@ _KEYWORDS = {
         "sign in to your tv",
         "/tv/out",
         "tv/signup",
+        "accedi dalla tv",
+        "entrar na tv",
     ),
-    "temp_code": ("código de acceso temporal", "acceso temporal", "obtener código"),
+    "temp_code": (
+        "código de acceso temporal",
+        "acceso temporal",
+        "obtener código",
+        "temporary access code",
+        "codice di accesso temporaneo",
+        "código de acesso temporário",
+    ),
     "household": (
         "actualizar tu hogar",
         "actualizar hogar",
@@ -55,6 +65,10 @@ _KEYWORDS = {
         "update household",
         "primary-location",
         "update-primary-location",
+        "aggiorna il tuo domicilio",
+        "aggiornare il domicilio",
+        "atualizar residência",
+        "atualizar a sua residência",
     ),
     "password_reset": (
         "restablece tu contraseña",
@@ -67,8 +81,19 @@ _KEYWORDS = {
         "password-reset",
         "forgotpassword",
         "loginhelp",
+        "reimposta la password",
+        "redefinir senha",
+        "redefinir sua senha",
     ),
-    "signin_code": ("código de inicio de sesión", "login code", "sign-in code"),
+    "signin_code": (
+        "código de inicio de sesión",
+        "login code",
+        "sign-in code",
+        "codice di accesso",
+        "codice per accedere",
+        "código de acesso",
+        "código para iniciar sesión",
+    ),
 }
 
 # Pistas en la ruta del link para elegir el botón correcto.
@@ -142,7 +167,8 @@ def _extract_code(kind: str, body_text: str) -> str:
     for m in re.finditer(r"(?<!\d)(\d{4,8})(?!\d)", body_text):
         start = max(0, m.start() - 40)
         context = body_text[start : m.end() + 10].lower()
-        if "código" in context or "code" in context:
+        # "code" cubre también "codice" (it); "código" cubre es/pt.
+        if "código" in context or "code" in context or "codice" in context:
             return m.group(1)
     return ""
 
