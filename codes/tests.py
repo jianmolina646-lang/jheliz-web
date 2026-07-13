@@ -777,3 +777,26 @@ class BotStatePerBotOffsetTests(TestCase):
         self.assertEqual(BotState.get_offset(pk=1), 10)
         self.assertEqual(BotState.get_offset(pk=2), 20)
         self.assertEqual(BotState.objects.count(), 2)
+
+
+class TvActivationLinkTests(TestCase):
+    """El /tv debe incluir la página de activación de la TV."""
+
+    def test_format_result_tv_includes_activation_page(self):
+        from codes import bot
+        from codes.netflix import NetflixResult
+
+        msg = bot._format_result(
+            "cli@x.com", NetflixResult(kind="tv_signin", code="1234")
+        )
+        self.assertIn(bot.NETFLIX_TV_ACTIVATION_URL, msg)
+        self.assertIn("1234", msg)
+
+    def test_format_result_other_kinds_no_activation_page(self):
+        from codes import bot
+        from codes.netflix import NetflixResult
+
+        msg = bot._format_result(
+            "cli@x.com", NetflixResult(kind="signin_code", code="1234")
+        )
+        self.assertNotIn(bot.NETFLIX_TV_ACTIVATION_URL, msg)
