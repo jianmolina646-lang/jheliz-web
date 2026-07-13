@@ -641,3 +641,138 @@ class OwnerControlPanelTests(TestCase):
         self.client.post(f"/control/inquilinos/{self.tenant.pk}/bloquear/", HTTP_HOST=self.HOST)
         self.tenant.refresh_from_db()
         self.assertFalse(self.tenant.is_blocked)
+
+
+@override_settings(
+    ALLOWED_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz", "testserver"],
+    JHELIZTV_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz"],
+)
+class StockEmailTests(TestCase):
+    """Zona de correos en stock: alta masiva, filtros, cambio de estado
+    y aislamiento por inquilino."""
+
+    HOST = "jheliztv.xyz"
+    REGISTER = "/registro/"
+    EMAILS = "/app/correos/"
+    EMAIL_ADD = "/app/correos/agregar/"
+
+    def setUp(self):
+        from .models import SaasSettings
+
+        SaasSettings.load()
+
+    def _register(self, username):
+        self.client.post(
+            self.REGISTER,
+            {
+                "username": username, "business_name": "Negocio",
+                "password": "clave123", "password2": "clave123",
+            },
+            HTTP_HOST=self.HOST,
+        )
+        return get_user_model().objects.get(username=username)
+
+    def _add_service(self, name="Netflix"):
+        self.client.post(
+            "/app/servicios/agregar/", {"name": name}, HTTP_HOST=self.HOST
+        )
+        return Service.objects.get(name=name)
+
+    def test_bulk_add_and_dedupe(self):
+        from .models import StockEmail
+
+        user = self._register("stock1")
+        svc = self._add_service()
+        r = self.client.post(
+            self.EMAIL_ADD,
+            {"service": svc.pk, "emails": "a@x.com\nB@x.com, a@x.com"},
+            HTTP_HOST=self.HOST,
+        )
+        self.assertEqual(r.status_code, 302)
+        emails = set(
+            StockEmail.objects.filter(owner=user).values_list("email", flat=True)
+        )
+        self.assertEqual(emails, {"a@x.com", "b@x.com"})
+        # Todos arrancan disponibles.
+        self.assertEqual(
+            StockEmail.objects.filter(
+                owner=user, status=StockEmail.Status.AVAILABLE
+            ).count(),
+            2,
+        )
+        # Reintento con el mismo correo: no duplica.
+        self.client.post(
+            self.EMAIL_ADD,
+            {"service": svc.pk, "emails": "a@x.com"},
+            HTTP_HOST=self.HOST,
+        )
+        self.assertEqual(StockEmail.objects.filter(owner=user).count(), 2)
+
+    def test_toggle_status(self):
+        from .models import StockEmail
+
+        user = self._register("stock2")
+        svc = self._add_service()
+        item = StockEmail.objects.create(owner=user, service=svc, email="c@x.com")
+        self.client.post(f"/app/correos/{item.pk}/estado/", HTTP_HOST=self.HOST)
+        item.refresh_from_db()
+        self.assertEqual(item.status, StockEmail.Status.SOLD)
+        self.client.post(f"/app/correos/{item.pk}/estado/", HTTP_HOST=self.HOST)
+        item.refresh_from_db()
+        self.assertEqual(item.status, StockEmail.Status.AVAILABLE)
+
+    def test_filters_by_service_and_status(self):
+        from .models import StockEmail
+
+        user = self._register("stock3")
+        nf = self._add_service("Netflix")
+        pr = self._add_service("Prime")
+        StockEmail.objects.create(owner=user, service=nf, email="nf1@x.com")
+        StockEmail.objects.create(
+            owner=user, service=nf, email="nf2@x.com",
+            status=StockEmail.Status.SOLD,
+        )
+        StockEmail.objects.create(owner=user, service=pr, email="pr1@x.com")
+
+        r = self.client.get(
+            self.EMAILS, {"servicio": nf.pk, "estado": "available"},
+            HTTP_HOST=self.HOST,
+        )
+        self.assertContains(r, "nf1@x.com")
+        self.assertNotContains(r, "nf2@x.com")
+        self.assertNotContains(r, "pr1@x.com")
+
+    def test_tenant_isolation(self):
+        from .models import StockEmail
+
+        alice = self._register("stockalice")
+        svc = self._add_service()
+        item = StockEmail.objects.create(owner=alice, service=svc, email="a@x.com")
+
+        self.client.logout()
+        self._register("stockbob")
+        # Bob no ve el correo de Alice.
+        r = self.client.get(self.EMAILS, HTTP_HOST=self.HOST)
+        self.assertNotContains(r, "a@x.com")
+        # Bob no puede tocar el stock de Alice.
+        self.assertEqual(
+            self.client.post(
+                f"/app/correos/{item.pk}/estado/", HTTP_HOST=self.HOST
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.post(
+                f"/app/correos/{item.pk}/eliminar/", HTTP_HOST=self.HOST
+            ).status_code,
+            404,
+        )
+        # Bob tampoco puede cargar correos en un servicio ajeno.
+        self.assertEqual(
+            self.client.post(
+                self.EMAIL_ADD,
+                {"service": svc.pk, "emails": "hack@x.com"},
+                HTTP_HOST=self.HOST,
+            ).status_code,
+            404,
+        )
