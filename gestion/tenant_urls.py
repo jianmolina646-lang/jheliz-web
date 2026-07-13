@@ -39,6 +39,13 @@ urlpatterns = [
     path("app/clientes/<int:pk>/eliminar/", v.client_delete, name="jheliztv_client_delete"),
     path("app/clientes/<int:pk>/reporte.pdf", v.client_report_pdf, name="jheliztv_client_report"),
 
+    # Correos en stock (disponibilidad por plataforma)
+    path("app/correos/", v.stock_emails, name="jheliztv_emails"),
+    path("app/correos/agregar/", v.stock_email_add, name="jheliztv_email_add"),
+    path("app/correos/<int:pk>/estado/", v.stock_email_toggle, name="jheliztv_email_toggle"),
+    path("app/correos/<int:pk>/editar/", v.stock_email_edit, name="jheliztv_email_edit"),
+    path("app/correos/<int:pk>/eliminar/", v.stock_email_delete, name="jheliztv_email_delete"),
+
     # Movimientos
     path("app/movimientos/agregar/", v.transaction_add, name="jheliztv_transaction_add"),
 ]

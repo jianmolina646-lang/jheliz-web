@@ -32,6 +32,7 @@ from .models import (
     SaasSettings,
     Service,
     ServiceCategory,
+    StockEmail,
     Subscription,
     Tenant,
     TenantPayment,
@@ -741,6 +742,154 @@ def client_report_pdf(request, tenant, pk):
     fname = f"reporte-{client.name.lower().replace(' ', '-')}.pdf"
     resp["Content-Disposition"] = f'inline; filename="{fname}"'
     return resp
+
+
+# ---------------------------------------------------------------------------
+# Correos en stock (disponibilidad por plataforma)
+# ---------------------------------------------------------------------------
+@tenant_required
+def stock_emails(request, tenant):
+    owner = request.user
+    qs = StockEmail.objects.filter(owner=owner).select_related("service")
+
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(Q(email__icontains=q) | Q(notes__icontains=q))
+
+    status = (request.GET.get("estado") or "").strip()
+    if status in {StockEmail.Status.AVAILABLE, StockEmail.Status.SOLD}:
+        qs = qs.filter(status=status)
+    else:
+        status = ""
+
+    service_id = (request.GET.get("servicio") or "").strip()
+    if service_id.isdigit():
+        qs = qs.filter(service_id=int(service_id))
+    else:
+        service_id = ""
+
+    emails = list(qs.order_by("service__name", "status", "email"))
+
+    # Resumen por servicio (disponibles / vendidos), sobre TODO el stock.
+    services = list(Service.objects.filter(owner=owner).order_by("name"))
+    all_stock = StockEmail.objects.filter(owner=owner)
+    counts: dict[int, dict] = {}
+    for row in all_stock.values("service_id", "status"):
+        c = counts.setdefault(row["service_id"], {"available": 0, "sold": 0})
+        c[row["status"]] = c.get(row["status"], 0) + 1
+    summary = []
+    for svc in services:
+        c = counts.get(svc.pk, {"available": 0, "sold": 0})
+        summary.append({
+            "service": svc,
+            "available": c.get("available", 0),
+            "sold": c.get("sold", 0),
+            "total": c.get("available", 0) + c.get("sold", 0),
+        })
+
+    total_available = sum(s["available"] for s in summary)
+    total_sold = sum(s["sold"] for s in summary)
+
+    ctx = _ctx(
+        request, tenant,
+        title="Correos", jc_active="emails",
+        emails=emails, services=services, summary=summary,
+        q=q, status=status, service_id=service_id,
+        total_available=total_available, total_sold=total_sold,
+    )
+    return render(request, "jheliztv/emails.html", ctx)
+
+
+@tenant_required
+@require_POST
+def stock_email_add(request, tenant):
+    owner = request.user
+    service = get_object_or_404(
+        Service, pk=request.POST.get("service") or 0, owner=owner
+    )
+    emails = _split_emails(request.POST.get("emails") or "")
+    if not emails:
+        messages.error(request, "Ingresá al menos un correo.")
+        return redirect("jheliztv_emails")
+    password = (request.POST.get("password") or "").strip()
+    notes = (request.POST.get("notes") or "").strip()
+    status = (
+        StockEmail.Status.SOLD
+        if request.POST.get("status") == StockEmail.Status.SOLD
+        else StockEmail.Status.AVAILABLE
+    )
+    created = skipped = 0
+    for email in emails:
+        obj, was_created = StockEmail.objects.get_or_create(
+            owner=owner, service=service, email=email.strip().lower(),
+            defaults={"password": password, "notes": notes, "status": status},
+        )
+        if was_created:
+            created += 1
+        else:
+            skipped += 1
+    if created:
+        messages.success(
+            request,
+            f"Se agregaron {created} correo{'s' if created != 1 else ''} a {service.name}.",
+        )
+    if skipped:
+        messages.info(request, f"{skipped} ya estaban cargados y se omitieron.")
+    return redirect("jheliztv_emails")
+
+
+@tenant_required
+@require_POST
+def stock_email_toggle(request, tenant, pk):
+    item = get_object_or_404(StockEmail, pk=pk, owner=request.user)
+    item.status = (
+        StockEmail.Status.SOLD if item.is_available else StockEmail.Status.AVAILABLE
+    )
+    item.save(update_fields=["status", "updated_at"])
+    messages.success(
+        request,
+        f"{item.email} marcado como {item.get_status_display().lower()}.",
+    )
+    nxt = request.POST.get("next") or ""
+    if nxt.startswith("/") and not nxt.startswith("//"):
+        return redirect(nxt)
+    return redirect("jheliztv_emails")
+
+
+@tenant_required
+@require_POST
+def stock_email_edit(request, tenant, pk):
+    item = get_object_or_404(StockEmail, pk=pk, owner=request.user)
+    email = (request.POST.get("email") or "").strip().lower()
+    if not email:
+        messages.error(request, "El correo no puede quedar vacío.")
+        return redirect("jheliztv_emails")
+    clash = (
+        StockEmail.objects.filter(
+            owner=request.user, service=item.service, email=email
+        )
+        .exclude(pk=item.pk)
+        .exists()
+    )
+    if clash:
+        messages.error(request, "Ese correo ya está cargado en este servicio.")
+        return redirect("jheliztv_emails")
+    item.email = email
+    item.password = (request.POST.get("password") or "").strip()
+    item.notes = (request.POST.get("notes") or "").strip()
+    if request.POST.get("status") in {StockEmail.Status.AVAILABLE, StockEmail.Status.SOLD}:
+        item.status = request.POST["status"]
+    item.save()
+    messages.success(request, "Correo actualizado.")
+    return redirect("jheliztv_emails")
+
+
+@tenant_required
+@require_POST
+def stock_email_delete(request, tenant, pk):
+    get_object_or_404(StockEmail, pk=pk, owner=request.user).delete()
+    messages.success(request, "Correo eliminado del stock.")
+    return redirect("jheliztv_emails")
 
 
 # ---------------------------------------------------------------------------

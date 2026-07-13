@@ -1,0 +1,202 @@
+{% extends "jheliztv/base.html" %}
+
+{% block jc_content %}
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+    <h2 class="jc-section-title"><span class="material-symbols-outlined">mail</span> Correos en stock</h2>
+    <button type="button" class="jc-btn" data-jc-open="modalEmailAdd">
+      <span class="material-symbols-outlined">add</span> Agregar correos
+    </button>
+  </div>
+
+  {# ── Resumen por plataforma ─────────────────────────────────────── #}
+  {% if summary %}
+    <div class="jc-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:16px;">
+      <div class="jc-panel" style="padding:14px;">
+        <div style="font-size:12px;color:#6b7280;font-weight:600;">TOTAL</div>
+        <div style="display:flex;gap:14px;margin-top:6px;">
+          <span style="color:#059669;font-weight:800;font-size:20px;">{{ total_available }}<small style="font-size:11px;font-weight:600;display:block;color:#6b7280;">disponibles</small></span>
+          <span style="color:#dc2626;font-weight:800;font-size:20px;">{{ total_sold }}<small style="font-size:11px;font-weight:600;display:block;color:#6b7280;">vendidos</small></span>
+        </div>
+      </div>
+      {% for s in summary %}
+        {% if s.total %}
+        <a class="jc-panel" href="?servicio={{ s.service.pk }}" style="padding:14px;text-decoration:none;color:inherit;{% if service_id == s.service.pk|stringformat:'s' %}outline:2px solid #10b981;{% endif %}">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;{% if s.service.image %}background-image:url('{{ s.service.image.url }}');background-size:cover;{% else %}background:{{ s.service.color|default:'#10b981' }};{% endif %}">{% if not s.service.image %}{{ s.service.name|first|upper }}{% endif %}</span>
+            <strong style="font-size:13px;">{{ s.service.name }}</strong>
+          </div>
+          <div style="display:flex;gap:14px;margin-top:8px;">
+            <span style="color:#059669;font-weight:800;">{{ s.available }}<small style="font-size:11px;font-weight:600;display:block;color:#6b7280;">disp.</small></span>
+            <span style="color:#dc2626;font-weight:800;">{{ s.sold }}<small style="font-size:11px;font-weight:600;display:block;color:#6b7280;">vend.</small></span>
+          </div>
+        </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# ── Filtros ────────────────────────────────────────────────────── #}
+  <form method="get" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;">
+    <div class="jc-search-box" style="flex:1;min-width:200px;">
+      <span class="material-symbols-outlined">search</span>
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar correo…" autocomplete="off">
+    </div>
+    <select name="servicio" onchange="this.form.submit()" style="padding:9px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;">
+      <option value="">Todas las plataformas</option>
+      {% for svc in services %}
+        <option value="{{ svc.pk }}" {% if service_id == svc.pk|stringformat:'s' %}selected{% endif %}>{{ svc.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="estado" onchange="this.form.submit()" style="padding:9px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;">
+      <option value="">Todos los estados</option>
+      <option value="available" {% if status == 'available' %}selected{% endif %}>✅ Disponibles</option>
+      <option value="sold" {% if status == 'sold' %}selected{% endif %}>🔒 Vendidos</option>
+    </select>
+    {% if q or status or service_id %}
+      <a href="{% url 'jheliztv_emails' %}" class="jc-btn jc-btn--ghost jc-btn--sm">Limpiar</a>
+    {% endif %}
+  </form>
+
+  {# ── Lista ──────────────────────────────────────────────────────── #}
+  {% if emails %}
+    <div class="jc-panel" style="padding:0;overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead>
+          <tr style="text-align:left;background:#f9fafb;color:#6b7280;font-size:12px;">
+            <th style="padding:10px 14px;">Plataforma</th>
+            <th style="padding:10px 14px;">Correo</th>
+            <th style="padding:10px 14px;">Contraseña</th>
+            <th style="padding:10px 14px;">Estado</th>
+            <th style="padding:10px 14px;">Notas</th>
+            <th style="padding:10px 14px;text-align:right;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in emails %}
+            <tr style="border-top:1px solid #f3f4f6;">
+              <td style="padding:10px 14px;white-space:nowrap;">
+                <span style="display:inline-flex;align-items:center;gap:7px;">
+                  <span style="width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:11px;{% if e.service.image %}background-image:url('{{ e.service.image.url }}');background-size:cover;{% else %}background:{{ e.service.color|default:'#10b981' }};{% endif %}">{% if not e.service.image %}{{ e.service.name|first|upper }}{% endif %}</span>
+                  {{ e.service.name }}
+                </span>
+              </td>
+              <td style="padding:10px 14px;font-weight:600;">{{ e.email }}</td>
+              <td style="padding:10px 14px;color:#6b7280;">{{ e.password|default:"—" }}</td>
+              <td style="padding:10px 14px;">
+                {% if e.is_available %}
+                  <span style="background:#d1fae5;color:#065f46;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;">✅ Disponible</span>
+                {% else %}
+                  <span style="background:#fee2e2;color:#991b1b;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;">🔒 Vendido</span>
+                {% endif %}
+              </td>
+              <td style="padding:10px 14px;color:#6b7280;">{{ e.notes|default:"" }}</td>
+              <td style="padding:10px 14px;text-align:right;white-space:nowrap;">
+                <form method="post" action="{% url 'jheliztv_email_toggle' e.pk %}" style="display:inline;">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit" class="jc-btn jc-btn--ghost jc-btn--sm" title="Cambiar estado">
+                    <span class="material-symbols-outlined">{% if e.is_available %}lock{% else %}lock_open{% endif %}</span>
+                    {% if e.is_available %}Marcar vendido{% else %}Marcar disponible{% endif %}
+                  </button>
+                </form>
+                <button type="button" class="jc-btn jc-btn--ghost jc-btn--sm"
+                        data-jc-open="modalEmailEdit"
+                        data-action="{% url 'jheliztv_email_edit' e.pk %}"
+                        data-fill-email="{{ e.email }}"
+                        data-fill-password="{{ e.password }}"
+                        data-fill-notes="{{ e.notes }}"
+                        data-fill-status="{{ e.status }}">
+                  <span class="material-symbols-outlined">edit</span>
+                </button>
+                <button type="button" class="jc-btn jc-btn--ghost jc-btn--sm" style="color:#dc2626;"
+                        onclick="if(confirm('¿Eliminar {{ e.email|escapejs }} del stock?')){document.getElementById('delmail{{ e.pk }}').submit();}">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+                <form id="delmail{{ e.pk }}" method="post" action="{% url 'jheliztv_email_delete' e.pk %}" style="display:none">{% csrf_token %}</form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="jc-panel jc-empty">
+      <span class="material-symbols-outlined">mail_off</span>
+      {% if q or status or service_id %}No hay correos que coincidan con el filtro.{% else %}Todavía no cargaste correos. Agregá los primeros con el botón "Agregar correos".{% endif %}
+    </div>
+  {% endif %}
+
+  {# ── Modal: agregar correos ─────────────────────────────────────── #}
+  <div class="jc-modal" id="modalEmailAdd" aria-hidden="true">
+    <div class="jc-modal__backdrop" data-jc-close></div>
+    <div class="jc-modal__box" role="dialog" aria-modal="true">
+      <form method="post" action="{% url 'jheliztv_email_add' %}">
+        {% csrf_token %}
+        <div class="jc-modal__head">
+          <h3><span class="material-symbols-outlined">mail</span> Agregar correos al stock</h3>
+          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="jc-modal__body">
+          <div class="jc-field">
+            <label>Plataforma</label>
+            <select name="service" required>
+              <option value="" disabled selected>Elegí un servicio…</option>
+              {% for svc in services %}<option value="{{ svc.pk }}">{{ svc.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="jc-field">
+            <label>Correos (uno por línea o separados por coma)</label>
+            <textarea name="emails" rows="4" required placeholder="cuenta1@gmail.com&#10;cuenta2@gmail.com"></textarea>
+          </div>
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Contraseña (opcional)</label><input type="text" name="password"></div>
+            <div class="jc-field">
+              <label>Estado</label>
+              <select name="status">
+                <option value="available">✅ Disponible para vender</option>
+                <option value="sold">🔒 Vendido / ocupado</option>
+              </select>
+            </div>
+          </div>
+          <div class="jc-field"><label>Notas (opcional)</label><input type="text" name="notes" placeholder="Ej. cuenta 4 pantallas"></div>
+        </div>
+        <div class="jc-modal__foot">
+          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Modal: editar correo ───────────────────────────────────────── #}
+  <div class="jc-modal" id="modalEmailEdit" aria-hidden="true">
+    <div class="jc-modal__backdrop" data-jc-close></div>
+    <div class="jc-modal__box" role="dialog" aria-modal="true">
+      <form method="post" action="">
+        {% csrf_token %}
+        <div class="jc-modal__head">
+          <h3><span class="material-symbols-outlined">edit</span> Editar correo</h3>
+          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="jc-modal__body">
+          <div class="jc-field"><label>Correo</label><input type="text" name="email" required></div>
+          <div class="jc-grid2">
+            <div class="jc-field"><label>Contraseña</label><input type="text" name="password"></div>
+            <div class="jc-field">
+              <label>Estado</label>
+              <select name="status">
+                <option value="available">✅ Disponible</option>
+                <option value="sold">🔒 Vendido</option>
+              </select>
+            </div>
+          </div>
+          <div class="jc-field"><label>Notas</label><input type="text" name="notes"></div>
+        </div>
+        <div class="jc-modal__foot">
+          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

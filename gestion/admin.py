@@ -13,6 +13,7 @@ from .models import (
     SaasSettings,
     Service,
     ServiceCategory,
+    StockEmail,
     Subscription,
     Tenant,
     TenantPayment,
@@ -49,6 +50,14 @@ class SubscriptionAdmin(ModelAdmin):
     list_filter = ("service", "plan", "is_archived")
     search_fields = ("account_email", "client__name", "client__telegram")
     autocomplete_fields = ("client", "service")
+
+
+@admin.register(StockEmail)
+class StockEmailAdmin(ModelAdmin):
+    list_display = ("email", "service", "status", "owner", "updated_at")
+    list_filter = ("status", "service")
+    search_fields = ("email", "notes")
+    autocomplete_fields = ("service",)
 
 
 @admin.register(Transaction)

@@ -268,6 +268,62 @@ class Subscription(models.Model):
         self.save(update_fields=["expires_at", "updated_at"])
 
 
+class StockEmail(models.Model):
+    """Correo de una cuenta en stock (Netflix, Prime…) con su disponibilidad.
+
+    Inventario simple por plataforma: el revendedor carga los correos que
+    tiene de cada servicio y marca cuáles siguen disponibles para vender y
+    cuáles ya están vendidos/ocupados.
+    """
+
+    class Status(models.TextChoices):
+        AVAILABLE = "available", "Disponible"
+        SOLD = "sold", "Vendido"
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="jc_stock_emails",
+        verbose_name="Dueño (inquilino)",
+        null=True,
+        blank=True,
+    )
+    service = models.ForeignKey(
+        Service, on_delete=models.CASCADE, related_name="stock_emails",
+        verbose_name="Servicio",
+    )
+    email = models.CharField("Correo / usuario", max_length=160)
+    password = models.CharField("Contraseña", max_length=160, blank=True)
+    status = models.CharField(
+        "Estado", max_length=12, choices=Status.choices, default=Status.AVAILABLE,
+    )
+    notes = models.CharField("Notas", max_length=200, blank=True)
+    created_at = models.DateTimeField("Creado", auto_now_add=True)
+    updated_at = models.DateTimeField("Actualizado", auto_now=True)
+
+    class Meta:
+        verbose_name = "Correo en stock"
+        verbose_name_plural = "Correos en stock"
+        ordering = ["status", "service__name", "email"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "service", "email"],
+                name="uniq_stock_email_per_owner_service",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.service} · {self.email} ({self.get_status_display()})"
+
+    @property
+    def is_available(self) -> bool:
+        return self.status == self.Status.AVAILABLE
+
+    def save(self, *args, **kwargs):
+        self.email = (self.email or "").strip().lower()
+        super().save(*args, **kwargs)
+
+
 class Transaction(models.Model):
     """Movimiento del libro de caja: ingreso (verde) o egreso (rojo)."""
 
