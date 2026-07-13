@@ -174,6 +174,9 @@ def _kind_buttons(idx: int) -> list[list[dict]]:
     ]
 
 
+NETFLIX_TV_ACTIVATION_URL = "https://www.netflix.com/tv8"
+
+
 def _format_result(email: str, result) -> str:
     parts = [
         f"✨ <b>{html.escape(result.human_kind)}</b>",
@@ -185,6 +188,11 @@ def _format_result(email: str, result) -> str:
     if result.action_url:
         parts.append(
             f'🔗 <a href="{html.escape(result.action_url)}">Abrir en Netflix</a>'
+        )
+    if result.kind == "tv_signin":
+        parts.append(
+            f'📺 <a href="{NETFLIX_TV_ACTIVATION_URL}">Página para activar la TV</a>'
+            " — iniciá sesión con la cuenta y poné el código que muestra la TV."
         )
     parts.append("──────────────────")
     parts.append("⏱ Suele vencer en ~15 min. Si no funciona, generá uno nuevo y volvé a pedirlo.")
@@ -258,9 +266,17 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
             que = f"<b>{html.escape(KIND_LABELS[kind])}</b>"
         else:
             que = "un código reciente"
+        extra = ""
+        if kind == "tv_signin":
+            extra = (
+                "\n\n📺 Si tu TV ya muestra un código, ingresalo acá: "
+                f'<a href="{NETFLIX_TV_ACTIVATION_URL}">Página para activar la TV</a>'
+                " (iniciá sesión con la cuenta y poné el código de la TV)."
+            )
         return (
             f"No encontré {que} para <b>{html.escape(email)}</b>.\n"
             "Generá el correo desde Netflix y volvé a pedirlo en un minuto."
+            + extra
         )
     client.touch()
     msg = _format_result(email, result)
