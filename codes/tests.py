@@ -800,3 +800,28 @@ class TvActivationLinkTests(TestCase):
             "cli@x.com", NetflixResult(kind="signin_code", code="1234")
         )
         self.assertNotIn(bot.NETFLIX_TV_ACTIVATION_URL, msg)
+
+
+class TvDirectCommandTests(TestCase):
+    """El /tv responde directo con la página de activación, sin leer correos."""
+
+    def setUp(self):
+        self.client_obj = CodeBotClient.objects.create(
+            telegram_chat_id="777", is_active=True
+        )
+
+    @mock.patch("codes.bot.send_message")
+    @mock.patch("codes.bot._deliver_code", return_value="OK")
+    def test_cmd_tv_sends_activation_page_without_imap(self, mdeliver, msend):
+        bot._cmd_tv(self.client_obj)
+        mdeliver.assert_not_called()
+        args, _ = msend.call_args
+        self.assertIn(bot.NETFLIX_TV_ACTIVATION_URL, args[1])
+
+    @mock.patch("codes.bot.send_message")
+    @mock.patch("codes.bot._send_welcome")
+    def test_cmd_tv_inactive_client_gets_welcome(self, mwelcome, msend):
+        self.client_obj.is_active = False
+        bot._cmd_tv(self.client_obj)
+        mwelcome.assert_called_once()
+        msend.assert_not_called()

@@ -177,6 +177,25 @@ def _kind_buttons(idx: int) -> list[list[dict]]:
 NETFLIX_TV_ACTIVATION_URL = "https://www.netflix.com/tv8"
 
 
+def _tv_activation_message() -> str:
+    return "\n".join([
+        "\u2728 <b>\ud83d\udcfa Activar Netflix en tu TV</b>",
+        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+        "\ud83d\udcfa Si tu TV ya muestra un c\u00f3digo, ingresalo ac\u00e1: "
+        f'<a href="{NETFLIX_TV_ACTIVATION_URL}">P\u00e1gina para activar la TV</a>',
+        "(inici\u00e1 sesi\u00f3n con la cuenta y pon\u00e9 el c\u00f3digo de la TV).",
+        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+        f"\ud83d\udc51 <b>{BRAND}</b> \u00b7 gracias por tu compra",
+    ])
+
+
+def _cmd_tv(client: CodeBotClient) -> None:
+    if not client.is_active:
+        _send_welcome(client)
+        return
+    send_message(client.telegram_chat_id, _tv_activation_message())
+
+
 def _format_result(email: str, result) -> str:
     parts = [
         f"✨ <b>{html.escape(result.human_kind)}</b>",
@@ -358,6 +377,11 @@ def _handle_message(update: dict) -> None:
         _handle_admin_command(chat_id, cmd, rest)
         return
 
+    # /tv responde directo con la página de activación (sin leer correos).
+    if cmd in COMMAND_KINDS and COMMAND_KINDS[cmd] == "tv_signin":
+        _cmd_tv(client)
+        return
+
     # Los 4 comandos de tipo de código (/codigo /viaje /hogar /clave).
     if cmd in COMMAND_KINDS:
         _cmd_code(client, COMMAND_KINDS[cmd], rest)
@@ -393,6 +417,9 @@ def _handle_callback(update: dict) -> None:
         try:
             idx = int(idx_raw)
         except ValueError:
+            return
+        if kind == "tv_signin":
+            send_message(chat_id, _tv_activation_message())
             return
         if 0 <= idx < len(emails):
             send_message(chat_id, _deliver_code(client, emails[idx], kind=kind))
@@ -479,7 +506,7 @@ def _client_help_text(emails: list[str]) -> str:
         f"✈️ <code>/viaje {ejemplo}</code> — código de acceso temporal (de viaje)",
         f"🏠 <code>/hogar {ejemplo}</code> — link para actualizar Hogar",
         f"🔒 <code>/clave {ejemplo}</code> — link para restablecer contraseña",
-        f"📺 <code>/tv {ejemplo}</code> — activar Netflix en tu TV",
+        "📺 <code>/tv</code> — página para activar Netflix en tu TV",
         "",
         "📋 <code>/miscorreos</code> — ver tus correos asignados",
         "❓ <code>/cmds</code> — ver esta ayuda",
