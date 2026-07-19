@@ -2,7 +2,7 @@ from django.contrib import admin, messages
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action as unfold_action
 
-from .models import AssignedEmail, CodeBotClient
+from .models import AssignedEmail, CodeBotClient, CodeDelivery
 
 
 class AssignedEmailInline(TabularInline):
@@ -19,11 +19,12 @@ class CodeBotClientAdmin(ModelAdmin):
         "telegram_username",
         "telegram_chat_id",
         "is_active",
+        "expires_at",
         "email_count",
         "last_seen_at",
         "created_at",
     )
-    list_filter = ("is_active", "created_at")
+    list_filter = ("is_active", "expires_at", "created_at")
     search_fields = (
         "display_name",
         "telegram_username",
@@ -56,3 +57,25 @@ class AssignedEmailAdmin(ModelAdmin):
     search_fields = ("email", "client__display_name", "client__telegram_username")
     list_filter = ("created_at",)
     autocomplete_fields = ("client",)
+
+
+@admin.register(CodeDelivery)
+class CodeDeliveryAdmin(ModelAdmin):
+    """Auditoría de pedidos del bot: solo lectura."""
+
+    list_display = ("created_at", "client", "email", "kind", "found")
+    list_filter = ("found", "kind", "created_at")
+    search_fields = (
+        "email",
+        "client__display_name",
+        "client__telegram_username",
+        "client__telegram_chat_id",
+    )
+    date_hierarchy = "created_at"
+    list_per_page = 100
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

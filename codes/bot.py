@@ -22,9 +22,10 @@ from typing import Any, Iterable
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone
 
 from . import imap_reader
-from .models import AssignedEmail, BotState, CodeBotClient
+from .models import AssignedEmail, BotState, CodeBotClient, CodeDelivery
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,17 @@ KIND_LABELS: dict[str, str] = {
     "household": "🏠 Actualizar Hogar",
     "password_reset": "🔒 Restablecer contraseña",
     "tv_signin": "📺 Activar Netflix en tu TV",
+}
+
+# Botones del menú fijo (teclado abajo del chat) -> comando equivalente.
+MENU_BUTTONS: dict[str, str] = {
+    "🔑 código": "/codigo",
+    "✈️ viaje": "/viaje",
+    "🏠 hogar": "/hogar",
+    "🔒 clave": "/clave",
+    "📺 activar tv": "/tv",
+    "📋 mis correos": "/miscorreos",
+    "❓ ayuda": "/cmds",
 }
 
 
@@ -99,10 +111,24 @@ def _build_reply_markup(buttons: Iterable[Iterable[dict]] | None) -> dict | None
     return {"inline_keyboard": [[dict(b) for b in row] for row in buttons]}
 
 
+def _menu_keyboard() -> dict:
+    """Teclado fijo (persistente) con las acciones principales."""
+    return {
+        "keyboard": [
+            [{"text": "🔑 Código"}, {"text": "✈️ Viaje"}],
+            [{"text": "🏠 Hogar"}, {"text": "🔒 Clave"}],
+            [{"text": "📺 Activar TV"}, {"text": "📋 Mis correos"}],
+        ],
+        "resize_keyboard": True,
+        "is_persistent": True,
+    }
+
+
 def send_message(
     chat_id: str | int,
     text: str,
     buttons: Iterable[Iterable[dict]] | None = None,
+    menu: bool = False,
 ) -> dict:
     payload: dict[str, Any] = {
         "chat_id": str(chat_id),
@@ -113,7 +139,31 @@ def send_message(
     markup = _build_reply_markup(buttons)
     if markup:
         payload["reply_markup"] = markup
+    elif menu:
+        payload["reply_markup"] = _menu_keyboard()
     return _call("sendMessage", **payload)
+
+
+def send_banner(chat_id: str | int, caption: str = "") -> bool:
+    """Envía el banner de la marca (si existe el archivo). Devuelve True si salió."""
+    path = getattr(settings, "CODES_BOT_BANNER", "") or ""
+    if not path:
+        return False
+    token = _token()
+    if not token:
+        return False
+    try:
+        with open(path, "rb") as fh:
+            url = TELEGRAM_API.format(token=token, method="sendPhoto")
+            data: dict[str, Any] = {"chat_id": str(chat_id)}
+            if caption:
+                data["caption"] = caption
+                data["parse_mode"] = "HTML"
+            resp = requests.post(url, data=data, files={"photo": fh}, timeout=30)
+        return bool(resp.ok and resp.json().get("ok"))
+    except Exception:
+        logger.exception("No se pudo enviar el banner")
+        return False
 
 
 def answer_callback_query(callback_query_id: str, text: str = "") -> dict:
@@ -145,6 +195,57 @@ def _get_or_create_client(chat_id: str, username: str, name: str) -> tuple[CodeB
     if update_fields:
         client.save(update_fields=update_fields)
     return client, created
+
+
+def _has_access(client: CodeBotClient) -> bool:
+    return _is_admin(client.telegram_chat_id) or client.has_access
+
+
+def _expired_message() -> str:
+    return (
+        "⏳ <b>Tu acceso venció.</b>\n"
+        "Contactá al admin para renovarlo y seguir recibiendo tus códigos.\n"
+        f"👑 <b>{BRAND}</b>"
+    )
+
+
+def _alert_admin(key: str, text: str, ttl: int = 3600) -> None:
+    """Avisa al admin, con anti-repetición por ``key`` durante ``ttl`` seg."""
+    admin = _admin_chat_id()
+    if not admin:
+        return
+    cache_key = f"codesbot:alert:{key}"
+    if cache.get(cache_key):
+        return
+    cache.set(cache_key, 1, timeout=ttl)
+    try:
+        send_message(admin, text)
+    except Exception:
+        logger.exception("No se pudo alertar al admin")
+
+
+def _daily_limit() -> int:
+    return int(getattr(settings, "CODES_DAILY_LIMIT", 20) or 0)
+
+
+def _over_daily_limit(client: CodeBotClient) -> bool:
+    limit = _daily_limit()
+    if limit <= 0 or _is_admin(client.telegram_chat_id):
+        return False
+    today = timezone.localdate()
+    count = CodeDelivery.objects.filter(
+        client=client, created_at__date=today
+    ).count()
+    if count < limit:
+        return False
+    _alert_admin(
+        f"limit:{client.telegram_chat_id}:{today}",
+        f"⚠️ <b>Límite diario alcanzado</b>\n"
+        f"El cliente {html.escape(str(client))} ya hizo {count} pedidos hoy "
+        f"(límite {limit}). El bot dejó de responderle por hoy.",
+        ttl=6 * 3600,
+    )
+    return True
 
 
 def _assigned_emails(client: CodeBotClient) -> list[str]:
@@ -192,6 +293,9 @@ def _tv_activation_message() -> str:
 def _cmd_tv(client: CodeBotClient) -> None:
     if not client.is_active:
         _send_welcome(client)
+        return
+    if not _has_access(client):
+        send_message(client.telegram_chat_id, _expired_message())
         return
     send_message(client.telegram_chat_id, _tv_activation_message())
 
@@ -244,12 +348,25 @@ def _on_cooldown(client: CodeBotClient) -> bool:
 
 def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) -> str:
     email = (email or "").strip().lower()
+    if not _has_access(client):
+        return _expired_message()
     assigned = set(_assigned_emails(client))
     if email not in assigned:
+        _alert_admin(
+            f"foreign:{client.telegram_chat_id}",
+            f"🚨 <b>Pedido sospechoso</b>\n"
+            f"El cliente {html.escape(str(client))} pidió un código del correo "
+            f"<code>{html.escape(email)}</code>, que NO tiene asignado.",
+        )
         return (
             f"⚠️ El correo <b>{html.escape(email)}</b> no está asignado a tu "
             "cuenta, así que no te corresponde. Si creés que es un error, "
             "escribile al admin."
+        )
+    if _over_daily_limit(client):
+        return (
+            "🛑 Alcanzaste el límite de pedidos por hoy.\n"
+            "Si necesitás más códigos, escribile al admin."
         )
     if not imap_reader.is_configured():
         return "El servicio de códigos todavía no está configurado. Probá más tarde."
@@ -281,6 +398,9 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
                 continue
             return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
     if result is None or not result.has_payload:
+        CodeDelivery.objects.create(
+            client=client, email=email, kind=kind or "", found=False
+        )
         if kind and kind in KIND_LABELS:
             que = f"<b>{html.escape(KIND_LABELS[kind])}</b>"
         else:
@@ -298,6 +418,9 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
             + extra
         )
     client.touch()
+    CodeDelivery.objects.create(
+        client=client, email=email, kind=kind or "", found=True
+    )
     msg = _format_result(email, result)
     ttl = getattr(settings, "CODES_RESULT_CACHE_SECONDS", 45)
     if ttl > 0:
@@ -310,6 +433,9 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
     chat_id = client.telegram_chat_id
     if not client.is_active:
         _send_welcome(client)
+        return
+    if not _has_access(client):
+        send_message(chat_id, _expired_message())
         return
     emails = _assigned_emails(client)
     if not emails:
@@ -354,6 +480,11 @@ def _handle_message(update: dict) -> None:
 
     client, created = _get_or_create_client(chat_id, username, name)
 
+    # Botones del menú fijo: los traducimos al comando equivalente.
+    menu_cmd = MENU_BUTTONS.get(text.lower())
+    if menu_cmd:
+        text = menu_cmd
+
     cmd, _, rest = text.partition(" ")
     cmd = cmd.lower().split("@", 1)[0]  # quita @botname si lo hubiera
     rest = rest.strip()
@@ -361,6 +492,7 @@ def _handle_message(update: dict) -> None:
     if cmd == "/start":
         if created:
             _notify_admin_new(client)
+        send_banner(chat_id)
         _send_welcome(client)
         return
     if cmd in ("/ayuda", "/help", "/cmds", "/comandos"):
@@ -419,7 +551,10 @@ def _handle_callback(update: dict) -> None:
         except ValueError:
             return
         if kind == "tv_signin":
-            send_message(chat_id, _tv_activation_message())
+            if _has_access(client):
+                send_message(chat_id, _tv_activation_message())
+            else:
+                send_message(chat_id, _expired_message())
             return
         if 0 <= idx < len(emails):
             send_message(chat_id, _deliver_code(client, emails[idx], kind=kind))
@@ -475,7 +610,12 @@ def _send_welcome(client: CodeBotClient) -> None:
             "El admin te los va a asignar en breve. Te aviso cuando estén listos 📩",
         )
         return
-    send_message(chat_id, _client_help_text(emails), buttons=_email_buttons(emails))
+    if not _has_access(client):
+        send_message(chat_id, _expired_message())
+        return
+    send_message(chat_id, _client_help_text(emails), menu=True)
+    if emails:
+        send_message(chat_id, "📧 Tus correos:", buttons=_email_buttons(emails))
 
 
 def _send_commands_help(client: CodeBotClient) -> None:

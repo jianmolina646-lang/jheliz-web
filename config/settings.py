@@ -318,6 +318,12 @@ CODES_IMAP2_USER = config("CODES_IMAP2_USER", default="")
 CODES_IMAP2_PASSWORD = config("CODES_IMAP2_PASSWORD", default="")
 # Ventana (minutos) hacia atrás para considerar un correo de Netflix vigente.
 CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=30, cast=int)
+# Máximo de pedidos de código por cliente por día (0 = sin límite).
+CODES_DAILY_LIMIT = config("CODES_DAILY_LIMIT", default=20, cast=int)
+# Banner (imagen) que el bot manda en el /start. Vacío = sin banner.
+CODES_BOT_BANNER = config(
+    "CODES_BOT_BANNER", default=str(BASE_DIR / "codes" / "assets" / "banner.png")
+)
 
 # Bot de Disney+ (app ``codes``, módulo ``disney_bot``). Bot SEPARADO con su
 # propio token: los clientes piden SOLO el código de inicio de sesión de las

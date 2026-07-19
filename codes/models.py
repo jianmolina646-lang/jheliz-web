@@ -32,6 +32,12 @@ class CodeBotClient(models.Model):
         default=False,
         help_text="Si está desactivado, el bot no le entrega códigos.",
     )
+    expires_at = models.DateTimeField(
+        "Vence",
+        null=True,
+        blank=True,
+        help_text="Cuando pasa esta fecha, el bot deja de entregarle códigos. Vacío = sin vencimiento.",
+    )
     note = models.CharField("Nota interna", max_length=200, blank=True)
     created_at = models.DateTimeField("Alta", auto_now_add=True)
     last_seen_at = models.DateTimeField("Último uso", null=True, blank=True)
@@ -49,6 +55,14 @@ class CodeBotClient(models.Model):
         """Marca el último uso sin disparar señales pesadas."""
         self.last_seen_at = timezone.now()
         self.save(update_fields=["last_seen_at"])
+
+    @property
+    def is_expired(self) -> bool:
+        return bool(self.expires_at and self.expires_at <= timezone.now())
+
+    @property
+    def has_access(self) -> bool:
+        return self.is_active and not self.is_expired
 
 
 class AssignedEmail(models.Model):
@@ -85,6 +99,37 @@ class AssignedEmail(models.Model):
         # Normaliza el correo para que el match con la bandeja sea fiable.
         self.email = (self.email or "").strip().lower()
         super().save(*args, **kwargs)
+
+
+class CodeDelivery(models.Model):
+    """Registro de auditoría: cada pedido de código que atendió el bot.
+
+    Sirve para saber quién pidió qué, cuándo y si se le entregó algo, y para
+    aplicar el límite diario de pedidos por cliente.
+    """
+
+    client = models.ForeignKey(
+        CodeBotClient,
+        related_name="deliveries",
+        on_delete=models.CASCADE,
+        verbose_name="Cliente",
+    )
+    email = models.EmailField("Correo de la cuenta")
+    kind = models.CharField("Tipo pedido", max_length=32, blank=True)
+    found = models.BooleanField("Entregado", default=False)
+    created_at = models.DateTimeField("Fecha", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Entrega de código"
+        verbose_name_plural = "Entregas de códigos"
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["client", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        estado = "✓" if self.found else "✗"
+        return f"{estado} {self.email} [{self.kind or 'any'}] → {self.client_id}"
 
 
 class BotState(models.Model):

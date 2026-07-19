@@ -825,3 +825,94 @@ class TvDirectCommandTests(TestCase):
         bot._cmd_tv(self.client_obj)
         mwelcome.assert_called_once()
         msend.assert_not_called()
+
+
+class SecurityFeatureTests(TestCase):
+    """Vencimiento, límite diario, auditoría y alertas al admin."""
+
+    def setUp(self):
+        cache.clear()
+        self.client_obj = CodeBotClient.objects.create(
+            telegram_chat_id="888", is_active=True
+        )
+        AssignedEmail.objects.create(client=self.client_obj, email="mio@gmail.com")
+
+    def test_expired_client_has_no_access(self):
+        from django.utils import timezone
+        from datetime import timedelta
+
+        self.client_obj.expires_at = timezone.now() - timedelta(days=1)
+        self.client_obj.save()
+        self.assertTrue(self.client_obj.is_expired)
+        self.assertFalse(self.client_obj.has_access)
+        msg = bot._deliver_code(self.client_obj, "mio@gmail.com")
+        self.assertIn("venció", msg)
+
+    def test_future_expiry_keeps_access(self):
+        from django.utils import timezone
+        from datetime import timedelta
+
+        self.client_obj.expires_at = timezone.now() + timedelta(days=30)
+        self.client_obj.save()
+        self.assertTrue(self.client_obj.has_access)
+
+    @mock.patch("codes.bot.send_message")
+    def test_unassigned_email_alerts_admin(self, msend):
+        from codes.models import CodeDelivery
+
+        with mock.patch("codes.bot._admin_chat_id", return_value="999"):
+            msg = bot._deliver_code(self.client_obj, "ajeno@gmail.com")
+        self.assertIn("no está asignado", msg)
+        # Alerta enviada al admin
+        self.assertTrue(
+            any(c.args[0] == "999" for c in msend.call_args_list)
+        )
+        self.assertEqual(CodeDelivery.objects.count(), 0)
+
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email")
+    def test_delivery_is_logged(self, mfetch, _mconf):
+        from codes.models import CodeDelivery
+        from codes.netflix import NetflixResult
+
+        mfetch.return_value = NetflixResult(kind="signin_code", code="4321")
+        msg = bot._deliver_code(self.client_obj, "mio@gmail.com", kind="signin_code")
+        self.assertIn("4321", msg)
+        d = CodeDelivery.objects.get()
+        self.assertTrue(d.found)
+        self.assertEqual(d.email, "mio@gmail.com")
+
+    @mock.patch("codes.bot.send_message")
+    def test_daily_limit_blocks(self, msend):
+        from codes.models import CodeDelivery
+
+        with self.settings(CODES_DAILY_LIMIT=2):
+            CodeDelivery.objects.create(client=self.client_obj, email="mio@gmail.com", found=True)
+            CodeDelivery.objects.create(client=self.client_obj, email="mio@gmail.com", found=True)
+            msg = bot._deliver_code(self.client_obj, "mio@gmail.com")
+        self.assertIn("límite", msg)
+
+
+class MenuButtonTests(TestCase):
+    """Los botones del menú fijo equivalen a comandos."""
+
+    def test_menu_buttons_map_to_known_commands(self):
+        for label, cmd in bot.MENU_BUTTONS.items():
+            self.assertTrue(
+                cmd in bot.COMMAND_KINDS or cmd in ("/miscorreos", "/cmds"),
+                f"{label} -> {cmd}",
+            )
+
+    @mock.patch("codes.bot.send_message")
+    def test_tv_button_triggers_tv(self, msend):
+        c = CodeBotClient.objects.create(telegram_chat_id="901", is_active=True)
+        update = {
+            "message": {
+                "chat": {"id": 901},
+                "from": {"username": "u", "first_name": "n"},
+                "text": "📺 Activar TV",
+            }
+        }
+        bot._handle_message(update)
+        args, _ = msend.call_args
+        self.assertIn(bot.NETFLIX_TV_ACTIVATION_URL, args[1])
