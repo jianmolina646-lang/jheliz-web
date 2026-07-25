@@ -32,8 +32,11 @@
   .lp-hero h1{font-size:clamp(3.45rem,6.25vw,5.85rem);line-height:.92;margin:0;max-width:790px;
     letter-spacing:-.072em;font-weight:800;text-wrap:balance;}
   .lp-hero h1 em{font-style:normal;color:var(--lp-green);}
+  .lp-statement{font-size:clamp(1.45rem,2.35vw,2.15rem);line-height:1.2;letter-spacing:-.035em;
+    color:#c7d0ca;margin:24px 0 0;max-width:600px;font-weight:500;}
+  .lp-statement em{font-style:normal;color:var(--lp-green);}
   .lp-lead{font-size:clamp(1rem,1.4vw,1.12rem);line-height:1.62;color:var(--lp-muted);
-    margin:24px 0 27px;max-width:590px;}
+    margin:16px 0 25px;max-width:590px;}
   .lp-lead strong{color:#e5ebe7;font-weight:650;}
   .lp-cta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
   .lp-cta .pb-btn{min-height:50px;padding:13px 21px;}
@@ -137,11 +140,14 @@
 <main>
   <section class="lp-shell lp-hero">
     <div>
-      <div class="lp-kicker lp-enter">Gestión de suscripciones</div>
-      <h1 class="lp-enter lp-enter--2">Un negocio sin control <em>no es un buen negocio.</em></h1>
+      <div class="lp-kicker lp-enter">Control para negocios digitales</div>
+      <h1 class="lp-enter lp-enter--2">Gestión de <em>suscripciones.</em></h1>
+      <div class="lp-statement lp-enter lp-enter--2">
+        Un negocio sin control <em>no es un buen negocio.</em>
+      </div>
       <p class="lp-lead lp-enter lp-enter--3">
-        <strong>JHELIZCONTROLTV</strong> organiza tus ventas, clientes, vencimientos y ganancias
-        en un solo lugar para que no pierdas renovaciones ni ingresos.
+        Organiza ventas, clientes, vencimientos y ganancias en un solo lugar
+        para no perder renovaciones ni ingresos.
       </p>
       <div class="lp-cta lp-enter lp-enter--4">
         <a class="pb-btn pb-btn--primary" href="{% url 'jheliztv_register' %}">
