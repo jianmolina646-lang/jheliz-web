@@ -983,6 +983,7 @@ def telegram_settings(request, tenant):
             connection=connection,
             link_url=link_url,
             telegram_bot_username=settings.JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME,
+            jc_active="telegram",
         ),
     )
 
