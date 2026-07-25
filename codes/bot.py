@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Pausa antes del único reintento cuando Gmail falla/responde lento.
 _RETRY_SLEEP = 1.0
+MAX_EMAIL_BUTTONS = 10
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 
@@ -261,7 +262,11 @@ def _assigned_emails(client: CodeBotClient) -> list[str]:
     return list(client.emails.values_list("email", flat=True))
 
 
-def _email_buttons(emails: list[str], kind: str | None = None) -> list[list[dict]]:
+def _email_buttons(
+    emails: list[str],
+    kind: str | None = None,
+    index_source: list[str] | None = None,
+) -> list[list[dict]]:
     """Botones para elegir un correo.
 
     El ``callback_data`` usa el índice del correo (no el correo entero) para
@@ -270,7 +275,9 @@ def _email_buttons(emails: list[str], kind: str | None = None) -> list[list[dict
     selector de tipo (``pick:<idx>``).
     """
     rows: list[list[dict]] = []
-    for idx, e in enumerate(emails):
+    source = index_source or emails
+    for local_idx, e in enumerate(emails):
+        idx = source.index(e) if index_source is not None else local_idx
         data = f"c:{kind}:{idx}" if kind else f"pick:{idx}"
         rows.append([{"text": e, "callback_data": data}])
     return rows
@@ -461,6 +468,14 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
         if len(emails) == 1:
             arg = emails[0]
         else:
+            if len(emails) > MAX_EMAIL_BUTTONS:
+                send_message(
+                    chat_id,
+                    f"Tenés <b>{len(emails)}</b> correos asignados. Buscá primero "
+                    "el que necesitás con:\n"
+                    "<code>/buscar nombre@correo.com</code>",
+                )
+                return
             send_message(
                 chat_id,
                 f"¿De qué correo querés <b>{html.escape(KIND_LABELS[kind])}</b>?\n"
@@ -524,6 +539,9 @@ def _handle_message(update: dict) -> None:
         return
     if cmd == "/miscorreos":
         _send_email_menu(client)
+        return
+    if cmd == "/buscar":
+        _cmd_search(client, rest)
         return
 
     # Comandos de admin (solo para el chat del admin).
@@ -624,7 +642,11 @@ def _send_welcome(client: CodeBotClient) -> None:
             chat_id,
             f"👋 <b>Hola, admin.</b> Bienvenido al Bot de Códigos de {BRAND}.\n\n"
             + _admin_help_text(),
-            buttons=_email_buttons(emails) if emails else None,
+            buttons=(
+                _email_buttons(emails)
+                if 0 < len(emails) <= MAX_EMAIL_BUTTONS
+                else None
+            ),
         )
         return
     if not emails:
@@ -638,8 +660,14 @@ def _send_welcome(client: CodeBotClient) -> None:
         send_message(chat_id, _expired_message())
         return
     send_message(chat_id, _client_help_text(emails), menu=True)
-    if emails:
+    if emails and len(emails) <= MAX_EMAIL_BUTTONS:
         send_message(chat_id, "📧 Tus correos:", buttons=_email_buttons(emails))
+    elif emails:
+        send_message(
+            chat_id,
+            f"📧 Tenés <b>{len(emails)}</b> correos asignados.\n"
+            "Encontrá uno con <code>/buscar nombre@correo.com</code>.",
+        )
 
 
 def _send_commands_help(client: CodeBotClient) -> None:
@@ -655,7 +683,7 @@ def _send_commands_help(client: CodeBotClient) -> None:
     send_message(
         chat_id,
         _client_help_text(emails),
-        buttons=_email_buttons(emails) if emails else None,
+        buttons=_email_buttons(emails) if 0 < len(emails) <= MAX_EMAIL_BUTTONS else None,
     )
 
 
@@ -673,6 +701,7 @@ def _client_help_text(emails: list[str]) -> str:
         "📺 <code>/tv</code> — página para activar Netflix en tu TV",
         "",
         "📋 <code>/miscorreos</code> — ver tus correos asignados",
+        "🔍 <code>/buscar nombre@gmail.com</code> — encontrar un correo asignado",
         "❓ <code>/cmds</code> — ver esta ayuda",
     ]
     if not emails:
@@ -684,9 +713,15 @@ def _client_help_text(emails: list[str]) -> str:
             "💡 Tenés un solo correo, así que podés mandar el comando solo "
             "(ej. <code>/codigo</code>) y te lo doy de esa cuenta."
         )
-    else:
+    elif len(emails) <= MAX_EMAIL_BUTTONS:
         lines.append("")
         lines.append("💡 También podés tocar un correo de abajo y elegir qué necesitás.")
+    else:
+        lines.append("")
+        lines.append(
+            f"💡 Tenés {len(emails)} correos. Encontrá rápidamente el que "
+            "necesitás con <code>/buscar nombre</code>."
+        )
     return "\n".join(lines)
 
 
@@ -702,7 +737,8 @@ def _admin_help_text() -> str:
         "📢 <code>/anuncio &lt;mensaje&gt;</code> — enviar un anuncio a todos los registrados",
         "",
         "— También tenés los comandos de cliente —",
-        "🔑 /codigo · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📺 /tv · 📋 /miscorreos",
+        "🔑 /codigo · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📺 /tv · "
+        "📋 /miscorreos · 🔍 /buscar",
     ]
     return "\n".join(lines)
 
@@ -735,10 +771,70 @@ def _send_email_menu(client: CodeBotClient) -> None:
     if not client.is_active or not emails:
         _send_welcome(client)
         return
+    if len(emails) > MAX_EMAIL_BUTTONS:
+        send_message(
+            client.telegram_chat_id,
+            f"📧 Tenés <b>{len(emails)}</b> correos asignados.\n\n"
+            "Para encontrar uno escribí parte del nombre o el correo completo:\n"
+            "<code>/buscar nombre@gmail.com</code>",
+        )
+        return
     send_message(
         client.telegram_chat_id,
         "Tus correos asignados. Tocá uno y elegí qué necesitás:",
         buttons=_email_buttons(emails),
+    )
+
+
+def _cmd_search(client: CodeBotClient, raw_query: str) -> None:
+    """Busca únicamente dentro de los correos asignados al cliente."""
+    chat_id = client.telegram_chat_id
+    if not client.is_active:
+        _send_welcome(client)
+        return
+    if not _has_access(client):
+        send_message(chat_id, _expired_message())
+        return
+
+    emails = _assigned_emails(client)
+    if not emails:
+        _send_welcome(client)
+        return
+
+    query = (raw_query or "").strip().lower()
+    if not query:
+        send_message(
+            chat_id,
+            "🔍 Escribí una parte del correo que buscás.\n"
+            "Ejemplo: <code>/buscar nombre@gmail.com</code>",
+        )
+        return
+    if len(query) < 2:
+        send_message(chat_id, "🔍 Escribí al menos 2 caracteres para buscar.")
+        return
+
+    matches = [email for email in emails if query in email.lower()]
+    if not matches:
+        send_message(
+            chat_id,
+            f"🔍 No encontré correos asignados que coincidan con "
+            f"<code>{html.escape(query)}</code>.",
+        )
+        return
+    if len(matches) == 1:
+        _offer_kinds_for_email(client, matches[0])
+        return
+
+    visible = matches[:MAX_EMAIL_BUTTONS]
+    extra = len(matches) - len(visible)
+    detail = (
+        f"\nMostrando los primeros {len(visible)}. Escribí una búsqueda más "
+        "específica." if extra else ""
+    )
+    send_message(
+        chat_id,
+        f"🔍 Encontré <b>{len(matches)}</b> coincidencias. Elegí un correo:{detail}",
+        buttons=_email_buttons(visible, index_source=emails),
     )
 
 
@@ -952,6 +1048,7 @@ _CLIENT_MENU = [
     {"command": "clave", "description": "🔒 Link para restablecer contraseña"},
     {"command": "tv", "description": "📺 Activar Netflix en tu TV"},
     {"command": "miscorreos", "description": "📋 Ver mis correos asignados"},
+    {"command": "buscar", "description": "🔍 Buscar un correo asignado"},
     {"command": "cmds", "description": "❓ Ver los comandos"},
 ]
 

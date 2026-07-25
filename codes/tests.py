@@ -527,6 +527,59 @@ class DeliverKindTests(TestCase):
         self.assertEqual(len(kwargs.get("buttons", [])), len(bot.COMMAND_KINDS))
 
 
+class SearchAssignedEmailsTests(TestCase):
+    def setUp(self):
+        self.client_obj = CodeBotClient.objects.create(
+            telegram_chat_id="778", is_active=True
+        )
+        for email in (
+            "ana.netflix@gmail.com",
+            "ventas.netflix@gmail.com",
+            "cliente@outlook.com",
+        ):
+            AssignedEmail.objects.create(client=self.client_obj, email=email)
+
+    @mock.patch("codes.bot.send_message")
+    def test_search_without_query_shows_usage(self, msend):
+        bot._cmd_search(self.client_obj, "")
+        self.assertIn("/buscar", msend.call_args.args[1])
+
+    @mock.patch("codes.bot._offer_kinds_for_email")
+    def test_single_match_opens_actions(self, moffer):
+        bot._cmd_search(self.client_obj, "cliente@outlook")
+        moffer.assert_called_once_with(self.client_obj, "cliente@outlook.com")
+
+    @mock.patch("codes.bot.send_message")
+    def test_multiple_matches_show_only_matching_buttons(self, msend):
+        bot._cmd_search(self.client_obj, "netflix")
+        buttons = msend.call_args.kwargs["buttons"]
+        labels = [row[0]["text"] for row in buttons]
+        self.assertEqual(
+            labels,
+            ["ana.netflix@gmail.com", "ventas.netflix@gmail.com"],
+        )
+
+    @mock.patch("codes.bot.send_message")
+    def test_search_buttons_keep_indices_from_full_assigned_list(self, msend):
+        bot._cmd_search(self.client_obj, "outlook")
+        # Una sola coincidencia abre las acciones directamente.
+        msend.assert_called()
+        action_buttons = msend.call_args.kwargs["buttons"]
+        self.assertTrue(
+            all(row[0]["callback_data"].endswith(":1") for row in action_buttons)
+        )
+
+    @mock.patch("codes.bot.send_message")
+    def test_large_mailbox_uses_search_instead_of_huge_button_list(self, msend):
+        for idx in range(20):
+            AssignedEmail.objects.create(
+                client=self.client_obj, email=f"extra{idx:02d}@gmail.com"
+            )
+        bot._send_email_menu(self.client_obj)
+        self.assertIn("/buscar", msend.call_args.args[1])
+        self.assertNotIn("buttons", msend.call_args.kwargs)
+
+
 class DeliverCodeTests(TestCase):
     def setUp(self):
         cache.clear()
