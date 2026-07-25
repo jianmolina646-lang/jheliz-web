@@ -1,6 +1,6 @@
 # Telegram como extensión de Jheliz Control
 
-El bot `@JHELIZTVCONTROL_bot` se ejecuta dentro del mismo proyecto Django que
+El bot `@JHELIZCONTROLTV_bot` se ejecuta dentro del mismo proyecto Django que
 la web. No usa una base de datos paralela: lee y modifica directamente los
 modelos centrales de `gestion`.
 
@@ -44,7 +44,7 @@ pertenecen a `Subscription`; no se duplican como campos del cliente.
 
 ```env
 JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN=
-JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME=JHELIZTVCONTROL_bot
+JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME=JHELIZCONTROLTV_bot
 JHELIZ_CONTROL_BASE_URL=https://jheliztv.xyz
 ```
 
