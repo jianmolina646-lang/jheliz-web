@@ -348,7 +348,7 @@ CODES_IMAP_PASSWORD = secret_config("CODES_IMAP_PASSWORD")
 CODES_IMAP2_HOST = config("CODES_IMAP2_HOST", default="imap.hostinger.com")
 CODES_IMAP2_PORT = config("CODES_IMAP2_PORT", default=993, cast=int)
 CODES_IMAP2_USER = config("CODES_IMAP2_USER", default="")
-CODES_IMAP2_PASSWORD = secret_config("CODES_IMAP2_PASSWORD")
+CODES_IMAP2_PASSWORD = secret_config("CODES_IMAP2_PASSWORD", allow_empty=True)
 # Ventana (minutos) hacia atrás para considerar un correo de Netflix vigente.
 CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=30, cast=int)
 # Máximo de pedidos de código por cliente por día (0 = sin límite).

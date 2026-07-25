@@ -43,3 +43,20 @@ class SecretConfigTests(TestCase):
                     secret_config("TEST_SECRET")
         finally:
             os.unlink(file_path)
+
+    def test_allows_empty_optional_secret_file(self):
+        with tempfile.NamedTemporaryFile(delete=False) as file:
+            file_path = file.name
+
+        try:
+            with patch.dict(
+                os.environ,
+                {"TEST_SECRET_FILE": file_path},
+                clear=False,
+            ):
+                self.assertEqual(
+                    secret_config("TEST_SECRET", allow_empty=True),
+                    "",
+                )
+        finally:
+            os.unlink(file_path)

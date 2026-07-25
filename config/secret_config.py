@@ -5,7 +5,7 @@ from pathlib import Path
 from decouple import config
 
 
-def secret_config(name: str, default: str = "") -> str:
+def secret_config(name: str, default: str = "", *, allow_empty: bool = False) -> str:
     """
     Lee ``NAME_FILE`` antes que ``NAME``.
 
@@ -25,7 +25,7 @@ def secret_config(name: str, default: str = "") -> str:
             f"No se pudo leer el secreto {name} desde {file_path}"
         ) from exc
 
-    if not value:
+    if not value and not allow_empty:
         raise RuntimeError(f"El archivo secreto {file_path} está vacío")
 
     return value
