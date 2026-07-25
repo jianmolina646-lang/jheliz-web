@@ -35,6 +35,22 @@ def send_message(chat_id, text):
     return _call("sendMessage", chat_id=chat_id, text=text, parse_mode="HTML")
 
 
+def subscriptions_for_owner(owner_id):
+    """
+    Alcance canónico para cualquier dato enviado por Telegram.
+
+    Las tres relaciones deben pertenecer al mismo revendedor. Esto evita una
+    fuga incluso si una importación o edición administrativa dejara una fila
+    inconsistente (suscripción de A apuntando accidentalmente a cliente de B).
+    """
+    return Subscription.objects.filter(
+        owner_id=owner_id,
+        client__owner_id=owner_id,
+        service__owner_id=owner_id,
+        is_archived=False,
+    )
+
+
 @transaction.atomic
 def link_chat(raw_token, chat):
     digest = hashlib.sha256(raw_token.encode()).hexdigest()
@@ -93,16 +109,19 @@ def run_polling():
 def send_expiry_digests(today=None):
     today = today or timezone.localdate()
     sent = 0
-    for connection in TelegramConnection.objects.filter(is_enabled=True).exclude(chat_id=None):
+    connections = (
+        TelegramConnection.objects.filter(is_enabled=True)
+        .exclude(chat_id=None)
+        .select_related("owner")
+    )
+    for connection in connections:
         if connection.last_digest_date == today:
             continue
         lines = []
         for window in connection.windows():
             target = today + timedelta(days=window)
             subscriptions = (
-                Subscription.objects.filter(
-                    owner=connection.owner,
-                    is_archived=False,
+                subscriptions_for_owner(connection.owner_id).filter(
                     expires_at__date=target,
                 )
                 .select_related("client", "service")
