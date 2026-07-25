@@ -209,7 +209,8 @@ def _search_account(
     )
     try:
         conn.login(account["user"], account["password"])
-        conn.select("INBOX")
+        # El bot solo consulta mensajes: nunca debe marcar, mover ni eliminar.
+        conn.select("INBOX", readonly=True)
         # TEXT busca en todo el mensaje: agarra tanto los reenvíos automáticos
         # (From: el servicio) como los reenviados a mano (From: la cuenta
         # origen, con el correo del servicio dentro del cuerpo).

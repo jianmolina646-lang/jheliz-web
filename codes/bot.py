@@ -16,6 +16,7 @@ from __future__ import annotations
 import html
 import logging
 import re
+import threading
 import time
 from typing import Any, Iterable
 
@@ -260,6 +261,32 @@ def answer_callback_query(callback_query_id: str, text: str = "") -> dict:
     return _call("answerCallbackQuery", **payload)
 
 
+def _delete_message_safely(chat_id: str | int, message_id: int) -> None:
+    try:
+        _call("deleteMessage", chat_id=str(chat_id), message_id=message_id)
+    except Exception:
+        logger.exception("No se pudo eliminar el mensaje sensible %s", message_id)
+
+
+def _schedule_sensitive_deletion(
+    chat_id: str | int,
+    *,
+    send_result: dict | None = None,
+    message_id: int | None = None,
+) -> None:
+    """Programa el borrado sin bloquear el long polling del bot."""
+    ttl = int(getattr(settings, "CODES_SENSITIVE_MESSAGE_TTL_SECONDS", 600) or 0)
+    if message_id is None and isinstance(send_result, dict):
+        message_id = (send_result.get("result") or {}).get("message_id")
+    if ttl <= 0 or message_id is None:
+        return
+    timer = threading.Timer(
+        ttl, _delete_message_safely, args=(str(chat_id), int(message_id))
+    )
+    timer.daemon = True
+    timer.start()
+
+
 # ---------- Helpers de dominio ----------
 
 def _get_or_create_client(chat_id: str, username: str, name: str) -> tuple[CodeBotClient, bool]:
@@ -313,6 +340,51 @@ def _alert_admin(key: str, text: str, ttl: int = 3600) -> None:
 
 def _daily_limit() -> int:
     return int(getattr(settings, "CODES_DAILY_LIMIT", 20) or 0)
+
+
+def _security_block_key(client: CodeBotClient) -> str:
+    return f"codesbot:security-block:{client.telegram_chat_id}"
+
+
+def _is_security_blocked(client: CodeBotClient) -> bool:
+    return bool(cache.get(_security_block_key(client)))
+
+
+def _record_foreign_attempt(client: CodeBotClient, email: str) -> None:
+    block_seconds = int(
+        getattr(settings, "CODES_SECURITY_BLOCK_SECONDS", 900) or 900
+    )
+    attempt_key = f"codesbot:foreign-attempts:{client.telegram_chat_id}"
+    attempts = int(cache.get(attempt_key) or 0) + 1
+    cache.set(attempt_key, attempts, timeout=block_seconds)
+    limit = int(getattr(settings, "CODES_FOREIGN_ATTEMPT_LIMIT", 3) or 3)
+    if attempts < limit:
+        return
+    cache.set(_security_block_key(client), 1, timeout=block_seconds)
+    _alert_admin(
+        f"security-block:{client.telegram_chat_id}",
+        "🚨 <b>Cliente bloqueado temporalmente</b>\n"
+        f"{html.escape(str(client))} intentó consultar {attempts} veces cuentas "
+        "no asignadas. Último intento: "
+        f"<code>{html.escape(_mask_email(email))}</code>.\n"
+        f"Bloqueo aplicado por {max(1, block_seconds // 60)} minutos.",
+        ttl=block_seconds,
+    )
+
+
+def _record_tv_activation_request(client: CodeBotClient, email: str) -> None:
+    key = f"codesbot:tv-activation:{client.telegram_chat_id}"
+    count = int(cache.get(key) or 0) + 1
+    cache.set(key, count, timeout=600)
+    if count >= 3:
+        _alert_admin(
+            f"tv-burst:{client.telegram_chat_id}",
+            "⚠️ <b>Varias activaciones TV seguidas</b>\n"
+            f"{html.escape(str(client))} solicitó {count} activaciones en menos "
+            f"de 10 minutos. Última cuenta: "
+            f"<code>{html.escape(_mask_email(email))}</code>.",
+            ttl=600,
+        )
 
 
 def _over_daily_limit(client: CodeBotClient) -> bool:
@@ -466,6 +538,43 @@ def _cmd_tv(client: CodeBotClient) -> None:
     send_message(client.telegram_chat_id, _tv_activation_message())
 
 
+def _tv_email_confirmation(
+    client: CodeBotClient,
+    email: str,
+    *,
+    message_id: int | None = None,
+) -> None:
+    emails = _assigned_emails(client)
+    email = (email or "").strip().lower()
+    if email not in emails:
+        # Reutiliza la validación, alerta y bloqueo progresivo centralizados.
+        text = _deliver_code(client, email, kind="tv_signin")
+        send_message(client.telegram_chat_id, text)
+        return
+    idx = emails.index(email)
+    text = (
+        "📨 <b>Confirmar activación por correo</b>\n\n"
+        f"Cuenta: <code>{html.escape(_mask_email(email))}</code>\n"
+        "Se buscará el enlace más reciente enviado por Netflix.\n\n"
+        "¿Querés continuar?"
+    )
+    buttons = [
+        [
+            {
+                "text": "Confirmar activación",
+                "callback_data": f"tvconfirm:{idx}",
+                "style": "success",
+                "icon_custom_emoji_id": emoji_id("📨"),
+            }
+        ],
+        [{"text": "Cancelar", "callback_data": "back:emails", "style": "danger"}],
+    ]
+    if message_id is not None:
+        edit_message(client.telegram_chat_id, message_id, text, buttons=buttons)
+    else:
+        send_message(client.telegram_chat_id, text, buttons=buttons)
+
+
 def _cmd_tv_email(client: CodeBotClient, arg: str) -> None:
     """Busca el enlace de activación TV enviado por email a una cuenta concreta."""
     chat_id = client.telegram_chat_id
@@ -500,7 +609,7 @@ def _cmd_tv_email(client: CodeBotClient, arg: str) -> None:
             )
             return
 
-    send_message(chat_id, _deliver_code(client, email, kind="tv_signin"))
+    _tv_email_confirmation(client, email)
 
 
 def _format_result(email: str, result) -> str:
@@ -553,8 +662,15 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
     email = (email or "").strip().lower()
     if not _has_access(client):
         return _expired_message()
+    if _is_security_blocked(client):
+        return (
+            "🛑 <b>Acceso temporalmente bloqueado</b>\n"
+            "Detectamos varios intentos sobre cuentas no asignadas. Esperá "
+            "15 minutos o contactá al administrador."
+        )
     assigned = set(_assigned_emails(client))
     if email not in assigned:
+        _record_foreign_attempt(client, email)
         _alert_admin(
             f"foreign:{client.telegram_chat_id}",
             f"🚨 <b>Pedido sospechoso</b>\n"
@@ -671,7 +787,8 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
             )
             return
 
-    send_message(chat_id, _deliver_code(client, arg, kind=kind))
+    result = send_message(chat_id, _deliver_code(client, arg, kind=kind))
+    _schedule_sensitive_deletion(chat_id, send_result=result)
 
 
 # ---------- Handlers ----------
@@ -804,9 +921,20 @@ def _handle_callback(update: dict) -> None:
                 )
             result_text = _deliver_code(client, emails[idx], kind=kind)
             if message_id is not None:
-                edit_message(chat_id, message_id, result_text)
+                edit_result = edit_message(chat_id, message_id, result_text)
+                _schedule_sensitive_deletion(
+                    chat_id,
+                    send_result=edit_result,
+                    message_id=(
+                        None
+                        if isinstance(edit_result, dict)
+                        and (edit_result.get("result") or {}).get("message_id")
+                        else message_id
+                    ),
+                )
             else:
-                send_message(chat_id, result_text)
+                result = send_message(chat_id, result_text)
+                _schedule_sensitive_deletion(chat_id, send_result=result)
         return
     if data == "back:emails":
         if cq_id:
@@ -831,12 +959,25 @@ def _handle_callback(update: dict) -> None:
         return
     if data.startswith("tvmail:"):
         if cq_id:
+            answer_callback_query(cq_id)
+        try:
+            idx = int(data.split(":", 1)[1])
+        except ValueError:
+            return
+        if 0 <= idx < len(emails):
+            _tv_email_confirmation(
+                client, emails[idx], message_id=message_id
+            )
+        return
+    if data.startswith("tvconfirm:"):
+        if cq_id:
             answer_callback_query(cq_id, "Buscando…")
         try:
             idx = int(data.split(":", 1)[1])
         except ValueError:
             return
         if 0 <= idx < len(emails):
+            _record_tv_activation_request(client, emails[idx])
             if message_id is not None:
                 edit_message(
                     chat_id,
@@ -845,9 +986,20 @@ def _handle_callback(update: dict) -> None:
                 )
             result_text = _deliver_code(client, emails[idx], kind="tv_signin")
             if message_id is not None:
-                edit_message(chat_id, message_id, result_text)
+                edit_result = edit_message(chat_id, message_id, result_text)
+                _schedule_sensitive_deletion(
+                    chat_id,
+                    send_result=edit_result,
+                    message_id=(
+                        None
+                        if isinstance(edit_result, dict)
+                        and (edit_result.get("result") or {}).get("message_id")
+                        else message_id
+                    ),
+                )
             else:
-                send_message(chat_id, result_text)
+                result = send_message(chat_id, result_text)
+                _schedule_sensitive_deletion(chat_id, send_result=result)
         return
     if data.startswith("pick:"):
         # pick:<idx> -> mostrar las 4 opciones de tipo para ese correo.

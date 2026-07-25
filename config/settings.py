@@ -348,6 +348,18 @@ CODES_IMAP2_PASSWORD = config("CODES_IMAP2_PASSWORD", default="")
 CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=30, cast=int)
 # Máximo de pedidos de código por cliente por día (0 = sin límite).
 CODES_DAILY_LIMIT = config("CODES_DAILY_LIMIT", default=20, cast=int)
+# Los mensajes con códigos/enlaces se eliminan de Telegram tras este tiempo.
+# 0 desactiva la eliminación automática.
+CODES_SENSITIVE_MESSAGE_TTL_SECONDS = config(
+    "CODES_SENSITIVE_MESSAGE_TTL_SECONDS", default=600, cast=int
+)
+# Intentos sobre cuentas ajenas antes de bloquear pedidos temporalmente.
+CODES_FOREIGN_ATTEMPT_LIMIT = config(
+    "CODES_FOREIGN_ATTEMPT_LIMIT", default=3, cast=int
+)
+CODES_SECURITY_BLOCK_SECONDS = config(
+    "CODES_SECURITY_BLOCK_SECONDS", default=900, cast=int
+)
 # Banner (imagen) que el bot manda en el /start. Vacío = sin banner.
 CODES_BOT_BANNER = config(
     "CODES_BOT_BANNER", default=str(BASE_DIR / "codes" / "assets" / "banner.png")

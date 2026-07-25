@@ -977,21 +977,20 @@ class TvEmailLinkCommandTests(TestCase):
         )
 
     @mock.patch("codes.bot.send_message")
-    @mock.patch("codes.bot._deliver_code", return_value="ENLACE")
-    def test_explicit_email_searches_tv_signin_only(self, mdeliver, msend):
+    @mock.patch("codes.bot._deliver_code")
+    def test_explicit_email_requires_confirmation_before_imap(self, mdeliver, msend):
         bot._cmd_tv_email(self.client_obj, "Cliente@Gmail.com")
-        mdeliver.assert_called_once_with(
-            self.client_obj, "cliente@gmail.com", kind="tv_signin"
-        )
-        msend.assert_called_once_with("780", "ENLACE")
+        mdeliver.assert_not_called()
+        self.assertIn("Confirmar activación", msend.call_args.args[1])
+        buttons = msend.call_args.kwargs["buttons"]
+        self.assertEqual(buttons[0][0]["callback_data"], "tvconfirm:0")
 
     @mock.patch("codes.bot.send_message")
-    @mock.patch("codes.bot._deliver_code", return_value="ENLACE")
-    def test_single_account_can_omit_email(self, mdeliver, _msend):
+    @mock.patch("codes.bot._deliver_code")
+    def test_single_account_can_omit_email(self, mdeliver, msend):
         bot._cmd_tv_email(self.client_obj, "")
-        mdeliver.assert_called_once_with(
-            self.client_obj, "cliente@gmail.com", kind="tv_signin"
-        )
+        mdeliver.assert_not_called()
+        self.assertIn("Confirmar activación", msend.call_args.args[1])
 
     @mock.patch("codes.bot.send_message")
     @mock.patch("codes.bot._deliver_code")
@@ -1019,6 +1018,29 @@ class TvEmailLinkCommandTests(TestCase):
     def test_tv_command_remains_general_tv8_flow(self, msend):
         bot._cmd_tv(self.client_obj)
         self.assertIn(bot.NETFLIX_TV_ACTIVATION_URL, msend.call_args.args[1])
+
+    @mock.patch("codes.bot._schedule_sensitive_deletion")
+    @mock.patch("codes.bot.edit_message")
+    @mock.patch("codes.bot.answer_callback_query")
+    @mock.patch("codes.bot._deliver_code", return_value="ENLACE")
+    def test_confirm_callback_delivers_and_schedules_deletion(
+        self, mdeliver, _answer, medit, mschedule
+    ):
+        bot._handle_callback(
+            {
+                "callback_query": {
+                    "id": "tv-confirm",
+                    "from": {"id": 780},
+                    "data": "tvconfirm:0",
+                    "message": {"message_id": 77, "chat": {"id": 780}},
+                }
+            }
+        )
+        mdeliver.assert_called_once_with(
+            self.client_obj, "cliente@gmail.com", kind="tv_signin"
+        )
+        self.assertEqual(medit.call_args.args[2], "ENLACE")
+        mschedule.assert_called_once_with(780, message_id=77)
 
 
 class SecurityFeatureTests(TestCase):
@@ -1085,6 +1107,32 @@ class SecurityFeatureTests(TestCase):
             CodeDelivery.objects.create(client=self.client_obj, email="mio@gmail.com", found=True)
             msg = bot._deliver_code(self.client_obj, "mio@gmail.com")
         self.assertIn("límite", msg)
+
+
+    @mock.patch("codes.bot.send_message")
+    def test_three_foreign_attempts_apply_temporary_block(self, _msend):
+        with self.settings(
+            CODES_FOREIGN_ATTEMPT_LIMIT=3,
+            CODES_SECURITY_BLOCK_SECONDS=900,
+        ):
+            for _ in range(3):
+                bot._deliver_code(self.client_obj, "ajeno@gmail.com")
+            msg = bot._deliver_code(
+                self.client_obj, "mio@gmail.com", kind="signin_code"
+            )
+        self.assertIn("temporalmente bloqueado", msg)
+
+    @mock.patch("codes.bot.threading.Timer")
+    def test_sensitive_message_deletion_is_scheduled(self, mtimer):
+        timer = mtimer.return_value
+        with self.settings(CODES_SENSITIVE_MESSAGE_TTL_SECONDS=600):
+            bot._schedule_sensitive_deletion(
+                "888", send_result={"result": {"message_id": 321}}
+            )
+        mtimer.assert_called_once()
+        self.assertEqual(mtimer.call_args.args[0], 600)
+        self.assertTrue(timer.daemon)
+        timer.start.assert_called_once()
 
 
 class MenuButtonTests(TestCase):
