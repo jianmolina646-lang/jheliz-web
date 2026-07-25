@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 
 # Links de acción de netflix.com (los que llevan a confirmar/obtener código).
 _NETFLIX_LINK_RE = re.compile(
-    r"https?://[a-z0-9.\-]*netflix\.com/[^\s\"'<>)]+", re.IGNORECASE
+    r"https?://(?:[a-z0-9-]+\.)*netflix\.com/[^\s\"'<>)]+", re.IGNORECASE
 )
 
 # Palabras clave por tipo, en los idiomas más comunes (es, en, it, pt, fr,

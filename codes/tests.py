@@ -153,6 +153,15 @@ class NetflixParserTests(TestCase):
         self.assertEqual(r.kind, "tv_signin")
         self.assertIn("/tv/", r.action_url)
 
+    def test_rejects_lookalike_netflix_domain(self):
+        html = (
+            "<p>Inicia sesión en tu TV</p>"
+            '<a href="https://evilnetflix.com/tv/out?nftoken=steal">Activar</a>'
+        )
+        r = parse_netflix_email("Inicia sesión en tu TV", html=html)
+        self.assertEqual(r.kind, "tv_signin")
+        self.assertEqual(r.action_url, "")
+
 
 class ImapAccountsTests(TestCase):
     @override_settings(
@@ -949,6 +958,55 @@ class TvDirectCommandTests(TestCase):
         bot._cmd_tv(self.client_obj)
         mwelcome.assert_called_once()
         msend.assert_not_called()
+
+
+class TvEmailLinkCommandTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client_obj = CodeBotClient.objects.create(
+            telegram_chat_id="780", is_active=True
+        )
+        AssignedEmail.objects.create(
+            client=self.client_obj, email="cliente@gmail.com"
+        )
+
+    @mock.patch("codes.bot.send_message")
+    @mock.patch("codes.bot._deliver_code", return_value="ENLACE")
+    def test_explicit_email_searches_tv_signin_only(self, mdeliver, msend):
+        bot._cmd_tv_email(self.client_obj, "Cliente@Gmail.com")
+        mdeliver.assert_called_once_with(
+            self.client_obj, "cliente@gmail.com", kind="tv_signin"
+        )
+        msend.assert_called_once_with("780", "ENLACE")
+
+    @mock.patch("codes.bot.send_message")
+    @mock.patch("codes.bot._deliver_code", return_value="ENLACE")
+    def test_single_account_can_omit_email(self, mdeliver, _msend):
+        bot._cmd_tv_email(self.client_obj, "")
+        mdeliver.assert_called_once_with(
+            self.client_obj, "cliente@gmail.com", kind="tv_signin"
+        )
+
+    @mock.patch("codes.bot.send_message")
+    @mock.patch("codes.bot._deliver_code")
+    def test_multiple_accounts_show_specific_selector(self, mdeliver, msend):
+        AssignedEmail.objects.create(
+            client=self.client_obj, email="segunda@outlook.com"
+        )
+        bot._cmd_tv_email(self.client_obj, "")
+        mdeliver.assert_not_called()
+        buttons = msend.call_args.kwargs["buttons"]
+        self.assertTrue(
+            all(
+                row[0]["callback_data"].startswith("tvmail:")
+                for row in buttons
+            )
+        )
+
+    @mock.patch("codes.bot.send_message")
+    def test_tv_command_remains_general_tv8_flow(self, msend):
+        bot._cmd_tv(self.client_obj)
+        self.assertIn(bot.NETFLIX_TV_ACTIVATION_URL, msend.call_args.args[1])
 
 
 class SecurityFeatureTests(TestCase):

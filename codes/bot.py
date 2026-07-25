@@ -385,6 +385,25 @@ def _email_buttons(
     return rows
 
 
+def _tv_email_buttons(
+    emails: list[str], index_source: list[str] | None = None
+) -> list[list[dict]]:
+    source = index_source or emails
+    rows = []
+    for local_idx, email in enumerate(emails):
+        idx = source.index(email) if index_source is not None else local_idx
+        rows.append(
+            [
+                {
+                    "text": _mask_email(email),
+                    "callback_data": f"tvmail:{idx}",
+                    "style": "primary",
+                }
+            ]
+        )
+    return rows
+
+
 def _kind_buttons(idx: int) -> list[list[dict]]:
     """Las 4 opciones de tipo para un correo (por índice)."""
     styles = {
@@ -437,10 +456,47 @@ def _cmd_tv(client: CodeBotClient) -> None:
     send_message(client.telegram_chat_id, _tv_activation_message())
 
 
+def _cmd_tv_email(client: CodeBotClient, arg: str) -> None:
+    """Busca el enlace de activación TV enviado por email a una cuenta concreta."""
+    chat_id = client.telegram_chat_id
+    if not client.is_active:
+        _send_welcome(client)
+        return
+    if not _has_access(client):
+        send_message(chat_id, _expired_message())
+        return
+    emails = _assigned_emails(client)
+    if not emails:
+        _send_welcome(client)
+        return
+
+    email = (arg or "").strip().lower()
+    if not email:
+        if len(emails) == 1:
+            email = emails[0]
+        elif len(emails) <= MAX_EMAIL_BUTTONS:
+            send_message(
+                chat_id,
+                "📨 Elegí la cuenta que recibió el enlace de activación:",
+                buttons=_tv_email_buttons(emails),
+            )
+            return
+        else:
+            send_message(
+                chat_id,
+                f"Tenés <b>{len(emails)}</b> cuentas. Indicá exactamente cuál "
+                "recibió el mensaje:\n"
+                "<code>/enlacetv nombre@correo.com</code>",
+            )
+            return
+
+    send_message(chat_id, _deliver_code(client, email, kind="tv_signin"))
+
+
 def _format_result(email: str, result) -> str:
     parts = [
         f"✨ <b>{html.escape(result.human_kind)}</b>",
-        f"📧 <code>{html.escape(email)}</code>",
+        f"📧 <code>{html.escape(_mask_email(email))}</code>",
         "──────────────────",
     ]
     if result.code:
@@ -550,7 +606,7 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
                 " (iniciá sesión con la cuenta y poné el código de la TV)."
             )
         return (
-            f"No encontré {que} para <b>{html.escape(email)}</b>.\n"
+            f"No encontré {que} para <b>{html.escape(_mask_email(email))}</b>.\n"
             "Generá el correo desde Netflix y volvé a pedirlo en un minuto."
             + extra
         )
@@ -664,6 +720,9 @@ def _handle_message(update: dict) -> None:
     if cmd == "/buscar":
         _cmd_search(client, rest)
         return
+    if cmd == "/enlacetv":
+        _cmd_tv_email(client, rest)
+        return
 
     # Comandos de admin (solo para el chat del admin).
     if _is_admin(chat_id) and cmd in (
@@ -759,6 +818,26 @@ def _handle_callback(update: dict) -> None:
             edit_message(chat_id, message_id, text, buttons=buttons)
         else:
             send_message(chat_id, text, buttons=buttons)
+        return
+    if data.startswith("tvmail:"):
+        if cq_id:
+            answer_callback_query(cq_id, "Buscando…")
+        try:
+            idx = int(data.split(":", 1)[1])
+        except ValueError:
+            return
+        if 0 <= idx < len(emails):
+            if message_id is not None:
+                edit_message(
+                    chat_id,
+                    message_id,
+                    "⏳ <b>Buscando el enlace enviado por Netflix…</b>",
+                )
+            result_text = _deliver_code(client, emails[idx], kind="tv_signin")
+            if message_id is not None:
+                edit_message(chat_id, message_id, result_text)
+            else:
+                send_message(chat_id, result_text)
         return
     if data.startswith("pick:"):
         # pick:<idx> -> mostrar las 4 opciones de tipo para ese correo.
@@ -860,6 +939,7 @@ def _client_help_text(emails: list[str]) -> str:
         f"🏠 <code>/hogar {ejemplo}</code> — link para actualizar Hogar",
         f"🔒 <code>/clave {ejemplo}</code> — link para restablecer contraseña",
         "📺 <code>/tv</code> — página para activar Netflix en tu TV",
+        "📨 <code>/enlacetv correo</code> — buscar el enlace enviado por Netflix",
         "",
         "📋 <code>/miscorreos</code> — ver tus correos asignados",
         "🔍 <code>/buscar nombre@gmail.com</code> — encontrar un correo asignado",
@@ -1217,6 +1297,7 @@ _CLIENT_MENU = [
     {"command": "hogar", "description": "🏠 Link para actualizar Hogar"},
     {"command": "clave", "description": "🔒 Link para restablecer contraseña"},
     {"command": "tv", "description": "📺 Activar Netflix en tu TV"},
+    {"command": "enlacetv", "description": "📨 Buscar enlace de activación TV"},
     {"command": "miscorreos", "description": "📋 Ver mis correos asignados"},
     {"command": "buscar", "description": "🔍 Buscar un correo asignado"},
     {"command": "cmds", "description": "❓ Ver los comandos"},
