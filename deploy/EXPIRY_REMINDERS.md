@@ -13,13 +13,13 @@ Después de desplegar el código, aplicar la migración:
 
 ```bash
 cd /opt/jheliz-web
-sudo docker exec jheliz-web-codes_bot-1 python manage.py migrate --noinput
+sudo docker exec jheliz-web-1 python manage.py migrate --noinput
 ```
 
 Hacer primero una simulación:
 
 ```bash
-sudo docker exec jheliz-web-codes_bot-1 \
+sudo docker exec jheliz-web-1 \
   python manage.py send_expiry_reminders --dry-run
 ```
 

@@ -3,7 +3,9 @@ set -eu
 
 # Ejecuta los avisos 7d, 3d, 1d y el mismo día dentro del contenedor que ya
 # tiene acceso a PostgreSQL, correo y Docker Secrets.
-CONTAINER_NAME="${REMINDER_CONTAINER:-jheliz-web-codes_bot-1}"
+# En producción, jheliztv.xyz corre como servicio ``web`` del proyecto
+# Compose ``jheliz``. Se puede sobrescribir para otros despliegues.
+CONTAINER_NAME="${REMINDER_CONTAINER:-jheliz-web-1}"
 
 if ! docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null |
     grep -qx true; then
