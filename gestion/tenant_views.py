@@ -977,7 +977,13 @@ def telegram_settings(request, tenant):
     return render(
         request,
         "jheliztv/telegram.html",
-        _ctx(request, tenant, connection=connection, link_url=link_url),
+        _ctx(
+            request,
+            tenant,
+            connection=connection,
+            link_url=link_url,
+            telegram_bot_username=settings.JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME,
+        ),
     )
 
 

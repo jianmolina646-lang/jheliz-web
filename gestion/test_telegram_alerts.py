@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from gestion.models import Client, Service, Subscription, TelegramConnection
-from gestion.telegram_alerts import link_chat, send_expiry_digests
+from gestion.telegram_alerts import link_chat, process_update, send_expiry_digests
 
 
 class TelegramAlertTests(TestCase):
@@ -28,6 +28,21 @@ class TelegramAlertTests(TestCase):
         self.assertEqual(connection.chat_id, "123")
         self.assertEqual(connection.link_token_digest, "")
         self.assertFalse(link_chat(raw, {"id": 999}))
+
+    @patch("gestion.telegram_alerts.send_message")
+    def test_status_identifies_connection_through_internal_owner(self, send):
+        TelegramConnection.objects.create(
+            owner=self.owner,
+            chat_id="123",
+            telegram_username="revendedor",
+            notify_windows=[1, 0],
+        )
+
+        process_update({"message": {"text": "/estado", "chat": {"id": 123}}})
+
+        message = send.call_args.args[1]
+        self.assertIn(self.owner.username, message)
+        self.assertIn("solo recibirás datos de tus propios clientes", message)
 
     @patch("gestion.telegram_alerts.send_message")
     def test_digest_never_includes_another_owners_clients(self, send):

@@ -17,7 +17,13 @@ from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from .models import SaasSettings, Subscription, Tenant, TenantPayment
+from .models import (
+    SaasSettings,
+    Subscription,
+    TelegramConnection,
+    Tenant,
+    TenantPayment,
+)
 
 
 def owner_required(view):
@@ -60,8 +66,13 @@ def control_dashboard(request):
         .select_related("tenant", "tenant__user")
         .order_by("-created_at")
     )
+    telegram_by_owner = {
+        connection.owner_id: connection
+        for connection in TelegramConnection.objects.select_related("owner")
+    }
 
     for t in tenants:
+        t.telegram_connection = telegram_by_owner.get(t.user_id)
         if t.is_blocked:
             t.estado, t.estado_color = "Bloqueado", "red"
         elif t.subscription_active:
@@ -81,6 +92,11 @@ def control_dashboard(request):
             "vencidos": total - activos,
             "pendientes": len(pending),
             "subs": Subscription.objects.filter(is_archived=False).count(),
+            "telegram": sum(
+                1
+                for connection in telegram_by_owner.values()
+                if connection.is_linked and connection.is_enabled
+            ),
         },
         "saas": SaasSettings.load(),
     }

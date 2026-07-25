@@ -36,13 +36,7 @@ def send_message(chat_id, text):
 
 
 def subscriptions_for_owner(owner_id):
-    """
-    Alcance canónico para cualquier dato enviado por Telegram.
-
-    Las tres relaciones deben pertenecer al mismo revendedor. Esto evita una
-    fuga incluso si una importación o edición administrativa dejara una fila
-    inconsistente (suscripción de A apuntando accidentalmente a cliente de B).
-    """
+    """Devuelve exclusivamente suscripciones íntegramente propiedad del revendedor."""
     return Subscription.objects.filter(
         owner_id=owner_id,
         client__owner_id=owner_id,
@@ -80,17 +74,55 @@ def process_update(update):
     chat = message.get("chat") or {}
     if not chat.get("id"):
         return
+
     if text.startswith("/start "):
         linked = link_chat(text.split(maxsplit=1)[1], chat)
         if linked:
-            send_message(chat["id"], "✅ <b>Telegram vinculado</b>\nRecibirás únicamente las alertas de tus clientes.")
+            send_message(
+                chat["id"],
+                "✅ <b>Jheliz Control conectado</b>\n\n"
+                "Tu cuenta de revendedor quedó vinculada correctamente.\n"
+                "Recibirás únicamente avisos de vencimiento de tus propios clientes.\n\n"
+                "Usa /estado para comprobar la conexión.",
+            )
         else:
-            send_message(chat["id"], "⚠️ Este enlace venció o ya fue utilizado. Genera otro desde Jheliz Control.")
+            send_message(
+                chat["id"],
+                "⚠️ <b>No pudimos completar la vinculación</b>\n\n"
+                "El enlace venció o ya fue utilizado. Vuelve a Jheliz Control, "
+                "abre <b>Telegram</b> y genera un enlace nuevo.",
+            )
     elif text == "/start":
-        send_message(chat["id"], "Abre Jheliz Control y pulsa <b>Vincular Telegram</b>.")
+        send_message(
+            chat["id"],
+            "👋 <b>Bienvenido a Jheliz Control</b>\n\n"
+            "Este bot te avisa cuando vencen las suscripciones de tus clientes.\n\n"
+            "Para comenzar:\n"
+            "1. Ingresa a tu panel en jheliztv.xyz\n"
+            "2. Abre la sección <b>Telegram</b>\n"
+            "3. Pulsa <b>Vincular Telegram</b>",
+        )
     elif text == "/estado":
-        linked = TelegramConnection.objects.filter(chat_id=str(chat["id"]), is_enabled=True).exists()
-        send_message(chat["id"], "✅ Alertas activas." if linked else "Telegram no está vinculado.")
+        connection = (
+            TelegramConnection.objects.filter(chat_id=str(chat["id"]), is_enabled=True)
+            .select_related("owner")
+            .first()
+        )
+        if connection:
+            windows = ", ".join("hoy" if day == 0 else f"{day}d" for day in connection.windows())
+            send_message(
+                chat["id"],
+                "✅ <b>Conexión activa</b>\n\n"
+                f"Revendedor: <b>{html.escape(connection.owner.username)}</b>\n"
+                f"Avisos: <b>{html.escape(windows)}</b>\n"
+                "Privacidad: solo recibirás datos de tus propios clientes.",
+            )
+        else:
+            send_message(
+                chat["id"],
+                "🔒 <b>Telegram no está vinculado</b>\n\n"
+                "Genera un enlace seguro desde la sección Telegram de Jheliz Control.",
+            )
 
 
 def run_polling():
@@ -117,28 +149,40 @@ def send_expiry_digests(today=None):
     for connection in connections:
         if connection.last_digest_date == today:
             continue
-        lines = []
+        groups = []
+        total_due = 0
         for window in connection.windows():
             target = today + timedelta(days=window)
             subscriptions = (
-                subscriptions_for_owner(connection.owner_id).filter(
-                    expires_at__date=target,
-                )
+                subscriptions_for_owner(connection.owner_id)
+                .filter(expires_at__date=target)
                 .select_related("client", "service")
                 .order_by("expires_at")
             )
-            for sub in subscriptions:
-                when = "HOY" if window == 0 else f"en {window} día{'s' if window != 1 else ''}"
-                lines.append(
-                    f"• <b>{html.escape(sub.service.name)}</b> · {html.escape(sub.client.name)}\n"
-                    f"  {when} · {timezone.localtime(sub.expires_at):%d/%m/%Y}"
+            items = [
+                f"• <b>{html.escape(sub.client.name)}</b>\n"
+                f"  {html.escape(sub.service.name)} · vence "
+                f"{timezone.localtime(sub.expires_at):%d/%m/%Y}"
+                for sub in subscriptions
+            ]
+            if items:
+                total_due += len(items)
+                heading = (
+                    "🚨 <b>Vencen hoy</b>"
+                    if window == 0
+                    else f"⏳ <b>Vencen en {window} día{'s' if window != 1 else ''}</b>"
                 )
-        if not lines:
+                groups.append(heading + "\n" + "\n".join(items))
+        if not groups:
             continue
         try:
             send_message(
                 connection.chat_id,
-                "🔔 <b>Resumen de vencimientos</b>\n\n" + "\n\n".join(lines),
+                "🔔 <b>Resumen de vencimientos</b>\n"
+                f"{total_due} suscripción{'es' if total_due != 1 else ''} "
+                f"requiere{'n' if total_due != 1 else ''} atención.\n\n"
+                + "\n\n".join(groups)
+                + "\n\nRevisa los detalles y renueva desde tu panel de Jheliz Control.",
             )
         except Exception:
             logger.exception("No se pudo enviar resumen al owner=%s", connection.owner_id)

@@ -313,7 +313,7 @@ JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN = secret_config(
 )
 JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME = config(
     "JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME",
-    default="JHELIZCONTROLTV_bot",
+    default="JHELIZTVCONTROL_bot",
 ).lstrip("@")
 # Chat ID del admin del bot de códigos (recibe avisos de altas nuevas).
 TELEGRAM_CODES_ADMIN_CHAT_ID = config("TELEGRAM_CODES_ADMIN_CHAT_ID", default="")
