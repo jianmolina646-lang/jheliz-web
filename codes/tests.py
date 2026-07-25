@@ -1041,6 +1041,46 @@ class MenuButtonTests(TestCase):
         args, _ = msend.call_args
         self.assertIn(bot.NETFLIX_TV_ACTIVATION_URL, args[1])
 
+    def test_persistent_keyboard_has_premium_icons_and_colors(self):
+        keyboard = bot._menu_keyboard()["keyboard"]
+        buttons = [button for row in keyboard for button in row]
+        self.assertTrue(all(button.get("icon_custom_emoji_id") for button in buttons))
+        self.assertEqual(
+            {button.get("style") for button in buttons},
+            {"primary", "success", "danger"},
+        )
+        self.assertEqual(
+            [button["text"] for button in buttons],
+            ["Código", "Viaje", "Hogar", "Clave", "Activar TV", "Mis correos"],
+        )
+
+    def test_inline_action_buttons_have_premium_icons_and_styles(self):
+        buttons = bot._kind_buttons(0)
+        action_buttons = [row[0] for row in buttons[:-1]]
+        self.assertTrue(
+            all(button.get("icon_custom_emoji_id") for button in action_buttons)
+        )
+        self.assertTrue(all(button.get("style") for button in action_buttons))
+
+    def test_button_style_fallback_preserves_actions(self):
+        markup = {
+            "inline_keyboard": [
+                [
+                    {
+                        "text": "Código",
+                        "callback_data": "c:signin_code:0",
+                        "style": "primary",
+                        "icon_custom_emoji_id": "123",
+                    }
+                ]
+            ]
+        }
+        clean = bot._without_button_styling(markup)
+        button = clean["inline_keyboard"][0][0]
+        self.assertEqual(button["callback_data"], "c:signin_code:0")
+        self.assertNotIn("style", button)
+        self.assertNotIn("icon_custom_emoji_id", button)
+
 
 class PremiumEmojiTests(TestCase):
     @override_settings(CODES_PREMIUM_EMOJI_KEY_ID="5368324170671202286")

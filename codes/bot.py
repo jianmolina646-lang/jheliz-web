@@ -26,7 +26,8 @@ from django.utils import timezone
 
 from . import imap_reader
 from .models import AssignedEmail, BotState, CodeBotClient, CodeDelivery
-from .premium_emoji import custom_emoji_ids, render as render_premium_emojis
+from .premium_emoji import custom_emoji_ids, emoji_id
+from .premium_emoji import render as render_premium_emojis
 from .premium_emoji import without_custom_emoji
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,12 @@ MENU_BUTTONS: dict[str, str] = {
     "📺 activar tv": "/tv",
     "📋 mis correos": "/miscorreos",
     "❓ ayuda": "/cmds",
+    "código": "/codigo",
+    "viaje": "/viaje",
+    "hogar": "/hogar",
+    "clave": "/clave",
+    "activar tv": "/tv",
+    "mis correos": "/miscorreos",
 }
 
 
@@ -114,13 +121,51 @@ def _build_reply_markup(buttons: Iterable[Iterable[dict]] | None) -> dict | None
     return {"inline_keyboard": [[dict(b) for b in row] for row in buttons]}
 
 
+def _without_button_styling(markup: dict) -> dict:
+    """Fallback para clientes/servidores que aún no aceptan estilos nuevos."""
+    clean: dict = {}
+    for keyboard_key in ("keyboard", "inline_keyboard"):
+        if keyboard_key in markup:
+            clean[keyboard_key] = [
+                [
+                    {
+                        key: value
+                        for key, value in button.items()
+                        if key not in {"style", "icon_custom_emoji_id"}
+                    }
+                    for button in row
+                ]
+                for row in markup[keyboard_key]
+            ]
+    for key, value in markup.items():
+        if key not in {"keyboard", "inline_keyboard"}:
+            clean[key] = value
+    return clean
+
+
 def _menu_keyboard() -> dict:
     """Teclado fijo (persistente) con las acciones principales."""
+    def button(text: str, fallback: str, style: str) -> dict:
+        item = {"text": text, "style": style}
+        custom_id = emoji_id(fallback)
+        if custom_id:
+            item["icon_custom_emoji_id"] = custom_id
+        return item
+
     return {
         "keyboard": [
-            [{"text": "🔑 Código"}, {"text": "✈️ Viaje"}],
-            [{"text": "🏠 Hogar"}, {"text": "🔒 Clave"}],
-            [{"text": "📺 Activar TV"}, {"text": "📋 Mis correos"}],
+            [
+                button("Código", "🔑", "primary"),
+                button("Viaje", "✈️", "primary"),
+            ],
+            [
+                button("Hogar", "🏠", "success"),
+                button("Clave", "🔒", "danger"),
+            ],
+            [
+                button("Activar TV", "📺", "success"),
+                button("Mis correos", "📋", "primary"),
+            ],
         ],
         "resize_keyboard": True,
         "is_persistent": True,
@@ -150,6 +195,9 @@ def send_message(
     # respuesta: se reintenta una vez con los emojis Unicode originales.
     if not result.get("ok") and rendered_text != text:
         payload["text"] = without_custom_emoji(rendered_text)
+        result = _call("sendMessage", **payload)
+    if not result.get("ok") and payload.get("reply_markup"):
+        payload["reply_markup"] = _without_button_styling(payload["reply_markup"])
         return _call("sendMessage", **payload)
     return result
 
@@ -173,6 +221,9 @@ def edit_message(
     result = _call("editMessageText", **payload)
     if not result.get("ok") and rendered_text != text:
         payload["text"] = without_custom_emoji(rendered_text)
+        result = _call("editMessageText", **payload)
+    if not result.get("ok") and payload.get("reply_markup"):
+        payload["reply_markup"] = _without_button_styling(payload["reply_markup"])
         result = _call("editMessageText", **payload)
     description = str(result.get("description") or "").lower()
     if not result.get("ok") and "message is not modified" not in description:
@@ -336,11 +387,28 @@ def _email_buttons(
 
 def _kind_buttons(idx: int) -> list[list[dict]]:
     """Las 4 opciones de tipo para un correo (por índice)."""
-    rows = [
-        [{"text": KIND_LABELS[kind], "callback_data": f"c:{kind}:{idx}"}]
-        for kind in COMMAND_KINDS.values()
-    ]
-    rows.append([{"text": "⬅️ Volver", "callback_data": "back:emails"}])
+    styles = {
+        "signin_code": ("Código de inicio de sesión", "🔑", "primary"),
+        "temp_code": ("Acceso temporal (viaje)", "✈️", "primary"),
+        "household": ("Actualizar Hogar", "🏠", "success"),
+        "password_reset": ("Restablecer contraseña", "🔒", "danger"),
+        "tv_signin": ("Activar Netflix en tu TV", "📺", "success"),
+    }
+    rows = []
+    for kind in COMMAND_KINDS.values():
+        text, fallback, style = styles[kind]
+        button = {
+            "text": text,
+            "callback_data": f"c:{kind}:{idx}",
+            "style": style,
+        }
+        custom_id = emoji_id(fallback)
+        if custom_id:
+            button["icon_custom_emoji_id"] = custom_id
+        rows.append([button])
+    rows.append(
+        [{"text": "⬅️ Volver", "callback_data": "back:emails", "style": "primary"}]
+    )
     return rows
 
 

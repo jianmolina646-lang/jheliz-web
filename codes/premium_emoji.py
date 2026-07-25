@@ -52,11 +52,21 @@ _CUSTOM_EMOJI_RE = re.compile(
 )
 
 
+def emoji_id(fallback: str) -> str:
+    """Devuelve el ID configurado o el ID predeterminado de TEAM JHELIZ."""
+    setting_name = EMOJI_SETTINGS.get(fallback, "")
+    configured_id = (
+        str(getattr(settings, setting_name, "") or "").strip()
+        if setting_name
+        else ""
+    )
+    return configured_id or DEFAULT_EMOJI_IDS.get(fallback, "")
+
+
 def render(text: str) -> str:
     """Reemplaza emojis Unicode por custom emojis HTML cuando tienen un ID."""
-    for fallback, setting_name in EMOJI_SETTINGS.items():
-        configured_id = str(getattr(settings, setting_name, "") or "").strip()
-        custom_id = configured_id or DEFAULT_EMOJI_IDS.get(fallback, "")
+    for fallback in EMOJI_SETTINGS:
+        custom_id = emoji_id(fallback)
         if custom_id:
             tag = (
                 f'<tg-emoji emoji-id="{escape(custom_id, quote=True)}">'
