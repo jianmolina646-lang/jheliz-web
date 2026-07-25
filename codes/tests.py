@@ -930,10 +930,19 @@ class PremiumEmojiTests(TestCase):
         )
 
     @override_settings(CODES_PREMIUM_EMOJI_KEY_ID="")
-    def test_empty_id_keeps_unicode_fallback(self):
+    def test_empty_id_uses_jheliz_default(self):
         from codes.premium_emoji import render
 
-        self.assertEqual(render("🔑 Tu código"), "🔑 Tu código")
+        self.assertIn(
+            '<tg-emoji emoji-id="5231250323779116601">🔑</tg-emoji>',
+            render("🔑 Tu código"),
+        )
+
+    @override_settings(CODES_PREMIUM_EMOJI_WARNING_ID="")
+    def test_unconfigured_emoji_without_default_keeps_unicode(self):
+        from codes.premium_emoji import render
+
+        self.assertEqual(render("⚠️ Atención"), "⚠️ Atención")
 
     @override_settings(CODES_PREMIUM_EMOJI_KEY_ID="123")
     @mock.patch("codes.bot._call")

@@ -21,6 +21,18 @@ EMOJI_SETTINGS = {
     "❓": "CODES_PREMIUM_EMOJI_HELP_ID",
 }
 
+# Set Premium elegido para TEAM JHELIZ. Las variables del entorno permiten
+# sustituir cualquiera de estos IDs sin modificar el código.
+DEFAULT_EMOJI_IDS = {
+    "🔑": "5231250323779116601",
+    "✈️": "5206558088642981395",
+    "🏠": "6019562296462806837",
+    "🔒": "5422546307422118237",
+    "📺": "5418026554422750284",
+    "📧": "5008025248314950702",
+    "❓": "6102840561281014143",
+}
+
 _CUSTOM_EMOJI_RE = re.compile(
     r'<tg-emoji emoji-id="[^"]+">(?P<fallback>.*?)</tg-emoji>'
 )
@@ -29,7 +41,8 @@ _CUSTOM_EMOJI_RE = re.compile(
 def render(text: str) -> str:
     """Reemplaza emojis Unicode por custom emojis HTML cuando tienen un ID."""
     for fallback, setting_name in EMOJI_SETTINGS.items():
-        custom_id = str(getattr(settings, setting_name, "") or "").strip()
+        configured_id = str(getattr(settings, setting_name, "") or "").strip()
+        custom_id = configured_id or DEFAULT_EMOJI_IDS.get(fallback, "")
         if custom_id:
             tag = (
                 f'<tg-emoji emoji-id="{escape(custom_id, quote=True)}">'
