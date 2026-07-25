@@ -567,6 +567,12 @@ class SearchAssignedEmailsTests(TestCase):
         self.assertEqual(len(labels), 2)
         self.assertTrue(all("•" in label for label in labels))
         self.assertNotIn("ana.netflix@gmail.com", labels)
+        self.assertTrue(
+            all(
+                row[0]["icon_custom_emoji_id"] == "5249245270381716113"
+                for row in buttons
+            )
+        )
 
     @mock.patch("codes.bot.send_message")
     def test_search_buttons_keep_indices_from_full_assigned_list(self, msend):
@@ -1002,6 +1008,12 @@ class TvEmailLinkCommandTests(TestCase):
                 for row in buttons
             )
         )
+        self.assertTrue(
+            all(
+                row[0]["icon_custom_emoji_id"] == "5222102644734056755"
+                for row in buttons
+            )
+        )
 
     @mock.patch("codes.bot.send_message")
     def test_tv_command_remains_general_tv8_flow(self, msend):
@@ -1183,6 +1195,17 @@ class PremiumEmojiTests(TestCase):
             '<tg-emoji emoji-id="5343902827712367295">👥</tg-emoji>',
             render("👥 Clientes"),
         )
+
+    @override_settings(
+        CODES_PREMIUM_EMOJI_SEARCH_ID="",
+        CODES_PREMIUM_EMOJI_TV_LINK_ID="",
+    )
+    def test_search_and_tv_link_use_jheliz_defaults(self):
+        from codes.premium_emoji import render
+
+        rendered = render("🔍 Buscar · 📨 Enlace TV")
+        self.assertIn('emoji-id="5249245270381716113"', rendered)
+        self.assertIn('emoji-id="5222102644734056755"', rendered)
 
     @override_settings(CODES_PREMIUM_EMOJI_KEY_ID="123")
     @mock.patch("codes.bot._call")

@@ -328,6 +328,10 @@ CODES_PREMIUM_EMOJI_REMOVE_ID = config("CODES_PREMIUM_EMOJI_REMOVE_ID", default=
 CODES_PREMIUM_EMOJI_ANNOUNCEMENT_ID = config(
     "CODES_PREMIUM_EMOJI_ANNOUNCEMENT_ID", default=""
 )
+CODES_PREMIUM_EMOJI_SEARCH_ID = config("CODES_PREMIUM_EMOJI_SEARCH_ID", default="")
+CODES_PREMIUM_EMOJI_TV_LINK_ID = config(
+    "CODES_PREMIUM_EMOJI_TV_LINK_ID", default=""
+)
 # Casilla central que recibe (por reenvío) los correos de Netflix.
 CODES_IMAP_HOST = config("CODES_IMAP_HOST", default="imap.gmail.com")
 CODES_IMAP_PORT = config("CODES_IMAP_PORT", default=993, cast=int)

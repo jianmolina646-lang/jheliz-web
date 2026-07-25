@@ -368,6 +368,8 @@ def _email_buttons(
     emails: list[str],
     kind: str | None = None,
     index_source: list[str] | None = None,
+    icon_fallback: str | None = None,
+    style: str | None = None,
 ) -> list[list[dict]]:
     """Botones para elegir un correo.
 
@@ -381,7 +383,14 @@ def _email_buttons(
     for local_idx, e in enumerate(emails):
         idx = source.index(e) if index_source is not None else local_idx
         data = f"c:{kind}:{idx}" if kind else f"pick:{idx}"
-        rows.append([{"text": _mask_email(e), "callback_data": data}])
+        button = {"text": _mask_email(e), "callback_data": data}
+        if icon_fallback:
+            custom_id = emoji_id(icon_fallback)
+            if custom_id:
+                button["icon_custom_emoji_id"] = custom_id
+        if style:
+            button["style"] = style
+        rows.append([button])
     return rows
 
 
@@ -398,6 +407,7 @@ def _tv_email_buttons(
                     "text": _mask_email(email),
                     "callback_data": f"tvmail:{idx}",
                     "style": "primary",
+                    "icon_custom_emoji_id": emoji_id("📨"),
                 }
             ]
         )
@@ -1084,7 +1094,12 @@ def _cmd_search(client: CodeBotClient, raw_query: str) -> None:
     send_message(
         chat_id,
         f"🔍 Encontré <b>{len(matches)}</b> coincidencias. Elegí un correo:{detail}",
-        buttons=_email_buttons(visible, index_source=emails),
+        buttons=_email_buttons(
+            visible,
+            index_source=emails,
+            icon_fallback="🔍",
+            style="primary",
+        ),
     )
 
 
