@@ -17,6 +17,7 @@ from gestion.control_operations import (
 from gestion.models import Client, Service, Subscription, TelegramConnection, Tenant
 from gestion.telegram_alerts import (
     _button,
+    _premium_text,
     _without_button_styling,
     link_chat,
     process_update,
@@ -71,6 +72,15 @@ class TelegramAlertTests(TestCase):
         self.assertEqual(button["callback_data"], "new")
         self.assertNotIn("style", button)
         self.assertNotIn("icon_custom_emoji_id", button)
+
+    def test_summary_message_uses_configured_premium_emojis(self):
+        rendered = _premium_text(
+            "🤖 JHELIZ CONTROL\n📊 RESUMEN\n👥 Clientes\n🟢 Activas\n⏰ Por vencer\n🔴 Vencidas"
+        )
+
+        self.assertGreaterEqual(rendered.count("<tg-emoji"), 6)
+        self.assertIn("JHELIZ CONTROL", rendered)
+        self.assertIn("Clientes", rendered)
 
     def test_one_telegram_chat_cannot_stay_linked_to_two_resellers(self):
         first = TelegramConnection.objects.create(owner=self.owner, chat_id="123")

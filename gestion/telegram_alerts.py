@@ -16,7 +16,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from config.date_utils import add_service_duration
-from codes.premium_emoji import emoji_id
+from codes.premium_emoji import emoji_id, without_custom_emoji
 
 from .control_operations import (
     client_for_owner,
@@ -45,12 +45,16 @@ def _call(method, **payload):
     if not token:
         raise RuntimeError("JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN no configurado")
     response = requests.post(API.format(token=token, method=method), json=payload, timeout=35)
-    if (
-        response.status_code == 400
-        and payload.get("reply_markup")
-        and _has_button_styling(payload["reply_markup"])
+    if response.status_code == 400 and (
+        (
+            payload.get("reply_markup")
+            and _has_button_styling(payload["reply_markup"])
+        )
+        or "<tg-emoji" in payload.get("text", "")
     ):
-        payload["reply_markup"] = _without_button_styling(payload["reply_markup"])
+        if payload.get("reply_markup"):
+            payload["reply_markup"] = _without_button_styling(payload["reply_markup"])
+        payload["text"] = without_custom_emoji(payload.get("text", ""))
         response = requests.post(
             API.format(token=token, method=method),
             json=payload,
@@ -65,6 +69,40 @@ def _call(method, **payload):
 
 def _markup(rows):
     return {"inline_keyboard": rows}
+
+
+def _premium_text(text):
+    """Aplica el set Premium de TEAM JHELIZ a los mensajes del bot de control."""
+    premium_map = {
+        "🤖": "📢",
+        "👋": "✨",
+        "📊": "📋",
+        "👥": "👥",
+        "🟢": "🔓",
+        "⏰": "📢",
+        "🔴": "⏸",
+        "➕": "➕",
+        "🔎": "🔍",
+        "🔍": "🔍",
+        "🔐": "🔒",
+        "🔒": "🔒",
+        "📧": "📧",
+        "📋": "📋",
+        "📦": "📺",
+        "✅": "🔓",
+        "⚠️": "📢",
+        "🗑": "➖",
+        "🌐": "🏠",
+    }
+    for visible, premium_fallback in premium_map.items():
+        custom_id = emoji_id(premium_fallback)
+        if custom_id:
+            text = text.replace(
+                visible,
+                f'<tg-emoji emoji-id="{html.escape(custom_id, quote=True)}">'
+                f"{visible}</tg-emoji>",
+            )
+    return text
 
 
 def _has_button_styling(markup):
@@ -130,7 +168,11 @@ def _button(text, callback_data=None, url=None, style=None):
 
 
 def send_message(chat_id, text, reply_markup=None):
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": "HTML"}
+    payload = {
+        "chat_id": chat_id,
+        "text": _premium_text(text),
+        "parse_mode": "HTML",
+    }
     if reply_markup:
         payload["reply_markup"] = reply_markup
     return _call("sendMessage", **payload)
@@ -143,7 +185,7 @@ def _render(chat_id, text, reply_markup=None, message_id=None):
                 "editMessageText",
                 chat_id=chat_id,
                 message_id=message_id,
-                text=text,
+                text=_premium_text(text),
                 parse_mode="HTML",
                 reply_markup=reply_markup or _markup([]),
             )
@@ -253,10 +295,22 @@ def _main_menu(connection, message_id=None):
     )
     keyboard = _markup(
         [
-            [_button("👥 Mis clientes", "clients:0:all"), _button("➕ Nuevo cliente", "new")],
-            [_button("⏰ Próximos vencimientos", "due:0"), _button("📊 Estadísticas", "stats")],
-            [_button("💰 Mi saldo", "balance"), _button("🔔 Alertas", "alerts")],
-            [_button("⚙️ Mi cuenta", "account"), _button("🌐 Abrir Jheliz Control", url=f"{WEB_URL}/app/")],
+            [
+                _button("👥 Mis clientes", "clients:0:all", style="primary"),
+                _button("➕ Nuevo cliente", "new", style="success"),
+            ],
+            [
+                _button("⏰ Próximos vencimientos", "due:0", style="danger"),
+                _button("📊 Estadísticas", "stats", style="primary"),
+            ],
+            [
+                _button("💰 Mi saldo", "balance", style="success"),
+                _button("🔔 Alertas", "alerts", style="danger"),
+            ],
+            [
+                _button("⚙️ Mi cuenta", "account", style="primary"),
+                _button("🌐 Abrir Jheliz Control", url=f"{WEB_URL}/app/", style="success"),
+            ],
         ]
     )
     _reset_session(connection, message_id)
