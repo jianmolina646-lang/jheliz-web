@@ -944,6 +944,15 @@ class PremiumEmojiTests(TestCase):
 
         self.assertEqual(render("⚠️ Atención"), "⚠️ Atención")
 
+    @override_settings(CODES_PREMIUM_EMOJI_MAIL_ID="")
+    def test_mis_correos_icon_uses_jheliz_default(self):
+        from codes.premium_emoji import render
+
+        self.assertIn(
+            '<tg-emoji emoji-id="5008025248314950702">📋</tg-emoji>',
+            render("📋 Mis correos"),
+        )
+
     @override_settings(CODES_PREMIUM_EMOJI_KEY_ID="123")
     @mock.patch("codes.bot._call")
     def test_send_message_retries_with_unicode_if_custom_emoji_fails(self, mcall):
