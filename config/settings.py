@@ -304,6 +304,20 @@ TELEGRAM_AUTO_PUBLISH = config("TELEGRAM_AUTO_PUBLISH", default=False, cast=bool
 TELEGRAM_CODES_BOT_TOKEN = config("TELEGRAM_CODES_BOT_TOKEN", default="")
 # Chat ID del admin del bot de códigos (recibe avisos de altas nuevas).
 TELEGRAM_CODES_ADMIN_CHAT_ID = config("TELEGRAM_CODES_ADMIN_CHAT_ID", default="")
+# IDs opcionales de custom emojis. El bot conserva los emojis normales cuando
+# un valor está vacío o Telegram rechaza el ID configurado.
+CODES_PREMIUM_EMOJI_KEY_ID = config("CODES_PREMIUM_EMOJI_KEY_ID", default="")
+CODES_PREMIUM_EMOJI_TRAVEL_ID = config("CODES_PREMIUM_EMOJI_TRAVEL_ID", default="")
+CODES_PREMIUM_EMOJI_HOME_ID = config("CODES_PREMIUM_EMOJI_HOME_ID", default="")
+CODES_PREMIUM_EMOJI_LOCK_ID = config("CODES_PREMIUM_EMOJI_LOCK_ID", default="")
+CODES_PREMIUM_EMOJI_TV_ID = config("CODES_PREMIUM_EMOJI_TV_ID", default="")
+CODES_PREMIUM_EMOJI_MAIL_ID = config("CODES_PREMIUM_EMOJI_MAIL_ID", default="")
+CODES_PREMIUM_EMOJI_SUCCESS_ID = config("CODES_PREMIUM_EMOJI_SUCCESS_ID", default="")
+CODES_PREMIUM_EMOJI_WARNING_ID = config("CODES_PREMIUM_EMOJI_WARNING_ID", default="")
+CODES_PREMIUM_EMOJI_SPARKLES_ID = config(
+    "CODES_PREMIUM_EMOJI_SPARKLES_ID", default=""
+)
+CODES_PREMIUM_EMOJI_HELP_ID = config("CODES_PREMIUM_EMOJI_HELP_ID", default="")
 # Casilla central que recibe (por reenvío) los correos de Netflix.
 CODES_IMAP_HOST = config("CODES_IMAP_HOST", default="imap.gmail.com")
 CODES_IMAP_PORT = config("CODES_IMAP_PORT", default=993, cast=int)

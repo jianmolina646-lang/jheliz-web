@@ -916,3 +916,55 @@ class MenuButtonTests(TestCase):
         bot._handle_message(update)
         args, _ = msend.call_args
         self.assertIn(bot.NETFLIX_TV_ACTIVATION_URL, args[1])
+
+
+class PremiumEmojiTests(TestCase):
+    @override_settings(CODES_PREMIUM_EMOJI_KEY_ID="5368324170671202286")
+    def test_configured_emoji_is_rendered_as_telegram_html(self):
+        from codes.premium_emoji import render
+
+        rendered = render("🔑 Tu código")
+        self.assertIn(
+            '<tg-emoji emoji-id="5368324170671202286">🔑</tg-emoji>',
+            rendered,
+        )
+
+    @override_settings(CODES_PREMIUM_EMOJI_KEY_ID="")
+    def test_empty_id_keeps_unicode_fallback(self):
+        from codes.premium_emoji import render
+
+        self.assertEqual(render("🔑 Tu código"), "🔑 Tu código")
+
+    @override_settings(CODES_PREMIUM_EMOJI_KEY_ID="123")
+    @mock.patch("codes.bot._call")
+    def test_send_message_retries_with_unicode_if_custom_emoji_fails(self, mcall):
+        mcall.side_effect = [
+            {"ok": False, "description": "Bad Request"},
+            {"ok": True, "result": {}},
+        ]
+
+        result = bot.send_message("42", "🔑 Tu código")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(mcall.call_count, 2)
+        self.assertIn("<tg-emoji", mcall.call_args_list[0].kwargs["text"])
+        self.assertEqual(mcall.call_args_list[1].kwargs["text"], "🔑 Tu código")
+
+    def test_extracts_custom_emoji_id_from_replied_message(self):
+        from codes.premium_emoji import custom_emoji_ids
+
+        message = {
+            "text": "/emojiid",
+            "reply_to_message": {
+                "text": "⭐",
+                "entities": [
+                    {
+                        "type": "custom_emoji",
+                        "offset": 0,
+                        "length": 1,
+                        "custom_emoji_id": "987654321",
+                    }
+                ],
+            },
+        }
+        self.assertEqual(custom_emoji_ids(message), ["987654321"])

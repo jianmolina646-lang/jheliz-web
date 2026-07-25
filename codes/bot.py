@@ -26,6 +26,8 @@ from django.utils import timezone
 
 from . import imap_reader
 from .models import AssignedEmail, BotState, CodeBotClient, CodeDelivery
+from .premium_emoji import custom_emoji_ids, render as render_premium_emojis
+from .premium_emoji import without_custom_emoji
 
 logger = logging.getLogger(__name__)
 
@@ -130,9 +132,10 @@ def send_message(
     buttons: Iterable[Iterable[dict]] | None = None,
     menu: bool = False,
 ) -> dict:
+    rendered_text = render_premium_emojis(text)
     payload: dict[str, Any] = {
         "chat_id": str(chat_id),
-        "text": text,
+        "text": rendered_text,
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }
@@ -141,7 +144,13 @@ def send_message(
         payload["reply_markup"] = markup
     elif menu:
         payload["reply_markup"] = _menu_keyboard()
-    return _call("sendMessage", **payload)
+    result = _call("sendMessage", **payload)
+    # Un ID incorrecto o una cuenta sin permiso no debe dejar al cliente sin
+    # respuesta: se reintenta una vez con los emojis Unicode originales.
+    if not result.get("ok") and rendered_text != text:
+        payload["text"] = without_custom_emoji(rendered_text)
+        return _call("sendMessage", **payload)
+    return result
 
 
 def send_banner(chat_id: str | int, caption: str = "") -> bool:
@@ -497,6 +506,21 @@ def _handle_message(update: dict) -> None:
         return
     if cmd in ("/ayuda", "/help", "/cmds", "/comandos"):
         _send_commands_help(client)
+        return
+    if cmd == "/emojiid" and _is_admin(chat_id):
+        ids = custom_emoji_ids(msg)
+        if ids:
+            send_message(
+                chat_id,
+                "IDs de emoji Premium encontrados:\n"
+                + "\n".join(f"<code>{html.escape(custom_id)}</code>" for custom_id in ids),
+            )
+        else:
+            send_message(
+                chat_id,
+                "Respondé con <code>/emojiid</code> a un mensaje que contenga "
+                "el emoji Premium que querés usar.",
+            )
         return
     if cmd == "/miscorreos":
         _send_email_menu(client)
@@ -933,6 +957,7 @@ _CLIENT_MENU = [
 
 # El admin ve, además, los comandos de administración.
 _ADMIN_MENU = _CLIENT_MENU + [
+    {"command": "emojiid", "description": "Obtener ID de un emoji Premium"},
     {"command": "clientes", "description": "👥 Lista de clientes"},
     {"command": "activar", "description": "🔓 Activar acceso de un cliente"},
     {"command": "desactivar", "description": "⏸ Pausar acceso de un cliente"},
