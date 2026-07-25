@@ -31,6 +31,13 @@ from config.date_utils import add_service_duration
 from django.views.decorators.http import require_POST
 
 from .forms import ClientForm, ServiceForm, SubscriptionForm, TransactionForm
+from .control_operations import (
+    create_client,
+    create_subscription,
+    delete_client as delete_client_operation,
+    renew_subscription as renew_subscription_operation,
+    update_client,
+)
 from .models import (
     Client,
     ControlSettings,
@@ -475,8 +482,6 @@ def subscription_add(request, tenant):
         except (TypeError, ValueError):
             days = 30
         expires = add_service_duration(starts, days)
-    currency = ControlSettings.load(owner).currency or "S/"
-
     # Los totales ("¿cuánto vendiste/invertiste en total?") se reparten en
     # partes iguales entre los correos cargados.
     n = len(emails)
@@ -484,29 +489,24 @@ def subscription_add(request, tenant):
     inv_each = (_dec(post.get("investment")) / n).quantize(Decimal("0.01"))
 
     for email in emails:
-        sub = Subscription.objects.create(
-            owner=owner, client=client, service=service,
-            account_email=email, account_password=password,
-            plan=plan, profiles=profiles,
-            profile_name=profile_name, profile_pin=profile_pin,
-            plan_label=plan_label, currency=currency,
-            cost=cost_each, investment=inv_each,
-            starts_at=starts, expires_at=expires,
+        create_subscription(
+            owner,
+            {
+                "client_id": client.pk,
+                "service_id": service.pk,
+                "account_email": email,
+                "account_password": password,
+                "plan": plan,
+                "profiles": profiles,
+                "profile_name": profile_name,
+                "profile_pin": profile_pin,
+                "plan_label": plan_label,
+                "cost": cost_each,
+                "investment": inv_each,
+                "starts_at": starts,
+                "expires_at": expires,
+            },
         )
-        if cost_each > 0:
-            Transaction.objects.create(
-                owner=owner, kind=Transaction.Kind.INCOME, amount=cost_each,
-                currency=currency,
-                description=f"Venta {service.name} · {client.name}",
-                client=client, subscription=sub,
-            )
-        if inv_each > 0:
-            Transaction.objects.create(
-                owner=owner, kind=Transaction.Kind.EXPENSE, amount=inv_each,
-                currency=currency,
-                description=f"Inversión {service.name}",
-                client=client, subscription=sub,
-            )
 
     if n == 1:
         messages.success(request, "Suscripción creada.")
@@ -537,6 +537,7 @@ def subscription_edit(request, tenant, pk):
 @require_POST
 def subscription_renew(request, tenant, pk):
     sub = get_object_or_404(Subscription, pk=pk, owner=request.user)
+    service_id = sub.service_id
     expires = _parse_expires_on(request.POST.get("expires_on"))
     if expires is not None:
         # Renovación "por fecha": el vencimiento queda exactamente ese día.
@@ -551,7 +552,10 @@ def subscription_renew(request, tenant, pk):
         days = int(request.POST.get("days", 30))
     except (TypeError, ValueError):
         days = 30
-    sub.renew(days)
+    sub, error = renew_subscription_operation(request.user, pk, days)
+    if error:
+        messages.error(request, "No se pudo renovar la suscripción.")
+        return redirect("jheliztv_service_detail", pk=service_id)
     messages.success(
         request,
         f"Renovada +{days} días. Nuevo vencimiento: "
@@ -626,11 +630,8 @@ def clients(request, tenant):
 @tenant_required
 @require_POST
 def client_add(request, tenant):
-    form = ClientForm(request.POST)
-    if form.is_valid():
-        client = form.save(commit=False)
-        client.owner = request.user
-        client.save()
+    client, error = create_client(request.user, request.POST)
+    if not error:
         messages.success(request, "Cliente agregado.")
     else:
         messages.error(request, "Revisá los datos del cliente.")
@@ -640,10 +641,9 @@ def client_add(request, tenant):
 @tenant_required
 @require_POST
 def client_edit(request, tenant, pk):
-    client = get_object_or_404(Client, pk=pk, owner=request.user)
-    form = ClientForm(request.POST, instance=client)
-    if form.is_valid():
-        form.save()
+    get_object_or_404(Client, pk=pk, owner=request.user)
+    client, error = update_client(request.user, pk, request.POST)
+    if not error:
         messages.success(request, "Cliente actualizado.")
     else:
         messages.error(request, "No se pudo actualizar el cliente.")
@@ -653,8 +653,12 @@ def client_edit(request, tenant, pk):
 @tenant_required
 @require_POST
 def client_delete(request, tenant, pk):
-    get_object_or_404(Client, pk=pk, owner=request.user).delete()
-    messages.success(request, "Cliente eliminado.")
+    get_object_or_404(Client, pk=pk, owner=request.user)
+    deleted, error = delete_client_operation(request.user, pk)
+    if deleted:
+        messages.success(request, "Cliente eliminado.")
+    else:
+        messages.error(request, "No se pudo eliminar el cliente.")
     return redirect("jheliztv_clients")
 
 

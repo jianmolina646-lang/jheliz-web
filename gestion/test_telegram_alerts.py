@@ -6,7 +6,15 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
-from gestion.models import Client, Service, Subscription, TelegramConnection
+from gestion.control_operations import (
+    create_client,
+    create_subscription,
+    delete_client,
+    renew_subscription,
+    search_clients,
+    update_client,
+)
+from gestion.models import Client, Service, Subscription, TelegramConnection, Tenant
 from gestion.telegram_alerts import link_chat, process_update, send_expiry_digests
 
 
@@ -15,6 +23,10 @@ class TelegramAlertTests(TestCase):
         User = get_user_model()
         self.owner = User.objects.create_user("revendedor", password="x")
         self.other = User.objects.create_user("otro", password="x")
+        self.tenant = Tenant.objects.create(user=self.owner, business_name="Revendedor")
+        self.tenant.start_trial()
+        self.other_tenant = Tenant.objects.create(user=self.other, business_name="Otro")
+        self.other_tenant.start_trial()
 
     def test_one_time_token_links_only_its_owner(self):
         raw = "token-seguro"
@@ -28,6 +40,33 @@ class TelegramAlertTests(TestCase):
         self.assertEqual(connection.chat_id, "123")
         self.assertEqual(connection.link_token_digest, "")
         self.assertFalse(link_chat(raw, {"id": 999}))
+
+    def test_one_telegram_chat_cannot_stay_linked_to_two_resellers(self):
+        first = TelegramConnection.objects.create(owner=self.owner, chat_id="123")
+        raw = "token-otro"
+        second = TelegramConnection.objects.create(
+            owner=self.other,
+            link_token_digest=hashlib.sha256(raw.encode()).hexdigest(),
+            link_expires_at=timezone.now() + timedelta(minutes=10),
+        )
+
+        self.assertTrue(link_chat(raw, {"id": 123, "username": "mismo_chat"}))
+
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertIsNone(first.chat_id)
+        self.assertFalse(first.is_enabled)
+        self.assertEqual(second.chat_id, "123")
+
+    @patch("gestion.telegram_alerts.send_message")
+    def test_unlinked_telegram_receives_no_private_data(self, send):
+        Client.objects.create(owner=self.owner, name="Cliente privado")
+
+        process_update({"message": {"text": "/menu", "chat": {"id": 999}}})
+
+        message = send.call_args.args[1]
+        self.assertIn("no vinculado", message)
+        self.assertNotIn("Cliente privado", message)
 
     @patch("gestion.telegram_alerts.send_message")
     def test_status_identifies_connection_through_internal_owner(self, send):
@@ -43,6 +82,142 @@ class TelegramAlertTests(TestCase):
         message = send.call_args.args[1]
         self.assertIn(self.owner.username, message)
         self.assertIn("solo recibirás datos de tus propios clientes", message)
+
+    def _subscription(self, owner, client_name):
+        service = Service.objects.create(owner=owner, name=f"Netflix {owner.pk}")
+        client = Client.objects.create(owner=owner, name=client_name)
+        sub = Subscription.objects.create(
+            owner=owner,
+            client=client,
+            service=service,
+            account_email=f"{owner.pk}@example.com",
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=5),
+        )
+        return client, sub
+
+    def test_other_owner_cannot_edit_delete_or_renew(self):
+        foreign_client, foreign_sub = self._subscription(self.other, "Cliente ajeno")
+        original_expiry = foreign_sub.expires_at
+
+        updated, edit_error = update_client(
+            self.owner,
+            foreign_client.pk,
+            {"name": "Hackeado"},
+        )
+        renewed, renew_error = renew_subscription(self.owner, foreign_sub.pk, 30)
+        deleted, delete_error = delete_client(self.owner, foreign_client.pk)
+
+        self.assertIsNone(updated)
+        self.assertEqual(edit_error, "not_found")
+        self.assertIsNone(renewed)
+        self.assertEqual(renew_error, "not_found")
+        self.assertFalse(deleted)
+        self.assertEqual(delete_error, "not_found")
+        foreign_client.refresh_from_db()
+        foreign_sub.refresh_from_db()
+        self.assertEqual(foreign_client.name, "Cliente ajeno")
+        self.assertEqual(foreign_sub.expires_at, original_expiry)
+
+    def test_renewal_idempotency_prevents_double_click(self):
+        _, sub = self._subscription(self.owner, "Cliente propio")
+        first, first_error = renew_subscription(self.owner, sub.pk, 30, "renew-once")
+        first_expiry = first.expires_at
+        second, second_error = renew_subscription(self.owner, sub.pk, 30, "renew-once")
+
+        self.assertIsNone(first_error)
+        self.assertIsNone(second)
+        self.assertEqual(second_error, "duplicate")
+        sub.refresh_from_db()
+        self.assertEqual(sub.expires_at, first_expiry)
+
+    def test_telegram_and_web_services_share_the_same_client_rows(self):
+        created, error = create_client(
+            self.owner,
+            {
+                "name": "Creado desde Telegram",
+                "whatsapp": "+51999999999",
+                "email": "cliente@example.com",
+                "telegram": "@cliente",
+                "notes": "",
+            },
+            "create-shared",
+        )
+        self.assertIsNone(error)
+        self.assertTrue(
+            Client.objects.filter(owner=self.owner, pk=created.pk).exists()
+        )
+        self.assertEqual(
+            search_clients(self.owner.pk, "cliente@example.com").get().pk,
+            created.pk,
+        )
+
+    def test_subscription_creation_uses_central_tables_and_is_idempotent(self):
+        service = Service.objects.create(owner=self.owner, name="Netflix")
+        client = Client.objects.create(owner=self.owner, name="Cliente")
+        payload = {
+            "client_id": client.pk,
+            "service_id": service.pk,
+            "account_email": "cuenta@example.com",
+            "plan": "perfil",
+            "profiles": 1,
+            "duration_days": 30,
+            "cost": "10.00",
+            "investment": "5.00",
+        }
+
+        first, first_error = create_subscription(
+            self.owner, payload, "subscription-once"
+        )
+        second, second_error = create_subscription(
+            self.owner, payload, "subscription-once"
+        )
+
+        self.assertIsNone(first_error)
+        self.assertEqual(first.owner_id, self.owner.pk)
+        self.assertEqual(first.client_id, client.pk)
+        self.assertIsNone(second)
+        self.assertEqual(second_error, "duplicate")
+        self.assertEqual(
+            Subscription.objects.filter(owner=self.owner, client=client).count(),
+            1,
+        )
+
+    def test_subscription_creation_rejects_foreign_client_and_service(self):
+        foreign_service = Service.objects.create(owner=self.other, name="Prime")
+        foreign_client = Client.objects.create(owner=self.other, name="Ajeno")
+
+        sub, error = create_subscription(
+            self.owner,
+            {
+                "client_id": foreign_client.pk,
+                "service_id": foreign_service.pk,
+                "account_email": "ajena@example.com",
+            },
+        )
+
+        self.assertIsNone(sub)
+        self.assertEqual(error, "not_found")
+
+    @patch("gestion.telegram_alerts._render")
+    @patch("gestion.telegram_alerts._ack")
+    def test_callback_cannot_open_another_owners_client(self, ack, render):
+        foreign_client, _ = self._subscription(self.other, "Cliente secreto")
+        TelegramConnection.objects.create(owner=self.owner, chat_id="123")
+
+        process_update(
+            {
+                "callback_query": {
+                    "id": "callback-1",
+                    "data": f"client:{foreign_client.pk}",
+                    "message": {"message_id": 9, "chat": {"id": 123}},
+                }
+            }
+        )
+
+        text = render.call_args.args[1]
+        self.assertIn("no existe o no tienes permiso", text)
+        self.assertNotIn("Cliente secreto", text)
 
     @patch("gestion.telegram_alerts.send_message")
     def test_digest_never_includes_another_owners_clients(self, send):
@@ -64,6 +239,7 @@ class TelegramAlertTests(TestCase):
         message = send.call_args.args[1]
         self.assertIn("Cliente propio", message)
         self.assertNotIn("Cliente ajeno", message)
+        self.assertEqual(send_expiry_digests(today), 0)
 
     @patch("gestion.telegram_alerts.send_message")
     def test_digest_rejects_cross_owner_relations_even_if_row_is_corrupt(self, send):

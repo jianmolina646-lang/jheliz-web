@@ -315,6 +315,10 @@ JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME = config(
     "JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME",
     default="JHELIZTVCONTROL_bot",
 ).lstrip("@")
+JHELIZ_CONTROL_BASE_URL = config(
+    "JHELIZ_CONTROL_BASE_URL",
+    default="https://jheliztv.xyz",
+).rstrip("/")
 # Chat ID del admin del bot de códigos (recibe avisos de altas nuevas).
 TELEGRAM_CODES_ADMIN_CHAT_ID = config("TELEGRAM_CODES_ADMIN_CHAT_ID", default="")
 # IDs opcionales de custom emojis. El bot conserva los emojis normales cuando

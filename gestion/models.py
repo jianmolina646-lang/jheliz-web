@@ -433,6 +433,48 @@ class TelegramConnection(models.Model):
         return [int(value) for value in values if int(value) in {7, 3, 1, 0}]
 
 
+class TelegramSession(models.Model):
+    """Estado efímero de navegación del bot, asociado al revendedor vinculado."""
+
+    connection = models.OneToOneField(
+        TelegramConnection,
+        on_delete=models.CASCADE,
+        related_name="session",
+    )
+    state = models.CharField(max_length=48, blank=True)
+    data = models.JSONField(default=dict, blank=True)
+    menu_message_id = models.BigIntegerField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Sesión de Telegram"
+        verbose_name_plural = "Sesiones de Telegram"
+
+
+class TelegramActionReceipt(models.Model):
+    """Registro de operaciones críticas para impedir ejecuciones duplicadas."""
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="jc_telegram_action_receipts",
+    )
+    key = models.CharField(max_length=80)
+    action = models.CharField(max_length=32)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "key"],
+                name="uniq_telegram_action_per_owner",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["created_at"], name="telegram_action_created_idx")
+        ]
+
+
 class Tenant(models.Model):
     """Inquilino que **alquila** Jheliz Control (un negocio = un usuario/login).
 
