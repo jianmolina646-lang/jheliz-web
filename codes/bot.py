@@ -154,6 +154,32 @@ def send_message(
     return result
 
 
+def edit_message(
+    chat_id: str | int,
+    message_id: int,
+    text: str,
+    buttons: Iterable[Iterable[dict]] | None = None,
+) -> dict:
+    """Actualiza un mensaje inline y conserva fallback a emojis Unicode."""
+    rendered_text = render_premium_emojis(text)
+    payload: dict[str, Any] = {
+        "chat_id": str(chat_id),
+        "message_id": message_id,
+        "text": rendered_text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+        "reply_markup": _build_reply_markup(buttons) or {"inline_keyboard": []},
+    }
+    result = _call("editMessageText", **payload)
+    if not result.get("ok") and rendered_text != text:
+        payload["text"] = without_custom_emoji(rendered_text)
+        result = _call("editMessageText", **payload)
+    description = str(result.get("description") or "").lower()
+    if not result.get("ok") and "message is not modified" not in description:
+        return send_message(chat_id, text, buttons=buttons)
+    return result
+
+
 def send_banner(chat_id: str | int, caption: str = "") -> bool:
     """Envía el banner de la marca (si existe el archivo). Devuelve True si salió."""
     path = getattr(settings, "CODES_BOT_BANNER", "") or ""
@@ -262,6 +288,31 @@ def _assigned_emails(client: CodeBotClient) -> list[str]:
     return list(client.emails.values_list("email", flat=True))
 
 
+def _mask_email(email: str) -> str:
+    """Oculta parte del usuario sin perder suficiente contexto para reconocerlo."""
+    local, separator, domain = (email or "").partition("@")
+    if not separator:
+        return email
+    if len(local) <= 4:
+        masked_local = f"{local[:1]}•••"
+    else:
+        hidden = "•" * max(3, min(8, len(local) - 5))
+        masked_local = f"{local[:3]}{hidden}{local[-2:]}"
+    return f"{masked_local}@{domain}"
+
+
+def _recent_emails(client: CodeBotClient, limit: int = 5) -> list[str]:
+    assigned = set(_assigned_emails(client))
+    recent: list[str] = []
+    rows = CodeDelivery.objects.filter(client=client).values_list("email", flat=True)
+    for email in rows:
+        if email in assigned and email not in recent:
+            recent.append(email)
+        if len(recent) >= limit:
+            break
+    return recent
+
+
 def _email_buttons(
     emails: list[str],
     kind: str | None = None,
@@ -279,16 +330,18 @@ def _email_buttons(
     for local_idx, e in enumerate(emails):
         idx = source.index(e) if index_source is not None else local_idx
         data = f"c:{kind}:{idx}" if kind else f"pick:{idx}"
-        rows.append([{"text": e, "callback_data": data}])
+        rows.append([{"text": _mask_email(e), "callback_data": data}])
     return rows
 
 
 def _kind_buttons(idx: int) -> list[list[dict]]:
     """Las 4 opciones de tipo para un correo (por índice)."""
-    return [
+    rows = [
         [{"text": KIND_LABELS[kind], "callback_data": f"c:{kind}:{idx}"}]
         for kind in COMMAND_KINDS.values()
     ]
+    rows.append([{"text": "⬅️ Volver", "callback_data": "back:emails"}])
+    return rows
 
 
 NETFLIX_TV_ACTIVATION_URL = "https://www.netflix.com/tv8"
@@ -573,8 +626,10 @@ def _handle_callback(update: dict) -> None:
     cq = update.get("callback_query") or {}
     data = cq.get("data") or ""
     cq_id = cq.get("id")
-    chat = (cq.get("message") or {}).get("chat") or {}
+    callback_message = cq.get("message") or {}
+    chat = callback_message.get("chat") or {}
     chat_id = chat.get("id")
+    message_id = callback_message.get("message_id")
     from_user = cq.get("from") or {}
     if chat_id is None:
         return
@@ -593,13 +648,49 @@ def _handle_callback(update: dict) -> None:
         except ValueError:
             return
         if kind == "tv_signin":
-            if _has_access(client):
-                send_message(chat_id, _tv_activation_message())
+            text = (
+                _tv_activation_message()
+                if _has_access(client)
+                else _expired_message()
+            )
+            if message_id is not None:
+                edit_message(chat_id, message_id, text)
             else:
-                send_message(chat_id, _expired_message())
+                send_message(chat_id, text)
             return
         if 0 <= idx < len(emails):
-            send_message(chat_id, _deliver_code(client, emails[idx], kind=kind))
+            if message_id is not None:
+                edit_message(
+                    chat_id,
+                    message_id,
+                    "⏳ <b>Buscando el correo más reciente…</b>",
+                )
+            result_text = _deliver_code(client, emails[idx], kind=kind)
+            if message_id is not None:
+                edit_message(chat_id, message_id, result_text)
+            else:
+                send_message(chat_id, result_text)
+        return
+    if data == "back:emails":
+        if cq_id:
+            answer_callback_query(cq_id)
+        recent = _recent_emails(client)
+        if recent:
+            text = (
+                "📧 <b>Cuentas recientes</b>\n"
+                "Elegí una o buscá otra con <code>/buscar nombre</code>."
+            )
+            buttons = _email_buttons(recent, index_source=emails)
+        else:
+            text = (
+                "🔍 <b>Buscar una cuenta</b>\n"
+                "Escribí <code>/buscar nombre@correo.com</code>."
+            )
+            buttons = None
+        if message_id is not None:
+            edit_message(chat_id, message_id, text, buttons=buttons)
+        else:
+            send_message(chat_id, text, buttons=buttons)
         return
     if data.startswith("pick:"):
         # pick:<idx> -> mostrar las 4 opciones de tipo para ese correo.
@@ -610,11 +701,14 @@ def _handle_callback(update: dict) -> None:
         except ValueError:
             return
         if 0 <= idx < len(emails):
-            send_message(
-                chat_id,
-                f"📧 <b>{html.escape(emails[idx])}</b>\n¿Qué necesitás?",
-                buttons=_kind_buttons(idx),
+            text = (
+                f"📧 <b>{html.escape(_mask_email(emails[idx]))}</b>\n"
+                "¿Qué necesitás?"
             )
+            if message_id is not None:
+                edit_message(chat_id, message_id, text, buttons=_kind_buttons(idx))
+            else:
+                send_message(chat_id, text, buttons=_kind_buttons(idx))
         return
     if cq_id:
         answer_callback_query(cq_id)
@@ -659,7 +753,14 @@ def _send_welcome(client: CodeBotClient) -> None:
     if not _has_access(client):
         send_message(chat_id, _expired_message())
         return
-    send_message(chat_id, _client_help_text(emails), menu=True)
+    send_message(
+        chat_id,
+        f"✨ <b>{BRAND} · Códigos Netflix</b>\n\n"
+        "Elegí una acción en el menú.\n"
+        "Para encontrar una cuenta usá <code>/buscar nombre</code>.\n\n"
+        "❓ Ayuda completa: <code>/cmds</code>",
+        menu=True,
+    )
 
 
 def _send_commands_help(client: CodeBotClient) -> None:
@@ -753,7 +854,7 @@ def _offer_kinds_for_email(client: CodeBotClient, raw_email: str) -> None:
     idx = emails.index(email)
     send_message(
         chat_id,
-        f"📧 <b>{html.escape(email)}</b>\n¿Qué necesitás?",
+        f"📧 <b>{html.escape(_mask_email(email))}</b>\n¿Qué necesitás?",
         buttons=_kind_buttons(idx),
     )
 
@@ -764,11 +865,14 @@ def _send_email_menu(client: CodeBotClient) -> None:
         _send_welcome(client)
         return
     if len(emails) > MAX_EMAIL_BUTTONS:
+        recent = _recent_emails(client)
         send_message(
             client.telegram_chat_id,
             f"📧 Tenés <b>{len(emails)}</b> correos asignados.\n\n"
             "Para encontrar uno escribí parte del nombre o el correo completo:\n"
-            "<code>/buscar nombre@gmail.com</code>",
+            "<code>/buscar nombre@gmail.com</code>"
+            + ("\n\nTus cuentas recientes:" if recent else ""),
+            buttons=_email_buttons(recent, index_source=emails) if recent else None,
         )
         return
     send_message(
@@ -792,6 +896,12 @@ def _cmd_search(client: CodeBotClient, raw_query: str) -> None:
     if not emails:
         _send_welcome(client)
         return
+
+    search_key = f"codesbot:search:{client.telegram_chat_id}"
+    if not _is_admin(chat_id) and cache.get(search_key):
+        send_message(chat_id, "⏳ Esperá un momento antes de realizar otra búsqueda.")
+        return
+    cache.set(search_key, 1, timeout=2)
 
     query = (raw_query or "").strip().lower()
     if not query:

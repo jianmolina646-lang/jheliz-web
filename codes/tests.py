@@ -529,6 +529,7 @@ class DeliverKindTests(TestCase):
 
 class SearchAssignedEmailsTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client_obj = CodeBotClient.objects.create(
             telegram_chat_id="778", is_active=True
         )
@@ -554,10 +555,9 @@ class SearchAssignedEmailsTests(TestCase):
         bot._cmd_search(self.client_obj, "netflix")
         buttons = msend.call_args.kwargs["buttons"]
         labels = [row[0]["text"] for row in buttons]
-        self.assertEqual(
-            labels,
-            ["ana.netflix@gmail.com", "ventas.netflix@gmail.com"],
-        )
+        self.assertEqual(len(labels), 2)
+        self.assertTrue(all("•" in label for label in labels))
+        self.assertNotIn("ana.netflix@gmail.com", labels)
 
     @mock.patch("codes.bot.send_message")
     def test_search_buttons_keep_indices_from_full_assigned_list(self, msend):
@@ -584,6 +584,71 @@ class SearchAssignedEmailsTests(TestCase):
         bot._send_welcome(self.client_obj)
         self.assertEqual(msend.call_count, 1)
         self.assertNotIn("Tus correos:", msend.call_args.args[1])
+
+    def test_email_is_masked_for_customer_ui(self):
+        self.assertEqual(
+            bot._mask_email("barenkaren02@gmail.com"),
+            "bar•••••••02@gmail.com",
+        )
+
+    @mock.patch("codes.bot.send_message")
+    def test_large_mailbox_shows_recent_accounts(self, msend):
+        from codes.models import CodeDelivery
+
+        for idx in range(12):
+            AssignedEmail.objects.create(
+                client=self.client_obj, email=f"large{idx:02d}@gmail.com"
+            )
+        CodeDelivery.objects.create(
+            client=self.client_obj, email="cliente@outlook.com", found=True
+        )
+        bot._send_email_menu(self.client_obj)
+        self.assertTrue(msend.call_args.kwargs.get("buttons"))
+        button_text = msend.call_args.kwargs["buttons"][0][0]["text"]
+        self.assertIn("•", button_text)
+
+
+class CallbackNavigationTests(TestCase):
+    def setUp(self):
+        self.client_obj = CodeBotClient.objects.create(
+            telegram_chat_id="779", is_active=True
+        )
+        AssignedEmail.objects.create(
+            client=self.client_obj, email="cliente@gmail.com"
+        )
+
+    @mock.patch("codes.bot.edit_message")
+    @mock.patch("codes.bot.answer_callback_query")
+    def test_pick_edits_existing_message(self, _answer, medit):
+        bot._handle_callback(
+            {
+                "callback_query": {
+                    "id": "cq1",
+                    "from": {"id": 779},
+                    "data": "pick:0",
+                    "message": {"message_id": 55, "chat": {"id": 779}},
+                }
+            }
+        )
+        self.assertEqual(medit.call_args.args[:2], (779, 55))
+        self.assertIn("•", medit.call_args.args[2])
+        self.assertTrue(medit.call_args.kwargs["buttons"])
+
+    @mock.patch("codes.bot.edit_message")
+    @mock.patch("codes.bot.answer_callback_query")
+    def test_back_edits_selector_instead_of_sending_new_message(self, _answer, medit):
+        bot._handle_callback(
+            {
+                "callback_query": {
+                    "id": "cq2",
+                    "from": {"id": 779},
+                    "data": "back:emails",
+                    "message": {"message_id": 56, "chat": {"id": 779}},
+                }
+            }
+        )
+        self.assertEqual(medit.call_args.args[:2], (779, 56))
+        self.assertIn("/buscar", medit.call_args.args[2])
 
 
 class DeliverCodeTests(TestCase):
