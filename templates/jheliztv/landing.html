@@ -2,90 +2,253 @@
 
 {% block pb_content %}
 <style>
-  .lp-hero{max-width:1100px;margin:0 auto;padding:34px 18px 10px;display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center;}
-  .lp-badge{display:inline-flex;align-items:center;gap:6px;background:#d1fae5;color:#065f46;font-weight:700;
-    font-size:12.5px;border-radius:999px;padding:6px 12px;margin-bottom:14px;}
-  .lp-hero h1{font-size:40px;line-height:1.07;margin:0 0 14px;letter-spacing:-1px;font-weight:800;}
-  .lp-hero h1 span{color:#059669;}
-  .lp-hero p{font-size:16.5px;line-height:1.55;color:#4b5563;margin:0 0 22px;max-width:540px;}
-  .lp-cta{display:flex;gap:12px;flex-wrap:wrap;}
-  .lp-mock{background:linear-gradient(160deg,#065f46,#10b981);border-radius:24px;padding:22px;color:#fff;
-    box-shadow:0 30px 70px -30px rgba(6,95,70,.7);}
-  .lp-mock h3{margin:0 0 14px;font-size:15px;opacity:.95;display:flex;align-items:center;gap:8px;}
-  .lp-mockrow{background:rgba(255,255,255,.13);border-radius:14px;padding:12px 14px;margin-bottom:10px;
-    display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(3px);}
-  .lp-mockrow b{font-size:14px;} .lp-mockrow small{opacity:.85;font-size:12px;display:block;}
-  .lp-pill{font-size:11.5px;font-weight:700;border-radius:999px;padding:4px 9px;}
-  .lp-pill.g{background:#bbf7d0;color:#065f46;} .lp-pill.y{background:#fde68a;color:#92400e;} .lp-pill.r{background:#fecaca;color:#991b1b;}
-  .lp-feats{max-width:1100px;margin:30px auto;padding:0 18px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
-  .lp-feat{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:20px;box-shadow:0 16px 40px -30px rgba(6,78,59,.4);}
-  .lp-feat .material-symbols-outlined{font-size:30px;color:#10b981;background:#d1fae5;border-radius:12px;padding:8px;}
-  .lp-feat h4{margin:12px 0 6px;font-size:15.5px;}
-  .lp-feat p{margin:0;color:#6b7280;font-size:13.5px;line-height:1.5;}
-  .lp-price{max-width:520px;margin:10px auto 50px;padding:0 18px;}
-  .lp-pricecard{background:#fff;border:2px solid #10b981;border-radius:22px;padding:28px;text-align:center;
-    box-shadow:0 26px 60px -34px rgba(6,95,70,.55);}
-  .lp-pricecard .amt{font-size:44px;font-weight:800;color:#065f46;letter-spacing:-1px;}
-  .lp-pricecard .amt small{font-size:16px;color:#6b7280;font-weight:600;}
-  .lp-pricecard ul{list-style:none;padding:0;margin:18px 0;text-align:left;display:inline-block;}
-  .lp-pricecard li{margin:9px 0;color:#374151;font-size:14px;display:flex;align-items:center;gap:8px;}
-  .lp-pricecard li .material-symbols-outlined{color:#10b981;font-size:20px;}
-  @media(max-width:840px){.lp-hero{grid-template-columns:1fr;}.lp-hero h1{font-size:32px;}.lp-feats{grid-template-columns:1fr;}}
+  :root{
+    --lp-bg:#070a09;--lp-surface:#0d1210;--lp-surface-2:#111815;
+    --lp-border:rgba(255,255,255,.09);--lp-text:#f4f7f5;--lp-muted:#9ca8a1;
+    --lp-green:#3ee895;--lp-green-2:#16b86d;--lp-green-soft:rgba(62,232,149,.12);
+  }
+  body{background:var(--lp-bg);color:var(--lp-text);overflow-x:hidden;}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;
+    background:radial-gradient(circle at 72% 8%,rgba(20,184,107,.13),transparent 30%),
+               radial-gradient(circle at 10% 42%,rgba(62,232,149,.055),transparent 28%);}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.3;
+    background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+    background-size:52px 52px;mask-image:linear-gradient(to bottom,#000,transparent 75%);}
+  .pb-nav{max-width:1240px;padding:22px 24px;position:relative;z-index:20;}
+  .pb-brand{color:var(--lp-text)} .pb-brand small{color:#758078}
+  .pb-btn{border-radius:9px;transition:transform .25s ease,background .25s ease,border-color .25s ease,box-shadow .25s ease;}
+  .pb-btn--primary{color:#04110a;background:var(--lp-green);box-shadow:0 12px 35px -16px rgba(62,232,149,.75);}
+  .pb-btn--primary:hover{filter:none;background:#66f0aa;transform:translateY(-2px);}
+  .pb-btn--ghost{background:rgba(255,255,255,.035);color:#dce4df;border:1px solid var(--lp-border);}
+  .pb-btn--ghost:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16);}
+
+  .lp-shell{max-width:1240px;margin:auto;padding:0 24px;}
+  .lp-hero{min-height:calc(100vh - 92px);display:grid;grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr);
+    gap:72px;align-items:center;padding-top:60px;padding-bottom:100px;position:relative;}
+  .lp-kicker{display:flex;align-items:center;gap:11px;color:#b9c3bd;font-size:12px;font-weight:700;
+    letter-spacing:.13em;text-transform:uppercase;margin-bottom:25px;}
+  .lp-kicker::before{content:"";width:28px;height:1px;background:var(--lp-green);box-shadow:0 0 12px var(--lp-green);}
+  .lp-hero h1{font-size:clamp(3.5rem,7vw,6.85rem);line-height:.91;margin:0;max-width:830px;
+    letter-spacing:-.072em;font-weight:800;text-wrap:balance;}
+  .lp-hero h1 em{font-style:normal;color:var(--lp-green);}
+  .lp-lead{font-size:clamp(1rem,1.5vw,1.18rem);line-height:1.68;color:var(--lp-muted);
+    margin:30px 0 34px;max-width:590px;}
+  .lp-lead strong{color:#e5ebe7;font-weight:650;}
+  .lp-cta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .lp-cta .pb-btn{min-height:50px;padding:13px 21px;}
+  .lp-proof{margin-top:28px;color:#69736d;font-size:12px;display:flex;align-items:center;gap:8px;}
+  .lp-proof .material-symbols-outlined{font-size:17px;color:var(--lp-green);}
+  .lp-enter{opacity:0;animation:lpEnter .8s cubic-bezier(.2,.7,.2,1) forwards;}
+  .lp-enter--2{animation-delay:.12s}.lp-enter--3{animation-delay:.24s}.lp-enter--4{animation-delay:.36s}
+
+  .lp-visual{position:relative;isolation:isolate;}
+  .lp-visual::before{content:"";position:absolute;inset:12% 2%;z-index:-1;border-radius:50%;
+    background:rgba(38,214,130,.22);filter:blur(80px);}
+  .lp-glass{position:relative;padding:22px;border:1px solid rgba(255,255,255,.14);border-radius:22px;
+    background:linear-gradient(145deg,rgba(23,35,29,.8),rgba(9,14,12,.58));
+    box-shadow:0 40px 90px -45px #000, inset 0 1px rgba(255,255,255,.08);
+    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+    animation:lpFloat 6s ease-in-out infinite;}
+  .lp-glass__top{display:flex;justify-content:space-between;align-items:center;margin-bottom:19px;}
+  .lp-glass h3{margin:0;font-size:14px;display:flex;align-items:center;gap:9px;}
+  .lp-glass h3 .material-symbols-outlined{font-size:19px;color:var(--lp-green);}
+  .lp-live{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#91a198;display:flex;align-items:center;gap:6px;}
+  .lp-live::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--lp-green);box-shadow:0 0 10px var(--lp-green);}
+  .lp-row{padding:15px 3px;border-top:1px solid rgba(255,255,255,.075);display:grid;
+    grid-template-columns:39px 1fr auto;gap:12px;align-items:center;}
+  .lp-app{width:39px;height:39px;border-radius:11px;display:grid;place-items:center;font-size:12px;font-weight:800;
+    background:#171d1a;border:1px solid rgba(255,255,255,.08);}
+  .lp-app--n{color:#ff4c55}.lp-app--d{color:#66b7ff}.lp-app--s{color:#3ee895}
+  .lp-row b{display:block;font-size:13px}.lp-row small{display:block;color:#758078;font-size:11px;margin-top:3px;}
+  .lp-status{font-size:10px;font-weight:750;padding:6px 8px;border-radius:7px;white-space:nowrap;}
+  .lp-status--ok{color:#72efb0;background:rgba(62,232,149,.1)}
+  .lp-status--warn{color:#f1c973;background:rgba(241,201,115,.1)}
+  .lp-status--late{color:#ff8585;background:rgba(255,94,94,.1)}
+  .lp-floatnote{position:absolute;right:-21px;bottom:-21px;padding:12px 15px;border:1px solid var(--lp-border);
+    border-radius:12px;background:#101713;box-shadow:0 18px 45px -22px #000;font-size:11px;color:#aab5ae;}
+  .lp-floatnote b{display:block;color:#fff;font-size:16px;margin-bottom:2px;}
+
+  .lp-section{padding:110px 0;}
+  .lp-sectionhead{display:grid;grid-template-columns:.75fr 1.25fr;gap:60px;align-items:end;margin-bottom:44px;}
+  .lp-eyebrow{color:var(--lp-green);font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.14em;}
+  .lp-sectionhead h2{font-size:clamp(2.2rem,4vw,4.15rem);line-height:1.02;letter-spacing:-.055em;margin:10px 0 0;}
+  .lp-sectionhead p{color:var(--lp-muted);line-height:1.7;max-width:510px;margin:0 0 4px;}
+  .lp-bento{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:minmax(185px,auto);gap:14px;}
+  .lp-feature{position:relative;overflow:hidden;background:var(--lp-surface);border:1px solid var(--lp-border);
+    border-radius:16px;padding:26px;transition:transform .35s ease,border-color .35s ease,background .35s ease;}
+  .lp-feature::after{content:"";position:absolute;width:180px;height:180px;border-radius:50%;right:-90px;bottom:-110px;
+    background:rgba(62,232,149,.14);filter:blur(35px);opacity:0;transition:opacity .4s ease;}
+  .lp-feature:hover{transform:translateY(-4px);border-color:rgba(62,232,149,.3);background:#0f1713;}
+  .lp-feature:hover::after{opacity:1}.lp-feature>*{position:relative;z-index:1}
+  .lp-feature:nth-child(1),.lp-feature:nth-child(4){grid-column:span 7}
+  .lp-feature:nth-child(2),.lp-feature:nth-child(3){grid-column:span 5}
+  .lp-feature:nth-child(5),.lp-feature:nth-child(6){grid-column:span 6}
+  .lp-icon{width:43px;height:43px;display:grid;place-items:center;border:1px solid rgba(62,232,149,.17);
+    background:var(--lp-green-soft);color:var(--lp-green);border-radius:11px;}
+  .lp-icon .material-symbols-outlined{font-size:22px}
+  .lp-feature h3{font-size:18px;margin:30px 0 9px;letter-spacing:-.02em;}
+  .lp-feature p{color:#849088;font-size:13.5px;line-height:1.6;margin:0;max-width:470px;}
+  .lp-feature__num{position:absolute;right:23px;top:21px;color:#38413c;font:600 11px/1 monospace;letter-spacing:.08em;}
+
+  .lp-pricing{padding:110px 0 130px;text-align:center;position:relative;}
+  .lp-pricing::before{content:"";position:absolute;left:50%;bottom:8%;width:500px;height:280px;
+    transform:translateX(-50%);background:rgba(34,210,125,.1);filter:blur(100px);pointer-events:none;}
+  .lp-pricing h2{font-size:clamp(2.3rem,4vw,4rem);letter-spacing:-.055em;margin:10px 0 14px;}
+  .lp-pricing>p{color:var(--lp-muted);margin:0 auto 40px;max-width:520px;line-height:1.65;}
+  .lp-priceframe{position:relative;max-width:570px;margin:auto;padding:1px;border-radius:21px;overflow:hidden;
+    background:linear-gradient(120deg,#17201b,var(--lp-green),#17201b,#8affc4);background-size:300% 300%;
+    animation:lpBorder 6s linear infinite;}
+  .lp-pricecard{position:relative;background:linear-gradient(145deg,#101613,#090d0b);border-radius:20px;padding:38px 42px;text-align:left;}
+  .lp-plan{display:flex;justify-content:space-between;align-items:center;color:#a6b1aa;font-size:12px;text-transform:uppercase;letter-spacing:.12em;}
+  .lp-plan span:last-child{color:var(--lp-green);background:var(--lp-green-soft);padding:6px 9px;border-radius:6px;}
+  .lp-amount{font-size:clamp(3.4rem,7vw,5.6rem);font-weight:800;letter-spacing:-.075em;margin:27px 0 5px;line-height:1;}
+  .lp-amount small{font-size:14px;color:#7e8982;letter-spacing:0;font-weight:500;}
+  .lp-pricecard ul{list-style:none;padding:23px 0;margin:25px 0;border-top:1px solid var(--lp-border);border-bottom:1px solid var(--lp-border);}
+  .lp-pricecard li{display:flex;align-items:center;gap:10px;margin:12px 0;color:#bdc7c0;font-size:13px;}
+  .lp-pricecard li .material-symbols-outlined{font-size:17px;color:var(--lp-green);}
+  .lp-magnetic{width:100%;justify-content:center;min-height:52px;will-change:transform;}
+  .lp-reveal{opacity:0;transform:translateY(28px);transition:opacity .75s ease,transform .75s cubic-bezier(.2,.7,.2,1);}
+  .lp-reveal.is-visible{opacity:1;transform:none;}
+
+  @keyframes lpEnter{to{opacity:1;transform:translateY(0)}from{opacity:0;transform:translateY(24px)}}
+  @keyframes lpFloat{0%,100%{transform:translateY(0) rotate(-.25deg)}50%{transform:translateY(-12px) rotate(.25deg)}}
+  @keyframes lpBorder{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
+  @media(max-width:900px){
+    .lp-hero{grid-template-columns:1fr;gap:65px;padding-top:55px}.lp-hero h1{max-width:700px}
+    .lp-visual{max-width:620px}.lp-sectionhead{grid-template-columns:1fr;gap:22px}
+  }
+  @media(max-width:680px){
+    .pb-nav{padding:16px}.pb-brand small{display:none}.pb-brand strong{font-size:14px}
+    .pb-nav .pb-btn--ghost{display:none}.pb-nav .pb-btn{padding:10px 13px;font-size:12px}
+    .lp-shell{padding:0 16px}.lp-hero{min-height:auto;padding:58px 0 92px;gap:56px}
+    .lp-hero h1{font-size:clamp(3.1rem,15vw,4.5rem)}.lp-lead{margin-top:24px}
+    .lp-cta{align-items:stretch}.lp-cta .pb-btn{justify-content:center;flex:1 1 170px}
+    .lp-floatnote{right:8px;bottom:-32px}.lp-section{padding:85px 0}
+    .lp-bento{display:block}.lp-feature{margin-bottom:12px;min-height:190px}
+    .lp-pricecard{padding:28px 22px}.lp-pricing{padding:90px 0}.lp-plan{align-items:flex-start;gap:12px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .lp-enter,.lp-glass,.lp-priceframe{animation:none;opacity:1;transform:none}
+    .lp-reveal{opacity:1;transform:none;transition:none}.lp-feature,.pb-btn{transition:none}
+  }
 </style>
 
-<section class="lp-hero">
-  <div>
-    <span class="lp-badge"><span class="material-symbols-outlined" style="font-size:16px">verified</span> Sistema de gestión de suscripciones</span>
-    <h1>Un negocio sin control <span>no es un buen negocio.</span></h1>
-    <p>
-      <strong>JHELIZCONTROLTV</strong> organiza tus ventas, clientes, vencimientos y ganancias
-      en un solo lugar para que no pierdas renovaciones ni ingresos.
-    </p>
-    <div class="lp-cta">
-      <a class="pb-btn pb-btn--primary" href="{% url 'jheliztv_register' %}">
-        <span class="material-symbols-outlined">rocket_launch</span> Crear mi cuenta
-      </a>
-      <a class="pb-btn pb-btn--ghost" href="{% url 'jheliztv_login' %}">Ya tengo cuenta</a>
-    </div>
-  </div>
-
-  <div class="lp-mock" aria-hidden="true">
-    <h3><span class="material-symbols-outlined">subscriptions</span> Tus suscripciones</h3>
-    <div class="lp-mockrow"><div><b>Netflix · Ana</b><small>ana@correo.com</small></div><span class="lp-pill g">Vence en 22 d</span></div>
-    <div class="lp-mockrow"><div><b>Disney+ · Luis</b><small>luis@correo.com</small></div><span class="lp-pill y">Vence en 2 d</span></div>
-    <div class="lp-mockrow"><div><b>Spotify · Marta</b><small>marta@correo.com</small></div><span class="lp-pill r">Venció hace 1 d</span></div>
-  </div>
-</section>
-
-<section class="lp-feats">
-  <div class="lp-feat"><span class="material-symbols-outlined">dashboard_customize</span>
-    <h4>Tablero editable</h4><p>Añadí vos mismo las plataformas que vendés, con tu imagen e ícono.</p></div>
-  <div class="lp-feat"><span class="material-symbols-outlined">notifications_active</span>
-    <h4>Avisos de vencimiento</h4><p>Notificaciones desde el día anterior para no perder ninguna renovación.</p></div>
-  <div class="lp-feat"><span class="material-symbols-outlined">forum</span>
-    <h4>Mensajes WhatsApp / Telegram</h4><p>Plantillas predeterminadas y totalmente editables para avisar a tus clientes.</p></div>
-  <div class="lp-feat"><span class="material-symbols-outlined">picture_as_pdf</span>
-    <h4>Clientes y reportes</h4><p>Registro de clientes, correos y contactos con opción de descarga en PDF.</p></div>
-  <div class="lp-feat"><span class="material-symbols-outlined">bolt</span>
-    <h4>Relleno automático</h4><p>Registrás a tus clientes una sola vez y los reusás en cada venta.</p></div>
-  <div class="lp-feat"><span class="material-symbols-outlined">touch_app</span>
-    <h4>Rápido, en un clic</h4><p>Diseño optimizado para operar con rapidez desde el celular o la PC.</p></div>
-</section>
-
-<section class="lp-price">
-  <div class="lp-pricecard">
-    <div class="amt">S/ {{ saas.monthly_price|default:"30.00" }} <small>/ mes</small></div>
-    <ul>
-      <li><span class="material-symbols-outlined">check_circle</span> Acceso completo a JHELIZCONTROLTV</li>
-      <li><span class="material-symbols-outlined">check_circle</span> Clientes y suscripciones ilimitadas</li>
-      <li><span class="material-symbols-outlined">check_circle</span> Avisos de vencimiento y reportes PDF</li>
-      <li><span class="material-symbols-outlined">check_circle</span> Pago fácil por QR</li>
-    </ul>
+<main>
+  <section class="lp-shell lp-hero">
     <div>
-      <a class="pb-btn pb-btn--primary" href="{% url 'jheliztv_register' %}" style="width:100%;justify-content:center;">
-        <span class="material-symbols-outlined">rocket_launch</span> Empezar ahora
-      </a>
+      <div class="lp-kicker lp-enter">Gestión de suscripciones</div>
+      <h1 class="lp-enter lp-enter--2">Un negocio sin control <em>no es un buen negocio.</em></h1>
+      <p class="lp-lead lp-enter lp-enter--3">
+        <strong>JHELIZCONTROLTV</strong> organiza tus ventas, clientes, vencimientos y ganancias
+        en un solo lugar para que no pierdas renovaciones ni ingresos.
+      </p>
+      <div class="lp-cta lp-enter lp-enter--4">
+        <a class="pb-btn pb-btn--primary" href="{% url 'jheliztv_register' %}">
+          Crear mi cuenta <span class="material-symbols-outlined">arrow_forward</span>
+        </a>
+        <a class="pb-btn pb-btn--ghost" href="{% url 'jheliztv_login' %}">Ya tengo cuenta</a>
+      </div>
+      <div class="lp-proof lp-enter lp-enter--4">
+        <span class="material-symbols-outlined">verified_user</span>
+        Tus clientes, tus datos y tu operación en un espacio privado.
+      </div>
     </div>
-  </div>
-</section>
+
+    <div class="lp-visual lp-enter lp-enter--3" aria-label="Vista previa de suscripciones">
+      <div class="lp-glass">
+        <div class="lp-glass__top">
+          <h3><span class="material-symbols-outlined">subscriptions</span> Tus suscripciones</h3>
+          <span class="lp-live">En vivo</span>
+        </div>
+        <div class="lp-row">
+          <span class="lp-app lp-app--n">N</span>
+          <div><b>Netflix · Ana</b><small>ana@correo.com</small></div>
+          <span class="lp-status lp-status--ok">22 días</span>
+        </div>
+        <div class="lp-row">
+          <span class="lp-app lp-app--d">D+</span>
+          <div><b>Disney+ · Luis</b><small>luis@correo.com</small></div>
+          <span class="lp-status lp-status--warn">2 días</span>
+        </div>
+        <div class="lp-row">
+          <span class="lp-app lp-app--s">S</span>
+          <div><b>Spotify · Marta</b><small>marta@correo.com</small></div>
+          <span class="lp-status lp-status--late">Vencida</span>
+        </div>
+      </div>
+      <div class="lp-floatnote"><b>3</b>requieren atención</div>
+    </div>
+  </section>
+
+  <section class="lp-shell lp-section">
+    <header class="lp-sectionhead lp-reveal">
+      <div><span class="lp-eyebrow">Todo bajo control</span><h2>Menos tareas.<br>Más renovaciones.</h2></div>
+      <p>Herramientas específicas para gestionar un negocio de suscripciones sin hojas dispersas, recordatorios manuales ni clientes olvidados.</p>
+    </header>
+    <div class="lp-bento">
+      <article class="lp-feature lp-reveal"><span class="lp-feature__num">01</span><div class="lp-icon"><span class="material-symbols-outlined">dashboard_customize</span></div><h3>Tablero editable</h3><p>Añade las plataformas que vendes y adapta el espacio de trabajo a la operación real de tu negocio.</p></article>
+      <article class="lp-feature lp-reveal"><span class="lp-feature__num">02</span><div class="lp-icon"><span class="material-symbols-outlined">notifications_active</span></div><h3>Avisos de vencimiento</h3><p>Detecta a tiempo las suscripciones que requieren atención y evita perder renovaciones.</p></article>
+      <article class="lp-feature lp-reveal"><span class="lp-feature__num">03</span><div class="lp-icon"><span class="material-symbols-outlined">forum</span></div><h3>WhatsApp y Telegram</h3><p>Utiliza mensajes editables y alertas directas para mantener una comunicación ordenada.</p></article>
+      <article class="lp-feature lp-reveal"><span class="lp-feature__num">04</span><div class="lp-icon"><span class="material-symbols-outlined">picture_as_pdf</span></div><h3>Clientes y reportes</h3><p>Centraliza correos, contactos e historial de clientes y descarga la información en PDF.</p></article>
+      <article class="lp-feature lp-reveal"><span class="lp-feature__num">05</span><div class="lp-icon"><span class="material-symbols-outlined">bolt</span></div><h3>Relleno automático</h3><p>Registra cada cliente una sola vez y reutiliza sus datos en futuras ventas.</p></article>
+      <article class="lp-feature lp-reveal"><span class="lp-feature__num">06</span><div class="lp-icon"><span class="material-symbols-outlined">devices</span></div><h3>Rápido en cualquier pantalla</h3><p>Opera cómodamente desde el celular o la computadora, sin pasos innecesarios.</p></article>
+    </div>
+  </section>
+
+  <section class="lp-shell lp-pricing lp-reveal">
+    <span class="lp-eyebrow">Un plan simple</span>
+    <h2>Control total, sin complicaciones.</h2>
+    <p>Todo lo necesario para gestionar clientes y suscripciones desde un único lugar.</p>
+    <div class="lp-priceframe">
+      <div class="lp-pricecard">
+        <div class="lp-plan"><span>Jheliz Control completo</span><span>Mensual</span></div>
+        <div class="lp-amount">S/ {{ saas.monthly_price|default:"30.00" }} <small>/ mes</small></div>
+        <ul>
+          <li><span class="material-symbols-outlined">check_circle</span> Acceso completo a JHELIZCONTROLTV</li>
+          <li><span class="material-symbols-outlined">check_circle</span> Clientes y suscripciones ilimitadas</li>
+          <li><span class="material-symbols-outlined">check_circle</span> Avisos de vencimiento y reportes PDF</li>
+          <li><span class="material-symbols-outlined">check_circle</span> Pago fácil por QR</li>
+        </ul>
+        <a class="pb-btn pb-btn--primary lp-magnetic" href="{% url 'jheliztv_register' %}">
+          Empezar ahora <span class="material-symbols-outlined">arrow_forward</span>
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reveals = document.querySelectorAll('.lp-reveal');
+  if (!reduced && 'IntersectionObserver' in window) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: .14 });
+    reveals.forEach((element, index) => {
+      element.style.transitionDelay = `${Math.min(index % 6, 3) * 70}ms`;
+      observer.observe(element);
+    });
+  } else {
+    reveals.forEach((element) => element.classList.add('is-visible'));
+  }
+
+  const magnetic = document.querySelector('.lp-magnetic');
+  if (!reduced && magnetic && window.matchMedia('(pointer:fine)').matches) {
+    magnetic.addEventListener('mousemove', (event) => {
+      const rect = magnetic.getBoundingClientRect();
+      const x = (event.clientX - rect.left - rect.width / 2) * .12;
+      const y = (event.clientY - rect.top - rect.height / 2) * .16;
+      magnetic.style.transform = `translate(${x}px, ${y}px)`;
+    });
+    magnetic.addEventListener('mouseleave', () => magnetic.style.transform = '');
+  }
+})();
+</script>
 {% endblock %}
