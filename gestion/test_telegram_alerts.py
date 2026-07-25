@@ -15,7 +15,13 @@ from gestion.control_operations import (
     update_client,
 )
 from gestion.models import Client, Service, Subscription, TelegramConnection, Tenant
-from gestion.telegram_alerts import link_chat, process_update, send_expiry_digests
+from gestion.telegram_alerts import (
+    _button,
+    _without_button_styling,
+    link_chat,
+    process_update,
+    send_expiry_digests,
+)
 
 
 class TelegramAlertTests(TestCase):
@@ -40,6 +46,31 @@ class TelegramAlertTests(TestCase):
         self.assertEqual(connection.chat_id, "123")
         self.assertEqual(connection.link_token_digest, "")
         self.assertFalse(link_chat(raw, {"id": 999}))
+
+    def test_control_buttons_use_premium_icons_and_semantic_colors(self):
+        add = _button("➕ Nuevo cliente", "new")
+        remove = _button("🗑 Eliminar", "delete_confirm:abc")
+        menu = _button("👥 Mis clientes", "clients:0:all")
+
+        self.assertEqual(add["style"], "success")
+        self.assertEqual(remove["style"], "danger")
+        self.assertEqual(menu["style"], "primary")
+        self.assertTrue(add["icon_custom_emoji_id"])
+        self.assertTrue(remove["icon_custom_emoji_id"])
+        self.assertTrue(menu["icon_custom_emoji_id"])
+
+    def test_control_button_fallback_preserves_callback(self):
+        clean = _without_button_styling(
+            {
+                "inline_keyboard": [
+                    [_button("➕ Nuevo cliente", "new")]
+                ]
+            }
+        )
+        button = clean["inline_keyboard"][0][0]
+        self.assertEqual(button["callback_data"], "new")
+        self.assertNotIn("style", button)
+        self.assertNotIn("icon_custom_emoji_id", button)
 
     def test_one_telegram_chat_cannot_stay_linked_to_two_resellers(self):
         first = TelegramConnection.objects.create(owner=self.owner, chat_id="123")

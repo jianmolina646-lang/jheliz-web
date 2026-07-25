@@ -16,6 +16,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from config.date_utils import add_service_duration
+from codes.premium_emoji import emoji_id
 
 from .control_operations import (
     client_for_owner,
@@ -44,6 +45,17 @@ def _call(method, **payload):
     if not token:
         raise RuntimeError("JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN no configurado")
     response = requests.post(API.format(token=token, method=method), json=payload, timeout=35)
+    if (
+        response.status_code == 400
+        and payload.get("reply_markup")
+        and _has_button_styling(payload["reply_markup"])
+    ):
+        payload["reply_markup"] = _without_button_styling(payload["reply_markup"])
+        response = requests.post(
+            API.format(token=token, method=method),
+            json=payload,
+            timeout=35,
+        )
     response.raise_for_status()
     data = response.json()
     if not data.get("ok"):
@@ -55,8 +67,61 @@ def _markup(rows):
     return {"inline_keyboard": rows}
 
 
-def _button(text, callback_data=None, url=None):
-    data = {"text": text}
+def _has_button_styling(markup):
+    return any(
+        button.get("style") or button.get("icon_custom_emoji_id")
+        for row in markup.get("inline_keyboard", [])
+        for button in row
+    )
+
+
+def _without_button_styling(markup):
+    return {
+        "inline_keyboard": [
+            [
+                {
+                    key: value
+                    for key, value in button.items()
+                    if key not in {"style", "icon_custom_emoji_id"}
+                }
+                for button in row
+            ]
+            for row in markup.get("inline_keyboard", [])
+        ]
+    }
+
+
+def _button_style(text, callback_data):
+    normalized = text.lower()
+    action = callback_data or ""
+    if any(word in normalized for word in ("eliminar", "desvincular")) or action.startswith(
+        ("delete_confirm:", "unlink_confirm")
+    ):
+        return "danger"
+    if any(word in normalized for word in ("registrar", "confirmar", "renovar", "nuevo", "agregar")):
+        return "success"
+    return "primary"
+
+
+def _button(text, callback_data=None, url=None, style=None):
+    data = {"text": text, "style": style or _button_style(text, callback_data)}
+    premium_icons = {
+        "👥": "👥", "➕": "➕", "🔎": "🔍", "🔍": "🔍",
+        "👁": "🔍", "🔓": "🔓", "🔄": "🔓", "⏸": "⏸",
+        "❌": "⏸", "📢": "📢", "🔔": "📢", "📨": "📨",
+        "🔑": "🔑", "💰": "🔑", "💳": "🔑", "✈️": "✈️",
+        "🏠": "🏠", "🌐": "🏠", "🔒": "🔒", "⚙️": "🔒",
+        "📺": "📺", "📦": "📺", "📧": "📧", "📋": "📋",
+        "📊": "📋", "✏️": "📋", "✅": "✅", "⚠️": "⚠️",
+        "⏰": "⚠️", "🗑": "➖", "❓": "❓",
+    }
+    for visible, premium_fallback in premium_icons.items():
+        if text.startswith(visible):
+            custom_id = emoji_id(premium_fallback)
+            if custom_id:
+                data["icon_custom_emoji_id"] = custom_id
+                data["text"] = text[len(visible):].strip()
+            break
     if callback_data:
         data["callback_data"] = callback_data
     if url:
