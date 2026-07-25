@@ -953,6 +953,15 @@ class PremiumEmojiTests(TestCase):
             render("📋 Mis correos"),
         )
 
+    @override_settings(CODES_PREMIUM_EMOJI_CLIENTS_ID="")
+    def test_admin_icon_uses_jheliz_default(self):
+        from codes.premium_emoji import render
+
+        self.assertIn(
+            '<tg-emoji emoji-id="5343902827712367295">👥</tg-emoji>',
+            render("👥 Clientes"),
+        )
+
     @override_settings(CODES_PREMIUM_EMOJI_KEY_ID="123")
     @mock.patch("codes.bot._call")
     def test_send_message_retries_with_unicode_if_custom_emoji_fails(self, mcall):
