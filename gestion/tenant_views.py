@@ -10,11 +10,14 @@ standalone bajo ``templates/jheliztv/`` (no dependen del admin).
 """
 from __future__ import annotations
 
+import hashlib
 import re
+import secrets
 from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
@@ -38,6 +41,7 @@ from .models import (
     Subscription,
     Tenant,
     TenantPayment,
+    TelegramConnection,
     Transaction,
 )
 from .views import _decorate_subs  # reuso de helpers
@@ -952,3 +956,41 @@ def notifications_json(request, tenant):
         "url": reverse("jheliztv_service_detail", args=[s.service_id]),
     } for s in alerts]
     return JsonResponse({"count": len(data), "alerts": data})
+
+
+@tenant_required
+def telegram_settings(request, tenant):
+    connection, _ = TelegramConnection.objects.get_or_create(owner=request.user)
+    link_url = ""
+    if request.method == "POST":
+        selected = [
+            value for value in (7, 3, 1, 0)
+            if request.POST.get(f"window_{value}") == "on"
+        ]
+        connection.notify_windows = selected or [7, 3, 1, 0]
+        raw_token = secrets.token_urlsafe(32)
+        connection.link_token_digest = hashlib.sha256(raw_token.encode()).hexdigest()
+        connection.link_expires_at = timezone.now() + timedelta(minutes=15)
+        connection.save()
+        username = settings.JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME
+        link_url = f"https://t.me/{username}?start={raw_token}"
+    return render(
+        request,
+        "jheliztv/telegram.html",
+        _ctx(request, tenant, connection=connection, link_url=link_url),
+    )
+
+
+@tenant_required
+@require_POST
+def telegram_unlink(request, tenant):
+    TelegramConnection.objects.filter(owner=request.user).update(
+        chat_id=None,
+        telegram_username="",
+        link_token_digest="",
+        link_expires_at=None,
+        is_enabled=False,
+        last_digest_date=None,
+    )
+    messages.success(request, "Telegram fue desvinculado.")
+    return redirect("jheliztv_telegram")

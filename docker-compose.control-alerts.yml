@@ -1,0 +1,16 @@
+services:
+  web:
+    environment:
+      JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN_FILE: /run/secrets/jheliz_control_telegram_bot_token
+    secrets:
+      - jheliz_control_telegram_bot_token
+
+  control_alerts_bot:
+    environment:
+      JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN_FILE: /run/secrets/jheliz_control_telegram_bot_token
+    secrets:
+      - jheliz_control_telegram_bot_token
+
+secrets:
+  jheliz_control_telegram_bot_token:
+    file: ./secrets/jheliz_control_telegram_bot_token.txt

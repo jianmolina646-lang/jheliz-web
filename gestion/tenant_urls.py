@@ -18,6 +18,8 @@ urlpatterns = [
     path("app/", v.dashboard, name="jheliztv_dashboard"),
     path("app/buscar/", v.search, name="jheliztv_search"),
     path("app/notificaciones.json", v.notifications_json, name="jheliztv_notifications"),
+    path("app/telegram/", v.telegram_settings, name="jheliztv_telegram"),
+    path("app/telegram/desvincular/", v.telegram_unlink, name="jheliztv_telegram_unlink"),
 
     # Servicios
     path("app/servicios/", v.services_board, name="jheliztv_services"),

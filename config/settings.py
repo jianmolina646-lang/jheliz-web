@@ -307,6 +307,14 @@ TELEGRAM_AUTO_PUBLISH = config("TELEGRAM_AUTO_PUBLISH", default=False, cast=bool
 # asignó. Lee una casilla central (Gmail) por IMAP a la que se reenvían los
 # correos de Netflix de cada cuenta. Ver app ``codes``.
 TELEGRAM_CODES_BOT_TOKEN = secret_config("TELEGRAM_CODES_BOT_TOKEN")
+JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN = secret_config(
+    "JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN",
+    allow_empty=True,
+)
+JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME = config(
+    "JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME",
+    default="JHELIZCONTROLTV_bot",
+).lstrip("@")
 # Chat ID del admin del bot de códigos (recibe avisos de altas nuevas).
 TELEGRAM_CODES_ADMIN_CHAT_ID = config("TELEGRAM_CODES_ADMIN_CHAT_ID", default="")
 # IDs opcionales de custom emojis. El bot conserva los emojis normales cuando

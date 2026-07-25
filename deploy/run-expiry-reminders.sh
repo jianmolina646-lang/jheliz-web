@@ -17,3 +17,5 @@ docker exec "$CONTAINER_NAME" \
     python manage.py send_expiry_reminders \
     --windows 7,3,1,0 \
     --distri-windows 7,3,1,0
+
+docker exec "$CONTAINER_NAME" python manage.py send_control_telegram_alerts

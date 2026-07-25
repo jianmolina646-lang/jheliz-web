@@ -402,6 +402,37 @@ class ControlSettings(models.Model):
         return obj
 
 
+class TelegramConnection(models.Model):
+    """Vínculo seguro entre un revendedor y el bot central de alertas."""
+
+    owner = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="jc_telegram_connection",
+    )
+    chat_id = models.CharField(max_length=32, unique=True, null=True, blank=True)
+    telegram_username = models.CharField(max_length=64, blank=True)
+    link_token_digest = models.CharField(max_length=64, blank=True)
+    link_expires_at = models.DateTimeField(null=True, blank=True)
+    is_enabled = models.BooleanField(default=True)
+    notify_windows = models.JSONField(default=list, blank=True)
+    last_digest_date = models.DateField(null=True, blank=True)
+    linked_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Telegram de revendedor"
+        verbose_name_plural = "Telegram de revendedores"
+
+    @property
+    def is_linked(self):
+        return bool(self.chat_id)
+
+    def windows(self):
+        values = self.notify_windows or [7, 3, 1, 0]
+        return [int(value) for value in values if int(value) in {7, 3, 1, 0}]
+
+
 class Tenant(models.Model):
     """Inquilino que **alquila** Jheliz Control (un negocio = un usuario/login).
 

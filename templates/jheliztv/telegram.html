@@ -1,0 +1,49 @@
+{% extends "jheliztv/base.html" %}
+{% block title %}Alertas de Telegram{% endblock %}
+{% block content %}
+<section class="jc-page-head">
+  <div>
+    <p class="jc-eyebrow">Notificaciones</p>
+    <h1>Alertas de Telegram</h1>
+    <p>Recibe un resumen privado de tus clientes próximos a vencer.</p>
+  </div>
+</section>
+
+<div class="jc-card" style="max-width:720px">
+  {% if connection.is_linked %}
+    <h2>Telegram vinculado</h2>
+    <p>✅ @{{ connection.telegram_username|default:"cuenta vinculada" }}</p>
+    <form method="post" action="{% url 'jheliztv_telegram_unlink' %}">
+      {% csrf_token %}
+      <button class="jc-btn jc-btn--secondary" type="submit">Desvincular Telegram</button>
+    </form>
+  {% else %}
+    <h2>Vincula tu Telegram</h2>
+    <p>El enlace funciona una sola vez y vence en 15 minutos.</p>
+    <form method="post">
+      {% csrf_token %}
+      <fieldset>
+        <legend>¿Cuándo quieres recibir avisos?</legend>
+        {% for value,label in windows %}
+          <label style="display:block;margin:10px 0">
+            <input type="checkbox" name="window_{{ value }}" checked> {{ label }}
+          </label>
+        {% empty %}
+          <label><input type="checkbox" name="window_7" checked> 7 días antes</label>
+          <label><input type="checkbox" name="window_3" checked> 3 días antes</label>
+          <label><input type="checkbox" name="window_1" checked> 1 día antes</label>
+          <label><input type="checkbox" name="window_0" checked> El mismo día</label>
+        {% endfor %}
+      </fieldset>
+      <button class="jc-btn jc-btn--primary" type="submit">Generar enlace privado</button>
+    </form>
+    {% if link_url %}
+      <p style="margin-top:20px">
+        <a class="jc-btn jc-btn--primary" href="{{ link_url }}" target="_blank" rel="noopener">
+          Abrir @JHELIZCONTROLTV_bot
+        </a>
+      </p>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
