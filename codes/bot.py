@@ -660,14 +660,6 @@ def _send_welcome(client: CodeBotClient) -> None:
         send_message(chat_id, _expired_message())
         return
     send_message(chat_id, _client_help_text(emails), menu=True)
-    if emails and len(emails) <= MAX_EMAIL_BUTTONS:
-        send_message(chat_id, "📧 Tus correos:", buttons=_email_buttons(emails))
-    elif emails:
-        send_message(
-            chat_id,
-            f"📧 Tenés <b>{len(emails)}</b> correos asignados.\n"
-            "Encontrá uno con <code>/buscar nombre@correo.com</code>.",
-        )
 
 
 def _send_commands_help(client: CodeBotClient) -> None:

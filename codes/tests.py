@@ -579,6 +579,12 @@ class SearchAssignedEmailsTests(TestCase):
         self.assertIn("/buscar", msend.call_args.args[1])
         self.assertNotIn("buttons", msend.call_args.kwargs)
 
+    @mock.patch("codes.bot.send_message")
+    def test_welcome_does_not_send_automatic_email_list(self, msend):
+        bot._send_welcome(self.client_obj)
+        self.assertEqual(msend.call_count, 1)
+        self.assertNotIn("Tus correos:", msend.call_args.args[1])
+
 
 class DeliverCodeTests(TestCase):
     def setUp(self):
