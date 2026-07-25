@@ -34,6 +34,7 @@ services:
     environment:
       POSTGRES_USER: jheliz
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jheliz}
+      POSTGRES_PASSWORD_FILE: ${POSTGRES_PASSWORD_FILE:-}
       POSTGRES_DB: jheliz
     volumes:
       - postgres_data:/var/lib/postgresql/data

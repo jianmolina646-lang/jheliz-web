@@ -7,9 +7,11 @@ from pathlib import Path
 import dj_database_url
 from decouple import Csv, config
 
+from config.secret_config import secret_config
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config("SECRET_KEY", default="dev-insecure-key-change-me")
+SECRET_KEY = secret_config("SECRET_KEY", default="dev-insecure-key-change-me")
 DEBUG = config("DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
@@ -140,8 +142,11 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {
-    "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+    "default": dj_database_url.parse(
+        secret_config(
+            "DATABASE_URL",
+            default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        ),
         conn_max_age=600,
         conn_health_checks=True,
     )
@@ -301,7 +306,7 @@ TELEGRAM_AUTO_PUBLISH = config("TELEGRAM_AUTO_PUBLISH", default=False, cast=bool
 # (acceso temporal / actualizar hogar) de las cuentas que el admin les
 # asignó. Lee una casilla central (Gmail) por IMAP a la que se reenvían los
 # correos de Netflix de cada cuenta. Ver app ``codes``.
-TELEGRAM_CODES_BOT_TOKEN = config("TELEGRAM_CODES_BOT_TOKEN", default="")
+TELEGRAM_CODES_BOT_TOKEN = secret_config("TELEGRAM_CODES_BOT_TOKEN")
 # Chat ID del admin del bot de códigos (recibe avisos de altas nuevas).
 TELEGRAM_CODES_ADMIN_CHAT_ID = config("TELEGRAM_CODES_ADMIN_CHAT_ID", default="")
 # IDs opcionales de custom emojis. El bot conserva los emojis normales cuando
@@ -337,13 +342,13 @@ CODES_IMAP_HOST = config("CODES_IMAP_HOST", default="imap.gmail.com")
 CODES_IMAP_PORT = config("CODES_IMAP_PORT", default=993, cast=int)
 CODES_IMAP_USER = config("CODES_IMAP_USER", default="")
 # Contraseña de aplicación (Gmail) — NO la contraseña normal de la cuenta.
-CODES_IMAP_PASSWORD = config("CODES_IMAP_PASSWORD", default="")
+CODES_IMAP_PASSWORD = secret_config("CODES_IMAP_PASSWORD")
 # Segunda casilla central (Hostinger) — el bot lee AMBAS y entrega el correo
 # más reciente que encuentre en cualquiera de las dos.
 CODES_IMAP2_HOST = config("CODES_IMAP2_HOST", default="imap.hostinger.com")
 CODES_IMAP2_PORT = config("CODES_IMAP2_PORT", default=993, cast=int)
 CODES_IMAP2_USER = config("CODES_IMAP2_USER", default="")
-CODES_IMAP2_PASSWORD = config("CODES_IMAP2_PASSWORD", default="")
+CODES_IMAP2_PASSWORD = secret_config("CODES_IMAP2_PASSWORD")
 # Ventana (minutos) hacia atrás para considerar un correo de Netflix vigente.
 CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=30, cast=int)
 # Máximo de pedidos de código por cliente por día (0 = sin límite).
@@ -722,7 +727,7 @@ UNFOLD = {
 # Generar con:  python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
 # Si no se configura en DEBUG, se deriva de SECRET_KEY (sólo dev).
 # ---------------------------------------------------------------------------
-FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default="")
+FIELD_ENCRYPTION_KEY = secret_config("FIELD_ENCRYPTION_KEY")
 
 # ---------------------------------------------------------------------------
 # django-axes: bloqueo por intentos fallidos de login

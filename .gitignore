@@ -10,6 +10,8 @@ env/
 venv/
 .env
 .env.local
+secrets/
+*.secret
 
 staticfiles/
 media/
