@@ -17,6 +17,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from config.date_utils import add_service_duration
+
 
 class ServiceCategory(models.Model):
     """Categoría de servicios (TV y Cine, Música, Diseño y Educación, VPN…)."""
@@ -264,7 +266,7 @@ class Subscription(models.Model):
     def renew(self, days: int = 30) -> None:
         """Suma días de forma acumulativa. Si ya venció, suma desde ahora."""
         base = self.expires_at if self.expires_at and self.expires_at > timezone.now() else timezone.now()
-        self.expires_at = base + timedelta(days=int(days))
+        self.expires_at = add_service_duration(base, int(days))
         self.save(update_fields=["expires_at", "updated_at"])
 
 
@@ -460,7 +462,7 @@ class Tenant(models.Model):
     def start_trial(self, days: int = TRIAL_DAYS) -> None:
         """Otorga la prueba gratis inicial si el inquilino nunca tuvo acceso."""
         if self.plan_expires_at is None:
-            self.plan_expires_at = timezone.now() + timedelta(days=int(days))
+            self.plan_expires_at = add_service_duration(timezone.now(), int(days))
             self.save(update_fields=["plan_expires_at"])
 
     def extend(self, days: int = 30) -> None:
@@ -470,7 +472,7 @@ class Tenant(models.Model):
             if self.plan_expires_at and self.plan_expires_at > timezone.now()
             else timezone.now()
         )
-        self.plan_expires_at = base + timedelta(days=int(days))
+        self.plan_expires_at = add_service_duration(base, int(days))
         self.save(update_fields=["plan_expires_at"])
 
 

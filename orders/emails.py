@@ -91,7 +91,13 @@ def send_payment_proof_rejected(order) -> None:
           "emails/order_yape_rejected.html", kind="yape_rejected")
 
 
-def send_expiry_reminder(order, items, days_left: int, *, for_distributor: bool = False) -> None:
+def send_expiry_reminder(
+    order,
+    items,
+    days_left: int,
+    *,
+    for_distributor: bool = False,
+) -> bool:
     """Recordatorio de renovaci\u00f3n N d\u00edas antes del vencimiento.
 
     ``items`` es una lista de ``OrderItem`` que vencen en ``days_left`` d\u00edas.
@@ -99,7 +105,7 @@ def send_expiry_reminder(order, items, days_left: int, *, for_distributor: bool 
     revendedores (menciona a sus clientes finales y linkea al panel mayorista).
     """
     if not order.email or not items:
-        return
+        return False
     context = {
         "order": order,
         "items": list(items),
@@ -112,13 +118,17 @@ def send_expiry_reminder(order, items, days_left: int, *, for_distributor: bool 
     }
     if for_distributor:
         body = render_to_string("emails/order_expiring_distribuidor.html", context)
-        if days_left <= 1:
+        if days_left == 0:
+            subject = f"🚨 Cuenta de tu cliente vence hoy — #{order.display_number}"
+        elif days_left == 1:
             subject = f"⚠️ Cuenta de tu cliente vence mañana — #{order.display_number}"
         else:
             subject = f"Tu cuenta vence en {days_left} días — #{order.display_number}"
     else:
         body = render_to_string("emails/order_expiring.html", context)
-        if days_left <= 1:
+        if days_left == 0:
+            subject = f"Tu suscripción vence hoy — #{order.display_number}"
+        elif days_left == 1:
             subject = f"Tu suscripci\u00f3n vence ma\u00f1ana \u2014 #{order.display_number}"
         else:
             subject = f"Tu suscripci\u00f3n vence en {days_left} d\u00edas \u2014 #{order.display_number}"
@@ -135,6 +145,7 @@ def send_expiry_reminder(order, items, days_left: int, *, for_distributor: bool 
     except Exception as exc:
         error_msg = str(exc)[:500]
     _log(order=order, subject=subject, kind="expiry_reminder", error=error_msg)
+    return not error_msg
 
 
 def send_account_credentials_updated(item, *, is_distributor: bool) -> None:

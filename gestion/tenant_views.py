@@ -23,6 +23,8 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+
+from config.date_utils import add_service_duration
 from django.views.decorators.http import require_POST
 
 from .forms import ClientForm, ServiceForm, SubscriptionForm, TransactionForm
@@ -468,7 +470,7 @@ def subscription_add(request, tenant):
             days = max(1, int(post.get("duration_days") or 30))
         except (TypeError, ValueError):
             days = 30
-        expires = starts + timedelta(days=days)
+        expires = add_service_duration(starts, days)
     currency = ControlSettings.load(owner).currency or "S/"
 
     # Los totales ("¿cuánto vendiste/invertiste en total?") se reparten en

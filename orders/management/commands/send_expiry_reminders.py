@@ -1,7 +1,7 @@
 """Manda recordatorios de vencimiento a los clientes y distribuidores.
 
-- Clientes finales: por defecto envía dos ventanas, 3 días antes y 1 día antes.
-- Distribuidores aprobados: por defecto envía tres ventanas (7, 3 y 1 día antes)
+- Clientes finales: por defecto envía cuatro ventanas (7, 3, 1 y 0 días).
+- Distribuidores aprobados: usa las mismas cuatro ventanas (7, 3, 1 y 0)
   con copy específico que menciona a sus clientes finales y linkea al panel
   mayorista.
 
@@ -10,8 +10,8 @@ Es idempotente: cada item lleva su propia marca de tiempo de envío por ventana.
 Uso:
     python manage.py send_expiry_reminders            # produce envíos
     python manage.py send_expiry_reminders --dry-run  # sólo lista
-    python manage.py send_expiry_reminders --windows 7,3,1            # ventanas cliente
-    python manage.py send_expiry_reminders --distri-windows 7,3,1     # ventanas distri
+    python manage.py send_expiry_reminders --windows 7,3,1,0
+    python manage.py send_expiry_reminders --distri-windows 7,3,1,0
 
 Cron diario sugerido:
     0 9 * * *  cd /app && python manage.py send_expiry_reminders
@@ -31,13 +31,16 @@ from orders.models import Order, OrderItem, ReminderRunLog
 
 # Mapa: ventana en días -> nombre del campo donde marcamos el envío
 _CUSTOMER_FIELD_MAP = {
+    7: "expiry_reminder_7d_sent_at",
     3: "expiry_reminder_3d_sent_at",
     1: "expiry_reminder_1d_sent_at",
+    0: "expiry_reminder_0d_sent_at",
 }
 _DISTRI_FIELD_MAP = {
     7: "distri_reminder_7d_sent_at",
     3: "distri_reminder_3d_sent_at",
     1: "distri_reminder_1d_sent_at",
+    0: "distri_reminder_0d_sent_at",
 }
 
 
@@ -50,12 +53,12 @@ class Command(BaseCommand):
             help="No envía correos; sólo imprime lo que haría.",
         )
         parser.add_argument(
-            "--windows", default="3,1",
-            help="Ventanas cliente final, separadas por coma. Default: 3,1.",
+            "--windows", default="7,3,1,0",
+            help="Ventanas cliente final, separadas por coma. Default: 7,3,1,0.",
         )
         parser.add_argument(
-            "--distri-windows", default="7,3,1",
-            help="Ventanas distribuidor, separadas por coma. Default: 7,3,1.",
+            "--distri-windows", default="7,3,1,0",
+            help="Ventanas distribuidor, separadas por coma. Default: 7,3,1,0.",
         )
         parser.add_argument(
             "--skip-customers", action="store_true",
@@ -84,9 +87,9 @@ class Command(BaseCommand):
         dry_run: bool,
     ) -> tuple[int, int]:
         """Devuelve (orders_avisadas, items_avisados)."""
-        now = timezone.now()
-        window_start = now + timedelta(days=days_left - 1, hours=12)
-        window_end = now + timedelta(days=days_left + 1, hours=12)
+        # Una fecha local exacta evita solapamientos entre las ventanas 1d y
+        # 0d, incluso cuando el comando corre cerca de medianoche.
+        target_date = timezone.localdate() + timedelta(days=days_left)
 
         qs = (
             OrderItem.objects
@@ -96,8 +99,7 @@ class Command(BaseCommand):
                     Order.Status.DELIVERED,
                     Order.Status.PREPARING,
                 ],
-                expires_at__gte=window_start,
-                expires_at__lt=window_end,
+                expires_at__date=target_date,
                 **{f"{field}__isnull": True},
             )
             .exclude(order__email="")
@@ -130,7 +132,20 @@ class Command(BaseCommand):
             )
             if dry_run:
                 continue
-            emails.send_expiry_reminder(order, items, days_left, for_distributor=for_distributor)
+            sent = emails.send_expiry_reminder(
+                order,
+                items,
+                days_left,
+                for_distributor=for_distributor,
+            )
+            if not sent:
+                self.stderr.write(
+                    self.style.ERROR(
+                        f"  No se pudo enviar el pedido #{order.display_number}; "
+                        "queda pendiente para el próximo intento."
+                    )
+                )
+                continue
             ts = timezone.now()
             OrderItem.objects.filter(pk__in=[i.pk for i in items]).update(**{field: ts})
             orders_count += 1

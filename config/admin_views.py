@@ -23,6 +23,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils import timezone
+
+from config.date_utils import add_service_duration
 from django.views.decorators.http import require_POST
 
 
@@ -842,8 +844,10 @@ def renewals_view(request):
             "days_left": days_left,
             "days_tone": d_tone,
             "days_icon": d_icon,
+            "reminder_7d": bool(it.expiry_reminder_7d_sent_at),
             "reminder_3d": bool(it.expiry_reminder_3d_sent_at),
             "reminder_1d": bool(it.expiry_reminder_1d_sent_at),
+            "reminder_0d": bool(it.expiry_reminder_0d_sent_at),
             "order_change_url": reverse("admin:orders_order_change", args=[it.order_id]),
             "renew_url": reverse("admin_renew_item", args=[it.pk]),
             "whatsapp_url": _whatsapp_link(it),
@@ -1737,15 +1741,16 @@ def _normalize_telegram_username(raw):
 def _compute_manual_expiry(plan, paid_at):
     """Calcula el vencimiento de una venta manual igual que una compra web.
 
-    ``paid_at + plan.duration_days``. Si el plan no tiene duración (0 días,
-    licencias perpetuas) o falta la fecha, devuelve ``None`` (sin vencimiento).
+    Los bloques de 30 días se tratan como meses calendario. Si el plan no
+    tiene duración (0 días, licencias perpetuas) o falta la fecha, devuelve
+    ``None`` (sin vencimiento).
     """
     if plan is None or paid_at is None:
         return None
     duration = getattr(plan, "duration_days", 0) or 0
     if duration <= 0:
         return None
-    return paid_at + timedelta(days=duration)
+    return add_service_duration(paid_at, duration)
 
 
 def _register_manual_sale(*, item, customer_name, customer_whatsapp,
@@ -4131,7 +4136,7 @@ def quick_order_create(request):
                     item.stock_item = stock
                     item.delivered_credentials = stock.credentials
                     if plan.duration_days and not item.expires_at:
-                        item.expires_at = now + timedelta(days=plan.duration_days)
+                        item.expires_at = add_service_duration(now, plan.duration_days)
                     item.save(update_fields=[
                         "stock_item", "delivered_credentials", "expires_at",
                     ])
@@ -4140,7 +4145,7 @@ def quick_order_create(request):
                     # Prioridad 2: credenciales escritas a mano.
                     item.delivered_credentials = manual_credentials
                     if plan.duration_days and not item.expires_at:
-                        item.expires_at = now + timedelta(days=plan.duration_days)
+                        item.expires_at = add_service_duration(now, plan.duration_days)
                     item.save(update_fields=["delivered_credentials", "expires_at"])
                     delivered = True
 

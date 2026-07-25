@@ -4,6 +4,8 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django import forms
+
+from config.date_utils import add_service_duration
 from django.utils import timezone
 
 from .models import Client, Service, Subscription, Transaction
@@ -84,7 +86,7 @@ class SubscriptionForm(forms.ModelForm):
                 cleaned["expires_at"] = self.instance.expires_at
             else:
                 days = cleaned.get("duration_days") or 30
-                cleaned["expires_at"] = starts + timezone.timedelta(days=int(days))
+                cleaned["expires_at"] = add_service_duration(starts, int(days))
 
         # Perfiles entre 1 y 7.
         profiles = cleaned.get("profiles") or 1

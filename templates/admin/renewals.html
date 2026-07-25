@@ -253,6 +253,10 @@
                     {# Avisos enviados #}
                     <td>
                         <div style="display:flex; gap:4px; flex-wrap:wrap">
+                            <span class="jh-ren-chip jh-ren-chip--{% if it.reminder_7d %}info{% else %}muted{% endif %}" title="Recordatorio 7 días">
+                                <span class="jh-ren-chip__icon">{% if it.reminder_7d %}check_circle{% else %}radio_button_unchecked{% endif %}</span>
+                                7d
+                            </span>
                             <span class="jh-ren-chip jh-ren-chip--{% if it.reminder_3d %}info{% else %}muted{% endif %}" title="Recordatorio 3 días">
                                 <span class="jh-ren-chip__icon">{% if it.reminder_3d %}check_circle{% else %}radio_button_unchecked{% endif %}</span>
                                 3d
@@ -260,6 +264,10 @@
                             <span class="jh-ren-chip jh-ren-chip--{% if it.reminder_1d %}info{% else %}muted{% endif %}" title="Recordatorio 1 día">
                                 <span class="jh-ren-chip__icon">{% if it.reminder_1d %}check_circle{% else %}radio_button_unchecked{% endif %}</span>
                                 1d
+                            </span>
+                            <span class="jh-ren-chip jh-ren-chip--{% if it.reminder_0d %}info{% else %}muted{% endif %}" title="Recordatorio del día de vencimiento">
+                                <span class="jh-ren-chip__icon">{% if it.reminder_0d %}check_circle{% else %}radio_button_unchecked{% endif %}</span>
+                                Hoy
                             </span>
                         </div>
                     </td>

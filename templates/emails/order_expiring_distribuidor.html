@@ -1,7 +1,10 @@
 {% extends "emails/_base.html" %}
 {% load humanize %}
 {% block body %}
-  {% if days_left <= 1 %}
+  {% if days_left == 0 %}
+    <h2 style="margin:0 0 8px 0;font-size:20px;">🚨 Cuenta de tu cliente vence hoy</h2>
+    <p>El acceso vence <strong>hoy</strong>. Renueva ahora para evitar que tu cliente final pierda el servicio.</p>
+  {% elif days_left == 1 %}
     <h2 style="margin:0 0 8px 0;font-size:20px;">⚠️ Cuenta de tu cliente vence mañana</h2>
     <p>Tienes menos de <strong>24 horas</strong> antes de que tu cliente final pierda el acceso. Renueva ahora para evitar reclamos.</p>
   {% elif days_left <= 3 %}

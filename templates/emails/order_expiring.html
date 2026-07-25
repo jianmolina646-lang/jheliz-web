@@ -1,7 +1,10 @@
 {% extends "emails/_base.html" %}
 {% load humanize %}
 {% block body %}
-  {% if days_left <= 1 %}
+  {% if days_left == 0 %}
+    <h2 style="margin:0 0 8px 0;font-size:20px;">Tu suscripción vence hoy</h2>
+    <p>Tu acceso vence <strong>hoy</strong>. Renueva ahora para mantener el mismo perfil y evitar una interrupción del servicio.</p>
+  {% elif days_left == 1 %}
     <h2 style="margin:0 0 8px 0;font-size:20px;">Tu suscripción vence mañana</h2>
     <p>Quedan menos de <strong>24 horas</strong> antes de que pierdas el acceso. Renueva con un solo click — mismo precio, mismo perfil.</p>
   {% else %}

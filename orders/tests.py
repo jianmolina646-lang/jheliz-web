@@ -388,6 +388,14 @@ def _make_delivered_item(*, days_until_expiry: int, email: str = "cliente@ejempl
 
 
 class ExpiryReminderTests(TestCase):
+    def test_sends_7d_reminder(self):
+        item = _make_delivered_item(days_until_expiry=7)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        item.refresh_from_db()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("7 d", mail.outbox[0].subject)
+        self.assertIsNotNone(item.expiry_reminder_7d_sent_at)
+
     def test_sends_3d_reminder(self):
         item = _make_delivered_item(days_until_expiry=3)
         out = StringIO()
@@ -404,6 +412,30 @@ class ExpiryReminderTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("mañana", mail.outbox[0].subject)
         self.assertIsNotNone(item.expiry_reminder_1d_sent_at)
+
+    def test_sends_same_day_reminder(self):
+        item = _make_delivered_item(days_until_expiry=0)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        item.refresh_from_db()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("vence hoy", mail.outbox[0].subject)
+        self.assertIn("vence <strong>hoy</strong>", mail.outbox[0].body)
+        self.assertIsNotNone(item.expiry_reminder_0d_sent_at)
+
+    def test_same_day_reminder_is_idempotent(self):
+        item = _make_delivered_item(days_until_expiry=0)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        call_command("send_expiry_reminders", stdout=StringIO())
+        item.refresh_from_db()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIsNotNone(item.expiry_reminder_0d_sent_at)
+
+    @patch("orders.emails.EmailMessage.send", side_effect=RuntimeError("SMTP caído"))
+    def test_failed_delivery_remains_pending_for_retry(self, _send):
+        item = _make_delivered_item(days_until_expiry=0)
+        call_command("send_expiry_reminders", stdout=StringIO(), stderr=StringIO())
+        item.refresh_from_db()
+        self.assertIsNone(item.expiry_reminder_0d_sent_at)
 
     def test_does_not_resend(self):
         _make_delivered_item(days_until_expiry=3)
@@ -1299,6 +1331,15 @@ class DistributorExpiryReminderTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("7 días", mail.outbox[0].subject)
         self.assertIsNotNone(item.distri_reminder_7d_sent_at)
+
+    def test_distributor_gets_same_day_reminder(self):
+        item = self._make_item(owner=self.distri, days_until_expiry=0)
+        call_command("send_expiry_reminders", stdout=StringIO())
+        item.refresh_from_db()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("vence hoy", mail.outbox[0].subject)
+        self.assertIn("vence <strong>hoy</strong>", mail.outbox[0].body)
+        self.assertIsNotNone(item.distri_reminder_0d_sent_at)
 
     def test_distributor_uses_distributor_template(self):
         self._make_item(owner=self.distri, days_until_expiry=7)
