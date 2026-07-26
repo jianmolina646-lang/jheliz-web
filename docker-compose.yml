@@ -85,5 +85,29 @@ services:
     profiles:
       - control-alerts
 
+  backup:
+    profiles:
+      - backup
+    build: ./backup
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: jheliz
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jheliz}
+      POSTGRES_DB: jheliz
+      MEGA_FOLDER: ${MEGA_FOLDER:-/JhelizControlBackups}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - jheliz_backup_data:/backups
+      - jheliz_mega_session:/root/.megaCmd
+      - ./media:/source/media:ro
+      - ./.env:/source/config/.env:ro
+      - ./secrets:/source/config/secrets:ro
+
 volumes:
   postgres_data:
+  jheliz_backup_data:
+  jheliz_mega_session:
