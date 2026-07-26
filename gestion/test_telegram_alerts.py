@@ -18,6 +18,7 @@ from gestion.models import Client, Service, Subscription, TelegramConnection, Te
 from gestion.telegram_alerts import (
     CONTROL_PREMIUM_EMOJI_IDS,
     _button,
+    _parse_duration_or_date,
     _premium_text,
     _without_button_styling,
     link_chat,
@@ -35,6 +36,17 @@ class TelegramAlertTests(TestCase):
         self.tenant.start_trial()
         self.other_tenant = Tenant.objects.create(user=self.other, business_name="Otro")
         self.other_tenant.start_trial()
+
+    def test_subscription_duration_accepts_days_with_label(self):
+        parsed, error = _parse_duration_or_date("30 días")
+        self.assertIsNone(error)
+        self.assertEqual(parsed, {"duration_days": 30})
+
+    def test_subscription_duration_accepts_short_exact_date(self):
+        parsed, error = _parse_duration_or_date("12/08/27")
+        self.assertIsNone(error)
+        self.assertEqual(parsed["expires_on"], "2027-08-12")
+        self.assertTrue(parsed["expires_at"].startswith("2027-08-12T23:59:59"))
 
     def test_one_time_token_links_only_its_owner(self):
         raw = "token-seguro"

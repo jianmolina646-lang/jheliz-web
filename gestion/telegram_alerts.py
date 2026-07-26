@@ -7,7 +7,7 @@ import html
 import logging
 import secrets
 import time
-from datetime import timedelta
+from datetime import datetime, time as datetime_time, timedelta
 
 import requests
 from django.conf import settings
@@ -38,6 +38,37 @@ logger = logging.getLogger(__name__)
 API = "https://api.telegram.org/bot{token}/{method}"
 PAGE_SIZE = 5
 WEB_URL = getattr(settings, "JHELIZ_CONTROL_BASE_URL", "https://jheliztv.xyz").rstrip("/")
+
+
+def _parse_duration_or_date(value):
+    """Acepta días o una fecha DD/MM/YY(YY) y devuelve datos serializables."""
+    raw = (value or "").strip().lower()
+    normalized_days = raw.replace("días", "").replace("dias", "").strip()
+    try:
+        days = int(normalized_days)
+    except (TypeError, ValueError):
+        days = None
+    if days is not None:
+        if 1 <= days <= 3660:
+            return {"duration_days": days}, None
+        return None, "La duración debe estar entre 1 y 3660 días."
+
+    parsed_date = None
+    for pattern in ("%d/%m/%Y", "%d/%m/%y"):
+        try:
+            parsed_date = datetime.strptime(raw, pattern).date()
+            break
+        except ValueError:
+            continue
+    if parsed_date is None:
+        return None, "Escribe días (ej. 30) o una fecha (ej. 12/08/2027)."
+    if parsed_date < timezone.localdate():
+        return None, "La fecha de vencimiento no puede estar en el pasado."
+    expires_at = timezone.make_aware(
+        datetime.combine(parsed_date, datetime_time(23, 59, 59)),
+        timezone.get_current_timezone(),
+    )
+    return {"expires_at": expires_at.isoformat(), "expires_on": parsed_date.isoformat()}, None
 
 # Set Premium exclusivo de @JHELIZCONTROLTV_bot. No reutilizar los IDs del
 # bot de códigos: cada custom emoji de Telegram identifica un diseño concreto.
@@ -678,12 +709,19 @@ def _subscription_new_text(connection, text):
         session.state = "subnew:duration_days"
         session.data = data
         session.save()
-        return send_message(connection.chat_id, "📅 Escribe la duración en días, por ejemplo 30.")
+        return send_message(
+            connection.chat_id,
+            "📅 Escribe la duración o la fecha de vencimiento.\n\n"
+            "Ejemplos: <b>30</b>, <b>30 días</b> o <b>12/08/2027</b>.",
+        )
     if field == "duration_days":
-        try:
-            data["duration_days"] = max(1, min(3660, int(value)))
-        except ValueError:
-            return send_message(connection.chat_id, "Escribe una duración válida entre 1 y 3660 días.")
+        expiry_data, validation_error = _parse_duration_or_date(value)
+        if validation_error:
+            return send_message(connection.chat_id, validation_error)
+        data.pop("duration_days", None)
+        data.pop("expires_at", None)
+        data.pop("expires_on", None)
+        data.update(expiry_data)
         session.state = "subnew:cost"
         session.data = data
         session.save()
@@ -725,8 +763,12 @@ def _subscription_new_text(connection, text):
             f"📦 Servicio: {html.escape(service.name)}\n"
             f"📧 Cuenta: {html.escape(data['account_email'])}\n"
             f"🧩 Modalidad: {html.escape(Subscription.Plan(data['plan']).label)}\n"
-            f"📅 Duración: {data['duration_days']} días\n"
-            f"💵 Venta: {html.escape(data['cost'])}\n"
+            + (
+                f"📅 Vence: {datetime.fromisoformat(data['expires_at']):%d/%m/%Y}\n"
+                if data.get("expires_at")
+                else f"📅 Duración: {data['duration_days']} días\n"
+            )
+            + f"💵 Venta: {html.escape(data['cost'])}\n"
             f"💳 Inversión: {html.escape(data['investment'])}",
             _markup(
                 [
@@ -1065,7 +1107,8 @@ def _handle_callback(connection, callback):
         session.save()
         return _render(
             connection.chat_id,
-            "📅 Escribe la duración en días, por ejemplo 30.",
+            "📅 Escribe la duración o la fecha de vencimiento.\n\n"
+            "Ejemplos: <b>30</b>, <b>30 días</b> o <b>12/08/2027</b>.",
             _markup([[_button("❌ Cancelar", f"client:{session.data['client_id']}")]]),
             message_id,
         )
@@ -1074,9 +1117,12 @@ def _handle_callback(connection, callback):
         session = _session(connection)
         if session.state != "subnew:confirm" or session.data.get("nonce") != nonce:
             return _ack(callback_id, "Esta confirmación ya venció.")
+        payload = dict(session.data)
+        if payload.get("expires_at"):
+            payload["expires_at"] = datetime.fromisoformat(payload["expires_at"])
         sub, error = create_subscription(
             connection.owner,
-            session.data,
+            payload,
             idempotency_key=f"subnew:{connection.owner_id}:{nonce}",
         )
         _reset_session(connection)
