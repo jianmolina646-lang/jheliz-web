@@ -184,7 +184,9 @@ def renew_subscription(owner, subscription_id, days, idempotency_key=None):
         return None, "invalid_days"
     if duration < 1 or duration > 3660:
         return None, "invalid_days"
-    base = sub.expires_at if sub.expires_at and sub.expires_at > timezone.now() else timezone.now()
+    # Mantener el día de vencimiento original también para suscripciones
+    # vencidas. Así el resumen previo y la fecha finalmente guardada coinciden.
+    base = sub.expires_at or timezone.now()
     sub.expires_at = add_service_duration(base, duration)
     sub.save(update_fields=["expires_at", "updated_at"])
     return sub, None

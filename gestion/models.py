@@ -264,8 +264,8 @@ class Subscription(models.Model):
         return " ".join(parts)
 
     def renew(self, days: int = 30) -> None:
-        """Suma días de forma acumulativa. Si ya venció, suma desde ahora."""
-        base = self.expires_at if self.expires_at and self.expires_at > timezone.now() else timezone.now()
+        """Suma la duración desde el vencimiento y conserva el ciclo original."""
+        base = self.expires_at or timezone.now()
         self.expires_at = add_service_duration(base, int(days))
         self.save(update_fields=["expires_at", "updated_at"])
 

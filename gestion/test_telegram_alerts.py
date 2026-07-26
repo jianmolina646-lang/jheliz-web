@@ -266,6 +266,17 @@ class TelegramAlertTests(TestCase):
         sub.refresh_from_db()
         self.assertEqual(sub.expires_at, first_expiry)
 
+    def test_expired_renewal_preserves_original_billing_day(self):
+        _, sub = self._subscription(self.owner, "Cliente vencido")
+        sub.expires_at = timezone.now() - timedelta(days=6)
+        sub.save(update_fields=["expires_at"])
+        original = sub.expires_at
+
+        renewed, error = renew_subscription(self.owner, sub.pk, 30)
+
+        self.assertIsNone(error)
+        self.assertEqual(renewed.expires_at.day, original.day)
+
     def test_telegram_and_web_services_share_the_same_client_rows(self):
         created, error = create_client(
             self.owner,

@@ -918,7 +918,9 @@ def _renew_confirm(connection, subscription_id, days, message_id=None):
         days = int(days)
     except (TypeError, ValueError):
         days = 30
-    base = sub.expires_at if sub.expires_at > timezone.now() else timezone.now()
+    # La renovación conserva el ciclo original aunque ya haya vencido:
+    # 20/07 + 30 días comerciales = 20/08.
+    base = sub.expires_at or timezone.now()
     new_date = timezone.localtime(add_service_duration(base, days)).strftime("%d/%m/%Y")
     nonce = secrets.token_hex(4)
     session = _session(connection)

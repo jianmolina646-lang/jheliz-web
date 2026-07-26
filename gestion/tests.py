@@ -8,6 +8,8 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from config.date_utils import add_service_duration
+
 from .models import (
     Client,
     ControlSettings,
@@ -57,10 +59,18 @@ class ModelLogicTests(TestCase):
         s.renew(30)
         self.assertAlmostEqual((s.expires_at - before).days, 30, delta=1)
 
-    def test_renew_from_now_when_expired(self):
+    def test_renew_preserves_original_cycle_when_expired(self):
         s = self._sub(expires_at=timezone.now() - timedelta(days=2))
+        before = s.expires_at
         s.renew(30)
-        self.assertGreater(s.seconds_left, 28 * 86400)
+        self.assertEqual(
+            (s.expires_at.year, s.expires_at.month, s.expires_at.day),
+            (
+                add_service_duration(before, 30).year,
+                add_service_duration(before, 30).month,
+                add_service_duration(before, 30).day,
+            ),
+        )
 
     def test_telegram_normalized(self):
         c = Client.objects.create(name="X", telegram="pepe")
