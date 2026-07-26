@@ -13,6 +13,15 @@ Antes de salir del VPS, el archivo se cifra con AES-256-CBC, PBKDF2 y
 - `Daily/`: una copia diaria durante 30 días.
 - `Monthly/`: una copia del primer día de cada mes durante 12 meses.
 
+Una segunda instalación del mismo repositorio puede proteger el bot de
+códigos sin mezclar archivos:
+
+```env
+MEGA_FOLDER=/CodesBotBackups
+BACKUP_NAME_PREFIX=codes-bot
+BACKUP_CRON_SCHEDULE=40 3 * * *
+```
+
 ## Restauración
 
 Guarda `BACKUP_ARCHIVE_PASSWORD` también en un gestor de contraseñas fuera del

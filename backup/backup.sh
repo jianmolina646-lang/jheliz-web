@@ -22,14 +22,19 @@ ARCHIVE_PASSWORD="$(read_secret "${BACKUP_ARCHIVE_PASSWORD:-}" "${BACKUP_ARCHIVE
 export ARCHIVE_PASSWORD
 
 MEGA_FOLDER="${MEGA_FOLDER:-/JhelizControlBackups}"
+BACKUP_NAME_PREFIX="${BACKUP_NAME_PREFIX:-jheliz-control}"
+if [[ ! "$BACKUP_NAME_PREFIX" =~ ^[a-z0-9-]+$ ]]; then
+    echo "BACKUP_NAME_PREFIX inválido" >&2
+    exit 1
+fi
 DAILY_FOLDER="${MEGA_FOLDER%/}/Daily"
 MONTHLY_FOLDER="${MEGA_FOLDER%/}/Monthly"
 KEEP_DAYS="${BACKUP_DAILY_KEEP_DAYS:-30}"
 KEEP_MONTHS="${BACKUP_MONTHLY_KEEP_MONTHS:-12}"
 TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
 WORK_DIR="$(mktemp -d)"
-PLAIN_ARCHIVE="$WORK_DIR/jheliz-control-${TIMESTAMP}.tar.gz"
-FINAL_ARCHIVE="/backups/jheliz-control-${TIMESTAMP}.tar.gz.enc"
+PLAIN_ARCHIVE="$WORK_DIR/${BACKUP_NAME_PREFIX}-${TIMESTAMP}.tar.gz"
+FINAL_ARCHIVE="/backups/${BACKUP_NAME_PREFIX}-${TIMESTAMP}.tar.gz.enc"
 
 cleanup() {
     rm -rf "$WORK_DIR"
@@ -88,7 +93,7 @@ mega-put "$FINAL_ARCHIVE" "$DAILY_FOLDER/"
 mega-ls "$DAILY_FOLDER/$(basename "$FINAL_ARCHIVE")" >/dev/null
 
 if [[ "$(date -u +%d)" == "01" ]]; then
-    MONTHLY_NAME="jheliz-control-monthly-$(date -u +%Y%m).tar.gz.enc"
+    MONTHLY_NAME="${BACKUP_NAME_PREFIX}-monthly-$(date -u +%Y%m).tar.gz.enc"
     cp "$FINAL_ARCHIVE" "/backups/$MONTHLY_NAME"
     mega-put "/backups/$MONTHLY_NAME" "$MONTHLY_FOLDER/"
     mega-ls "$MONTHLY_FOLDER/$MONTHLY_NAME" >/dev/null
@@ -98,7 +103,7 @@ fi
 CUTOFF="$(date -u -d "-${KEEP_DAYS} days" +%Y%m%d%H%M%S)"
 while IFS= read -r remote_file; do
     filename="$(basename "$remote_file")"
-    if [[ "$filename" =~ ^jheliz-control-([0-9]{8})-([0-9]{6})\.tar\.gz\.enc$ ]]; then
+    if [[ "$filename" =~ ^${BACKUP_NAME_PREFIX}-([0-9]{8})-([0-9]{6})\.tar\.gz\.enc$ ]]; then
         file_timestamp="${BASH_REMATCH[1]}${BASH_REMATCH[2]}"
         if [[ "$file_timestamp" < "$CUTOFF" ]]; then
             mega-rm "$remote_file"
@@ -107,13 +112,13 @@ while IFS= read -r remote_file; do
 done < <(
     mega-find "$DAILY_FOLDER" \
         --type=f \
-        --pattern="jheliz-control-*.tar.gz.enc"
+        --pattern="${BACKUP_NAME_PREFIX}-*.tar.gz.enc"
 )
 
 MONTH_CUTOFF="$(date -u -d "-${KEEP_MONTHS} months" +%Y%m)"
 while IFS= read -r remote_file; do
     filename="$(basename "$remote_file")"
-    if [[ "$filename" =~ ^jheliz-control-monthly-([0-9]{6})\.tar\.gz\.enc$ ]]; then
+    if [[ "$filename" =~ ^${BACKUP_NAME_PREFIX}-monthly-([0-9]{6})\.tar\.gz\.enc$ ]]; then
         if [[ "${BASH_REMATCH[1]}" < "$MONTH_CUTOFF" ]]; then
             mega-rm "$remote_file"
         fi
@@ -121,8 +126,8 @@ while IFS= read -r remote_file; do
 done < <(
     mega-find "$MONTHLY_FOLDER" \
         --type=f \
-        --pattern="jheliz-control-monthly-*.tar.gz.enc"
+        --pattern="${BACKUP_NAME_PREFIX}-monthly-*.tar.gz.enc"
 )
 
-find /backups -type f -name "jheliz-control-*.tar.gz.enc" -mtime +1 -delete
+find /backups -type f -name "${BACKUP_NAME_PREFIX}-*.tar.gz.enc" -mtime +1 -delete
 echo "Backup cifrado completado: $(basename "$FINAL_ARCHIVE")"
