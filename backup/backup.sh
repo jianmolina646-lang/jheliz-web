@@ -22,7 +22,10 @@ ARCHIVE_PASSWORD="$(read_secret "${BACKUP_ARCHIVE_PASSWORD:-}" "${BACKUP_ARCHIVE
 export ARCHIVE_PASSWORD
 
 MEGA_FOLDER="${MEGA_FOLDER:-/JhelizControlBackups}"
-KEEP_DAYS="${BACKUP_KEEP_DAYS:-7}"
+DAILY_FOLDER="${MEGA_FOLDER%/}/Daily"
+MONTHLY_FOLDER="${MEGA_FOLDER%/}/Monthly"
+KEEP_DAYS="${BACKUP_DAILY_KEEP_DAYS:-30}"
+KEEP_MONTHS="${BACKUP_MONTHLY_KEEP_MONTHS:-12}"
 TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
 WORK_DIR="$(mktemp -d)"
 PLAIN_ARCHIVE="$WORK_DIR/jheliz-control-${TIMESTAMP}.tar.gz"
@@ -79,11 +82,18 @@ if ! mega-whoami >/dev/null 2>&1; then
     mega-login "$MEGA_EMAIL" "$MEGA_PASSWORD"
 fi
 
-if ! mega-ls "$MEGA_FOLDER" >/dev/null 2>&1; then
-    mega-mkdir -p "$MEGA_FOLDER"
+mega-mkdir -p "$DAILY_FOLDER" >/dev/null 2>&1 || true
+mega-mkdir -p "$MONTHLY_FOLDER" >/dev/null 2>&1 || true
+mega-put "$FINAL_ARCHIVE" "$DAILY_FOLDER/"
+mega-ls "$DAILY_FOLDER/$(basename "$FINAL_ARCHIVE")" >/dev/null
+
+if [[ "$(date -u +%d)" == "01" ]]; then
+    MONTHLY_NAME="jheliz-control-monthly-$(date -u +%Y%m).tar.gz.enc"
+    cp "$FINAL_ARCHIVE" "/backups/$MONTHLY_NAME"
+    mega-put "/backups/$MONTHLY_NAME" "$MONTHLY_FOLDER/"
+    mega-ls "$MONTHLY_FOLDER/$MONTHLY_NAME" >/dev/null
+    rm -f "/backups/$MONTHLY_NAME"
 fi
-mega-put "$FINAL_ARCHIVE" "$MEGA_FOLDER/"
-mega-ls "$MEGA_FOLDER/$(basename "$FINAL_ARCHIVE")" >/dev/null
 
 CUTOFF="$(date -u -d "-${KEEP_DAYS} days" +%Y%m%d%H%M%S)"
 while IFS= read -r remote_file; do
@@ -95,9 +105,23 @@ while IFS= read -r remote_file; do
         fi
     fi
 done < <(
-    mega-find "$MEGA_FOLDER" \
+    mega-find "$DAILY_FOLDER" \
         --type=f \
         --pattern="jheliz-control-*.tar.gz.enc"
+)
+
+MONTH_CUTOFF="$(date -u -d "-${KEEP_MONTHS} months" +%Y%m)"
+while IFS= read -r remote_file; do
+    filename="$(basename "$remote_file")"
+    if [[ "$filename" =~ ^jheliz-control-monthly-([0-9]{6})\.tar\.gz\.enc$ ]]; then
+        if [[ "${BASH_REMATCH[1]}" < "$MONTH_CUTOFF" ]]; then
+            mega-rm "$remote_file"
+        fi
+    fi
+done < <(
+    mega-find "$MONTHLY_FOLDER" \
+        --type=f \
+        --pattern="jheliz-control-monthly-*.tar.gz.enc"
 )
 
 find /backups -type f -name "jheliz-control-*.tar.gz.enc" -mtime +1 -delete

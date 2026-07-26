@@ -8,8 +8,10 @@ El servicio `backup` respalda diariamente a las 03:20 (`America/Lima`):
 - `.env` y Docker Secrets necesarios para una restauración completa.
 
 Antes de salir del VPS, el archivo se cifra con AES-256-CBC, PBKDF2 y
-200 000 iteraciones. MEGA recibe únicamente el archivo `.enc`. Se conservan
-los últimos siete días.
+200 000 iteraciones. MEGA recibe únicamente el archivo `.enc`.
+
+- `Daily/`: una copia diaria durante 30 días.
+- `Monthly/`: una copia del primer día de cada mes durante 12 meses.
 
 ## Restauración
 

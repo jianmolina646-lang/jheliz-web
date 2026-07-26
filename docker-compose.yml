@@ -96,7 +96,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jheliz}
       POSTGRES_DB: jheliz
       MEGA_FOLDER: ${MEGA_FOLDER:-/JhelizControlBackups}
-      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+      BACKUP_DAILY_KEEP_DAYS: ${BACKUP_DAILY_KEEP_DAYS:-30}
+      BACKUP_MONTHLY_KEEP_MONTHS: ${BACKUP_MONTHLY_KEEP_MONTHS:-12}
     depends_on:
       db:
         condition: service_healthy
