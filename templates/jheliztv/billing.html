@@ -6,7 +6,8 @@
   </section>
 
   {# ── Estado actual ──────────────────────────────────────────────── #}
-  <div class="jc-panel" style="margin-bottom:16px;">
+  {% if jc_days_left is not None %}{% widthratio jc_days_left 30 100 as plan_progress %}{% endif %}
+  <div class="jc-panel jc-plan-card">
     {% if jc_tenant.subscription_active %}
       <div style="display:flex;align-items:center;gap:12px;">
         <span class="material-symbols-outlined" style="font-size:34px;color:#10b981;background:#d1fae5;border-radius:12px;padding:6px;">verified</span>
@@ -42,9 +43,9 @@
     </div>
   {% endif %}
 
-  <div class="jc-grid2" style="align-items:start;">
+  <div class="jc-grid2 jc-billing-grid">
     {# ── Pago por QR ────────────────────────────────────────────── #}
-    <div class="jc-panel">
+    <div class="jc-panel jc-payment-card">
       <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">qr_code_2</span> Pagá escaneando el QR</h3>
       <div style="text-align:center;">
         {% if saas.yape_qr %}
@@ -64,7 +65,7 @@
     </div>
 
     {# ── Subir comprobante ────────────────────────────────────────── #}
-    <div class="jc-panel">
+    <div class="jc-panel jc-upload-card">
       <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">upload</span> Subir comprobante</h3>
       {% if pending %}
         <p style="color:#6b7280;font-size:13.5px;">Ya tenés un comprobante en revisión. Te avisamos cuando se apruebe.</p>
@@ -86,7 +87,7 @@
 
   {# ── Historial ──────────────────────────────────────────────────── #}
   {% if payments %}
-    <div class="jc-panel" style="margin-top:16px;">
+    <div class="jc-panel jc-payment-history">
       <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">history</span> Mis pagos</h3>
       <div class="jc-table-wrap">
         <table class="jc-table">

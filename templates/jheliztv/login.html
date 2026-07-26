@@ -6,72 +6,110 @@
 
 {% block pb_content %}
 <style>
-  .lg-wrap{max-width:440px;margin:26px auto 60px;padding:0 18px;}
-  .lg-card{background:linear-gradient(160deg,#10b981 0%,#059669 55%,#047857 100%);
-    border-radius:26px;padding:36px 30px 26px;color:#fff;position:relative;overflow:hidden;
-    box-shadow:0 30px 70px -34px rgba(6,78,59,.7);}
-  .lg-card::before{content:"";position:absolute;inset:0;
-    background:radial-gradient(420px 200px at 80% 0%,rgba(255,255,255,.16),transparent 60%);}
-  .lg-logo{width:96px;height:96px;border-radius:26px;margin:0 auto;position:relative;z-index:1;
-    background:linear-gradient(145deg,#34d399,#059669);
-    box-shadow:0 14px 30px rgba(4,40,30,.45),inset 0 2px 4px rgba(255,255,255,.4);
-    display:flex;align-items:center;justify-content:center;}
-  .lg-brand{text-align:center;font-size:24px;font-weight:800;letter-spacing:.6px;margin:18px 0 4px;position:relative;z-index:1;}
-  .lg-tag{text-align:center;color:#d1fae5;font-size:12.5px;margin-bottom:26px;position:relative;z-index:1;}
-  .lg-field{margin-bottom:14px;position:relative;z-index:1;}
-  .lg-field label{display:block;font-size:12.5px;font-weight:700;color:#ecfdf5;margin:0 4px 7px;}
-  .lg-input{background:#fff;border-radius:14px;height:50px;display:flex;align-items:center;
-    padding:0 14px;gap:10px;box-shadow:0 8px 18px rgba(4,40,30,.18);}
-  .lg-input .material-symbols-outlined{font-size:20px;color:#9ca3af;}
-  .lg-input input{border:0;outline:0;flex:1;font-size:15px;color:#111827;background:transparent;}
-  .lg-input input::placeholder{color:#9ca3af;}
-  .lg-btn{width:100%;height:52px;margin-top:8px;border:0;border-radius:14px;cursor:pointer;
-    background:#063d2c;color:#fff;font-size:16px;font-weight:800;letter-spacing:.3px;
-    box-shadow:0 12px 24px rgba(3,30,22,.4);display:flex;align-items:center;justify-content:center;gap:8px;
-    position:relative;z-index:1;}
-  .lg-btn:hover{filter:brightness(1.08);}
-  .lg-sec{text-align:center;color:#d1fae5;font-size:11.5px;margin-top:18px;position:relative;z-index:1;
-    display:flex;align-items:center;justify-content:center;gap:6px;}
-  .lg-sec .material-symbols-outlined{font-size:15px;}
-  .lg-foot{text-align:center;color:#6b7280;font-size:13px;margin-top:18px;}
-  .lg-foot a{color:#059669;font-weight:700;text-decoration:none;}
+  .pb-nav{position:relative;z-index:5;max-width:1180px;padding:18px 24px;}
+  .pb-brand strong{font-size:16px;letter-spacing:-.02em;}
+  .pb-brand small{font-size:9px;color:#789487;}
+  .pb-btn{min-height:38px;border-radius:7px;padding:10px 15px;font-size:11px;}
+  .pb-btn--primary{color:#06130c;background:linear-gradient(135deg,#39efa0,#15bd70);box-shadow:0 8px 28px rgba(25,213,124,.18);}
+
+  .lg-page{position:relative;min-height:calc(100vh - 76px);display:grid;place-items:center;padding:18px 18px 48px;overflow:hidden;}
+  .lg-page::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(540px 390px at 50% 30%,rgba(24,216,126,.10),transparent 68%),
+      linear-gradient(rgba(54,110,76,.025) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(54,110,76,.025) 1px,transparent 1px);
+    background-size:auto,42px 42px,42px 42px;}
+  .lg-page::after{content:"";position:absolute;width:540px;height:540px;left:50%;top:48%;transform:translate(-50%,-50%);
+    border:1px solid rgba(37,220,129,.035);border-radius:50%;box-shadow:0 0 0 85px rgba(32,223,127,.012),0 0 0 170px rgba(32,223,127,.008);pointer-events:none;}
+  .lg-shell{position:relative;z-index:1;width:min(100%,430px);}
+  .lg-card{position:relative;overflow:hidden;padding:30px 30px 23px;border:1px solid rgba(74,163,111,.17);border-radius:17px;
+    color:#eaf5ef;background:linear-gradient(165deg,rgba(11,27,18,.98),rgba(5,14,9,.99));
+    box-shadow:0 30px 90px rgba(0,0,0,.48),inset 0 1px rgba(255,255,255,.025);}
+  .lg-card::before{content:"";position:absolute;inset:0;background:radial-gradient(330px 230px at 50% 8%,rgba(25,220,127,.14),transparent 65%);pointer-events:none;}
+  .lg-visual{position:relative;height:122px;display:grid;place-items:center;margin:-8px 0 1px;}
+  .lg-orbits,.lg-orbits::before,.lg-orbits::after{position:absolute;border:1px solid rgba(40,225,134,.10);border-radius:50%;}
+  .lg-orbits{width:178px;height:96px}.lg-orbits::before,.lg-orbits::after{content:"";inset:15px -22px;transform:rotate(24deg)}
+  .lg-orbits::after{transform:rotate(-24deg)}
+  .lg-dot{position:absolute;width:5px;height:5px;border-radius:50%;background:#20df7f;box-shadow:0 0 12px #20df7f;}
+  .lg-dot--a{left:27px;top:26px}.lg-dot--b{right:37px;top:14px}.lg-dot--c{right:17px;bottom:25px}.lg-dot--d{left:13px;bottom:17px}
+  .lg-logo{position:relative;z-index:2;width:76px;height:76px;display:grid;place-items:center;border:1px solid rgba(124,255,186,.35);border-radius:22px;
+    color:white;background:linear-gradient(145deg,#43eda0,#0e9e5a);box-shadow:0 0 0 9px rgba(32,223,127,.035),0 0 34px rgba(32,223,127,.28),inset 0 2px 2px rgba(255,255,255,.28);}
+  .lg-logo span{font-size:28px;font-weight:800;letter-spacing:-2px;text-shadow:0 2px 8px rgba(0,0,0,.2);}
+  .lg-brand{text-align:center;margin:3px 0 4px;font-size:23px;font-weight:800;letter-spacing:-.055em;color:#ecf8f1;}
+  .lg-brand em{color:#2bdf82;font-style:normal;}
+  .lg-tag{text-align:center;margin:0 0 23px;color:#718c7e;font-size:10px;}
+  .lg-field{position:relative;margin-bottom:14px;}
+  .lg-field label{display:block;margin:0 1px 7px;color:#2cda80;font-size:10px;font-weight:600;}
+  .lg-input{height:47px;display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid rgba(98,146,119,.16);border-radius:8px;background:#06110c;transition:border-color .18s,box-shadow .18s;}
+  .lg-input:focus-within{border-color:rgba(42,226,133,.55);box-shadow:0 0 0 3px rgba(32,223,127,.07);}
+  .lg-input .material-symbols-outlined{font-size:18px;color:#2add83;}
+  .lg-input input{width:100%;border:0;outline:0;color:#edf8f2;background:transparent;font:500 12px/1.2 Inter,system-ui,sans-serif;}
+  .lg-input input::placeholder{color:#5e7669;}
+  .lg-btn{width:100%;height:49px;display:flex;align-items:center;justify-content:center;gap:12px;margin-top:5px;border:0;border-radius:8px;cursor:pointer;
+    color:#05130b;background:linear-gradient(180deg,#37e998,#13b969);box-shadow:0 12px 32px rgba(20,203,113,.19);
+    font-size:12px;font-weight:750;transition:transform .18s,filter .18s,box-shadow .18s;}
+  .lg-btn:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 15px 36px rgba(20,203,113,.25);}
+  .lg-btn:active{transform:translateY(0)}.lg-btn .material-symbols-outlined{font-size:18px;}
+  .lg-sec{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:18px;color:#668175;font-size:9px;}
+  .lg-sec .material-symbols-outlined{font-size:14px;color:#26c876;}
+  .lg-join{display:flex;align-items:center;gap:11px;margin-top:10px;padding:12px 14px;border:1px solid rgba(98,146,119,.13);border-radius:9px;background:rgba(8,20,13,.82);}
+  .lg-join__icon{width:32px;height:32px;display:grid;place-items:center;flex:0 0 32px;border-radius:50%;color:#9aafa4;background:#101e17;}
+  .lg-join__icon .material-symbols-outlined{font-size:16px}
+  .lg-join p{flex:1;margin:0;color:#81978b;font-size:9px;line-height:1.45}.lg-join strong{display:block;color:#d6e5dd;font-size:10px}
+  .lg-join a{padding:7px 9px;border:1px solid rgba(32,223,127,.16);border-radius:6px;color:#2add83;background:#0a1a11;text-decoration:none;font-size:9px;font-weight:700;white-space:nowrap;}
+  .lg-join a:hover{border-color:#20df7f;background:rgba(32,223,127,.07)}
+
+  @media(max-width:600px){
+    .pb-nav{padding:13px 14px}.pb-brand svg{width:34px;height:34px}.pb-brand strong{font-size:13px}.pb-brand small{font-size:8px}
+    .pb-btn{min-height:34px;padding:8px 11px;font-size:9px}.lg-page{min-height:calc(100vh - 62px);padding:10px 10px 28px}
+    .lg-shell{max-width:360px}.lg-card{padding:22px 20px 18px;border-radius:14px}.lg-visual{height:104px}
+    .lg-logo{width:68px;height:68px;border-radius:19px}.lg-brand{font-size:20px}.lg-tag{margin-bottom:18px}
+    .lg-input{height:44px}.lg-btn{height:46px}.lg-join{padding:10px}
+  }
 </style>
 
-<div class="lg-wrap">
-  <div class="lg-card">
-    <div class="lg-logo">
-      <svg viewBox="0 0 62 62" width="58" height="58" aria-hidden="true">
-        <path d="M14 8 L52 31 L14 54 Z" fill="rgba(255,255,255,.18)"/>
-        <text x="29" y="40" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif"
-          font-size="29" font-weight="800" fill="#ffffff" letter-spacing="-3">JC</text>
-      </svg>
+<main class="lg-page">
+  <div class="lg-shell">
+    <section class="lg-card" aria-labelledby="loginTitle">
+      <div class="lg-visual" aria-hidden="true">
+        <div class="lg-orbits"></div>
+        <i class="lg-dot lg-dot--a"></i><i class="lg-dot lg-dot--b"></i><i class="lg-dot lg-dot--c"></i><i class="lg-dot lg-dot--d"></i>
+        <div class="lg-logo"><span>JC</span></div>
+      </div>
+      <h1 class="lg-brand" id="loginTitle">JHELIZ<em>CONTROLTV</em></h1>
+      <p class="lg-tag">Sistema de gestión de suscripciones</p>
+
+      <form method="post" action="{% url 'jheliztv_login' %}">
+        {% csrf_token %}
+        <div class="lg-field">
+          <label for="jcLoginUsername">Usuario</label>
+          <div class="lg-input">
+            <span class="material-symbols-outlined" aria-hidden="true">person</span>
+            <input id="jcLoginUsername" type="text" name="username" value="{{ username|default:'' }}"
+                   placeholder="Tu usuario" required autofocus autocomplete="username">
+          </div>
+        </div>
+        <div class="lg-field">
+          <label for="jcLoginPassword">Contraseña</label>
+          <div class="lg-input">
+            <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+            <input id="jcLoginPassword" type="password" name="password" placeholder="Tu contraseña"
+                   required autocomplete="current-password">
+          </div>
+        </div>
+        <button type="submit" class="lg-btn">
+          Iniciar sesión <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+        </button>
+      </form>
+
+      <div class="lg-sec"><span class="material-symbols-outlined" aria-hidden="true">verified_user</span>Tus datos están protegidos y cifrados</div>
+    </section>
+
+    <div class="lg-join">
+      <span class="lg-join__icon"><span class="material-symbols-outlined" aria-hidden="true">group_add</span></span>
+      <p><strong>¿No tienes cuenta?</strong>Crea tu cuenta gratis y comienza ahora.</p>
+      <a href="{% url 'jheliztv_register' %}">Crear cuenta</a>
     </div>
-    <div class="lg-brand">JHELIZCONTROLTV</div>
-    <div class="lg-tag">Sistema de gestión de suscripciones</div>
-
-    <form method="post" action="{% url 'jheliztv_login' %}">
-      {% csrf_token %}
-      <div class="lg-field">
-        <label>Usuario</label>
-        <div class="lg-input">
-          <span class="material-symbols-outlined">person</span>
-          <input type="text" name="username" value="{{ username|default:'' }}" placeholder="Tu usuario"
-                 required autofocus autocomplete="username">
-        </div>
-      </div>
-      <div class="lg-field">
-        <label>Contraseña</label>
-        <div class="lg-input">
-          <span class="material-symbols-outlined">lock</span>
-          <input type="password" name="password" placeholder="Tu contraseña"
-                 required autocomplete="current-password">
-        </div>
-      </div>
-      <button type="submit" class="lg-btn">Iniciar Sesión <span class="material-symbols-outlined">arrow_forward</span></button>
-    </form>
-
-    <div class="lg-sec"><span class="material-symbols-outlined">verified_user</span> Tus datos están protegidos y cifrados</div>
   </div>
-  <p class="lg-foot">¿No tenés cuenta? <a href="{% url 'jheliztv_register' %}">Creala gratis</a></p>
-</div>
+</main>
 {% endblock %}
