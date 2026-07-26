@@ -70,15 +70,29 @@ def _call(method, **payload):
     if not token:
         raise RuntimeError("JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN no configurado")
     response = requests.post(API.format(token=token, method=method), json=payload, timeout=35)
-    if response.status_code == 400 and (
-        (
-            payload.get("reply_markup")
-            and _has_button_styling(payload["reply_markup"])
-        )
-        or "<tg-emoji" in payload.get("text", "")
+    # Telegram puede rechazar un icono de botón aunque los custom emojis del
+    # mensaje sean válidos. Degradar cada capacidad por separado evita que un
+    # solo botón haga desaparecer todo el set Premium del resumen.
+    if (
+        response.status_code == 400
+        and payload.get("reply_markup")
+        and _has_button_styling(payload["reply_markup"])
     ):
-        if payload.get("reply_markup"):
-            payload["reply_markup"] = _without_button_styling(payload["reply_markup"])
+        logger.warning(
+            "Telegram rechazó estilos/iconos de botones; reintentando sin ellos: %s",
+            response.text[:500],
+        )
+        payload["reply_markup"] = _without_button_styling(payload["reply_markup"])
+        response = requests.post(
+            API.format(token=token, method=method),
+            json=payload,
+            timeout=35,
+        )
+    if response.status_code == 400 and "<tg-emoji" in payload.get("text", ""):
+        logger.warning(
+            "Telegram rechazó un custom emoji del mensaje; usando Unicode: %s",
+            response.text[:500],
+        )
         payload["text"] = without_custom_emoji(payload.get("text", ""))
         response = requests.post(
             API.format(token=token, method=method),
