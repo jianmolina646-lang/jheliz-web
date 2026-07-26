@@ -3,7 +3,7 @@ FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash ca-certificates cron openssl postgresql-client tzdata wget \
+    bash ca-certificates cron curl openssl postgresql-client tzdata wget \
     && wget -q \
       https://mega.nz/linux/repo/xUbuntu_24.04/amd64/megacmd-xUbuntu_24.04_amd64.deb \
       -O /tmp/megacmd.deb \

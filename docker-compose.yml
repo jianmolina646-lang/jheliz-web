@@ -100,6 +100,7 @@ services:
       BACKUP_MONTHLY_KEEP_MONTHS: ${BACKUP_MONTHLY_KEEP_MONTHS:-12}
       BACKUP_NAME_PREFIX: "${BACKUP_NAME_PREFIX:-jheliz-control}"
       BACKUP_CRON_SCHEDULE: "${BACKUP_CRON_SCHEDULE:-20 3 * * *}"
+      BACKUP_NOTIFY_SUCCESS: "${BACKUP_NOTIFY_SUCCESS:-true}"
     depends_on:
       db:
         condition: service_healthy

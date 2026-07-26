@@ -12,6 +12,22 @@ read_secret() {
     fi
 }
 
+notify_telegram() {
+    local message="$1"
+    local token
+    token="$(read_secret "${BACKUP_TELEGRAM_BOT_TOKEN:-}" "${BACKUP_TELEGRAM_BOT_TOKEN_FILE:-}")"
+    local chat_id="${BACKUP_TELEGRAM_CHAT_ID:-}"
+    if [[ -z "$token" || -z "$chat_id" ]]; then
+        return 0
+    fi
+    curl --fail --silent --show-error --max-time 20 \
+        --data-urlencode "chat_id=$chat_id" \
+        --data-urlencode "text=$message" \
+        --data-urlencode "parse_mode=HTML" \
+        "https://api.telegram.org/bot${token}/sendMessage" \
+        >/dev/null 2>&1 || true
+}
+
 : "${POSTGRES_USER:?POSTGRES_USER no configurado}"
 : "${POSTGRES_DB:?POSTGRES_DB no configurado}"
 
@@ -36,10 +52,18 @@ WORK_DIR="$(mktemp -d)"
 PLAIN_ARCHIVE="$WORK_DIR/${BACKUP_NAME_PREFIX}-${TIMESTAMP}.tar.gz"
 FINAL_ARCHIVE="/backups/${BACKUP_NAME_PREFIX}-${TIMESTAMP}.tar.gz.enc"
 
-cleanup() {
+on_exit() {
+    local status=$?
     rm -rf "$WORK_DIR"
+    if (( status != 0 )); then
+        notify_telegram "🔴 <b>BACKUP FALLIDO</b>
+
+Sistema: <b>${BACKUP_NAME_PREFIX}</b>
+Revisa los logs del VPS."
+    fi
+    return "$status"
 }
-trap cleanup EXIT
+trap on_exit EXIT
 
 mkdir -p "$WORK_DIR/payload/config"
 export PGPASSWORD="$DB_PASSWORD"
@@ -130,4 +154,11 @@ done < <(
 )
 
 find /backups -type f -name "${BACKUP_NAME_PREFIX}-*.tar.gz.enc" -mtime +1 -delete
+if [[ "${BACKUP_NOTIFY_SUCCESS:-true}" == "true" ]]; then
+    notify_telegram "✅ <b>BACKUP COMPLETADO</b>
+
+Sistema: <b>${BACKUP_NAME_PREFIX}</b>
+Archivo: <code>$(basename "$FINAL_ARCHIVE")</code>
+Retención: 30 días + 12 meses."
+fi
 echo "Backup cifrado completado: $(basename "$FINAL_ARCHIVE")"
