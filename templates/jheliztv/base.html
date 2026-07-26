@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title|default:"JHELIZCONTROLTV" }} · JHELIZCONTROLTV</title>
   <meta name="robots" content="noindex,nofollow">
+  <script>
+    (function(){if(localStorage.getItem("jc-theme")==="light"){document.documentElement.classList.add("jc-theme-light");}})();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet"
@@ -72,6 +75,9 @@
       </form>
 
       <div class="jc-topbar__actions">
+        <button type="button" class="jc-bell" id="jcThemeToggle" aria-label="Cambiar tema" title="Cambiar tema">
+          <span class="material-symbols-outlined" id="jcThemeIcon">light_mode</span>
+        </button>
         <button type="button" class="jc-bell" id="jcBell" aria-label="Notificaciones">
           <span class="material-symbols-outlined">notifications</span>
           <span class="jc-bell__count" id="jcBellCount" hidden>0</span>
@@ -106,7 +112,7 @@
   </section>
 </div>
 
-<script src="{% static 'js/jheliz-control.js' %}"></script>
+<script src="{% static 'js/jheliz-control.js' %}?v=theme-toggle-20260726"></script>
 {% block jc_scripts %}{% endblock %}
 </body>
 </html>

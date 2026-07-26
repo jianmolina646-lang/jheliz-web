@@ -1136,3 +1136,76 @@ html, body { min-height: 100%; background: #070b09 !important; }
   .jc-mobile-brand strong { display:none; }
   .jc-workspace .jc-topbar__actions>.jc-btn span:last-child { display:none; }
 }
+
+/* Optional light appearance — same hierarchy and emerald identity */
+.jc-theme-light body { background:#edf2ef !important; }
+.jc-theme-light .jc {
+  --jc-card:#ffffff;
+  --jc-card-raised:#ffffff;
+  --jc-bg:#edf2ef;
+  --jc-ink:#17231d;
+  --jc-muted:#66766d;
+  --jc-line:rgba(25,61,42,.12);
+  --jc-green-deep:#087a45;
+  color-scheme:light;
+}
+.jc-theme-light .jc.jc-app { color:#17231d;background:#edf2ef; }
+.jc-theme-light .jc-sidebar { border-color:rgba(25,61,42,.1);background:linear-gradient(180deg,#fbfdfc,#f4f8f6);box-shadow:18px 0 48px rgba(20,50,34,.06); }
+.jc-theme-light .jc-sidebar .jc-brand { border-color:rgba(25,61,42,.1); }
+.jc-theme-light .jc-brand__txt strong { color:#17231d; }
+.jc-theme-light .jc-brand__txt small,.jc-theme-light .jc-sidebar__footer small { color:#718078; }
+.jc-theme-light .jc-nav-label { color:#8a9890; }
+.jc-theme-light .jc-sidebar .jc-tab { color:#65756c; }
+.jc-theme-light .jc-sidebar .jc-tab:hover { color:#17231d;background:rgba(16,185,129,.055); }
+.jc-theme-light .jc-sidebar .jc-tab.is-active { color:#087a45;background:rgba(16,185,129,.1);box-shadow:inset 0 0 0 1px rgba(16,185,129,.12); }
+.jc-theme-light .jc-sidebar .jc-tab .material-symbols-outlined { color:#74847b; }
+.jc-theme-light .jc-sidebar .jc-tab.is-active .material-symbols-outlined { color:#0c9c59; }
+.jc-theme-light .jc-sidebar__footer { border-color:rgba(25,61,42,.1);background:#fff; }
+.jc-theme-light .jc-sidebar__status { color:#4f6057; }
+.jc-theme-light .jc-workspace { background:#edf2ef; }
+.jc-theme-light .jc-workspace>.jc-topbar { border-color:rgba(25,61,42,.11);background:rgba(255,255,255,.88);box-shadow:0 12px 30px rgba(20,50,34,.035); }
+.jc-theme-light .jc-mobile-brand { color:#17231d; }
+.jc-theme-light .jc-search,.jc-theme-light .jc-search-box,.jc-theme-light .jc-bell,.jc-theme-light .jc-topbar__actions>.jc-btn { color:#53635a;border-color:rgba(25,61,42,.12);background:#f4f7f5; }
+.jc-theme-light .jc-search input { color:#17231d; }
+.jc-theme-light .jc-search input::placeholder,.jc-theme-light .jc-search-box input::placeholder { color:#93a098; }
+.jc-theme-light .jc-bell:hover { background:#e9f7ef; }
+.jc-theme-light .jc-bell__panel { border-color:rgba(25,61,42,.12);background:#fff;box-shadow:0 24px 60px rgba(20,50,34,.14); }
+.jc-theme-light .jc-bell__item { color:#25342c; }
+.jc-theme-light .jc-bell__item:hover { background:#f2f7f4; }
+.jc-theme-light .jc-page-head { border-color:rgba(25,61,42,.11); }
+.jc-theme-light .jc-page-head h1,.jc-theme-light .jc-section-title,.jc-theme-light .jc-card h2,.jc-theme-light .jc-card h3,.jc-theme-light .jc-panel h2,.jc-theme-light .jc-panel h3 { color:#17231d; }
+.jc-theme-light .jc-page-head p:not(.jc-eyebrow),.jc-theme-light .jc-card p,.jc-theme-light .jc-panel p { color:#687970; }
+.jc-theme-light .jc-panel,.jc-theme-light .jc-card,.jc-theme-light .jc-metric,.jc-theme-light .jc-svc,.jc-theme-light .jc-client,.jc-theme-light .jc-svc-head,.jc-theme-light .jc-kpi {
+  border-color:rgba(25,61,42,.11);
+  color:#25342c;
+  background:#fff;
+  box-shadow:0 14px 36px rgba(20,50,34,.045);
+}
+.jc-theme-light .jc-metric { background:radial-gradient(circle at 100% 100%,rgba(16,185,129,.07),transparent 42%),#fff; }
+.jc-theme-light .jc-metric__v,.jc-theme-light .jc-kpi__val,.jc-theme-light .jc-svc__name,.jc-theme-light .jc-client__name,.jc-theme-light .jc-cname { color:#17231d; }
+.jc-theme-light .jc-svc:hover,.jc-theme-light .jc-client:hover { border-color:rgba(16,185,129,.3);background:#fbfefc; }
+.jc-theme-light .jc-svc__ph { color:#087a45;background:#edf8f2; }
+.jc-theme-light .jc-csub2,.jc-theme-light .jc-csub,.jc-theme-light .jc-acctbox,.jc-theme-light .jc-optbox,.jc-theme-light .jc-quickpick { border-color:rgba(25,61,42,.1);background:#f7faf8; }
+.jc-theme-light .jc-csub2:hover { background:#f0f8f3; }
+.jc-theme-light .jc-table-wrap { border-color:rgba(25,61,42,.11);background:#fff; }
+.jc-theme-light .jc-table { color:#2c3a32; }
+.jc-theme-light .jc-table th { color:#718078;border-color:rgba(25,61,42,.1);background:#f4f7f5; }
+.jc-theme-light .jc-table td { border-color:rgba(25,61,42,.08); }
+.jc-theme-light .jc-table tbody tr:hover td { background:#f7fbf8; }
+.jc-theme-light .jc-btn--ghost,.jc-theme-light .jc-btn--secondary,.jc-theme-light .jc-cbtn,.jc-theme-light .jc-iact,.jc-theme-light .jc-usr__ic { color:#53635a;border-color:rgba(25,61,42,.13);background:#fff; }
+.jc-theme-light .jc-btn--ghost:hover,.jc-theme-light .jc-btn--secondary:hover { color:#087a45;border-color:rgba(16,185,129,.28);background:#eff9f3; }
+.jc-theme-light .jc-field label { color:#526259; }
+.jc-theme-light .jc-field input,.jc-theme-light .jc-field select,.jc-theme-light .jc-field textarea,.jc-theme-light .jc-csearch,.jc-theme-light .jc-clients-search-form input,.jc-theme-light .jc select,.jc-theme-light .jc input[type="search"] { color:#17231d;border-color:rgba(25,61,42,.14);background:#fff; }
+.jc-theme-light .jc fieldset { border-color:rgba(25,61,42,.12);background:#f7faf8; }
+.jc-theme-light .jc legend { color:#526259; }
+.jc-theme-light .jc-modal__backdrop { background:rgba(19,32,24,.45); }
+.jc-theme-light .jc-modal__box,.jc-theme-light .jc-modal__head,.jc-theme-light .jc-modal__foot { color:#25342c;border-color:rgba(25,61,42,.12);background:#fff; }
+.jc-theme-light .jc-modal__head h3 { color:#17231d; }
+.jc-theme-light .jc-modal__close { color:#65756c;background:#f1f5f3; }
+.jc-theme-light .jc-empty { color:#718078;border-color:rgba(25,61,42,.14);background:#f7faf8; }
+.jc-theme-light .jc [style*="background:#fff"],.jc-theme-light .jc [style*="background: #fff"] { background:#fff !important; }
+.jc-theme-light .jc [style*="color:#374151"],.jc-theme-light .jc [style*="color: #374151"] { color:#37473e !important; }
+.jc-theme-light .jc [style*="color:#6b7280"],.jc-theme-light .jc [style*="color: #6b7280"] { color:#697970 !important; }
+@media(max-width:900px){
+  .jc-theme-light .jc-sidebar .jc-tabs { border-color:rgba(25,61,42,.13);background:rgba(255,255,255,.96);box-shadow:0 18px 45px rgba(20,50,34,.14); }
+}

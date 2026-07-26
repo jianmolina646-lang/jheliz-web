@@ -3,6 +3,26 @@
 (function () {
   "use strict";
 
+  // Tema visual persistente (solo presentaciÃ³n).
+  var themeToggle = document.getElementById("jcThemeToggle");
+  var themeIcon = document.getElementById("jcThemeIcon");
+  function syncThemeIcon() {
+    var isLight = document.documentElement.classList.contains("jc-theme-light");
+    if (themeIcon) { themeIcon.textContent = isLight ? "dark_mode" : "light_mode"; }
+    if (themeToggle) {
+      themeToggle.setAttribute("aria-label", isLight ? "Usar modo oscuro" : "Usar modo claro");
+      themeToggle.setAttribute("title", isLight ? "Usar modo oscuro" : "Usar modo claro");
+    }
+  }
+  if (themeToggle) {
+    themeToggle.addEventListener("click", function () {
+      var isLight = document.documentElement.classList.toggle("jc-theme-light");
+      localStorage.setItem("jc-theme", isLight ? "light" : "dark");
+      syncThemeIcon();
+    });
+  }
+  syncThemeIcon();
+
   // ── Modales (fade + backdrop) ─────────────────────────────────────────
   function openModal(id) {
     var m = document.getElementById(id);
