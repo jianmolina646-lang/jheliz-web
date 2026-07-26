@@ -1338,6 +1338,68 @@ html, body { min-height: 100%; background: #070b09 !important; }
   .jc-billing-grid{grid-template-columns:1fr!important}
 }
 
+/* JHELIZCONTROLTV 6.0 — exact screen-density pass */
+.jc-page-head--emails,.jc-page-head--clients,.jc-page-head--billing{
+  min-height:62px;margin-bottom:10px;padding:0 0 11px;border-bottom:0
+}
+.jc-page-head--emails h1,.jc-page-head--clients h1,.jc-page-head--billing h1{font-size:22px}
+.jc-page-head--emails .jc-eyebrow,.jc-page-head--clients .jc-eyebrow,.jc-page-head--billing .jc-eyebrow{font-size:7px}
+.jc-page-head--emails p,.jc-page-head--clients p,.jc-page-head--billing p{font-size:9px}
+
+/* Correos: KPI row + compact searchable inventory */
+.jc-page-head--emails~.jc-stock-summary{grid-template-columns:1.05fr repeat(4,1fr);gap:7px}
+.jc-page-head--emails~.jc-stock-summary>.jc-panel{height:76px;min-height:76px;padding:10px!important;border-radius:6px!important}
+.jc-page-head--emails~.jc-stock-summary .jc-stock-total>div:first-child{font-size:8px!important}
+.jc-page-head--emails~.jc-stock-summary [style*="font-size:20px"]{font-size:17px!important}
+.jc-page-head--emails~.jc-filterbar{height:44px;margin:0 0 7px;padding:5px 6px;border-radius:6px}
+.jc-page-head--emails~.jc-filterbar input,.jc-page-head--emails~.jc-filterbar select{height:32px!important;font-size:9px!important}
+.jc-page-head--emails~.jc-stock-table{border-radius:6px}
+.jc-page-head--emails~.jc-stock-table table{font-size:9px}
+.jc-page-head--emails~.jc-stock-table thead tr{background:#07100b!important;color:#668174!important;font-size:7px!important}
+.jc-page-head--emails~.jc-stock-table th{padding:8px 9px!important}
+.jc-page-head--emails~.jc-stock-table td{height:39px;padding:6px 9px!important;color:#a9bbb1!important}
+.jc-page-head--emails~.jc-stock-table td:nth-child(2){color:#e1ece6!important;font-weight:650}
+.jc-page-head--emails~.jc-stock-table td:nth-child(3){font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#718b7d!important}
+.jc-page-head--emails~.jc-stock-table td [style*="background:#d1fae5"]{background:rgba(32,223,127,.09)!important;color:#27df83!important}
+.jc-page-head--emails~.jc-stock-table td [style*="background:#fee2e2"]{background:rgba(255,80,93,.09)!important;color:#ff6672!important}
+.jc-page-head--emails~.jc-stock-table .jc-btn{height:25px;min-height:25px;border-radius:5px}
+
+/* Clientes: identical dashboard strip and dense row register */
+.jc-page-head--clients~.jc-board-stats{margin-bottom:8px}
+.jc-page-head--clients~.jc-board-stats .jc-board-stat{height:67px;min-height:67px}
+.jc-page-head--clients~.jc-register-shell{padding:7px;border-radius:6px}
+.jc-page-head--clients~.jc-register-shell .jc-clients-search-form{height:38px}
+.jc-page-head--clients~.jc-register-shell .jc-sortbar{min-height:34px}
+.jc-page-head--clients~.jc-register-shell .jc-client{min-height:67px;padding:7px 9px}
+.jc-page-head--clients~.jc-register-shell .jc-avatar{width:30px;height:30px}
+.jc-page-head--clients~.jc-register-shell .jc-client__name{font-size:10px}
+.jc-page-head--clients~.jc-register-shell .jc-csub2{min-height:39px;padding:5px}
+.jc-page-head--clients~.jc-register-shell .jc-csub2__logo{width:24px;height:24px}
+
+/* Subscription: plan banner, equal payment cards, history strip */
+.jc-page-head--billing~.jc-plan-card{padding:13px 15px!important}
+.jc-page-head--billing~.jc-plan-card>div:first-child{min-height:48px}
+.jc-page-head--billing~.jc-plan-card [style*="font-size:34px"]{font-size:25px!important;padding:8px!important}
+.jc-page-head--billing~.jc-plan-card [style*="font-size:16px"]{font-size:13px!important}
+.jc-page-head--billing~.jc-billing-grid{grid-template-columns:1fr 1fr!important;gap:7px!important}
+.jc-page-head--billing~.jc-billing-grid>.jc-panel{min-height:280px;padding:13px!important}
+.jc-page-head--billing~.jc-billing-grid .jc-section-title{font-size:10px!important}
+.jc-page-head--billing~.jc-billing-grid .jc-payment-qr,
+.jc-page-head--billing~.jc-billing-grid img{width:145px!important;max-width:145px!important}
+.jc-page-head--billing~.jc-payment-history{padding:11px!important}
+.jc-page-head--billing~.jc-payment-history .jc-section-title{font-size:10px!important}
+.jc-page-head--billing~.jc-payment-history .jc-table th{font-size:7px}
+.jc-page-head--billing~.jc-payment-history .jc-table td{font-size:9px}
+
+@media(max-width:720px){
+  .jc-page-head--emails~.jc-stock-summary{grid-template-columns:repeat(2,1fr)}
+  .jc-page-head--emails~.jc-stock-summary>.jc-panel:first-child{grid-column:1/-1}
+  .jc-page-head--emails~.jc-filterbar{height:auto}
+  .jc-page-head--clients~.jc-board-stats{grid-template-columns:repeat(2,1fr)}
+  .jc-page-head--clients~.jc-register-shell .jc-client{min-height:auto}
+  .jc-page-head--billing~.jc-billing-grid{grid-template-columns:1fr!important}
+}
+
 /* JHELIZCONTROLTV 5.0 — reference composition rebuild */
 .jc-workspace{background:
   radial-gradient(900px 480px at 46% -10%,rgba(20,168,91,.055),transparent 72%),

@@ -1,7 +1,7 @@
 {% extends "jheliztv/base.html" %}
 
 {% block jc_content %}
-  <section class="jc-page-head">
+  <section class="jc-page-head jc-page-head--emails">
     <div><p class="jc-eyebrow">Inventario de accesos</p><h1>Correos</h1><p>Controla disponibilidad, credenciales asignadas y stock por plataforma.</p></div>
     <button type="button" class="jc-btn" data-jc-open="modalEmailAdd">
       <span class="material-symbols-outlined">add</span> Agregar correos
@@ -20,7 +20,7 @@
       </div>
       {% for s in summary %}
         {% if s.total %}
-        <a class="jc-panel" href="?servicio={{ s.service.pk }}" style="padding:14px;text-decoration:none;color:inherit;{% if service_id == s.service.pk|stringformat:'s' %}outline:2px solid #10b981;{% endif %}">
+        <a class="jc-panel jc-stock-service{% if service_id == s.service.pk|stringformat:'s' %} is-selected{% endif %}" href="?servicio={{ s.service.pk }}">
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;{% if s.service.image %}background-image:url('{{ s.service.image.url }}');background-size:cover;{% else %}background:{{ s.service.color|default:'#10b981' }};{% endif %}">{% if not s.service.image %}{{ s.service.name|first|upper }}{% endif %}</span>
             <strong style="font-size:13px;">{{ s.service.name }}</strong>
@@ -41,13 +41,13 @@
       <span class="material-symbols-outlined">search</span>
       <input type="search" name="q" value="{{ q }}" placeholder="Buscar correo…" autocomplete="off">
     </div>
-    <select name="servicio" onchange="this.form.submit()" style="padding:9px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;">
+    <select name="servicio" onchange="this.form.submit()">
       <option value="">Todas las plataformas</option>
       {% for svc in services %}
         <option value="{{ svc.pk }}" {% if service_id == svc.pk|stringformat:'s' %}selected{% endif %}>{{ svc.name }}</option>
       {% endfor %}
     </select>
-    <select name="estado" onchange="this.form.submit()" style="padding:9px 12px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;">
+    <select name="estado" onchange="this.form.submit()">
       <option value="">Todos los estados</option>
       <option value="available" {% if status == 'available' %}selected{% endif %}>✅ Disponibles</option>
       <option value="sold" {% if status == 'sold' %}selected{% endif %}>🔒 Vendidos</option>
@@ -62,7 +62,7 @@
     <div class="jc-panel jc-stock-table">
       <table>
         <thead>
-          <tr style="text-align:left;background:#f9fafb;color:#6b7280;font-size:12px;">
+          <tr>
             <th style="padding:10px 14px;">Plataforma</th>
             <th style="padding:10px 14px;">Correo</th>
             <th style="padding:10px 14px;">Contraseña</th>
@@ -73,7 +73,7 @@
         </thead>
         <tbody>
           {% for e in emails %}
-            <tr style="border-top:1px solid #f3f4f6;">
+            <tr>
               <td style="padding:10px 14px;white-space:nowrap;">
                 <span style="display:inline-flex;align-items:center;gap:7px;">
                   <span style="width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:11px;{% if e.service.image %}background-image:url('{{ e.service.image.url }}');background-size:cover;{% else %}background:{{ e.service.color|default:'#10b981' }};{% endif %}">{% if not e.service.image %}{{ e.service.name|first|upper }}{% endif %}</span>
