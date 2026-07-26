@@ -1473,3 +1473,31 @@ html, body { min-height: 100%; background: #070b09 !important; }
   .jc-stock-summary{grid-template-columns:repeat(2,1fr)}
   .jc-billing-grid{grid-template-columns:1fr!important}
 }
+
+/* JHELIZCONTROLTV 7.0 — final cascade fix for Correos + Mi suscripción */
+body .jc-page-head--emails~.jc-stock-summary{grid-template-columns:1.05fr repeat(4,minmax(0,1fr));gap:7px}
+body .jc-page-head--emails~.jc-stock-summary>.jc-panel{height:76px;min-height:76px;padding:10px!important;border-radius:6px!important;background:#09140e!important}
+body .jc-page-head--emails~.jc-filterbar{height:44px;margin:0 0 7px;padding:5px 6px;border-radius:6px}
+body .jc-page-head--emails~.jc-stock-table{border-radius:6px;background:#07110c}
+body .jc-page-head--emails~.jc-stock-table table{font-size:9px}
+body .jc-page-head--emails~.jc-stock-table thead tr{background:#07100b!important;color:#668174!important;font-size:7px!important}
+body .jc-page-head--emails~.jc-stock-table th{padding:8px 9px!important}
+body .jc-page-head--emails~.jc-stock-table td{height:39px;padding:6px 9px!important;color:#a9bbb1!important}
+body .jc-page-head--emails~.jc-stock-table td:nth-child(2){color:#e1ece6!important;font-weight:650}
+body .jc-page-head--emails~.jc-stock-table td:nth-child(3){font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#718b7d!important}
+body .jc-page-head--emails~.jc-stock-table .jc-btn{height:25px;min-height:25px;border-radius:5px}
+
+body .jc-page-head--billing~.jc-plan-card{padding:13px 15px!important;background:linear-gradient(145deg,#0b1811,#07100b)!important}
+body .jc-page-head--billing~.jc-billing-grid{grid-template-columns:1fr 1fr!important;gap:7px!important}
+body .jc-page-head--billing~.jc-billing-grid>.jc-panel{min-height:280px;padding:13px!important;background:linear-gradient(145deg,#0b1811,#07100b)!important}
+body .jc-page-head--billing~.jc-billing-grid .jc-section-title{font-size:10px!important}
+body .jc-page-head--billing~.jc-billing-grid img{width:145px!important;max-width:145px!important;border-radius:5px!important}
+body .jc-page-head--billing~.jc-payment-history{margin-top:7px!important;padding:11px!important;background:linear-gradient(145deg,#0b1811,#07100b)!important}
+body .jc-page-head--billing~.jc-payment-history .jc-section-title{font-size:10px!important}
+
+@media(max-width:720px){
+  body .jc-page-head--emails~.jc-stock-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body .jc-page-head--emails~.jc-stock-summary>.jc-panel:first-child{grid-column:1/-1}
+  body .jc-page-head--emails~.jc-filterbar{height:auto}
+  body .jc-page-head--billing~.jc-billing-grid{grid-template-columns:1fr!important}
+}
