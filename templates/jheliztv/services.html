@@ -1,12 +1,12 @@
 {% extends "jheliztv/base.html" %}
 
 {% block jc_content %}
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
-    <h2 class="jc-section-title"><span class="material-symbols-outlined">grid_view</span> Tablero de servicios</h2>
+  <section class="jc-page-head">
+    <div><p class="jc-eyebrow">Catálogo operativo</p><h1>Servicios</h1><p>Organiza las plataformas y consulta sus suscripciones activas.</p></div>
     <button type="button" class="jc-btn" data-jc-open="modalSvc">
       <span class="material-symbols-outlined">add</span> Agregar servicio
     </button>
-  </div>
+  </section>
 
   {% for group in categories %}
     {% if group.services %}

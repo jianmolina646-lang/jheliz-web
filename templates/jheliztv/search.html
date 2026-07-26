@@ -1,7 +1,9 @@
 {% extends "jheliztv/base.html" %}
 
 {% block jc_content %}
-  <h2 class="jc-section-title"><span class="material-symbols-outlined">search</span> Buscar{% if q %}: "{{ q }}"{% endif %}</h2>
+  <section class="jc-page-head">
+    <div><p class="jc-eyebrow">Búsqueda global</p><h1>Resultados{% if q %}: “{{ q }}”{% endif %}</h1><p>Clientes y suscripciones que coinciden con tu consulta.</p></div>
+  </section>
 
   {% if not q %}
     <div class="jc-panel jc-empty"><span class="material-symbols-outlined">search</span>Escribí un nombre, @usuario o correo en la barra de arriba.</div>

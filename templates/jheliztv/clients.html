@@ -1,12 +1,12 @@
 {% extends "jheliztv/base.html" %}
 
 {% block jc_content %}
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
-    <h2 class="jc-section-title"><span class="material-symbols-outlined">groups</span> Mis clientes</h2>
+  <section class="jc-page-head">
+    <div><p class="jc-eyebrow">Gestión comercial</p><h1>Mis clientes</h1><p>Administra clientes, accesos, servicios y vencimientos desde un solo lugar.</p></div>
     <button type="button" class="jc-btn" data-jc-open="modalClient">
       <span class="material-symbols-outlined">person_add</span> Agregar cliente
     </button>
-  </div>
+  </section>
 
   <form method="get" class="jc-clients-search-form">
     <div class="jc-search-box">
