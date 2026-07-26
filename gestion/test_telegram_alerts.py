@@ -16,6 +16,7 @@ from gestion.control_operations import (
 )
 from gestion.models import Client, Service, Subscription, TelegramConnection, Tenant
 from gestion.telegram_alerts import (
+    CONTROL_PREMIUM_EMOJI_IDS,
     _button,
     _premium_text,
     _without_button_styling,
@@ -81,6 +82,38 @@ class TelegramAlertTests(TestCase):
         self.assertGreaterEqual(rendered.count("<tg-emoji"), 6)
         self.assertIn("JHELIZ CONTROL", rendered)
         self.assertIn("Clientes", rendered)
+
+    def test_control_summary_uses_its_own_exact_premium_set(self):
+        rendered = _premium_text(
+            "🤖 JHELIZ CONTROL\n📊 RESUMEN\n👥 Clientes\n"
+            "🟢 Activas\n⏰ Por vencer\n🔴 Vencidas"
+        )
+
+        for name in ("control", "summary", "clients", "active", "due", "expired"):
+            self.assertIn(
+                f'emoji-id="{CONTROL_PREMIUM_EMOJI_IDS[name]}"',
+                rendered,
+            )
+
+    def test_control_buttons_use_exact_semantic_premium_ids(self):
+        cases = {
+            "➕ Nuevo cliente": "new_client",
+            "⏰ Próximos vencimientos": "next_due",
+            "📊 Estadísticas": "stats",
+            "💰 Mi saldo": "balance",
+            "🔔 Alertas": "alerts",
+            "⚙️ Mi cuenta": "account",
+            "🌐 Abrir Jheliz Control": "open_control",
+            "Siguiente ➡️": "next",
+            "🔎 Buscar": "search",
+            "⬅️ Volver": "back",
+        }
+        for label, name in cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(
+                    _button(label, "test")["icon_custom_emoji_id"],
+                    CONTROL_PREMIUM_EMOJI_IDS[name],
+                )
 
     def test_one_telegram_chat_cannot_stay_linked_to_two_resellers(self):
         first = TelegramConnection.objects.create(owner=self.owner, chat_id="123")

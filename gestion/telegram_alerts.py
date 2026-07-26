@@ -39,6 +39,31 @@ API = "https://api.telegram.org/bot{token}/{method}"
 PAGE_SIZE = 5
 WEB_URL = getattr(settings, "JHELIZ_CONTROL_BASE_URL", "https://jheliztv.xyz").rstrip("/")
 
+# Set Premium exclusivo de @JHELIZCONTROLTV_bot. No reutilizar los IDs del
+# bot de códigos: cada custom emoji de Telegram identifica un diseño concreto.
+CONTROL_PREMIUM_EMOJI_IDS = {
+    "control": "5436246909498963755",
+    "summary": "4958506272551863292",
+    "clients": "5443038326535759644",
+    "active": "5282843764451195532",
+    "due": "5447644880824181073",
+    "expired": "5420323339723881652",
+    "new_client": "5447607759421863856",
+    "next_due": "5123230779593196220",
+    "stats": "5028325978175177540",
+    "balance": "5256186332669035163",
+    "alerts": "5875091588174059190",
+    "account": "5307544885874664176",
+    "open_control": "5447602197439218445",
+    "next": "5447434637880098257",
+    "search": "5249245270381716113",
+    "back": "5447506720316225765",
+    "due_window": "4958526153955476488",
+    "today": "4958610528588008305",
+    "alert_settings": "5395695537687123235",
+    "credits": "4956290155326473271",
+}
+
 
 def _call(method, **payload):
     token = settings.JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN
@@ -73,14 +98,24 @@ def _markup(rows):
 
 def _premium_text(text):
     """Aplica el set Premium de TEAM JHELIZ a los mensajes del bot de control."""
+    control_map = {
+        "🤖": "control",
+        "📊": "summary",
+        "👥": "clients",
+        "🟢": "active",
+        "⏰": "due",
+        "🔴": "expired",
+    }
+    for visible, semantic_name in control_map.items():
+        custom_id = CONTROL_PREMIUM_EMOJI_IDS[semantic_name]
+        text = text.replace(
+            visible,
+            f'<tg-emoji emoji-id="{custom_id}">{visible}</tg-emoji>',
+        )
+
+    # Emojis secundarios que todavía pertenecen al set compartido.
     premium_map = {
-        "🤖": "📢",
         "👋": "✨",
-        "📊": "📋",
-        "👥": "👥",
-        "🟢": "🔓",
-        "⏰": "📢",
-        "🔴": "⏸",
         "➕": "➕",
         "🔎": "🔍",
         "🔍": "🔍",
@@ -103,6 +138,42 @@ def _premium_text(text):
                 f"{visible}</tg-emoji>",
             )
     return text
+
+
+def _control_button_emoji_id(text):
+    """Selecciona el icono Premium por la función real del botón."""
+    normalized = " ".join(text.casefold().split())
+    mappings = (
+        ("configuración de alertas", "alert_settings"),
+        ("abrir jheliz control", "open_control"),
+        ("próximos vencimientos", "next_due"),
+        ("próximo vencimiento", "next_due"),
+        ("nuevo cliente", "new_client"),
+        ("estadísticas", "stats"),
+        ("mi saldo", "balance"),
+        ("créditos disponibles", "credits"),
+        ("credito disponible", "credits"),
+        ("ingresos registrados", "credits"),
+        ("egresos registrados", "credits"),
+        ("mi cuenta", "account"),
+        ("mis clientes", "clients"),
+        ("por vencer", "due"),
+        ("vencidos", "expired"),
+        ("activos", "active"),
+        ("alertas", "alerts"),
+        ("siguiente", "next"),
+        ("buscar", "search"),
+        ("volver", "back"),
+        ("7 días", "due_window"),
+        ("3 días", "due_window"),
+        ("mañana", "due_window"),
+        ("hoy", "today"),
+        ("balance", "credits"),
+    )
+    for label, semantic_name in mappings:
+        if label in normalized:
+            return CONTROL_PREMIUM_EMOJI_IDS[semantic_name]
+    return ""
 
 
 def _has_button_styling(markup):
@@ -143,6 +214,9 @@ def _button_style(text, callback_data):
 
 def _button(text, callback_data=None, url=None, style=None):
     data = {"text": text, "style": style or _button_style(text, callback_data)}
+    control_custom_id = _control_button_emoji_id(text)
+    if control_custom_id:
+        data["icon_custom_emoji_id"] = control_custom_id
     premium_icons = {
         "👥": "👥", "➕": "➕", "🔎": "🔍", "🔍": "🔍",
         "👁": "🔍", "🔓": "🔓", "🔄": "🔓", "⏸": "⏸",
@@ -155,7 +229,7 @@ def _button(text, callback_data=None, url=None, style=None):
     }
     for visible, premium_fallback in premium_icons.items():
         if text.startswith(visible):
-            custom_id = emoji_id(premium_fallback)
+            custom_id = control_custom_id or emoji_id(premium_fallback)
             if custom_id:
                 data["icon_custom_emoji_id"] = custom_id
                 data["text"] = text[len(visible):].strip()
