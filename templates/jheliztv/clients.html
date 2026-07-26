@@ -1,13 +1,21 @@
 {% extends "jheliztv/base.html" %}
 
 {% block jc_content %}
-  <section class="jc-page-head">
+  <section class="jc-page-head jc-page-head--board">
     <div><p class="jc-eyebrow">Gestión comercial</p><h1>Mis clientes</h1><p>Administra clientes, accesos, servicios y vencimientos desde un solo lugar.</p></div>
     <button type="button" class="jc-btn" data-jc-open="modalClient">
       <span class="material-symbols-outlined">person_add</span> Agregar cliente
     </button>
   </section>
 
+  <div class="jc-board-stats jc-board-stats--clients">
+    <div class="jc-board-stat"><span class="material-symbols-outlined">groups</span><div><strong>{{ clients|length }}</strong><small>Clientes en esta vista</small></div></div>
+    <div class="jc-board-stat"><span class="material-symbols-outlined">subscriptions</span><div><strong>Activas</strong><small>Servicios asignados visibles</small></div></div>
+    <div class="jc-board-stat"><span class="material-symbols-outlined">sort</span><div><strong>{% if sort == 'name' %}A–Z{% elif sort == 'active' %}Actividad{% else %}Vencimiento{% endif %}</strong><small>Orden actual</small></div></div>
+    <div class="jc-board-stat"><span class="material-symbols-outlined">manage_search</span><div><strong>{% if q %}Filtrado{% else %}Todos{% endif %}</strong><small>Resultado mostrado</small></div></div>
+  </div>
+
+  <div class="jc-register-shell">
   <form method="get" class="jc-clients-search-form">
     <div class="jc-search-box">
       <span class="material-symbols-outlined">search</span>
@@ -127,6 +135,7 @@
   <div class="jc-panel jc-empty" id="jcClientsNoMatch" hidden>
     <span class="material-symbols-outlined">search_off</span>
     Ningún cliente coincide con tu búsqueda.
+  </div>
   </div>
 
   {# ── Modal: agregar cliente ───────────────────────────────────── #}

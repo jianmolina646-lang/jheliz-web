@@ -1,13 +1,21 @@
 {% extends "jheliztv/base.html" %}
 
 {% block jc_content %}
-  <section class="jc-page-head">
+  <section class="jc-page-head jc-page-head--board">
     <div><p class="jc-eyebrow">Catálogo operativo</p><h1>Servicios</h1><p>Organiza las plataformas y consulta sus suscripciones activas.</p></div>
     <button type="button" class="jc-btn" data-jc-open="modalSvc">
       <span class="material-symbols-outlined">add</span> Agregar servicio
     </button>
   </section>
 
+  <div class="jc-board-stats jc-board-stats--services">
+    <div class="jc-board-stat"><span class="material-symbols-outlined">apps</span><div><strong>{{ categories|length }}</strong><small>Categorías activas</small></div></div>
+    <div class="jc-board-stat"><span class="material-symbols-outlined">subscriptions</span><div><strong>En línea</strong><small>Catálogo operativo</small></div></div>
+    <div class="jc-board-stat"><span class="material-symbols-outlined">category</span><div><strong>{{ uncategorized|length }}</strong><small>Sin categoría</small></div></div>
+    <div class="jc-board-stat"><span class="material-symbols-outlined">verified</span><div><strong>Activo</strong><small>Estado del sistema</small></div></div>
+  </div>
+
+  <div class="jc-catalog-shell">
   {% for group in categories %}
     {% if group.services %}
       <section class="jc-cat">
@@ -62,6 +70,7 @@
       Todavía no tenés servicios. Agregá el primero con el botón de arriba.
     </div>
   {% endif %}
+  </div>
 
   {# ── Modal: agregar servicio ───────────────────────────────────── #}
   <div class="jc-modal" id="modalSvc" aria-hidden="true">
