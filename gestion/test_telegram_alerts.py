@@ -115,6 +115,37 @@ class TelegramAlertTests(TestCase):
                     CONTROL_PREMIUM_EMOJI_IDS[name],
                 )
 
+    def test_account_and_finance_messages_use_exact_premium_ids(self):
+        rendered = _premium_text(
+            "⚙️ <b>MI CUENTA</b>\n"
+            "👤 Revendedor\n🆔 ID interno\n🔗 Telegram\n📅 Vinculado desde\n"
+            "💰 <b>MI SALDO</b>\n💳 Créditos disponibles\n"
+            "📈 Ingresos registrados\n📉 Egresos registrados\n⚖️ Balance\n"
+            "🆕 Clientes nuevos este mes"
+        )
+
+        expected = (
+            "account",
+            "reseller",
+            "tenant_id",
+            "telegram",
+            "linked_since",
+            "balance",
+            "credits",
+            "new_clients_month",
+        )
+        for name in expected:
+            self.assertIn(
+                f'emoji-id="{CONTROL_PREMIUM_EMOJI_IDS[name]}"',
+                rendered,
+            )
+
+    def test_tomorrow_button_uses_its_specific_premium_id(self):
+        self.assertEqual(
+            _button("✅ Mañana", "alert_toggle:1")["icon_custom_emoji_id"],
+            CONTROL_PREMIUM_EMOJI_IDS["tomorrow"],
+        )
+
     def test_one_telegram_chat_cannot_stay_linked_to_two_resellers(self):
         first = TelegramConnection.objects.create(owner=self.owner, chat_id="123")
         raw = "token-otro"

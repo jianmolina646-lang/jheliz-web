@@ -51,17 +51,23 @@ CONTROL_PREMIUM_EMOJI_IDS = {
     "new_client": "5447607759421863856",
     "next_due": "5123230779593196220",
     "stats": "5028325978175177540",
-    "balance": "5256186332669035163",
+    "balance": "4958926882994127612",
     "alerts": "5875091588174059190",
-    "account": "5307544885874664176",
+    "account": "5350396951407895212",
     "open_control": "5447602197439218445",
     "next": "5447434637880098257",
     "search": "5249245270381716113",
     "back": "5447506720316225765",
     "due_window": "4958526153955476488",
+    "tomorrow": "5386367538735104399",
     "today": "4958610528588008305",
     "alert_settings": "5395695537687123235",
     "credits": "4956290155326473271",
+    "reseller": "5256143829672672750",
+    "tenant_id": "5445027583588593750",
+    "telegram": "5246708069991205241",
+    "linked_since": "5251337348951593763",
+    "new_clients_month": "5877477713089924234",
 }
 
 
@@ -112,9 +118,34 @@ def _markup(rows):
 
 def _premium_text(text):
     """Aplica el set Premium de TEAM JHELIZ a los mensajes del bot de control."""
+    # Encabezados con el mismo emoji visible reciben IDs distintos según su
+    # significado. Se procesan antes del mapa general.
+    semantic_prefixes = (
+        ("📊 <b>RESUMEN", "summary"),
+        ("📊 <b>ESTADÍSTICAS", "stats"),
+        ("💰 <b>MI SALDO", "balance"),
+        ("⚙️ <b>MI CUENTA", "account"),
+        ("🔔 <b>CONFIGURACIÓN DE ALERTAS", "alert_settings"),
+        ("🆕 Clientes nuevos este mes", "new_clients_month"),
+        ("👤 Revendedor", "reseller"),
+        ("🆔 ID interno", "tenant_id"),
+        ("🔗 Telegram", "telegram"),
+        ("📅 Vinculado desde", "linked_since"),
+        ("💳 Créditos disponibles", "credits"),
+        ("📈 Ingresos registrados", "credits"),
+        ("📉 Egresos registrados", "credits"),
+        ("⚖️ Balance", "credits"),
+    )
+    for prefix, semantic_name in semantic_prefixes:
+        visible, remainder = prefix.split(" ", 1)
+        custom_id = CONTROL_PREMIUM_EMOJI_IDS[semantic_name]
+        text = text.replace(
+            prefix,
+            f'<tg-emoji emoji-id="{custom_id}">{visible}</tg-emoji> {remainder}',
+        )
+
     control_map = {
         "🤖": "control",
-        "📊": "summary",
         "👥": "clients",
         "🟢": "active",
         "⏰": "due",
@@ -180,7 +211,7 @@ def _control_button_emoji_id(text):
         ("volver", "back"),
         ("7 días", "due_window"),
         ("3 días", "due_window"),
-        ("mañana", "due_window"),
+        ("mañana", "tomorrow"),
         ("hoy", "today"),
         ("balance", "credits"),
     )
@@ -806,10 +837,10 @@ def _balance(connection, message_id=None):
     currency = html.escape(values["currency"])
     text = (
         "💰 <b>MI SALDO</b>\n\n"
-        f"Créditos disponibles: <b>{currency} {values['credits']}</b>\n"
-        f"Ingresos registrados: <b>{currency} {values['income']}</b>\n"
-        f"Egresos registrados: <b>{currency} {values['expense']}</b>\n"
-        f"Balance: <b>{currency} {values['net']}</b>"
+        f"💳 Créditos disponibles: <b>{currency} {values['credits']}</b>\n"
+        f"📈 Ingresos registrados: <b>{currency} {values['income']}</b>\n"
+        f"📉 Egresos registrados: <b>{currency} {values['expense']}</b>\n"
+        f"⚖️ Balance: <b>{currency} {values['net']}</b>"
     )
     return _render(connection.chat_id, text, _markup([[_button("⬅️ Volver", "menu")]]), message_id)
 
