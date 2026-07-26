@@ -20,6 +20,7 @@ from gestion.telegram_alerts import (
     _button,
     _parse_duration_or_date,
     _premium_text,
+    _service_premium_emoji_id,
     _without_button_styling,
     link_chat,
     process_update,
@@ -47,6 +48,23 @@ class TelegramAlertTests(TestCase):
         self.assertIsNone(error)
         self.assertEqual(parsed["expires_on"], "2027-08-12")
         self.assertTrue(parsed["expires_at"].startswith("2027-08-12T23:59:59"))
+
+    def test_service_premium_emoji_accepts_common_aliases(self):
+        self.assertEqual(
+            _service_premium_emoji_id("Netflix Premium"),
+            "4958664490557112996",
+        )
+        self.assertEqual(
+            _service_premium_emoji_id("MAX"),
+            "5046467812659299341",
+        )
+        self.assertEqual(
+            _service_premium_emoji_id("Amazon Prime Video"),
+            "4995019580536524226",
+        )
+
+    def test_unknown_service_has_safe_emoji_fallback(self):
+        self.assertEqual(_service_premium_emoji_id("Plataforma nueva"), "")
 
     def test_one_time_token_links_only_its_owner(self):
         raw = "token-seguro"

@@ -7,6 +7,7 @@ import html
 import logging
 import secrets
 import time
+import unicodedata
 from datetime import datetime, time as datetime_time, timedelta
 
 import requests
@@ -100,6 +101,80 @@ CONTROL_PREMIUM_EMOJI_IDS = {
     "linked_since": "5251337348951593763",
     "new_clients_month": "5877477713089924234",
 }
+
+SERVICE_PREMIUM_EMOJI_IDS = {
+    "hbo max": "5046467812659299341",
+    "netflix": "4958664490557112996",
+    "paramount": "4960853077042135785",
+    "disney": "5046704482537178449",
+    "crunchyroll": "4958621463574741708",
+    "spotify": "4958941520242672323",
+    "youtube": "4985489542027936396",
+    "apple tv": "4958909307987952352",
+    "directv": "4985615324440167276",
+    "apple music": "4985701202311250420",
+    "dazn": "4986034139586102139",
+    "movistar play": "4996758436701012735",
+    "prime video": "4995019580536524226",
+    "vix": "5046667850761111395",
+    "viki rakuten": "5044052185613075416",
+    "plex": "5049058803220218770",
+    "nba": "5046452136028669374",
+    "adobe pro": "5237709293167321803",
+    "canva pro": "5076038705441932295",
+    "deezer": "5071231438741832775",
+    "claro tv": "5069264764627060885",
+    "liga 1 max": "5026548557499335455",
+    "iptv premium": "5026268800509543248",
+}
+
+SERVICE_NAME_ALIASES = {
+    "max": "hbo max",
+    "hbomax": "hbo max",
+    "paramount plus": "paramount",
+    "paramount+": "paramount",
+    "disney plus": "disney",
+    "disney+": "disney",
+    "crunchy roll": "crunchyroll",
+    "curnchyroll": "crunchyroll",
+    "youtube premium": "youtube",
+    "youtube music": "youtube",
+    "appletv": "apple tv",
+    "apple tv+": "apple tv",
+    "direct tv": "directv",
+    "prime": "prime video",
+    "amazon prime": "prime video",
+    "amazon prime video": "prime video",
+    "viki": "viki rakuten",
+    "rakuten viki": "viki rakuten",
+    "adobe": "adobe pro",
+    "canva": "canva pro",
+    "claro": "claro tv",
+    "liga1 max": "liga 1 max",
+    "la liga 1 max": "liga 1 max",
+    "iptv": "iptv premium",
+}
+
+
+def _normalized_service_name(name):
+    value = unicodedata.normalize("NFKD", str(name or "").casefold())
+    value = "".join(char for char in value if not unicodedata.combining(char))
+    value = " ".join(value.replace("-", " ").replace("_", " ").split())
+    return SERVICE_NAME_ALIASES.get(value, value)
+
+
+def _service_premium_emoji_id(name):
+    """Encuentra el icono Premium incluso si el servicio incluye el plan."""
+    normalized = _normalized_service_name(name)
+    direct = SERVICE_PREMIUM_EMOJI_IDS.get(normalized)
+    if direct:
+        return direct
+    matches = [
+        (key, custom_id)
+        for key, custom_id in SERVICE_PREMIUM_EMOJI_IDS.items()
+        if normalized.startswith(f"{key} ") or f" {key} " in f" {normalized} "
+    ]
+    return max(matches, key=lambda item: len(item[0]))[1] if matches else ""
 
 
 def _call(method, **payload):
@@ -288,9 +363,9 @@ def _button_style(text, callback_data):
     return "primary"
 
 
-def _button(text, callback_data=None, url=None, style=None):
+def _button(text, callback_data=None, url=None, style=None, icon_custom_emoji_id=None):
     data = {"text": text, "style": style or _button_style(text, callback_data)}
-    control_custom_id = _control_button_emoji_id(text)
+    control_custom_id = icon_custom_emoji_id or _control_button_emoji_id(text)
     if control_custom_id:
         data["icon_custom_emoji_id"] = control_custom_id
     premium_icons = {
@@ -655,10 +730,19 @@ def _subscription_new_start(connection, client_id, message_id=None):
             ),
             message_id,
         )
-    rows = [
-        [_button(f"📦 {service.name[:32]}", f"subnew_service:{client.pk}:{service.pk}")]
-        for service in services[:30]
-    ]
+    rows = []
+    for service in services[:30]:
+        custom_id = _service_premium_emoji_id(service.name)
+        label = service.name[:32] if custom_id else f"📦 {service.name[:30]}"
+        rows.append(
+            [
+                _button(
+                    label,
+                    f"subnew_service:{client.pk}:{service.pk}",
+                    icon_custom_emoji_id=custom_id or None,
+                )
+            ]
+        )
     rows.append([_button("❌ Cancelar", f"client:{client.pk}")])
     return _render(
         connection.chat_id,
