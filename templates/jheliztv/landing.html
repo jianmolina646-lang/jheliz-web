@@ -2,259 +2,97 @@
 
 {% block pb_content %}
 <style>
-  :root{
-    --lp-bg:#070a09;--lp-surface:#0d1210;--lp-surface-2:#111815;
-    --lp-border:rgba(255,255,255,.09);--lp-text:#f4f7f5;--lp-muted:#9ca8a1;
-    --lp-green:#3ee895;--lp-green-2:#16b86d;--lp-green-soft:rgba(62,232,149,.12);
-  }
-  body{background:var(--lp-bg);color:var(--lp-text);overflow-x:hidden;}
-  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;
-    background:radial-gradient(circle at 72% 8%,rgba(20,184,107,.13),transparent 30%),
-               radial-gradient(circle at 10% 42%,rgba(62,232,149,.055),transparent 28%);}
-  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.3;
-    background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
-                     linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
-    background-size:52px 52px;mask-image:linear-gradient(to bottom,#000,transparent 75%);}
-  .pb-nav{max-width:1240px;padding:16px 24px;position:relative;z-index:20;}
-  .pb-brand{color:var(--lp-text)} .pb-brand small{color:#758078}
-  .pb-btn{border-radius:9px;transition:transform .25s ease,background .25s ease,border-color .25s ease,box-shadow .25s ease;}
-  .pb-btn--primary{color:#04110a;background:var(--lp-green);box-shadow:0 12px 35px -16px rgba(62,232,149,.75);}
-  .pb-btn--primary:hover{filter:none;background:#66f0aa;transform:translateY(-2px);}
-  .pb-btn--ghost{background:rgba(255,255,255,.035);color:#dce4df;border:1px solid var(--lp-border);}
-  .pb-btn--ghost:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16);}
-
-  .lp-shell{max-width:1240px;margin:auto;padding:0 24px;}
-  .lp-hero{min-height:min(620px,calc(100vh - 72px));display:grid;grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr);
-    gap:52px;align-items:center;padding-top:28px;padding-bottom:52px;position:relative;}
-  .lp-kicker{display:flex;align-items:center;gap:11px;color:#b9c3bd;font-size:12px;font-weight:700;
-    letter-spacing:.13em;text-transform:uppercase;margin-bottom:25px;}
-  .lp-kicker::before{content:"";width:28px;height:1px;background:var(--lp-green);box-shadow:0 0 12px var(--lp-green);}
-  .lp-hero h1{font-size:clamp(3.45rem,6.25vw,5.85rem);line-height:.92;margin:0;max-width:790px;
-    letter-spacing:-.072em;font-weight:800;text-wrap:balance;}
-  .lp-hero h1 em{font-style:normal;color:var(--lp-green);}
-  .lp-statement{font-size:clamp(1.45rem,2.35vw,2.15rem);line-height:1.2;letter-spacing:-.035em;
-    color:#c7d0ca;margin:24px 0 0;max-width:600px;font-weight:500;}
-  .lp-statement em{font-style:normal;color:var(--lp-green);}
-  .lp-lead{font-size:clamp(1rem,1.4vw,1.12rem);line-height:1.62;color:var(--lp-muted);
-    margin:16px 0 25px;max-width:590px;}
-  .lp-lead strong{color:#e5ebe7;font-weight:650;}
-  .lp-cta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-  .lp-cta .pb-btn{min-height:50px;padding:13px 21px;}
-  .lp-proof{margin-top:20px;color:#69736d;font-size:12px;display:flex;align-items:center;gap:8px;}
-  .lp-proof .material-symbols-outlined{font-size:17px;color:var(--lp-green);}
-  .lp-enter{opacity:0;animation:lpEnter .8s cubic-bezier(.2,.7,.2,1) forwards;}
-  .lp-enter--2{animation-delay:.12s}.lp-enter--3{animation-delay:.24s}.lp-enter--4{animation-delay:.36s}
-
-  .lp-visual{position:relative;isolation:isolate;}
-  .lp-visual::before{content:"";position:absolute;inset:12% 2%;z-index:-1;border-radius:50%;
-    background:rgba(38,214,130,.22);filter:blur(80px);}
-  .lp-glass{position:relative;padding:22px;border:1px solid rgba(255,255,255,.14);border-radius:22px;
-    background:linear-gradient(145deg,rgba(23,35,29,.8),rgba(9,14,12,.58));
-    box-shadow:0 40px 90px -45px #000, inset 0 1px rgba(255,255,255,.08);
-    backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
-    animation:lpFloat 6s ease-in-out infinite;}
-  .lp-glass__top{display:flex;justify-content:space-between;align-items:center;margin-bottom:19px;}
-  .lp-glass h3{margin:0;font-size:14px;display:flex;align-items:center;gap:9px;}
-  .lp-glass h3 .material-symbols-outlined{font-size:19px;color:var(--lp-green);}
-  .lp-live{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#91a198;display:flex;align-items:center;gap:6px;}
-  .lp-live::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--lp-green);box-shadow:0 0 10px var(--lp-green);}
-  .lp-row{padding:15px 3px;border-top:1px solid rgba(255,255,255,.075);display:grid;
-    grid-template-columns:39px 1fr auto;gap:12px;align-items:center;}
-  .lp-app{width:39px;height:39px;border-radius:11px;display:grid;place-items:center;font-size:12px;font-weight:800;
-    background:#171d1a;border:1px solid rgba(255,255,255,.08);}
-  .lp-app--n{color:#ff4c55}.lp-app--d{color:#66b7ff}.lp-app--s{color:#3ee895}
-  .lp-row b{display:block;font-size:13px}.lp-row small{display:block;color:#758078;font-size:11px;margin-top:3px;}
-  .lp-status{font-size:10px;font-weight:750;padding:6px 8px;border-radius:7px;white-space:nowrap;}
-  .lp-status--ok{color:#72efb0;background:rgba(62,232,149,.1)}
-  .lp-status--warn{color:#f1c973;background:rgba(241,201,115,.1)}
-  .lp-status--late{color:#ff8585;background:rgba(255,94,94,.1)}
-  .lp-floatnote{position:absolute;right:-21px;bottom:-21px;padding:12px 15px;border:1px solid var(--lp-border);
-    border-radius:12px;background:#101713;box-shadow:0 18px 45px -22px #000;font-size:11px;color:#aab5ae;}
-  .lp-floatnote b{display:block;color:#fff;font-size:16px;margin-bottom:2px;}
-
-  .lp-section{padding:58px 0 72px;}
-  .lp-sectionhead{display:grid;grid-template-columns:.75fr 1.25fr;gap:46px;align-items:end;margin-bottom:28px;}
-  .lp-eyebrow{color:var(--lp-green);font-size:11px;font-weight:750;text-transform:uppercase;letter-spacing:.14em;}
-  .lp-sectionhead h2{font-size:clamp(2.2rem,4vw,4.15rem);line-height:1.02;letter-spacing:-.055em;margin:10px 0 0;}
-  .lp-sectionhead p{color:var(--lp-muted);line-height:1.7;max-width:510px;margin:0 0 4px;}
-  .lp-bento{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:minmax(185px,auto);gap:14px;}
-  .lp-feature{position:relative;overflow:hidden;background:var(--lp-surface);border:1px solid var(--lp-border);
-    border-radius:16px;padding:26px;transition:transform .35s ease,border-color .35s ease,background .35s ease;}
-  .lp-feature::after{content:"";position:absolute;width:180px;height:180px;border-radius:50%;right:-90px;bottom:-110px;
-    background:rgba(62,232,149,.14);filter:blur(35px);opacity:0;transition:opacity .4s ease;}
-  .lp-feature:hover{transform:translateY(-4px);border-color:rgba(62,232,149,.3);background:#0f1713;}
-  .lp-feature:hover::after{opacity:1}.lp-feature>*{position:relative;z-index:1}
-  .lp-feature:nth-child(1),.lp-feature:nth-child(4){grid-column:span 7}
-  .lp-feature:nth-child(2),.lp-feature:nth-child(3){grid-column:span 5}
-  .lp-feature:nth-child(5),.lp-feature:nth-child(6){grid-column:span 6}
-  .lp-icon{width:43px;height:43px;display:grid;place-items:center;border:1px solid rgba(62,232,149,.17);
-    background:var(--lp-green-soft);color:var(--lp-green);border-radius:11px;}
-  .lp-icon .material-symbols-outlined{font-size:22px}
-  .lp-feature h3{font-size:18px;margin:30px 0 9px;letter-spacing:-.02em;}
-  .lp-feature p{color:#849088;font-size:13.5px;line-height:1.6;margin:0;max-width:470px;}
-  .lp-feature__num{position:absolute;right:23px;top:21px;color:#38413c;font:600 11px/1 monospace;letter-spacing:.08em;}
-
-  .lp-pricing{padding:78px 0 96px;text-align:center;position:relative;}
-  .lp-pricing::before{content:"";position:absolute;left:50%;bottom:8%;width:500px;height:280px;
-    transform:translateX(-50%);background:rgba(34,210,125,.1);filter:blur(100px);pointer-events:none;}
-  .lp-pricing h2{font-size:clamp(2.3rem,4vw,4rem);letter-spacing:-.055em;margin:10px 0 14px;}
-  .lp-pricing>p{color:var(--lp-muted);margin:0 auto 40px;max-width:520px;line-height:1.65;}
-  .lp-priceframe{position:relative;max-width:570px;margin:auto;padding:1px;border-radius:21px;overflow:hidden;
-    background:linear-gradient(120deg,#17201b,var(--lp-green),#17201b,#8affc4);background-size:300% 300%;
-    animation:lpBorder 6s linear infinite;}
-  .lp-pricecard{position:relative;background:linear-gradient(145deg,#101613,#090d0b);border-radius:20px;padding:38px 42px;text-align:left;}
-  .lp-plan{display:flex;justify-content:space-between;align-items:center;color:#a6b1aa;font-size:12px;text-transform:uppercase;letter-spacing:.12em;}
-  .lp-plan span:last-child{color:var(--lp-green);background:var(--lp-green-soft);padding:6px 9px;border-radius:6px;}
-  .lp-amount{font-size:clamp(3.4rem,7vw,5.6rem);font-weight:800;letter-spacing:-.075em;margin:27px 0 5px;line-height:1;}
-  .lp-amount small{font-size:14px;color:#7e8982;letter-spacing:0;font-weight:500;}
-  .lp-pricecard ul{list-style:none;padding:23px 0;margin:25px 0;border-top:1px solid var(--lp-border);border-bottom:1px solid var(--lp-border);}
-  .lp-pricecard li{display:flex;align-items:center;gap:10px;margin:12px 0;color:#bdc7c0;font-size:13px;}
-  .lp-pricecard li .material-symbols-outlined{font-size:17px;color:var(--lp-green);}
-  .lp-magnetic{width:100%;justify-content:center;min-height:52px;will-change:transform;}
-  .lp-reveal{opacity:0;transform:translateY(28px);transition:opacity .75s ease,transform .75s cubic-bezier(.2,.7,.2,1);}
-  .lp-reveal.is-visible{opacity:1;transform:none;}
-
-  @keyframes lpEnter{to{opacity:1;transform:translateY(0)}from{opacity:0;transform:translateY(24px)}}
-  @keyframes lpFloat{0%,100%{transform:translateY(0) rotate(-.25deg)}50%{transform:translateY(-12px) rotate(.25deg)}}
-  @keyframes lpBorder{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
-  @media(max-width:900px){
-    .lp-hero{grid-template-columns:1fr;gap:52px;padding-top:44px;min-height:auto}.lp-hero h1{max-width:700px}
-    .lp-visual{max-width:620px}.lp-sectionhead{grid-template-columns:1fr;gap:22px}
-  }
-  @media(max-width:680px){
-    .pb-nav{padding:16px}.pb-brand small{display:none}.pb-brand strong{font-size:14px}
-    .pb-nav .pb-btn--ghost{display:none}.pb-nav .pb-btn{padding:10px 13px;font-size:12px}
-    .lp-shell{padding:0 16px}.lp-hero{min-height:auto;padding:42px 0 70px;gap:46px}
-    .lp-hero h1{font-size:clamp(3.1rem,15vw,4.5rem)}.lp-lead{margin-top:24px}
-    .lp-cta{align-items:stretch}.lp-cta .pb-btn{justify-content:center;flex:1 1 170px}
-    .lp-floatnote{right:8px;bottom:-32px}.lp-section{padding:64px 0}
-    .lp-bento{display:block}.lp-feature{margin-bottom:12px;min-height:190px}
-    .lp-pricecard{padding:28px 22px}.lp-pricing{padding:66px 0 78px}.lp-plan{align-items:flex-start;gap:12px}
-  }
-  @media(prefers-reduced-motion:reduce){
-    .lp-enter,.lp-glass,.lp-priceframe{animation:none;opacity:1;transform:none}
-    .lp-reveal{opacity:1;transform:none;transition:none}.lp-feature,.pb-btn{transition:none}
-  }
+  :root{--l-bg:#050b08;--l-card:#0a1510;--l-card2:#0d1a13;--l-line:rgba(92,151,116,.14);--l-green:#35e89a;--l-text:#f1f8f4;--l-muted:#789185}
+  body{background:var(--l-bg);color:var(--l-text);overflow-x:hidden}.pb-nav{display:none}
+  .l-nav{position:sticky;top:0;z-index:50;height:58px;border-bottom:1px solid var(--l-line);background:rgba(5,11,8,.87);backdrop-filter:blur(18px)}
+  .l-nav__in{width:min(1180px,calc(100% - 32px));height:100%;display:flex;align-items:center;justify-content:space-between;margin:auto}
+  .l-brand{display:flex;align-items:center;gap:9px;color:var(--l-text);text-decoration:none}.l-brand__mark{width:29px;height:29px;display:grid;place-items:center;border-radius:8px;color:#06110b;background:var(--l-green);font-size:10px;font-weight:850}
+  .l-brand strong{font-size:11px;letter-spacing:-.02em}.l-brand small{display:block;margin-top:2px;color:#61776b;font-size:7px}
+  .l-links{display:flex;gap:24px}.l-links a{color:#87998f;text-decoration:none;font-size:9px;font-weight:600}.l-links a:hover,.l-links a:first-child{color:var(--l-green)}
+  .l-btn{min-height:34px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:8px 14px;border:1px solid var(--l-line);border-radius:6px;color:#dceae2;background:#0a1510;text-decoration:none;font-size:9px;font-weight:750;transition:.25s}
+  .l-btn:hover{transform:translateY(-1px);border-color:rgba(53,232,154,.35)}.l-btn--green{border-color:transparent;color:#06120b;background:linear-gradient(135deg,#48eea5,#20c979);box-shadow:0 10px 28px rgba(32,201,121,.14)}
+  .l-wrap{width:min(1120px,calc(100% - 32px));margin:auto}.l-hero{min-height:555px;display:grid;grid-template-columns:1.02fr .98fr;gap:54px;align-items:center;padding:55px 0 60px}
+  .l-badge{display:inline-flex;align-items:center;gap:7px;margin-bottom:17px;color:#8ca296;font-size:8px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}.l-badge i{width:5px;height:5px;border-radius:50%;background:var(--l-green);box-shadow:0 0 10px var(--l-green)}
+  .l-copy h1{max-width:510px;margin:0;font-size:clamp(44px,5.4vw,70px);line-height:.93;letter-spacing:-.065em}.l-copy h1 em{display:block;color:var(--l-green);font-style:normal}
+  .l-copy h2{max-width:440px;margin:17px 0 0;color:#aebfb6;font-size:18px;line-height:1.22;letter-spacing:-.03em}.l-copy h2 em{color:var(--l-green);font-style:normal}
+  .l-copy>p{max-width:490px;margin:14px 0 20px;color:var(--l-muted);font-size:11px;line-height:1.65}.l-actions{display:flex;gap:8px}.l-actions .l-btn{min-width:120px;min-height:39px}
+  .l-safe{display:flex;align-items:center;gap:7px;margin-top:14px;color:#64796e;font-size:8px}.l-safe span{color:var(--l-green);font-size:14px}
+  .l-preview{position:relative;perspective:1000px}.l-preview:before{content:"";position:absolute;inset:10%;background:rgba(30,221,127,.22);filter:blur(65px)}
+  .l-dash{position:relative;padding:15px;border:1px solid rgba(86,167,119,.18);border-radius:13px;background:linear-gradient(150deg,rgba(13,29,20,.98),rgba(5,13,8,.98));box-shadow:0 35px 70px rgba(0,0,0,.38);transform:rotateY(-3deg) rotateX(1deg);animation:lFloat 7s ease-in-out infinite}
+  .l-dash__top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.l-dash__top strong{font-size:9px}.l-dash__top span{color:#697e73;font-size:7px}
+  .l-dash__grid{display:grid;grid-template-columns:1.3fr .7fr;gap:8px}.l-revenue,.l-ring,.l-mini{border:1px solid rgba(92,151,116,.11);border-radius:8px;background:rgba(6,17,10,.72)}
+  .l-revenue{padding:13px}.l-revenue small,.l-ring small,.l-mini small{color:#698075;font-size:7px}.l-money{margin:5px 0;color:var(--l-green);font-size:19px;font-weight:800}.l-money span{font-size:7px}
+  .l-chart{height:77px;display:flex;align-items:end;gap:4px;padding-top:10px;border-bottom:1px solid rgba(53,232,154,.13)}.l-chart i{flex:1;border-radius:2px 2px 0 0;background:linear-gradient(#38e998,rgba(18,125,70,.25))}
+  .l-ring{display:grid;place-items:center;padding:10px}.l-ring__circle{width:82px;height:82px;display:grid;place-items:center;border-radius:50%;background:conic-gradient(var(--l-green) 82%,#14241b 0);position:relative}.l-ring__circle:after{content:"";position:absolute;inset:7px;border-radius:50%;background:#08130d}.l-ring__circle b,.l-ring__circle span{position:relative;z-index:1}.l-ring__circle b{font-size:19px}.l-ring__circle span{display:block;color:#758b80;font-size:6px;text-align:center}
+  .l-minis{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.l-mini{padding:9px}.l-mini b{display:block;margin-top:5px;font-size:15px}.l-mini b em{color:var(--l-green);font-size:7px;font-style:normal}
+  .l-section{padding:48px 0}.l-section__head{text-align:center;margin-bottom:22px}.l-eyebrow{color:var(--l-green);font-size:7px;font-weight:750;letter-spacing:.15em;text-transform:uppercase}.l-section__head h2{margin:7px 0 0;font-size:25px;letter-spacing:-.045em}
+  .l-tools{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.l-tool{position:relative;min-height:125px;padding:15px;border:1px solid var(--l-line);border-radius:8px;background:linear-gradient(145deg,#0a1510,#07110c);transition:.28s}
+  .l-tool:hover{transform:translateY(-3px);border-color:rgba(53,232,154,.3);box-shadow:0 15px 35px rgba(0,0,0,.18)}.l-tool__icon{width:29px;height:29px;display:grid;place-items:center;border:1px solid rgba(53,232,154,.15);border-radius:7px;color:var(--l-green);background:rgba(53,232,154,.06)}.l-tool__icon span{font-size:16px}
+  .l-tool h3{margin:13px 0 5px;font-size:10px}.l-tool p{margin:0;color:#71877b;font-size:8px;line-height:1.55}.l-tool b{position:absolute;right:11px;top:10px;color:#2c4035;font:600 7px monospace}
+  .l-subs{margin-bottom:72px;padding:15px;border:1px solid var(--l-line);border-radius:10px;background:linear-gradient(145deg,#0a1510,#07100b)}.l-subs__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}.l-subs__head h2{margin:0;font-size:13px}.l-subs__head span{color:#5f766a;font-size:7px}
+  .l-sub{display:grid;grid-template-columns:34px 1fr 120px 80px 24px;align-items:center;gap:9px;min-height:49px;border-top:1px solid rgba(92,151,116,.09);font-size:8px}.l-app{width:26px;height:26px;display:grid;place-items:center;border-radius:6px;font-weight:800;background:#121f18}.l-app--n{color:#ff4e5a}.l-app--d{color:#65adff}.l-app--s{color:#36e492}.l-sub strong{font-size:9px}.l-sub small{display:block;margin-top:2px;color:#687d72}.l-state{justify-self:start;padding:4px 7px;border-radius:999px;font-weight:750}.l-state--ok{color:#38e999;background:rgba(53,232,154,.08)}.l-state--warn{color:#ffc45f;background:rgba(255,196,95,.08)}.l-state--late{color:#ff6672;background:rgba(255,102,114,.08)}.l-more{margin-top:10px;width:100%;min-height:31px}
+  .l-reveal{opacity:0;transform:translateY(16px);transition:.6s}.l-reveal.is-visible{opacity:1;transform:none}@keyframes lFloat{50%{transform:translateY(-7px) rotateY(-3deg) rotateX(1deg)}}
+  @media(max-width:760px){.l-links{display:none}.l-nav__in{width:calc(100% - 20px)}.l-wrap{width:calc(100% - 24px)}.l-hero{grid-template-columns:1fr;gap:35px;padding:38px 0}.l-copy h1{font-size:47px}.l-preview{max-width:520px}.l-tools{grid-template-columns:1fr}.l-tool{min-height:112px}.l-sub{grid-template-columns:30px 1fr auto 20px}.l-sub>div:nth-child(3){display:none}.l-state{font-size:7px}.l-actions{flex-wrap:wrap}.l-actions .l-btn{flex:1}.l-dash{transform:none}.l-section{padding:38px 0}}
+  @media(prefers-reduced-motion:reduce){.l-dash{animation:none}.l-reveal{opacity:1;transform:none;transition:none}}
 </style>
 
+<header class="l-nav">
+  <div class="l-nav__in">
+    <a class="l-brand" href="{% url 'jheliztv_landing' %}"><span class="l-brand__mark">JC</span><span><strong>JHELIZCONTROLTV</strong><small>Gestión de suscripciones</small></span></a>
+    <nav class="l-links"><a href="#inicio">Inicio</a><a href="#suscripciones">Suscripciones</a><a href="#herramientas">Clientes</a><a href="#herramientas">Reportes</a><a href="#herramientas">Herramientas</a></nav>
+    <a class="l-btn l-btn--green" href="{% url 'jheliztv_register' %}">Probar ahora <span class="material-symbols-outlined">arrow_forward</span></a>
+  </div>
+</header>
+
 <main>
-  <section class="lp-shell lp-hero">
-    <div>
-      <div class="lp-kicker lp-enter">Control para negocios digitales</div>
-      <h1 class="lp-enter lp-enter--2">Gestión de <em>suscripciones.</em></h1>
-      <div class="lp-statement lp-enter lp-enter--2">
-        Un negocio sin control <em>no es un buen negocio.</em>
-      </div>
-      <p class="lp-lead lp-enter lp-enter--3">
-        Organiza ventas, clientes, vencimientos y ganancias en un solo lugar
-        para no perder renovaciones ni ingresos.
-      </p>
-      <div class="lp-cta lp-enter lp-enter--4">
-        <a class="pb-btn pb-btn--primary" href="{% url 'jheliztv_register' %}">
-          Crear mi cuenta <span class="material-symbols-outlined">arrow_forward</span>
-        </a>
-        <a class="pb-btn pb-btn--ghost" href="{% url 'jheliztv_login' %}">Ya tengo cuenta</a>
-      </div>
-      <div class="lp-proof lp-enter lp-enter--4">
-        <span class="material-symbols-outlined">verified_user</span>
-        Tus clientes, tus datos y tu operación en un espacio privado.
-      </div>
+  <section class="l-wrap l-hero" id="inicio">
+    <div class="l-copy">
+      <div class="l-badge"><i></i>Control para negocios digitales</div>
+      <h1>Gestión de <em>suscripciones.</em></h1>
+      <h2>Un negocio sin control <em>no es un buen negocio.</em></h2>
+      <p>Organiza ventas, clientes, vencimientos y ganancias en un solo lugar para no perder renovaciones ni ingresos.</p>
+      <div class="l-actions"><a class="l-btn l-btn--green" href="{% url 'jheliztv_register' %}">Crear mi cuenta <span class="material-symbols-outlined">arrow_forward</span></a><a class="l-btn" href="{% url 'jheliztv_login' %}">Ya tengo cuenta</a></div>
+      <div class="l-safe"><span class="material-symbols-outlined">verified_user</span>Tus clientes, tus datos y tu operación en un espacio privado y seguro.</div>
     </div>
-
-    <div class="lp-visual lp-enter lp-enter--3" aria-label="Vista previa de suscripciones">
-      <div class="lp-glass">
-        <div class="lp-glass__top">
-          <h3><span class="material-symbols-outlined">subscriptions</span> Tus suscripciones</h3>
-          <span class="lp-live">En vivo</span>
-        </div>
-        <div class="lp-row">
-          <span class="lp-app lp-app--n">N</span>
-          <div><b>Netflix · Ana</b><small>ana@correo.com</small></div>
-          <span class="lp-status lp-status--ok">22 días</span>
-        </div>
-        <div class="lp-row">
-          <span class="lp-app lp-app--d">D+</span>
-          <div><b>Disney+ · Luis</b><small>luis@correo.com</small></div>
-          <span class="lp-status lp-status--warn">2 días</span>
-        </div>
-        <div class="lp-row">
-          <span class="lp-app lp-app--s">S</span>
-          <div><b>Spotify · Marta</b><small>marta@correo.com</small></div>
-          <span class="lp-status lp-status--late">Vencida</span>
+    <div class="l-preview">
+      <div class="l-dash">
+        <div class="l-dash__top"><strong>Resumen del negocio</strong><span>Últimos 30 días</span></div>
+        <div class="l-dash__grid">
+          <div class="l-revenue"><small>Ingresos del mes</small><div class="l-money">S/ 4,562.00 <span>+12.8%</span></div><div class="l-chart"><i style="height:28%"></i><i style="height:43%"></i><i style="height:39%"></i><i style="height:62%"></i><i style="height:55%"></i><i style="height:82%"></i><i style="height:72%"></i><i style="height:92%"></i></div></div>
+          <div class="l-ring"><div class="l-ring__circle"><div><b>128</b><span>suscripciones<br>activas</span></div></div></div>
+          <div class="l-minis"><div class="l-mini"><small>Clientes totales</small><b>342</b></div><div class="l-mini"><small>Vencen hoy</small><b>7 <em>atención</em></b></div><div class="l-mini"><small>Renovaciones</small><b>92% <em>+4%</em></b></div></div>
         </div>
       </div>
-      <div class="lp-floatnote"><b>3</b>requieren atención</div>
     </div>
   </section>
 
-  <section class="lp-shell lp-section">
-    <header class="lp-sectionhead lp-reveal">
-      <div><span class="lp-eyebrow">Todo bajo control</span><h2>Menos tareas.<br>Más renovaciones.</h2></div>
-      <p>Herramientas específicas para gestionar un negocio de suscripciones sin hojas dispersas, recordatorios manuales ni clientes olvidados.</p>
-    </header>
-    <div class="lp-bento">
-      <article class="lp-feature lp-reveal"><span class="lp-feature__num">01</span><div class="lp-icon"><span class="material-symbols-outlined">dashboard_customize</span></div><h3>Tablero editable</h3><p>Añade las plataformas que vendes y adapta el espacio de trabajo a la operación real de tu negocio.</p></article>
-      <article class="lp-feature lp-reveal"><span class="lp-feature__num">02</span><div class="lp-icon"><span class="material-symbols-outlined">notifications_active</span></div><h3>Avisos de vencimiento</h3><p>Detecta a tiempo las suscripciones que requieren atención y evita perder renovaciones.</p></article>
-      <article class="lp-feature lp-reveal"><span class="lp-feature__num">03</span><div class="lp-icon"><span class="material-symbols-outlined">forum</span></div><h3>WhatsApp y Telegram</h3><p>Utiliza mensajes editables y alertas directas para mantener una comunicación ordenada.</p></article>
-      <article class="lp-feature lp-reveal"><span class="lp-feature__num">04</span><div class="lp-icon"><span class="material-symbols-outlined">picture_as_pdf</span></div><h3>Clientes y reportes</h3><p>Centraliza correos, contactos e historial de clientes y descarga la información en PDF.</p></article>
-      <article class="lp-feature lp-reveal"><span class="lp-feature__num">05</span><div class="lp-icon"><span class="material-symbols-outlined">bolt</span></div><h3>Relleno automático</h3><p>Registra cada cliente una sola vez y reutiliza sus datos en futuras ventas.</p></article>
-      <article class="lp-feature lp-reveal"><span class="lp-feature__num">06</span><div class="lp-icon"><span class="material-symbols-outlined">devices</span></div><h3>Rápido en cualquier pantalla</h3><p>Opera cómodamente desde el celular o la computadora, sin pasos innecesarios.</p></article>
+  <section class="l-wrap l-section" id="herramientas">
+    <div class="l-section__head l-reveal"><span class="l-eyebrow">Menos tareas. Más renovaciones.</span><h2>Herramientas para hacer crecer tu negocio</h2></div>
+    <div class="l-tools">
+      <article class="l-tool l-reveal"><b>01</b><div class="l-tool__icon"><span class="material-symbols-outlined">dashboard_customize</span></div><h3>Tablero editable</h3><p>Añade las plataformas que vendes y adapta el espacio a la operación real de tu negocio.</p></article>
+      <article class="l-tool l-reveal"><b>02</b><div class="l-tool__icon"><span class="material-symbols-outlined">notifications_active</span></div><h3>Avisos de vencimiento</h3><p>Detecta las suscripciones que requieren atención y evita perder renovaciones.</p></article>
+      <article class="l-tool l-reveal"><b>03</b><div class="l-tool__icon"><span class="material-symbols-outlined">forum</span></div><h3>WhatsApp y Telegram</h3><p>Notificaciones y recordatorios automáticos por WhatsApp y Telegram.</p></article>
+      <article class="l-tool l-reveal"><b>04</b><div class="l-tool__icon"><span class="material-symbols-outlined">picture_as_pdf</span></div><h3>Clientes y reportes</h3><p>Centraliza contactos e historial y descarga la información en PDF.</p></article>
+      <article class="l-tool l-reveal"><b>05</b><div class="l-tool__icon"><span class="material-symbols-outlined">bolt</span></div><h3>Relleno automático</h3><p>Registra cada cliente una sola vez y reutiliza sus datos en futuras ventas.</p></article>
+      <article class="l-tool l-reveal"><b>06</b><div class="l-tool__icon"><span class="material-symbols-outlined">devices</span></div><h3>Rápido en cualquier pantalla</h3><p>Opera cómodamente desde el celular o la computadora, sin pasos innecesarios.</p></article>
     </div>
   </section>
 
-  <section class="lp-shell lp-pricing lp-reveal">
-    <span class="lp-eyebrow">Un plan simple</span>
-    <h2>Control total, sin complicaciones.</h2>
-    <p>Todo lo necesario para gestionar clientes y suscripciones desde un único lugar.</p>
-    <div class="lp-priceframe">
-      <div class="lp-pricecard">
-        <div class="lp-plan"><span>Jheliz Control completo</span><span>Mensual</span></div>
-        <div class="lp-amount">S/ {{ saas.monthly_price|default:"30.00" }} <small>/ mes</small></div>
-        <ul>
-          <li><span class="material-symbols-outlined">check_circle</span> Acceso completo a JHELIZCONTROLTV</li>
-          <li><span class="material-symbols-outlined">check_circle</span> Clientes y suscripciones ilimitadas</li>
-          <li><span class="material-symbols-outlined">check_circle</span> Avisos de vencimiento y reportes PDF</li>
-          <li><span class="material-symbols-outlined">check_circle</span> Pago fácil por QR</li>
-        </ul>
-        <a class="pb-btn pb-btn--primary lp-magnetic" href="{% url 'jheliztv_register' %}">
-          Empezar ahora <span class="material-symbols-outlined">arrow_forward</span>
-        </a>
-      </div>
-    </div>
+  <section class="l-wrap l-subs l-reveal" id="suscripciones">
+    <div class="l-subs__head"><h2>Tus suscripciones</h2><span>Vista previa del sistema · 3 registros</span></div>
+    <div class="l-sub"><span class="l-app l-app--n">N</span><div><strong>Netflix · Ana</strong><small>ana@correo.com</small></div><div>22 días restantes</div><span class="l-state l-state--ok">Activa</span><span class="material-symbols-outlined">more_vert</span></div>
+    <div class="l-sub"><span class="l-app l-app--d">D+</span><div><strong>Disney+ · Luis</strong><small>luis@correo.com</small></div><div>2 días restantes</div><span class="l-state l-state--warn">Por vencer</span><span class="material-symbols-outlined">more_vert</span></div>
+    <div class="l-sub"><span class="l-app l-app--s">S</span><div><strong>Spotify · Mariana</strong><small>mariana@correo.com</small></div><div>Periodo finalizado</div><span class="l-state l-state--late">Vencida</span><span class="material-symbols-outlined">more_vert</span></div>
+    <a class="l-btn l-more" href="{% url 'jheliztv_login' %}">Ver todas las suscripciones <span class="material-symbols-outlined">arrow_forward</span></a>
   </section>
 </main>
 
 <script>
 (() => {
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const reveals = document.querySelectorAll('.lp-reveal');
-  if (!reduced && 'IntersectionObserver' in window) {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible');
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: .14 });
-    reveals.forEach((element, index) => {
-      element.style.transitionDelay = `${Math.min(index % 6, 3) * 70}ms`;
-      observer.observe(element);
-    });
-  } else {
-    reveals.forEach((element) => element.classList.add('is-visible'));
-  }
-
-  const magnetic = document.querySelector('.lp-magnetic');
-  if (!reduced && magnetic && window.matchMedia('(pointer:fine)').matches) {
-    magnetic.addEventListener('mousemove', (event) => {
-      const rect = magnetic.getBoundingClientRect();
-      const x = (event.clientX - rect.left - rect.width / 2) * .12;
-      const y = (event.clientY - rect.top - rect.height / 2) * .16;
-      magnetic.style.transform = `translate(${x}px, ${y}px)`;
-    });
-    magnetic.addEventListener('mouseleave', () => magnetic.style.transform = '');
-  }
+  const items=document.querySelectorAll('.l-reveal');
+  if(!('IntersectionObserver' in window)){items.forEach(x=>x.classList.add('is-visible'));return}
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('is-visible');io.unobserve(e.target)}}),{threshold:.12});
+  items.forEach((x,i)=>{x.style.transitionDelay=`${Math.min(i%3,2)*70}ms`;io.observe(x)})
 })();
 </script>
 {% endblock %}
