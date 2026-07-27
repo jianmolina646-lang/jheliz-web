@@ -492,7 +492,7 @@ def _kind_buttons(idx: int) -> list[list[dict]]:
     """Las 4 opciones de tipo para un correo (por índice)."""
     styles = {
         "signin_code": ("Código de inicio de sesión", "🔑", "primary"),
-        "passwordless_signin": ("Inicio sin contraseña", "🔗", "success"),
+        "passwordless_signin": ("Inicio sin contraseña", "📧", "success"),
         "temp_code": ("Acceso temporal (viaje)", "✈️", "primary"),
         "household": ("Actualizar Hogar", "🏠", "success"),
         "password_reset": ("Restablecer contraseña", "🔒", "danger"),

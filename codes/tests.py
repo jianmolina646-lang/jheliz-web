@@ -561,7 +561,8 @@ class DeliverKindTests(TestCase):
     def test_offer_kinds_shows_all_options(self, msend):
         bot._offer_kinds_for_email(self.client_obj, "mine@gmail.com")
         _args, kwargs = msend.call_args
-        self.assertEqual(len(kwargs.get("buttons", [])), len(bot.COMMAND_KINDS))
+        # Una fila por acción y una fila final para volver.
+        self.assertEqual(len(kwargs.get("buttons", [])), len(bot.COMMAND_KINDS) + 1)
 
 
 class SearchAssignedEmailsTests(TestCase):
@@ -609,8 +610,12 @@ class SearchAssignedEmailsTests(TestCase):
         msend.assert_called()
         action_buttons = msend.call_args.kwargs["buttons"]
         self.assertTrue(
-            all(row[0]["callback_data"].endswith(":1") for row in action_buttons)
+            all(
+                row[0]["callback_data"].endswith(":1")
+                for row in action_buttons[:-1]
+            )
         )
+        self.assertEqual(action_buttons[-1][0]["callback_data"], "back:emails")
 
     @mock.patch("codes.bot.send_message")
     def test_large_mailbox_uses_search_instead_of_huge_button_list(self, msend):
@@ -620,7 +625,7 @@ class SearchAssignedEmailsTests(TestCase):
             )
         bot._send_email_menu(self.client_obj)
         self.assertIn("/buscar", msend.call_args.args[1])
-        self.assertNotIn("buttons", msend.call_args.kwargs)
+        self.assertIsNone(msend.call_args.kwargs.get("buttons"))
 
     @mock.patch("codes.bot.send_message")
     def test_welcome_does_not_send_automatic_email_list(self, msend):
@@ -1068,7 +1073,11 @@ class TvEmailLinkCommandTests(TestCase):
             self.client_obj, "cliente@gmail.com", kind="tv_signin"
         )
         self.assertEqual(medit.call_args.args[2], "ENLACE")
-        mschedule.assert_called_once_with(780, message_id=77)
+        mschedule.assert_called_once_with(
+            780,
+            send_result=medit.return_value,
+            message_id=77,
+        )
 
 
 class SecurityFeatureTests(TestCase):
