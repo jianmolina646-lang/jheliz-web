@@ -40,17 +40,6 @@ _NETFLIX_LINK_RE = re.compile(
 # El orden importa: ``_classify`` devuelve el primer tipo que matchea, así que
 # los más específicos van primero.
 _KEYWORDS = {
-    "passwordless_signin": (
-        "inicia sesión sin una contraseña",
-        "inicia sesión sin contraseña",
-        "iniciar sesión sin contraseña",
-        "enlace de uso único",
-        "enlace de un solo uso",
-        "sign in without a password",
-        "passwordless sign in",
-        "one-time sign-in link",
-        "one time sign in link",
-    ),
     "tv_signin": (
         "inicia sesión en tu tv",
         "iniciar sesión en tu tv",
@@ -122,7 +111,6 @@ _KEYWORDS = {
 
 # Pistas en la ruta del link para elegir el botón correcto.
 _URL_HINTS = {
-    "passwordless_signin": ("accountaccess", "passwordless", "magiclink"),
     "tv_signin": ("/tv", "tv/out", "tv-signin", "tv8"),
     "temp_code": ("travel", "verify", "otp", "temporary"),
     "household": ("update-primary-location", "primary-location", "household", "confirm"),
@@ -131,7 +119,6 @@ _URL_HINTS = {
 }
 
 _HUMAN = {
-    "passwordless_signin": "Enlace para iniciar sesión sin contraseña",
     "tv_signin": "Activar Netflix en tu TV",
     "temp_code": "Código de acceso temporal",
     "household": "Actualizar Hogar con Netflix",
