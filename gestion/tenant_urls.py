@@ -20,6 +20,10 @@ urlpatterns = [
     path("app/notificaciones.json", v.notifications_json, name="jheliztv_notifications"),
     path("app/telegram/", v.telegram_settings, name="jheliztv_telegram"),
     path("app/telegram/desvincular/", v.telegram_unlink, name="jheliztv_telegram_unlink"),
+    path("app/whatsapp/", v.whatsapp_settings, name="jheliztv_whatsapp"),
+    path("app/whatsapp/conectar/", v.whatsapp_signup_complete, name="jheliztv_whatsapp_connect"),
+    path("app/whatsapp/desvincular/", v.whatsapp_unlink, name="jheliztv_whatsapp_unlink"),
+    path("meta/whatsapp/webhook/", v.whatsapp_webhook, name="jheliztv_whatsapp_webhook"),
 
     # Servicios
     path("app/servicios/", v.services_board, name="jheliztv_services"),

@@ -51,6 +51,9 @@
       <a href="{% url 'jheliztv_telegram' %}" class="jc-tab {% if jc_active == 'telegram' %}is-active{% endif %}">
         <span class="material-symbols-outlined">send</span><span>Telegram</span>
       </a>
+      <a href="{% url 'jheliztv_whatsapp' %}" class="jc-tab {% if jc_active == 'whatsapp' %}is-active{% endif %}">
+        <span class="material-symbols-outlined">chat</span><span>WhatsApp</span>
+      </a>
       <a href="{% url 'jheliztv_billing' %}" class="jc-tab {% if jc_active == 'billing' %}is-active{% endif %}">
         <span class="material-symbols-outlined">qr_code_2</span><span>Mi suscripción</span>
       </a>

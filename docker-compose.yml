@@ -85,6 +85,16 @@ services:
     profiles:
       - control-alerts
 
+  whatsapp_scheduler:
+    build: .
+    command: python manage.py run_control_whatsapp_scheduler
+    env_file: .env
+    depends_on:
+      - web
+    restart: unless-stopped
+    profiles:
+      - control-alerts
+
   backup:
     profiles:
       - backup

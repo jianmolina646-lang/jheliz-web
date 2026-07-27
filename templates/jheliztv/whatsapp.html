@@ -1,0 +1,140 @@
+{% extends "jheliztv/base.html" %}
+{% block title %}WhatsApp Business{% endblock %}
+{% block jc_content %}
+<!--
+THESIS: Conectar, verificar y operar un numero sin convertir la configuracion en un panel tecnico.
+OWN-WORLD: Superficie oscura de Jheliz Control, verde operativo, filas compactas y estados explicitos.
+STORY: El revendedor conecta su numero, configura el aviso y confirma que solo saldran mensajes consentidos.
+FIRST VIEWPORT: Estado del numero y accion principal arriba; configuracion y requisitos debajo.
+FORM: Extension directa de la superficie Operate existente; sin reemplazar su identidad.
+-->
+<section class="jc-page-head jc-page-head--whatsapp">
+  <div>
+    <p class="jc-eyebrow">Automatizacion</p>
+    <h1>WhatsApp Business</h1>
+    <p>Envia recordatorios de vencimiento desde el numero oficial de tu negocio.</p>
+  </div>
+  <div class="jc-whatsapp-mark" aria-hidden="true">
+    <span class="material-symbols-outlined">chat</span>
+  </div>
+</section>
+
+<div class="jc-wa-layout">
+  <section class="jc-card jc-wa-connection" aria-labelledby="wa-status-title">
+    <div class="jc-wa-status">
+      <div class="jc-wa-orb"><span class="material-symbols-outlined">phone_in_talk</span></div>
+      <div>
+        {% if connection.is_connected %}
+          <span class="jc-chip jc-chip--green">Conectado</span>
+          <h2 id="wa-status-title">{{ connection.verified_name|default:"WhatsApp Business activo" }}</h2>
+          <p>{{ connection.display_phone_number }} · Los avisos salen desde este numero.</p>
+        {% elif meta_ready %}
+          <span class="jc-chip jc-chip--yellow">Listo para conectar</span>
+          <h2 id="wa-status-title">Conecta el numero de tu negocio</h2>
+          <p>Meta abrira una ventana segura para elegir o registrar tu WhatsApp Business.</p>
+        {% else %}
+          <span class="jc-chip jc-chip--yellow">Configuracion central pendiente</span>
+          <h2 id="wa-status-title">Jheliz esta preparando la conexion con Meta</h2>
+          <p>Esta opcion se activara cuando la aplicacion de Jheliz sea aprobada y tenga sus credenciales.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if connection.is_connected %}
+      <form method="post" action="{% url 'jheliztv_whatsapp_unlink' %}">
+        {% csrf_token %}
+        <button class="jc-btn jc-btn--danger-outline" type="submit">
+          <span class="material-symbols-outlined">link_off</span> Desvincular numero
+        </button>
+      </form>
+    {% elif meta_ready %}
+      <button class="jc-btn jc-btn--primary" type="button" id="jcMetaSignup">
+        <span class="material-symbols-outlined">add_link</span> Conectar con Meta
+      </button>
+      <p class="jc-wa-feedback" id="jcMetaFeedback" role="status" aria-live="polite"></p>
+    {% endif %}
+  </section>
+
+  <form method="post" class="jc-card jc-wa-settings">
+    {% csrf_token %}
+    <div class="jc-wa-section-head">
+      <div>
+        <h2>Recordatorio automatico</h2>
+        <p>Se envia una sola vez por vencimiento. Si renuevas la cuenta, comienza un ciclo nuevo.</p>
+      </div>
+      <label class="jc-wa-switch">
+        <input type="checkbox" name="is_enabled" {% if connection.is_enabled %}checked{% endif %}>
+        <span>Activo</span>
+      </label>
+    </div>
+    <fieldset class="jc-alert-window">
+      <legend>Momento del aviso</legend>
+      {% for day,label in whatsapp_windows %}
+        <label><input type="checkbox" name="window_{{ day }}" {% if day in connection.windows %}checked{% endif %}> {{ label }}</label>
+      {% empty %}
+        <label><input type="checkbox" name="window_1" checked> 1 dia antes</label>
+      {% endfor %}
+    </fieldset>
+    <div class="jc-wa-fields">
+      <div class="jc-field">
+        <label for="wa-template">Plantilla aprobada por Meta</label>
+        <input id="wa-template" name="template_name" value="{{ connection.template_name }}" maxlength="128">
+      </div>
+      <div class="jc-field">
+        <label for="wa-language">Idioma</label>
+        <input id="wa-language" name="template_language" value="{{ connection.template_language }}" maxlength="16">
+      </div>
+    </div>
+    <button class="jc-btn jc-btn--primary" type="submit">
+      <span class="material-symbols-outlined">save</span> Guardar configuracion
+    </button>
+  </form>
+
+  <aside class="jc-wa-safety">
+    <span class="material-symbols-outlined">verified_user</span>
+    <div>
+      <strong>Privacidad y consentimiento</strong>
+      <p>Solo reciben avisos los clientes con numero y autorizacion marcada. El mensaje nunca incluye contrasenas ni PIN.</p>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block jc_scripts %}
+{% if meta_ready and not connection.is_connected %}
+<script>
+  window.fbAsyncInit = function () { FB.init({appId: "{{ meta_app_id|escapejs }}", cookie: true, xfbml: false, version: "v23.0"}); };
+  (function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(d.getElementById(id))return;js=d.createElement(s);js.id=id;js.src="https://connect.facebook.net/es_LA/sdk.js";fjs.parentNode.insertBefore(js,fjs);}(document,"script","facebook-jssdk"));
+  (function () {
+    const button = document.getElementById("jcMetaSignup");
+    const feedback = document.getElementById("jcMetaFeedback");
+    let session = {};
+    window.addEventListener("message", function(event) {
+      if (!["https://www.facebook.com", "https://web.facebook.com"].includes(event.origin)) return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "WA_EMBEDDED_SIGNUP" && data.event === "FINISH") session = data.data || {};
+      } catch (_) {}
+    });
+    button.addEventListener("click", function () {
+      button.disabled = true; feedback.textContent = "Abriendo Meta...";
+      FB.login(function(response) {
+        const code = response.authResponse && response.authResponse.code;
+        if (!code || !session.waba_id || !session.phone_number_id) {
+          button.disabled = false; feedback.textContent = "La conexion no se completo. Intentalo nuevamente.";
+          return;
+        }
+        fetch("{% url 'jheliztv_whatsapp_connect' %}", {
+          method: "POST",
+          headers: {"Content-Type":"application/json", "X-CSRFToken":"{{ csrf_token }}"},
+          body: JSON.stringify({code: code, waba_id: session.waba_id, phone_number_id: session.phone_number_id})
+        }).then(r => r.json().then(data => ({ok:r.ok, data:data}))).then(result => {
+          if (!result.ok) throw new Error(result.data.error || "Meta rechazo la conexion.");
+          window.location.reload();
+        }).catch(error => { button.disabled=false; feedback.textContent=error.message; });
+      }, {config_id: "{{ meta_config_id|escapejs }}", response_type: "code", override_default_response_type: true, extras: {featureType: "whatsapp_business_app_onboarding"}});
+    });
+  })();
+</script>
+{% endif %}
+{% endblock %}

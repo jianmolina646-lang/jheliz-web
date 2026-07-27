@@ -26,12 +26,33 @@ class ServiceForm(forms.ModelForm):
 
 
 class ClientForm(forms.ModelForm):
+    whatsapp_opt_in = forms.BooleanField(
+        label="El cliente autorizo recordatorios por WhatsApp", required=False,
+    )
+
     class Meta:
         model = Client
         fields = ("name", "telegram", "whatsapp", "email", "notes")
         widgets = {
             "notes": forms.Textarea(attrs={"rows": 2}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["whatsapp_opt_in"].initial = bool(
+            self.instance and self.instance.whatsapp_opt_in_at
+        )
+
+    def save(self, commit=True):
+        client = super().save(commit=False)
+        accepted = self.cleaned_data.get("whatsapp_opt_in", False)
+        client.whatsapp_opt_in_at = (
+            client.whatsapp_opt_in_at or timezone.now()
+        ) if accepted else None
+        if commit:
+            client.save()
+            self.save_m2m()
+        return client
 
 
 class SubscriptionForm(forms.ModelForm):

@@ -1289,6 +1289,19 @@ html, body { min-height: 100%; background: #070b09 !important; }
 .jc-telegram-security p{margin:0;font-size:11px;line-height:1.55}.jc-telegram-security strong{color:#a8bcb1}
 .jc-telegram-action{width:100%;justify-content:center}
 .jc-btn--danger-outline{color:#f26770;border-color:rgba(242,103,112,.22);background:transparent}
+.jc-page-head--whatsapp{position:relative;min-height:110px;padding-right:150px}
+.jc-whatsapp-mark{display:grid;place-items:center;position:absolute;right:28px;top:10px;width:84px;height:84px;border-radius:24px;background:#16a866;color:#06130c;box-shadow:0 16px 34px -16px rgba(22,168,102,.75)}
+.jc-whatsapp-mark .material-symbols-outlined{font-size:42px}
+.jc-wa-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:16px}
+.jc-wa-connection{display:flex;flex-direction:column;justify-content:space-between;min-height:230px}
+.jc-wa-status{display:flex;align-items:flex-start;gap:16px}.jc-wa-status h2{margin:9px 0 3px}.jc-wa-status p{margin:0}
+.jc-wa-orb{display:grid;place-items:center;flex:0 0 52px;height:52px;border-radius:15px;background:rgba(53,229,143,.1);color:#35e58f}
+.jc-wa-feedback{min-height:20px;margin:10px 0 0!important;color:#e3a84d!important}
+.jc-wa-settings{grid-row:span 2}.jc-wa-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}.jc-wa-section-head h2{margin:0 0 4px}.jc-wa-section-head p{margin:0}
+.jc-wa-switch{display:flex;align-items:center;gap:7px;color:#b9c7bf;font-size:12px;font-weight:650}.jc-wa-switch input{accent-color:#35e58f}
+.jc-wa-fields{display:grid;grid-template-columns:1fr 110px;gap:12px;margin-top:14px}
+.jc-wa-safety{display:flex;gap:12px;padding:15px;border:1px solid rgba(53,229,143,.15);border-radius:12px;background:rgba(53,229,143,.045);color:#35e58f}.jc-wa-safety strong{color:#dce9e1}.jc-wa-safety p{margin:3px 0 0;color:#7f9187;font-size:12px;line-height:1.5}
+@media(max-width:800px){.jc-wa-layout{grid-template-columns:1fr}.jc-wa-settings{grid-row:auto}.jc-page-head--whatsapp{padding-right:90px}.jc-whatsapp-mark{right:8px;width:66px;height:66px;border-radius:18px}.jc-wa-fields{grid-template-columns:1fr}}
 .jc-alert-window{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:20px 0;padding:14px;border:1px solid var(--jc-border);border-radius:7px}
 .jc-alert-window legend{padding:0 7px;color:#9db2a7;font-size:11px}.jc-alert-window label{font-size:11px}
 .jc-telegram-open{margin:10px 0 0}.jc-telegram-open .jc-btn{width:100%;justify-content:center}

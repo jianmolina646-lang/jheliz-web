@@ -29,6 +29,7 @@ JHELIZTV_HOSTS = config(
     default="jheliztv.xyz,www.jheliztv.xyz",
     cast=Csv(),
 )
+ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, *JHELIZTV_HOSTS]))
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 
 # URL base del panel admin. Cambiá esto en .env para "esconder" el admin
@@ -740,6 +741,11 @@ UNFOLD = {
 # Si no se configura en DEBUG, se deriva de SECRET_KEY (sólo dev).
 # ---------------------------------------------------------------------------
 FIELD_ENCRYPTION_KEY = secret_config("FIELD_ENCRYPTION_KEY")
+META_APP_ID = secret_config("META_APP_ID")
+META_APP_SECRET = secret_config("META_APP_SECRET")
+META_CONFIG_ID = secret_config("META_CONFIG_ID")
+META_WEBHOOK_VERIFY_TOKEN = secret_config("META_WEBHOOK_VERIFY_TOKEN")
+META_GRAPH_API_VERSION = config("META_GRAPH_API_VERSION", default="v23.0")
 
 # ---------------------------------------------------------------------------
 # django-axes: bloqueo por intentos fallidos de login

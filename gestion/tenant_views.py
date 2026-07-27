@@ -11,6 +11,7 @@ standalone bajo ``templates/jheliztv/`` (no dependen del admin).
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import secrets
 from datetime import datetime, time, timedelta
@@ -28,7 +29,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from config.date_utils import add_service_duration
-from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_POST
 
 from .forms import ClientForm, ServiceForm, SubscriptionForm, TransactionForm
 from .control_operations import (
@@ -50,7 +52,9 @@ from .models import (
     TenantPayment,
     TelegramConnection,
     Transaction,
+    WhatsAppConnection,
 )
+from .whatsapp import MetaAPIError, finish_signup, process_webhook, verify_signature
 from .views import _decorate_subs  # reuso de helpers
 
 User = get_user_model()
@@ -1005,3 +1009,93 @@ def telegram_unlink(request, tenant):
     )
     messages.success(request, "Telegram fue desvinculado.")
     return redirect("jheliztv_telegram")
+
+
+@tenant_required
+def whatsapp_settings(request, tenant):
+    connection, _ = WhatsAppConnection.objects.get_or_create(owner=request.user)
+    if request.method == "POST":
+        connection.reminder_days = [
+            day for day in (7, 3, 1, 0)
+            if request.POST.get(f"window_{day}") == "on"
+        ] or [1]
+        connection.template_name = (
+            request.POST.get("template_name", "").strip()
+            or "recordatorio_vencimiento"
+        )[:128]
+        connection.template_language = (
+            request.POST.get("template_language", "").strip() or "es"
+        )[:16]
+        connection.is_enabled = request.POST.get("is_enabled") == "on"
+        connection.save()
+        messages.success(request, "Configuracion de WhatsApp guardada.")
+        return redirect("jheliztv_whatsapp")
+    return render(request, "jheliztv/whatsapp.html", _ctx(
+        request, tenant,
+        connection=connection,
+        meta_ready=all([
+            settings.META_APP_ID, settings.META_APP_SECRET, settings.META_CONFIG_ID,
+        ]),
+        meta_app_id=settings.META_APP_ID,
+        meta_config_id=settings.META_CONFIG_ID,
+        whatsapp_windows=[
+            (7, "7 dias antes"), (3, "3 dias antes"),
+            (1, "1 dia antes"), (0, "El mismo dia"),
+        ],
+        jc_active="whatsapp",
+    ))
+
+
+@tenant_required
+@require_POST
+def whatsapp_signup_complete(request, tenant):
+    try:
+        payload = json.loads(request.body)
+        required = ("code", "waba_id", "phone_number_id")
+        if any(not payload.get(key) for key in required):
+            return JsonResponse({"ok": False, "error": "Datos incompletos de Meta."}, status=400)
+        connection = finish_signup(request.user, **{key: payload[key] for key in required})
+        return JsonResponse({
+            "ok": True,
+            "phone": connection.display_phone_number,
+            "name": connection.verified_name,
+        })
+    except (ValueError, MetaAPIError) as exc:
+        WhatsAppConnection.objects.update_or_create(
+            owner=request.user,
+            defaults={"status": WhatsAppConnection.Status.ERROR, "last_error": str(exc)[:1000]},
+        )
+        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
+
+
+@tenant_required
+@require_POST
+def whatsapp_unlink(request, tenant):
+    WhatsAppConnection.objects.filter(owner=request.user).update(
+        access_token="", waba_id="", phone_number_id=None,
+        display_phone_number="", verified_name="",
+        status=WhatsAppConnection.Status.DISCONNECTED,
+        is_enabled=False, last_error="",
+    )
+    messages.success(request, "WhatsApp Business fue desvinculado.")
+    return redirect("jheliztv_whatsapp")
+
+
+@csrf_exempt
+def whatsapp_webhook(request):
+    if request.method == "GET":
+        if (
+            request.GET.get("hub.mode") == "subscribe"
+            and request.GET.get("hub.verify_token") == settings.META_WEBHOOK_VERIFY_TOKEN
+        ):
+            return HttpResponse(request.GET.get("hub.challenge", ""))
+        return HttpResponse("Verificacion rechazada", status=403)
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    if not verify_signature(request.body, request.headers.get("X-Hub-Signature-256", "")):
+        return HttpResponse("Firma invalida", status=403)
+    try:
+        process_webhook(json.loads(request.body))
+    except (ValueError, TypeError):
+        return HttpResponse("JSON invalido", status=400)
+    return HttpResponse("EVENT_RECEIVED")

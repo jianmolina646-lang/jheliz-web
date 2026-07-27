@@ -18,6 +18,7 @@ from django.db import models
 from django.utils import timezone
 
 from config.date_utils import add_service_duration
+from orders.encryption import EncryptedTextField
 
 
 class ServiceCategory(models.Model):
@@ -110,6 +111,10 @@ class Client(models.Model):
     whatsapp = models.CharField(
         "WhatsApp", max_length=40, blank=True,
         help_text="Número con código de país (ej. +51987654321).",
+    )
+    whatsapp_opt_in_at = models.DateTimeField(
+        "Autorizacion para avisos por WhatsApp", null=True, blank=True,
+        help_text="Fecha en que el cliente acepto recibir recordatorios.",
     )
     email = models.EmailField("Correo", blank=True)
     notes = models.TextField("Notas", blank=True)
@@ -431,6 +436,85 @@ class TelegramConnection(models.Model):
     def windows(self):
         values = self.notify_windows or [7, 3, 1, 0]
         return [int(value) for value in values if int(value) in {7, 3, 1, 0}]
+
+
+class WhatsAppConnection(models.Model):
+    """Numero de WhatsApp Business conectado por cada revendedor."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pendiente"
+        ACTIVE = "active", "Activo"
+        ERROR = "error", "Con error"
+        DISCONNECTED = "disconnected", "Desconectado"
+
+    owner = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="jc_whatsapp_connection",
+    )
+    access_token = EncryptedTextField(blank=True)
+    waba_id = models.CharField(max_length=40, blank=True, db_index=True)
+    phone_number_id = models.CharField(max_length=40, blank=True, unique=True, null=True)
+    display_phone_number = models.CharField(max_length=40, blank=True)
+    verified_name = models.CharField(max_length=160, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    is_enabled = models.BooleanField(default=True)
+    template_name = models.CharField(max_length=128, default="recordatorio_vencimiento")
+    template_language = models.CharField(max_length=16, default="es")
+    reminder_days = models.JSONField(default=list, blank=True)
+    last_error = models.TextField(blank=True)
+    connected_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def windows(self):
+        values = self.reminder_days or [1]
+        return sorted({int(v) for v in values if int(v) in {7, 3, 1, 0}}, reverse=True)
+
+    @property
+    def is_connected(self):
+        return bool(
+            self.status == self.Status.ACTIVE and self.is_enabled
+            and self.access_token and self.waba_id and self.phone_number_id
+        )
+
+
+class WhatsAppReminderDelivery(models.Model):
+    """Entrega idempotente y estados reportados por Cloud API."""
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "En cola"
+        SENT = "sent", "Enviado"
+        DELIVERED = "delivered", "Entregado"
+        READ = "read", "Leido"
+        FAILED = "failed", "Fallido"
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="jc_whatsapp_deliveries",
+    )
+    subscription = models.ForeignKey(
+        Subscription, on_delete=models.CASCADE, related_name="whatsapp_deliveries",
+    )
+    expiry_date = models.DateField()
+    reminder_days = models.PositiveSmallIntegerField(default=1)
+    recipient = models.CharField(max_length=40)
+    template_name = models.CharField(max_length=128)
+    meta_message_id = models.CharField(max_length=160, blank=True, db_index=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.QUEUED)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["subscription", "expiry_date", "reminder_days"],
+                name="uniq_whatsapp_reminder_cycle",
+            ),
+        ]
 
 
 class TelegramSession(models.Model):
