@@ -54,6 +54,13 @@ COMMAND_KINDS: dict[str, str] = {
     "/tv": "tv_signin",
 }
 
+# Variantes intuitivas que apuntan al comando oficial mostrado en el menú.
+COMMAND_ALIASES: dict[str, str] = {
+    "/netflix": "/enlacesesion",
+    "/enlace": "/enlacesesion",
+    "/linknetflix": "/enlacesesion",
+}
+
 # Etiqueta corta de cada tipo, para botones y mensajes.
 KIND_LABELS: dict[str, str] = {
     "signin_code": "🔑 Código de inicio de sesión",
@@ -818,6 +825,7 @@ def _handle_message(update: dict) -> None:
 
     cmd, _, rest = text.partition(" ")
     cmd = cmd.lower().split("@", 1)[0]  # quita @botname si lo hubiera
+    cmd = COMMAND_ALIASES.get(cmd, cmd)
     rest = rest.strip()
 
     if cmd == "/start":

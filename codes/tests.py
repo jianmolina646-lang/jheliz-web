@@ -283,6 +283,16 @@ class CommandMappingTests(TestCase):
         for kind in bot.COMMAND_KINDS.values():
             self.assertIn(kind, bot.KIND_LABELS)
 
+    def test_passwordless_link_aliases_use_official_command(self):
+        self.assertEqual(
+            bot.COMMAND_ALIASES,
+            {
+                "/netflix": "/enlacesesion",
+                "/enlace": "/enlacesesion",
+                "/linknetflix": "/enlacesesion",
+            },
+        )
+
 
 class AdminWelcomeTests(TestCase):
     @mock.patch("codes.bot.send_message")
