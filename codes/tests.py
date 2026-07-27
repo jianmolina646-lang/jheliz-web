@@ -153,6 +153,33 @@ class NetflixParserTests(TestCase):
         self.assertEqual(r.kind, "tv_signin")
         self.assertIn("/tv/", r.action_url)
 
+    def test_passwordless_signin_classification_and_link(self):
+        html = (
+            "<p>Inicia sesión sin una contraseña</p>"
+            '<a href="https://www.netflix.com/accountaccess?g=1&amp;lkid=TV">'
+            "Enviar enlace de inicio de sesión</a>"
+        )
+        r = parse_netflix_email(
+            "Inicia sesión sin una contraseña",
+            html=html,
+        )
+        self.assertEqual(r.kind, "passwordless_signin")
+        self.assertIn("/accountaccess?", r.action_url)
+        self.assertNotIn("&amp;", r.action_url)
+
+    def test_passwordless_signin_rejects_lookalike_domain(self):
+        html = (
+            "<p>Inicia sesión sin una contraseña</p>"
+            '<a href="https://netflix.com.attacker.example/accountaccess?token=x">'
+            "Iniciar sesión</a>"
+        )
+        r = parse_netflix_email(
+            "Inicia sesión sin una contraseña",
+            html=html,
+        )
+        self.assertEqual(r.kind, "passwordless_signin")
+        self.assertEqual(r.action_url, "")
+
     def test_rejects_lookalike_netflix_domain(self):
         html = (
             "<p>Inicia sesión en tu TV</p>"
@@ -244,6 +271,7 @@ class CommandMappingTests(TestCase):
             bot.COMMAND_KINDS,
             {
                 "/codigo": "signin_code",
+                "/enlacesesion": "passwordless_signin",
                 "/viaje": "temp_code",
                 "/hogar": "household",
                 "/clave": "password_reset",

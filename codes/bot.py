@@ -47,6 +47,7 @@ BRAND = "TEAM JHELIZ"
 # comando real es sin tilde (/codigo, /clave) pero el cliente lo escribe igual.
 COMMAND_KINDS: dict[str, str] = {
     "/codigo": "signin_code",
+    "/enlacesesion": "passwordless_signin",
     "/viaje": "temp_code",
     "/hogar": "household",
     "/clave": "password_reset",
@@ -56,6 +57,7 @@ COMMAND_KINDS: dict[str, str] = {
 # Etiqueta corta de cada tipo, para botones y mensajes.
 KIND_LABELS: dict[str, str] = {
     "signin_code": "🔑 Código de inicio de sesión",
+    "passwordless_signin": "🔗 Inicio sin contraseña",
     "temp_code": "✈️ Código de acceso temporal (viaje)",
     "household": "🏠 Actualizar Hogar",
     "password_reset": "🔒 Restablecer contraseña",
@@ -490,6 +492,7 @@ def _kind_buttons(idx: int) -> list[list[dict]]:
     """Las 4 opciones de tipo para un correo (por índice)."""
     styles = {
         "signin_code": ("Código de inicio de sesión", "🔑", "primary"),
+        "passwordless_signin": ("Inicio sin contraseña", "🔗", "success"),
         "temp_code": ("Acceso temporal (viaje)", "✈️", "primary"),
         "household": ("Actualizar Hogar", "🏠", "success"),
         "password_reset": ("Restablecer contraseña", "🔒", "danger"),
@@ -748,7 +751,7 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
 
 
 def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
-    """Procesa /codigo /viaje /hogar /clave [correo]."""
+    """Procesa un comando que recupera un código o enlace por correo."""
     chat_id = client.telegram_chat_id
     if not client.is_active:
         _send_welcome(client)
@@ -1097,6 +1100,7 @@ def _client_help_text(emails: list[str]) -> str:
         "Escribí el comando con tu correo al lado 👇",
         "",
         f"🔑 <code>/codigo {ejemplo}</code> — código de inicio de sesión",
+        f"🔗 <code>/enlacesesion {ejemplo}</code> — enlace para iniciar sin contraseña",
         f"✈️ <code>/viaje {ejemplo}</code> — código de acceso temporal (de viaje)",
         f"🏠 <code>/hogar {ejemplo}</code> — link para actualizar Hogar",
         f"🔒 <code>/clave {ejemplo}</code> — link para restablecer contraseña",
@@ -1140,7 +1144,7 @@ def _admin_help_text() -> str:
         "📢 <code>/anuncio &lt;mensaje&gt;</code> — enviar un anuncio a todos los registrados",
         "",
         "— También tenés los comandos de cliente —",
-        "🔑 /codigo · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📺 /tv · "
+        "🔑 /codigo · 🔗 /enlacesesion · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📺 /tv · "
         "📋 /miscorreos · 🔍 /buscar",
     ]
     return "\n".join(lines)
@@ -1460,6 +1464,7 @@ def _notify_admin_new(client: CodeBotClient) -> None:
 # Comandos que ve el cliente en el botón azul "Menú" de Telegram.
 _CLIENT_MENU = [
     {"command": "codigo", "description": "🔑 Código de inicio de sesión"},
+    {"command": "enlacesesion", "description": "🔗 Inicio sin contraseña Netflix"},
     {"command": "viaje", "description": "✈️ Código de acceso temporal (viaje)"},
     {"command": "hogar", "description": "🏠 Link para actualizar Hogar"},
     {"command": "clave", "description": "🔒 Link para restablecer contraseña"},
