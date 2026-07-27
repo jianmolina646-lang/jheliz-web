@@ -56,6 +56,7 @@ COMMAND_KINDS: dict[str, str] = {
 # Etiqueta corta de cada tipo, para botones y mensajes.
 KIND_LABELS: dict[str, str] = {
     "signin_code": "🔑 Código de inicio de sesión",
+    "passwordless_signin": "📨 Enlace para iniciar sesión sin contraseña",
     "temp_code": "✈️ Código de acceso temporal (viaje)",
     "household": "🏠 Actualizar Hogar",
     "password_reset": "🔒 Restablecer contraseña",
@@ -548,7 +549,7 @@ def _tv_email_confirmation(
     email = (email or "").strip().lower()
     if email not in emails:
         # Reutiliza la validación, alerta y bloqueo progresivo centralizados.
-        text = _deliver_code(client, email, kind="tv_signin")
+        text = _deliver_code(client, email, kind="passwordless_signin")
         send_message(client.telegram_chat_id, text)
         return
     idx = emails.index(email)
@@ -984,7 +985,11 @@ def _handle_callback(update: dict) -> None:
                     message_id,
                     "⏳ <b>Buscando el enlace enviado por Netflix…</b>",
                 )
-            result_text = _deliver_code(client, emails[idx], kind="tv_signin")
+            result_text = _deliver_code(
+                client,
+                emails[idx],
+                kind="passwordless_signin",
+            )
             if message_id is not None:
                 edit_result = edit_message(chat_id, message_id, result_text)
                 _schedule_sensitive_deletion(
