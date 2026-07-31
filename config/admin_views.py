@@ -1919,6 +1919,7 @@ def cuentas_dashboard(request):
         .only(
             "id", "stock_item_id", "requested_profile_name", "requested_pin",
             "final_customer_name", "final_customer_whatsapp", "expires_at",
+            "unit_price",
             "order__id", "order__uuid", "order__email", "order__phone",
             "order__paid_at", "order__created_at",
         )
@@ -1972,6 +1973,7 @@ def cuentas_dashboard(request):
         it.buyer_channel_label = ""
         it.buyer_source_key = ""
         it.sale_date = None
+        it.sale_price = None  # monto cobrado (unit_price del OrderItem)
         it.order_uuid = ""
         # Vencimiento de la cuenta del cliente (para cobrar la renovación).
         it.expires_at = None
@@ -1993,6 +1995,7 @@ def cuentas_dashboard(request):
                 it.buyer_channel_label = _channel_display(oi.order)
                 it.buyer_source_key = _channel_to_source_key(oi.order)
                 it.sale_date = oi.order.paid_at or oi.order.created_at
+                it.sale_price = oi.unit_price
                 it.order_uuid = str(oi.order.uuid)[:8]
                 it.expires_at = oi.expires_at
                 it.buyer_wa_digits = _re.sub(
@@ -2059,11 +2062,22 @@ def cuentas_dashboard(request):
                 "items": [],
                 "available": 0, "sold": 0, "reserved": 0,
                 "defective": 0, "disabled": 0, "total": 0,
+                # Métricas estilo KINEMANAGER para la cabecera del servicio.
+                "ingresos": Decimal("0.00"),  # suma de montos cobrados
+                "_clientes": set(),           # compradores distintos
+                "cierres": 0,                 # suscripciones (vendidas/reservadas)
             },
         )
         slot["items"].append(it)
         slot[it.status] = slot.get(it.status, 0) + 1
         slot["total"] += 1
+        if it.sale_price:
+            slot["ingresos"] += it.sale_price
+        if it.status in (StockItem.Status.SOLD, StockItem.Status.RESERVED):
+            slot["cierres"] += 1
+            buyer_key = (it.buyer_resale_name or it.buyer_email or it.buyer_phone or "").strip().lower()
+            if buyer_key:
+                slot["_clientes"].add(buyer_key)
 
     # Si no hay filtros (q/status/mode), agregar productos sin stock también.
     if not q and status_filter == "all" and mode_filter == "all":
@@ -2110,6 +2124,13 @@ def cuentas_dashboard(request):
             g["product"].name.lower(),
         ),
     )
+
+    # Normalizar métricas de cabecera (incluye plataformas sin stock).
+    for g in groups:
+        g["clientes"] = len(g.pop("_clientes", ()) or ())
+        g.setdefault("ingresos", Decimal("0.00"))
+        g.setdefault("cierres", 0)
+        g["egresos"] = Decimal("0.00")  # no manejado en la tienda → 0
 
     # Orden de las cuentas dentro de cada plataforma. "recent" (default) ya
     # viene por -created_at del queryset, así que solo reordenamos si piden otro.
