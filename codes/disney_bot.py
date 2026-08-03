@@ -25,6 +25,7 @@ from typing import Any, Iterable
 
 import requests
 from django.conf import settings
+from django.db import close_old_connections
 
 from . import imap_reader
 from .models import AssignedEmail, BotState, CodeBotClient
@@ -607,6 +608,7 @@ def run_polling(poll_interval: float = 1.0) -> None:
         offset = 0
     logger.info("Bot de Disney+ iniciado (long polling), offset=%s", offset)
     while True:
+        close_old_connections()
         try:
             data = _call(
                 "getUpdates",
@@ -618,11 +620,13 @@ def run_polling(poll_interval: float = 1.0) -> None:
             for upd in updates:
                 offset = upd["update_id"] + 1
                 try:
+                    close_old_connections()
                     process_update(upd)
                 except Exception:
                     logger.exception("Error procesando update (disney)")
             if updates:
                 try:
+                    close_old_connections()
                     BotState.set_offset(offset, pk=BOT_STATE_PK)
                 except Exception:
                     logger.exception("No pude guardar el offset del bot (disney)")

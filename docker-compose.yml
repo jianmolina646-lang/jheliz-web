@@ -15,7 +15,9 @@ services:
     env_file: .env
     volumes:
       - ./media:/app/media
-      - ./staticfiles:/app/staticfiles
+      # En producción Nginx sirve /srv/jheliz/staticfiles. La variable evita
+      # que collectstatic escriba en un directorio distinto al publicado.
+      - ${STATICFILES_DIR:-./staticfiles}:/app/staticfiles
     ports:
       - "8000:8000"
     depends_on:

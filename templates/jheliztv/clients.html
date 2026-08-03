@@ -1,171 +1,281 @@
 {% extends "jheliztv/base.html" %}
 
 {% block jc_content %}
-  <section class="jc-page-head jc-page-head--board jc-page-head--clients">
-    <div><p class="jc-eyebrow">Gestión comercial</p><h1>Mis clientes</h1><p>Administra clientes, accesos, servicios y vencimientos desde un solo lugar.</p></div>
-    <button type="button" class="jc-btn" data-jc-open="modalClient">
-      <span class="material-symbols-outlined">person_add</span> Agregar cliente
+<div class="jc-clients-page">
+  <header class="jc-clients-head">
+    <div>
+      <div class="jc-clients-eyebrow"><i></i>Gestión comercial</div>
+      <h1>Mis clientes</h1>
+      <p>Administra clientes, accesos, servicios y vencimientos desde un solo lugar.</p>
+    </div>
+    <button type="button" class="jc-clients-add" data-jc-open="modalClient">
+      <span class="material-symbols-outlined" aria-hidden="true">person_add</span>
+      Agregar cliente
     </button>
+  </header>
+
+  <section class="jc-clients-stats" aria-label="Resumen de clientes">
+    <article class="jc-clients-stat is-accent">
+      <i class="material-symbols-outlined" aria-hidden="true">groups</i>
+      <div><strong>{{ clients|length }}</strong><small>Clientes en esta vista</small></div>
+    </article>
+    <article class="jc-clients-stat">
+      <i class="material-symbols-outlined" aria-hidden="true">filter_alt</i>
+      <div><strong>Activas</strong><small>Servicios asignados visibles</small></div>
+    </article>
+    <article class="jc-clients-stat">
+      <i class="material-symbols-outlined" aria-hidden="true">calendar_clock</i>
+      <div><strong>{% if sort == 'name' %}Nombre A-Z{% elif sort == 'active' %}Más activas{% else %}Vencimiento{% endif %}</strong><small>Orden actual</small></div>
+    </article>
+    <article class="jc-clients-stat">
+      <i class="material-symbols-outlined" aria-hidden="true">visibility</i>
+      <div><strong>{% if q %}Filtrado{% else %}Todos{% endif %}</strong><small>Resultado mostrado</small></div>
+    </article>
   </section>
 
-  <div class="jc-board-stats jc-board-stats--clients">
-    <div class="jc-board-stat"><span class="material-symbols-outlined">groups</span><div><strong>{{ clients|length }}</strong><small>Clientes en esta vista</small></div></div>
-    <div class="jc-board-stat"><span class="material-symbols-outlined">subscriptions</span><div><strong>Activas</strong><small>Servicios asignados visibles</small></div></div>
-    <div class="jc-board-stat"><span class="material-symbols-outlined">sort</span><div><strong>{% if sort == 'name' %}A–Z{% elif sort == 'active' %}Actividad{% else %}Vencimiento{% endif %}</strong><small>Orden actual</small></div></div>
-    <div class="jc-board-stat"><span class="material-symbols-outlined">manage_search</span><div><strong>{% if q %}Filtrado{% else %}Todos{% endif %}</strong><small>Resultado mostrado</small></div></div>
-  </div>
-
-  <div class="jc-register-shell">
-  <form method="get" class="jc-clients-search-form">
-    <div class="jc-search-box">
-      <span class="material-symbols-outlined">search</span>
-      <input type="search" name="q" value="{{ q }}" class="jc-clients-search"
-             placeholder="Buscar por nombre, @telegram, WhatsApp o correo…" autocomplete="off">
-    </div>
-  </form>
-
-  {% if q %}<p style="color:#6b7280;margin:0 0 12px;">Resultados para "<strong>{{ q }}</strong>".</p>{% endif %}
+  <section class="jc-clients-tools" aria-label="Buscar y ordenar clientes">
+    <form method="get" class="jc-clients-search-form">
+      <input type="hidden" name="sort" value="{{ sort }}">
+      <label class="jc-clients-search-box">
+        <span class="material-symbols-outlined" aria-hidden="true">search</span>
+        <span class="sr-only">Buscar clientes</span>
+        <input type="search" name="q" value="{{ q }}" class="jc-clients-search"
+               placeholder="Buscar por nombre, @telegram, WhatsApp o correo…" autocomplete="off">
+      </label>
+    </form>
+    <nav class="jc-clients-filters" aria-label="Orden de clientes">
+      <span class="jc-clients-filter-label"><span class="material-symbols-outlined">swap_vert</span>Ordenar</span>
+      <a href="?sort=expiry{% if q %}&q={{ q|urlencode }}{% endif %}" class="jc-sortpill jc-clients-filter{% if sort == 'expiry' %} is-active{% endif %}">
+        <span class="material-symbols-outlined">calendar_clock</span>Vence pronto
+      </a>
+      <a href="?sort=name{% if q %}&q={{ q|urlencode }}{% endif %}" class="jc-sortpill jc-clients-filter{% if sort == 'name' %} is-active{% endif %}">
+        <span class="material-symbols-outlined">sort_by_alpha</span>Nombre A-Z
+      </a>
+      <a href="?sort=active{% if q %}&q={{ q|urlencode }}{% endif %}" class="jc-sortpill jc-clients-filter{% if sort == 'active' %} is-active{% endif %}">
+        <span class="material-symbols-outlined">auto_awesome</span>Más activas
+      </a>
+    </nav>
+  </section>
 
   {% if clients %}
-    <div class="jc-sortbar">
-      <span class="jc-sortbar__label"><span class="material-symbols-outlined">swap_vert</span> Ordenar</span>
-      <a href="?sort=expiry{% if q %}&q={{ q|urlencode }}{% endif %}" class="jc-sortpill{% if sort == 'expiry' %} is-active{% endif %}">Vence pronto</a>
-      <a href="?sort=name{% if q %}&q={{ q|urlencode }}{% endif %}" class="jc-sortpill{% if sort == 'name' %} is-active{% endif %}">Nombre A-Z</a>
-      <a href="?sort=active{% if q %}&q={{ q|urlencode }}{% endif %}" class="jc-sortpill{% if sort == 'active' %} is-active{% endif %}">Más activas</a>
-    </div>
-
-    <div class="jc-clients">
+    <section class="jc-clients" aria-label="Listado de clientes">
       {% for c in clients %}
         <article class="jc-client" data-search="{{ c.name }} {{ c.telegram }} {{ c.whatsapp }} {{ c.email }}{% for s in c.active_subs %} {{ s.account_email }} {{ s.service.name }}{% endfor %}">
-          <div class="jc-client__top">
-            <div class="jc-avatar">{{ c.name|first|upper }}</div>
-            <div class="jc-client__id">
-              <div class="jc-client__name">{{ c.name }}</div>
-              <div class="jc-client__meta">Añadido el {{ c.created_at|date:"d/m/Y" }}</div>
-              {% if c.telegram %}<div class="jc-client__contact"><span class="material-symbols-outlined" style="font-size:15px">send</span>{{ c.telegram }}</div>{% endif %}
-            </div>
-            <div class="jc-client__badges">
-              <span class="jc-badge jc-badge--mail"><span class="material-symbols-outlined">mail</span>{{ c.active_subs|length }} cuenta{{ c.active_subs|length|pluralize }}</span>
-              {% if c.active_subs %}<span class="jc-count-badge">{{ c.active_subs|length }} activa{{ c.active_subs|length|pluralize }}</span>{% endif %}
-            </div>
-          </div>
-
-          {% with subs=c.active_subs %}
-            {% if subs %}
-              <div class="jc-csubs">
-                {% for s in subs %}
-                  <div class="jc-csub2{% if forloop.counter0 >= 3 %} jc-csub--extra{% endif %}">
-                    <span class="jc-csub2__logo"{% if s.service.image %} style="background-image:url('{{ s.service.image.url }}')"{% else %} style="background:{{ s.service.color|default:'#10b981' }}"{% endif %}>{% if not s.service.image %}{{ s.service.name|first|upper }}{% endif %}</span>
-                    <div class="jc-csub2__body">
-                      <div class="jc-csub2__line"><span class="jc-csub2__dot jc-csub2__dot--{{ s.status_color }}"></span><strong>{{ s.service.name }}</strong> <span class="jc-csub2__mail">{{ s.account_email }}</span></div>
-                      {% if s.account_password %}<div class="jc-csub2__pass"><span class="material-symbols-outlined">key</span>{{ s.account_password }}</div>{% endif %}
-                    </div>
-                    <span class="material-symbols-outlined jc-csub2__ok">check_circle</span>
-                  </div>
-                {% endfor %}
+          <aside class="jc-client-info">
+            <span class="jc-client-accent" aria-hidden="true"></span>
+            <div class="jc-client-identity">
+              <span class="jc-client-avatar">{{ c.name|first|upper }}</span>
+              <div>
+                <h2 title="{{ c.name }}">{{ c.name }}</h2>
+                <p>Añadido el {{ c.created_at|date:"d/m/Y" }}</p>
               </div>
-              {% if subs|length > 3 %}
-                <button type="button" class="jc-csub-more" data-jc-more><span class="material-symbols-outlined" style="font-size:16px">expand_more</span> Ver todas ({{ subs|length }})</button>
-              {% endif %}
-            {% else %}
-              <div class="jc-csubs-empty">Sin servicios activos</div>
-            {% endif %}
-          {% endwith %}
+            </div>
 
-          <div class="jc-client__foot">
-            <button type="button" class="jc-cbtn jc-cbtn--edit"
-                    data-jc-open="modalClientEdit"
-                    data-action="{% url 'jheliztv_client_edit' c.pk %}"
-                    data-fill-name="{{ c.name }}"
-                    data-fill-telegram="{{ c.telegram }}"
-                    data-fill-whatsapp="{{ c.whatsapp }}"
-                    data-fill-email="{{ c.email }}"
-                    data-fill-notes="{{ c.notes }}">
-              <span class="material-symbols-outlined">edit</span> Editar
-            </button>
-            <button type="button" class="jc-cbtn jc-cbtn--extract"{% if not c.svc_groups %} disabled{% endif %}
-                    data-jc-open="extrCli{{ c.pk }}">
-              <span class="material-symbols-outlined">picture_as_pdf</span> Extraer
-            </button>
-            <button type="button" class="jc-cbtn jc-cbtn--del"
-                    onclick="if(confirm('¿Eliminar a {{ c.name|escapejs }} y sus suscripciones?')){document.getElementById('delcli{{ c.pk }}').submit();}">
-              <span class="material-symbols-outlined">delete</span> Eliminar
-            </button>
-            <form id="delcli{{ c.pk }}" method="post" action="{% url 'jheliztv_client_delete' c.pk %}" style="display:none">{% csrf_token %}</form>
+            <div class="jc-client-contacts">
+              {% if c.telegram %}<p><span class="material-symbols-outlined">send</span><b>{{ c.telegram }}</b></p>{% endif %}
+              {% if c.whatsapp %}<p><span class="material-symbols-outlined">call</span><b>{{ c.whatsapp }}</b></p>{% endif %}
+              {% if c.email %}<p><span class="material-symbols-outlined">mail</span><b>{{ c.email }}</b></p>{% endif %}
+            </div>
+
+            <div class="jc-client-summary">
+              <span><i class="material-symbols-outlined">mail</i><b>{{ c.active_subs|length }}</b> cuentas</span>
+              <i class="jc-client-summary__divider"></i>
+              <span><i class="jc-client-active-dot"></i><b>{{ c.active_subs|length }}</b> activas</span>
+              <button type="button"
+                      data-jc-open="modalClientEdit"
+                      data-action="{% url 'jheliztv_client_edit' c.pk %}"
+                      data-fill-name="{{ c.name }}"
+                      data-fill-telegram="{{ c.telegram }}"
+                      data-fill-whatsapp="{{ c.whatsapp }}"
+                      data-fill-email="{{ c.email }}"
+                      data-fill-notes="{{ c.notes }}">
+                <span class="material-symbols-outlined">person</span>Perfil
+              </button>
+            </div>
+
+            {% if not c.active_subs %}
+              <div class="jc-client-empty-service">Sin servicios activos</div>
+              <div class="jc-client-aside-actions">
+                <button type="button" class="jc-client-icon-btn"
+                        data-jc-open="modalClientEdit"
+                        data-action="{% url 'jheliztv_client_edit' c.pk %}"
+                        data-fill-name="{{ c.name }}"
+                        data-fill-telegram="{{ c.telegram }}"
+                        data-fill-whatsapp="{{ c.whatsapp }}"
+                        data-fill-email="{{ c.email }}"
+                        data-fill-notes="{{ c.notes }}"
+                        title="Editar" aria-label="Editar {{ c.name }}">
+                  <span class="material-symbols-outlined">edit</span>
+                </button>
+                <button type="button" class="jc-client-icon-btn is-danger"
+                        onclick="if(confirm('¿Eliminar a {{ c.name|escapejs }} y sus suscripciones?')){document.getElementById('delcli{{ c.pk }}').submit();}"
+                        title="Eliminar" aria-label="Eliminar {{ c.name }}">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              </div>
+            {% endif %}
+          </aside>
+
+          <div class="jc-client-services-wrap">
+            <div class="jc-client-services jc-csubs">
+              {% for s in c.active_subs %}
+              <div class="jc-client-service jc-csub2{% if forloop.counter0 >= 3 %} jc-csub--extra{% endif %}">
+                <span class="jc-client-service__logo"
+                      {% if s.service.image %}style="background-image:url('{{ s.service.image.url }}')"{% else %}style="background:{{ s.service.color|default:'#20df7f' }}"{% endif %}>
+                  {% if not s.service.image %}{{ s.service.name|first|upper }}{% endif %}
+                </span>
+                <div class="jc-client-service__body">
+                  <div><i class="jc-client-status-dot is-{{ s.status_color }}"></i><strong>{{ s.service.name }}</strong></div>
+                  <p><span>{{ s.account_email }}</span><i>•</i><span>{{ s.profile_name|default:s.get_plan_display }}</span></p>
+                </div>
+                <span class="jc-client-expiry"><i class="material-symbols-outlined">calendar_clock</i>{{ s.expires_at|date:"d/m/Y" }}</span>
+                <span class="jc-client-status is-{{ s.status_color }}">
+                  <i class="material-symbols-outlined">{% if s.status_color == 'green' %}check_circle{% elif s.status_color == 'yellow' %}schedule{% else %}error{% endif %}</i>
+                  {% if s.status_color == 'green' %}Activa{% elif s.status_color == 'yellow' %}Por vencer{% else %}Vencida{% endif %}
+                </span>
+                <div class="jc-client-service__actions">
+                  <button type="button" class="jc-client-icon-btn"
+                          data-jc-open="modalClientEdit"
+                          data-action="{% url 'jheliztv_client_edit' c.pk %}"
+                          data-fill-name="{{ c.name }}"
+                          data-fill-telegram="{{ c.telegram }}"
+                          data-fill-whatsapp="{{ c.whatsapp }}"
+                          data-fill-email="{{ c.email }}"
+                          data-fill-notes="{{ c.notes }}"
+                          title="Editar cliente" aria-label="Editar {{ c.name }}">
+                    <span class="material-symbols-outlined">edit</span>
+                  </button>
+                  <button type="button" class="jc-client-icon-btn"{% if not c.svc_groups %} disabled{% endif %}
+                          data-jc-open="extrCli{{ c.pk }}" title="Extraer PDF" aria-label="Extraer PDF de {{ c.name }}">
+                    <span class="material-symbols-outlined">picture_as_pdf</span>
+                  </button>
+                  <button type="button" class="jc-client-icon-btn is-danger"
+                          onclick="if(confirm('¿Eliminar a {{ c.name|escapejs }} y sus suscripciones?')){document.getElementById('delcli{{ c.pk }}').submit();}"
+                          title="Eliminar cliente" aria-label="Eliminar {{ c.name }}">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% if c.active_subs|length > 3 %}
+              <button type="button" class="jc-csub-more" data-jc-more><span class="material-symbols-outlined">expand_more</span>Ver todas ({{ c.active_subs|length }})</button>
+            {% endif %}
           </div>
+          <form id="delcli{{ c.pk }}" method="post" action="{% url 'jheliztv_client_delete' c.pk %}" hidden>{% csrf_token %}</form>
         </article>
 
-        {# ── Modal: extraer a PDF (por cliente) ───────────────────── #}
         {% if c.svc_groups %}
-        <div class="jc-modal" id="extrCli{{ c.pk }}" aria-hidden="true">
-          <div class="jc-modal__backdrop" data-jc-close></div>
-          <div class="jc-modal__box" role="dialog" aria-modal="true" style="width:min(420px,100%)">
-            <form method="get" action="{% url 'jheliztv_client_report' c.pk %}" target="_blank">
-              <div class="jc-modal__head">
-                <h3><span class="material-symbols-outlined">picture_as_pdf</span> Extraer a PDF</h3>
-                <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
-              </div>
-              <div class="jc-modal__body">
-                <p class="jc-help" style="margin:0 0 10px">{{ c.name }} · Seleccioná los servicios a incluir:</p>
-                {% for g in c.svc_groups %}
-                  <label class="jc-extopt">
-                    <input type="checkbox" name="services" value="{{ g.service.pk }}" checked>
-                    <span class="jc-extopt__name">{{ g.service.name }}</span>
-                    <span class="jc-extopt__count">{{ g.count }} cuenta{{ g.count|pluralize }}</span>
-                  </label>
-                {% endfor %}
-              </div>
-              <div class="jc-modal__foot">
-                <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
-                <button type="submit" class="jc-btn"><span class="material-symbols-outlined">download</span> Generar PDF</button>
-              </div>
-            </form>
+          <div class="jc-modal" id="extrCli{{ c.pk }}" aria-hidden="true">
+            <div class="jc-modal__backdrop" data-jc-close></div>
+            <div class="jc-modal__box" role="dialog" aria-modal="true" style="width:min(420px,100%)">
+              <form method="get" action="{% url 'jheliztv_client_report' c.pk %}" target="_blank">
+                <div class="jc-modal__head">
+                  <h3><span class="material-symbols-outlined">picture_as_pdf</span> Extraer a PDF</h3>
+                  <button type="button" class="jc-modal__close" data-jc-close aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+                </div>
+                <div class="jc-modal__body">
+                  <p class="jc-help" style="margin:0 0 10px">{{ c.name }} · Selecciona los servicios a incluir:</p>
+                  {% for g in c.svc_groups %}
+                    <label class="jc-extopt">
+                      <input type="checkbox" name="services" value="{{ g.service.pk }}" checked>
+                      <span class="jc-extopt__name">{{ g.service.name }}</span>
+                      <span class="jc-extopt__count">{{ g.count }} cuenta{{ g.count|pluralize }}</span>
+                    </label>
+                  {% endfor %}
+                </div>
+                <div class="jc-modal__foot">
+                  <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+                  <button type="submit" class="jc-btn"><span class="material-symbols-outlined">download</span> Generar PDF</button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
         {% endif %}
       {% endfor %}
-    </div>
+    </section>
   {% else %}
-    <div class="jc-panel jc-empty">
-      <span class="material-symbols-outlined">person_off</span>
-      {% if q %}No hay clientes que coincidan con "{{ q }}".{% else %}Todavía no cargaste clientes. Agregá el primero.{% endif %}
+    <div class="jc-clients-empty">
+      <span class="material-symbols-outlined">groups</span>
+      <h2>Sin clientes por mostrar</h2>
+      <p>{% if q %}Ajusta la búsqueda para encontrar otros resultados.{% else %}Agrega un nuevo cliente para empezar a gestionar sus servicios.{% endif %}</p>
+      <button type="button" class="jc-clients-add" data-jc-open="modalClient"><span class="material-symbols-outlined">person_add</span>Agregar cliente</button>
     </div>
   {% endif %}
 
-  <div class="jc-panel jc-empty" id="jcClientsNoMatch" hidden>
+  <div class="jc-clients-empty" id="jcClientsNoMatch" hidden>
     <span class="material-symbols-outlined">search_off</span>
-    Ningún cliente coincide con tu búsqueda.
+    <h2>Sin clientes por mostrar</h2>
+    <p>Ajusta la búsqueda para encontrar otros resultados.</p>
   </div>
-  </div>
+</div>
 
-  {# ── Modal: agregar cliente ───────────────────────────────────── #}
-  <div class="jc-modal" id="modalClient" aria-hidden="true">
-    <div class="jc-modal__backdrop" data-jc-close></div>
-    <div class="jc-modal__box" role="dialog" aria-modal="true">
+  <div class="jc-modal jc-add-client-dialog" id="modalClient" aria-hidden="true">
+    <div class="jc-modal__backdrop jc-add-client-dialog__backdrop" data-jc-close></div>
+    <div class="jc-modal__box jc-add-client-dialog__content"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="addClientTitle"
+         aria-describedby="addClientDescription">
       <form method="post" action="{% url 'jheliztv_client_add' %}">
         {% csrf_token %}
-        <div class="jc-modal__head">
-          <h3><span class="material-symbols-outlined">person_add</span> Agregar cliente</h3>
-          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        <div class="jc-add-client-dialog__head">
+          <span class="jc-add-client-dialog__title-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <line x1="19" x2="19" y1="8" y2="14"></line>
+              <line x1="22" x2="16" y1="11" y2="11"></line>
+            </svg>
+          </span>
+          <h3 id="addClientTitle">Agregar cliente</h3>
+          <p class="sr-only" id="addClientDescription">Formulario para registrar un nuevo cliente.</p>
+          <button type="button" class="jc-add-client-dialog__close" data-jc-close aria-label="Cerrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
         </div>
-        <div class="jc-modal__body">
-          <div class="jc-field"><label>Nombre</label><input type="text" name="name" required></div>
-          <div class="jc-grid2">
-            <div class="jc-field"><label>Telegram (@usuario)</label><input type="text" name="telegram" placeholder="@usuario"></div>
-            <div class="jc-field"><label>WhatsApp</label><input type="text" name="whatsapp" placeholder="+51987654321"></div>
+        <div class="jc-add-client-dialog__body">
+          <div class="jc-add-client-dialog__field">
+            <label for="addClientName">Nombre</label>
+            <input id="addClientName" type="text" name="name" placeholder="Nombre del cliente" required>
           </div>
-          <div class="jc-field"><label>Correo</label><input type="email" name="email"></div>
-          <div class="jc-field"><label>Notas</label><textarea name="notes" rows="2"></textarea></div>
+          <div class="jc-add-client-dialog__grid">
+            <div class="jc-add-client-dialog__field">
+              <label for="addClientTelegram">Telegram (@usuario)</label>
+              <input id="addClientTelegram" type="text" name="telegram" placeholder="@usuario">
+            </div>
+            <div class="jc-add-client-dialog__field">
+              <label for="addClientWhatsapp">WhatsApp</label>
+              <input id="addClientWhatsapp" type="text" name="whatsapp" placeholder="+51987654321">
+            </div>
+          </div>
+          <div class="jc-add-client-dialog__field">
+            <label for="addClientEmail">Correo</label>
+            <input id="addClientEmail" type="email" name="email" placeholder="cliente@correo.com">
+          </div>
+          <div class="jc-add-client-dialog__field">
+            <label for="addClientNotes">Notas</label>
+            <textarea id="addClientNotes" name="notes" rows="4" placeholder="Notas internas del cliente…"></textarea>
+          </div>
         </div>
-        <div class="jc-modal__foot">
-          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
-          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar</button>
+        <div class="jc-add-client-dialog__foot">
+          <button type="button" class="jc-add-client-dialog__cancel" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-add-client-dialog__save">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+              <path d="M17 21v-8H7v8"></path>
+              <path d="M7 3v5h8"></path>
+            </svg>
+            Guardar
+          </button>
         </div>
       </form>
     </div>
   </div>
 
-  {# ── Modal: editar cliente ────────────────────────────────────── #}
   <div class="jc-modal" id="modalClientEdit" aria-hidden="true">
     <div class="jc-modal__backdrop" data-jc-close></div>
     <div class="jc-modal__box" role="dialog" aria-modal="true">
@@ -173,7 +283,7 @@
         {% csrf_token %}
         <div class="jc-modal__head">
           <h3><span class="material-symbols-outlined">edit</span> Editar cliente</h3>
-          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+          <button type="button" class="jc-modal__close" data-jc-close aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
         </div>
         <div class="jc-modal__body">
           <div class="jc-field"><label>Nombre</label><input type="text" name="name" required></div>

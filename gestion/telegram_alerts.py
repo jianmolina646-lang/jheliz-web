@@ -8,12 +8,13 @@ import logging
 import secrets
 import time
 import unicodedata
+import uuid
 from datetime import datetime, time as datetime_time, timedelta
 
 import requests
 from django.conf import settings
-from django.db import transaction
-from django.db.models import Sum
+from django.db import close_old_connections, connections, transaction
+from django.db.models import Count, Sum
 from django.utils import timezone
 
 from config.date_utils import add_service_duration
@@ -33,12 +34,17 @@ from .control_operations import (
     subscriptions_for_owner,
     update_client,
 )
-from .models import Client, Service, Subscription, TelegramConnection, TelegramSession, Transaction
+from .models import (
+    Client, Service, Subscription, SupportContact, SupportCustomerSession,
+    SupportMessage, SupportTicket, TelegramConnection, TelegramSession, Transaction,
+)
+from .support_operations import add_message, create_ticket, set_status
 
 logger = logging.getLogger(__name__)
 API = "https://api.telegram.org/bot{token}/{method}"
 PAGE_SIZE = 5
 WEB_URL = getattr(settings, "JHELIZ_CONTROL_BASE_URL", "https://jheliztv.xyz").rstrip("/")
+BOT_USERNAME = getattr(settings, "JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME", "JHELIZCONTROLTV_bot").lstrip("@")
 
 
 def _parse_duration_or_date(value):
@@ -100,6 +106,7 @@ CONTROL_PREMIUM_EMOJI_IDS = {
     "telegram": "5246708069991205241",
     "linked_since": "5251337348951593763",
     "new_clients_month": "5877477713089924234",
+    "support_link": "5307544885874664176",
 }
 
 SERVICE_PREMIUM_EMOJI_IDS = {
@@ -181,7 +188,39 @@ def _call(method, **payload):
     token = settings.JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN
     if not token:
         raise RuntimeError("JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN no configurado")
-    response = requests.post(API.format(token=token, method=method), json=payload, timeout=35)
+    response = None
+    for attempt in range(3):
+        response = requests.post(
+            API.format(token=token, method=method),
+            json=payload,
+            timeout=35,
+        )
+        if response.status_code != 429 and response.status_code < 500:
+            break
+        retry_after = 1
+        if response.status_code == 429:
+            try:
+                retry_after = max(
+                    1,
+                    min(5, int(response.json().get("parameters", {}).get("retry_after", 1))),
+                )
+            except (TypeError, ValueError):
+                pass
+        logger.warning(
+            "Telegram %s respondiÃ³ HTTP %s; reintento %s/2 en %ss",
+            method,
+            response.status_code,
+            attempt + 1,
+            retry_after,
+        )
+        if attempt < 2:
+            time.sleep(retry_after)
+    try:
+        telegram_error = response.json().get("description", "")
+    except (TypeError, ValueError):
+        telegram_error = ""
+    if response.status_code == 400 and "message is not modified" in telegram_error.lower():
+        return {"ok": True, "result": False, "description": telegram_error}
     # Telegram puede rechazar un icono de botón aunque los custom emojis del
     # mensaje sean válidos. Degradar cada capacidad por separado evita que un
     # solo botón haga desaparecer todo el set Premium del resumen.
@@ -295,6 +334,7 @@ def _control_button_emoji_id(text):
     """Selecciona el icono Premium por la función real del botón."""
     normalized = " ".join(text.casefold().split())
     mappings = (
+        ("enlace de soporte", "support_link"),
         ("configuración de alertas", "alert_settings"),
         ("abrir jheliz control", "open_control"),
         ("próximos vencimientos", "next_due"),
@@ -536,6 +576,7 @@ def _main_menu(connection, message_id=None):
                 _button("⚙️ Mi cuenta", "account", style="primary"),
                 _button("🌐 Abrir Jheliz Control", url=f"{WEB_URL}/app/", style="success"),
             ],
+            [_button("🎧 Soporte de clientes", "support:all", style="primary")],
         ]
     )
     _reset_session(connection, message_id)
@@ -643,6 +684,7 @@ def _client_detail(connection, client_id, message_id=None):
         lines.append("\nNo tiene suscripciones registradas.")
     rows.extend(
         [
+            [_button("Enlace de soporte", f"support_link:{client.pk}")],
             [_button("➕ Agregar suscripción", f"subnew:{client.pk}")],
             [_button("✏️ Editar", f"edit_menu:{client.pk}"), _button("🗑 Eliminar", f"delete_ask:{client.pk}")],
             [_button("⬅️ Mis clientes", "clients:0:all"), _button("🏠 Menú", "menu")],
@@ -1041,6 +1083,132 @@ def _due(connection, message_id=None):
     return _render(connection.chat_id, "\n".join(lines), _markup(rows), message_id)
 
 
+def _support_menu(connection, status="all", message_id=None):
+    qs = SupportTicket.objects.filter(owner=connection.owner).select_related("client", "subscription__service")
+    if status in SupportTicket.Status.values:
+        qs = qs.filter(status=status)
+    counts = dict(
+        SupportTicket.objects.filter(owner=connection.owner)
+        .values_list("status").annotate(total=Count("id"))
+    )
+    lines = [
+        "🎧 <b>SOPORTE DE CLIENTES</b>",
+        f"\nNuevos: <b>{counts.get('new', 0)}</b> · En atención: <b>{counts.get('open', 0)}</b>",
+    ]
+    rows = []
+    for ticket in qs[:10]:
+        service = ticket.subscription.service.name if ticket.subscription_id else "Sin servicio"
+        lines.append(
+            f"\n<b>{ticket.display_number}</b> · {html.escape(ticket.client.name)}\n"
+            f"{html.escape(service)} · {html.escape(ticket.get_status_display())}"
+        )
+        rows.append([_button(f"{ticket.display_number} · {ticket.client.name[:22]}", f"support_ticket:{ticket.pk}")])
+    if not rows:
+        lines.append("\nNo hay tickets en esta bandeja.")
+    rows.extend([
+        [_button("🆕 Nuevos", "support:new"), _button("🟢 En atención", "support:open")],
+        [_button("⏳ Esperando", "support:waiting"), _button("✅ Resueltos", "support:resolved")],
+        [_button("🌐 Abrir bandeja web", url=f"{WEB_URL}/app/soporte/")],
+        [_button("⬅️ Volver", "menu")],
+    ])
+    return _render(connection.chat_id, "\n".join(lines), _markup(rows), message_id)
+
+
+def _support_ticket(connection, ticket_id, message_id=None):
+    ticket = (
+        SupportTicket.objects.filter(pk=ticket_id, owner=connection.owner)
+        .select_related("client", "subscription__service").first()
+    )
+    if not ticket:
+        return _support_menu(connection, message_id=message_id)
+    service = ticket.subscription.service.name if ticket.subscription_id else "No indicado"
+    history = list(ticket.messages.order_by("-created_at")[:6])[::-1]
+    lines = [
+        f"🎫 <b>{ticket.display_number}</b> · {html.escape(ticket.get_status_display())}",
+        f"\n👤 {html.escape(ticket.client.name)}", f"📦 {html.escape(service)}",
+        f"🏷 {html.escape(ticket.get_category_display())}",
+    ]
+    for item in history:
+        who = "Cliente" if item.sender == SupportMessage.Sender.CUSTOMER else "Tú"
+        lines.append(f"\n<b>{who}:</b> {html.escape(item.text[:700])}")
+    rows = [
+        [_button("💬 Responder", f"support_reply:{ticket.pk}", style="primary")],
+        [_button("🟢 En atención", f"support_status:{ticket.pk}:open"), _button("⏳ Esperando", f"support_status:{ticket.pk}:waiting")],
+        [_button("✅ Cerrar ticket", f"support_status:{ticket.pk}:resolved")],
+        [_button("⬅️ Bandeja", "support:all")],
+    ]
+    return _render(connection.chat_id, "\n".join(lines), _markup(rows), message_id)
+
+
+def _customer_home(contact, chat_id, message_id=None):
+    subs = list(contact.client.subscriptions.filter(is_archived=False).select_related("service").order_by("expires_at"))
+    business = getattr(getattr(contact.owner, "jc_tenant", None), "business_name", "") or contact.owner.username
+    lines = [f"🎧 <b>Soporte de {html.escape(business)}</b>", f"\nHola, <b>{html.escape(contact.client.name)}</b>. Selecciona el servicio con el problema."]
+    rows = [[_button(f"📦 {sub.service.name[:28]}", f"cs_sub:{sub.pk}")] for sub in subs[:12]]
+    rows.append([_button("Otro / sin servicio", "cs_sub:0")])
+    return _render(chat_id, "\n".join(lines), _markup(rows), message_id)
+
+
+def _customer_callback(chat, callback):
+    chat_id = str(chat["id"])
+    session = SupportCustomerSession.objects.filter(telegram_chat_id=chat_id).select_related("contact__client", "contact__owner").first()
+    if not session:
+        return _ack(callback.get("id"), "Abre nuevamente tu enlace de soporte.")
+    data = callback.get("data") or ""
+    message_id = (callback.get("message") or {}).get("message_id")
+    _ack(callback.get("id"))
+    if data.startswith("cs_sub:"):
+        sub_id = data.split(":")[1]
+        if sub_id != "0" and not Subscription.objects.filter(pk=sub_id, client=session.contact.client, owner=session.contact.owner).exists():
+            return _customer_home(session.contact, chat_id, message_id)
+        session.data = {"subscription_id": int(sub_id) if sub_id != "0" else None}
+        session.state = "support:category"; session.save()
+        rows = [[_button(label, f"cs_cat:{value}")] for value, label in SupportTicket.Category.choices]
+        rows.append([_button("⬅️ Volver", "cs_home")])
+        return _render(chat_id, "🏷 <b>¿Qué problema tienes?</b>", _markup(rows), message_id)
+    if data.startswith("cs_cat:") and data.split(":", 1)[1] in SupportTicket.Category.values:
+        session.data["category"] = data.split(":", 1)[1]
+        session.state = "support:message"; session.save()
+        return _render(chat_id, "✍️ <b>Cuéntanos qué ocurrió</b>\n\nEscribe los detalles en un solo mensaje.", _markup([[_button("❌ Cancelar", "cs_home")]]), message_id)
+    if data.startswith("cs_reply:"):
+        ticket = SupportTicket.objects.filter(pk=data.split(":")[1], client=session.contact.client, owner=session.contact.owner).first()
+        if ticket:
+            session.state = f"support:reply:{ticket.pk}"; session.data = {}; session.save()
+            return _render(chat_id, f"✍️ Escribe tu respuesta para <b>{ticket.display_number}</b>.", _markup([[_button("❌ Cancelar", "cs_home")]]), message_id)
+    if data.startswith("cs_close:"):
+        ticket = SupportTicket.objects.filter(pk=data.split(":")[1], client=session.contact.client, owner=session.contact.owner).first()
+        if ticket:
+            set_status(ticket, SupportTicket.Status.RESOLVED)
+            return _render(chat_id, f"✅ <b>{ticket.display_number} resuelto</b>\n\nGracias por confirmar.", _markup([[_button("🏠 Soporte", "cs_home")]]), message_id)
+    return _customer_home(session.contact, chat_id, message_id)
+
+
+def _customer_text(message, session):
+    text = (message.get("text") or "").strip()
+    if not text:
+        return send_message(session.telegram_chat_id, "Por ahora envía el detalle como mensaje de texto.")
+    if session.state == "support:message":
+        sub = None
+        if session.data.get("subscription_id"):
+            sub = Subscription.objects.filter(pk=session.data["subscription_id"], client=session.contact.client, owner=session.contact.owner).first()
+        ticket = create_ticket(session.contact, session.data.get("category", "other"), text, sub, message.get("message_id"))
+        session.state = ""; session.data = {}; session.save()
+        agent = TelegramConnection.objects.filter(owner=session.contact.owner, is_enabled=True).exclude(chat_id__isnull=True).first()
+        if agent:
+            send_message(agent.chat_id, f"🎧 <b>NUEVO TICKET {ticket.display_number}</b>\n\n👤 {html.escape(ticket.client.name)}\n🏷 {html.escape(ticket.get_category_display())}\n\n{html.escape(text[:1500])}", _markup([[_button("💬 Responder", f"support_reply:{ticket.pk}"), _button("👁 Ver ticket", f"support_ticket:{ticket.pk}")]]))
+        return send_message(session.telegram_chat_id, f"✅ <b>Ticket {ticket.display_number} creado</b>\n\nEstado: Esperando respuesta.\nTe avisaremos por este chat.", _markup([[_button("🏠 Volver a soporte", "cs_home")]]))
+    if session.state.startswith("support:reply:"):
+        ticket = SupportTicket.objects.filter(pk=session.state.rsplit(":", 1)[1], client=session.contact.client, owner=session.contact.owner).first()
+        session.state = ""; session.data = {}; session.save()
+        if ticket:
+            add_message(ticket, SupportMessage.Sender.CUSTOMER, text, message.get("message_id"))
+            agent = TelegramConnection.objects.filter(owner=session.contact.owner, is_enabled=True).exclude(chat_id__isnull=True).first()
+            if agent:
+                send_message(agent.chat_id, f"💬 <b>{ticket.display_number} · respuesta del cliente</b>\n\n{html.escape(text[:1500])}", _markup([[_button("Responder", f"support_reply:{ticket.pk}")]]))
+            return send_message(session.telegram_chat_id, "✅ Respuesta enviada.")
+    return _customer_home(session.contact, session.telegram_chat_id)
+
+
 def _handle_text_state(connection, text):
     session = _session(connection)
     if session.state.startswith("new:") and session.state != "new:confirm":
@@ -1084,6 +1252,21 @@ def _handle_text_state(connection, text):
         if days < 1 or days > 3660:
             return send_message(connection.chat_id, "La duración debe estar entre 1 y 3660 días.")
         return _renew_confirm(connection, subscription_id, days)
+    if session.state.startswith("support_reply:"):
+        ticket = SupportTicket.objects.filter(
+            pk=session.state.split(":")[1], owner=connection.owner
+        ).first()
+        _reset_session(connection)
+        if not ticket:
+            return send_message(connection.chat_id, "⚠️ El ticket ya no existe.")
+        add_message(ticket, SupportMessage.Sender.AGENT, text)
+        if ticket.customer_chat_id:
+            send_message(
+                ticket.customer_chat_id,
+                f"💬 <b>Respuesta a {ticket.display_number}</b>\n\n{html.escape(text)}",
+                _markup([[_button("✍️ Responder", f"cs_reply:{ticket.pk}"), _button("✅ Solucionado", f"cs_close:{ticket.pk}")]]),
+            )
+        return _support_ticket(connection, ticket.pk)
     return _main_menu(connection)
 
 
@@ -1096,6 +1279,38 @@ def _handle_callback(connection, callback):
 
     if data == "menu":
         return _main_menu(connection, message_id)
+    if data.startswith("support_link:"):
+        client = client_for_owner(connection.owner_id, data.split(":")[1])
+        if not client:
+            return _clients_menu(connection, message_id=message_id)
+        contact, _ = SupportContact.objects.get_or_create(owner=connection.owner, client=client)
+        link = f"https://t.me/{BOT_USERNAME}?start=support_{contact.token.hex}"
+        return _render(
+            connection.chat_id,
+            f"🎧 <b>ENLACE DE SOPORTE</b>\n\nCliente: <b>{html.escape(client.name)}</b>\n\n<code>{html.escape(link)}</code>\n\nComparte este enlace únicamente con el cliente.",
+            _markup([[_button("Abrir enlace", url=link)], [_button("⬅️ Volver", f"client:{client.pk}")]]),
+            message_id,
+        )
+    if data.startswith("support_ticket:"):
+        return _support_ticket(connection, data.split(":")[1], message_id)
+    if data.startswith("support_reply:"):
+        ticket = SupportTicket.objects.filter(pk=data.split(":")[1], owner=connection.owner).first()
+        if not ticket:
+            return _support_menu(connection, message_id=message_id)
+        session = _session(connection)
+        session.state = f"support_reply:{ticket.pk}"; session.data = {}; session.save()
+        return _render(connection.chat_id, f"✍️ Escribe tu respuesta para <b>{ticket.display_number}</b>.", _markup([[_button("❌ Cancelar", f"support_ticket:{ticket.pk}")]]), message_id)
+    if data.startswith("support_status:"):
+        _, ticket_id, status = data.split(":", 2)
+        ticket = SupportTicket.objects.filter(pk=ticket_id, owner=connection.owner).first()
+        if ticket:
+            set_status(ticket, status)
+            if status == SupportTicket.Status.RESOLVED and ticket.customer_chat_id:
+                send_message(ticket.customer_chat_id, f"✅ Tu ticket <b>{ticket.display_number}</b> fue marcado como resuelto.")
+            return _support_ticket(connection, ticket.pk, message_id)
+        return _support_menu(connection, message_id=message_id)
+    if data.startswith("support:"):
+        return _support_menu(connection, data.split(":", 1)[1], message_id)
     if data.startswith("clients:"):
         _, page, status = data.split(":", 2)
         return _clients_menu(connection, page, status, message_id=message_id)
@@ -1389,6 +1604,8 @@ def process_update(update):
         chat = (callback.get("message") or {}).get("chat") or {}
         if not chat.get("id"):
             return
+        if (callback.get("data") or "").startswith("cs_"):
+            return _customer_callback(chat, callback)
         connection = _linked_connection(chat["id"])
         if not connection:
             _ack(callback.get("id"), "Telegram no está vinculado.")
@@ -1404,7 +1621,26 @@ def process_update(update):
     if not chat.get("id"):
         return
     if text.startswith("/start "):
-        linked = link_chat(text.split(maxsplit=1)[1], chat)
+        payload = text.split(maxsplit=1)[1]
+        if payload.startswith("support_"):
+            raw_token = payload.split("_", 1)[1]
+            try:
+                token = uuid.UUID(raw_token)
+            except (AttributeError, TypeError, ValueError):
+                return send_message(chat["id"], "⚠️ Este enlace de soporte no es válido.")
+            contact = SupportContact.objects.filter(token=token).select_related("client", "owner").first()
+            if not contact:
+                return send_message(chat["id"], "⚠️ Este enlace de soporte no es válido.")
+            contact.telegram_chat_id = str(chat["id"])
+            contact.telegram_username = chat.get("username", "")
+            contact.linked_at = timezone.now()
+            contact.save(update_fields=["telegram_chat_id", "telegram_username", "linked_at", "updated_at"])
+            session, _ = SupportCustomerSession.objects.update_or_create(
+                telegram_chat_id=str(chat["id"]),
+                defaults={"contact": contact, "state": "", "data": {}},
+            )
+            return _customer_home(contact, str(chat["id"]))
+        linked = link_chat(payload, chat)
         if linked:
             connection = _linked_connection(chat["id"])
             if connection:
@@ -1421,7 +1657,15 @@ def process_update(update):
             "⚠️ El enlace venció o ya fue utilizado. Genera uno nuevo desde Jheliz Control.",
         )
 
+    customer_session = SupportCustomerSession.objects.filter(
+        telegram_chat_id=str(chat["id"])
+    ).select_related("contact__client", "contact__owner").first()
     connection = _linked_connection(chat["id"])
+    if customer_session and not connection:
+        if text in {"/start", "/menu", "/cancelar"}:
+            customer_session.state = ""; customer_session.data = {}; customer_session.save()
+            return _customer_home(customer_session.contact, str(chat["id"]))
+        return _customer_text(message, customer_session)
     if not connection:
         return _unlinked(chat["id"])
     if not _has_active_access(connection):
@@ -1454,6 +1698,7 @@ def run_polling():
         logger.exception("No se pudieron registrar los comandos del bot")
     while True:
         try:
+            close_old_connections()
             data = _call(
                 "getUpdates",
                 offset=offset,
@@ -1462,9 +1707,14 @@ def run_polling():
             )
             for update in data.get("result", []):
                 offset = update["update_id"] + 1
-                process_update(update)
+                close_old_connections()
+                try:
+                    process_update(update)
+                finally:
+                    close_old_connections()
         except Exception:
             logger.exception("Polling de Jheliz Control Telegram falló")
+            connections.close_all()
             time.sleep(5)
 
 
@@ -1512,7 +1762,7 @@ def send_expiry_digests(today=None):
                 owner_id=connection.owner_id,
                 kind=Transaction.Kind.INCOME,
                 occurred_at__date=today,
-            ).aggregate(value=Sum("amount"))["value"]
+            ).aggregate(value=Sum("base_amount"))["value"]
             or 0
         )
         if not groups and not new_clients and not sales:

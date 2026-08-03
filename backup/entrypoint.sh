@@ -20,7 +20,7 @@ chmod 600 /etc/jheliz-backup.env
 CRON_SCHEDULE="${BACKUP_CRON_SCHEDULE:-20 3 * * *}"
 {
     printf 'CRON_TZ=America/Lima\n'
-    printf '%s root /bin/bash -c '"'"'. /etc/jheliz-backup.env; exec /usr/local/bin/jheliz-backup'"'"' >> /proc/1/fd/1 2>> /proc/1/fd/2\n' "$CRON_SCHEDULE"
+    printf '%s /bin/bash -c '"'"'. /etc/jheliz-backup.env; exec /usr/local/bin/jheliz-backup'"'"' >> /proc/1/fd/1 2>> /proc/1/fd/2\n' "$CRON_SCHEDULE"
 } > /etc/cron.d/jheliz-backup
 chmod 0644 /etc/cron.d/jheliz-backup
 crontab /etc/cron.d/jheliz-backup

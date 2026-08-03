@@ -11,9 +11,11 @@ standalone bajo ``templates/jheliztv/`` (no dependen del admin).
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import re
 import secrets
+from urllib.parse import quote
 from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
@@ -23,7 +25,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
 from django.db.models import Prefetch, Q, Sum
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -32,7 +34,8 @@ from config.date_utils import add_service_duration
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from .forms import ClientForm, ServiceForm, SubscriptionForm, TransactionForm
+from .forms import ClientForm, ControlSettingsForm, ServiceForm, SubscriptionForm, TransactionForm
+from .currencies import CURRENCIES, currency_symbol, normalize_currency
 from .control_operations import (
     create_client,
     create_subscription,
@@ -48,6 +51,11 @@ from .models import (
     ServiceCategory,
     StockEmail,
     Subscription,
+    SupportContact,
+    SupportMessage,
+    SupportTicket,
+    RenewalRequest,
+    ResellerPaymentMethod,
     Tenant,
     TenantPayment,
     TelegramConnection,
@@ -56,6 +64,7 @@ from .models import (
 )
 from .whatsapp import MetaAPIError, finish_signup, process_webhook, verify_signature
 from .views import _decorate_subs  # reuso de helpers
+from .support_operations import add_message as add_support_message, set_status as set_support_status
 
 User = get_user_model()
 
@@ -103,6 +112,8 @@ def _ctx(request, tenant, **extra):
     base = {
         "jc_settings": settings_obj,
         "jc_currency": settings_obj.currency,
+        "jc_currency_symbol": currency_symbol(settings_obj.currency),
+        "jc_currencies": CURRENCIES,
         "jc_tenant": tenant,
         "jc_days_left": _days_left(tenant),
         "jc_alerts": _expiry_alerts(owner),
@@ -124,6 +135,67 @@ def _expiry_alerts(owner, within_days: int = 3):
 # ---------------------------------------------------------------------------
 # Landing + auth
 # ---------------------------------------------------------------------------
+def _public_renewal_render(request, context, status=200):
+    response = render(request, "jheliztv/public_renewal.html", context, status=status)
+    response["Cache-Control"] = "no-store, private"
+    response["Pragma"] = "no-cache"
+    response["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+def public_renewal(request, token):
+    renewal = get_object_or_404(
+        RenewalRequest.objects.select_related(
+            "owner__jc_tenant", "subscription__client", "subscription__service"
+        ),
+        token=token,
+    )
+    sub = renewal.subscription
+    methods = ResellerPaymentMethod.objects.filter(owner=renewal.owner, is_active=True)
+    control = ControlSettings.load(renewal.owner)
+    seller_phone = _international_phone(renewal.owner.jc_tenant.whatsapp, control.country)
+    base_context = {
+        "renewal": renewal, "sub": sub, "methods": methods,
+        "business": renewal.owner.jc_tenant.business_name or renewal.owner.username,
+        "seller_phone": seller_phone,
+    }
+    if renewal.link_expired:
+        return _public_renewal_render(request, {**base_context, "expired": True}, status=410)
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip()
+        if action == "renew":
+            renewal.status = RenewalRequest.Status.PAYMENT_PENDING
+            renewal.requested_at = timezone.now()
+            renewal.save(update_fields=["status", "requested_at", "updated_at"])
+        elif action == "decline":
+            renewal.status = RenewalRequest.Status.DECLINED
+            renewal.requested_at = timezone.now()
+            renewal.save(update_fields=["status", "requested_at", "updated_at"])
+        elif action == "help":
+            renewal.status = RenewalRequest.Status.HELP
+            renewal.customer_note = (request.POST.get("note") or "")[:500]
+            renewal.requested_at = timezone.now()
+            renewal.save(update_fields=["status", "customer_note", "requested_at", "updated_at"])
+        elif action == "proof":
+            method = methods.filter(pk=request.POST.get("payment_method")).first()
+            proof = request.FILES.get("proof")
+            if not method or not proof:
+                return _public_renewal_render(request, {
+                    **base_context, "error": "Selecciona el método y adjunta el comprobante.",
+                })
+            if proof.size > 8 * 1024 * 1024 or not proof.content_type.startswith("image/"):
+                return _public_renewal_render(request, {
+                    **base_context, "error": "El comprobante debe ser JPG, PNG o WebP de máximo 8 MB.",
+                })
+            renewal.payment_method = method
+            renewal.proof = proof
+            renewal.customer_note = (request.POST.get("note") or "")[:500]
+            renewal.status = RenewalRequest.Status.PROOF_SENT
+            renewal.save()
+        return redirect("jheliztv_public_renewal", token=renewal.token)
+    return _public_renewal_render(request, base_context)
+
+
 def landing(request):
     if _get_tenant(request.user):
         return redirect("jheliztv_dashboard")
@@ -279,13 +351,13 @@ def dashboard(request, tenant):
             Transaction.objects.filter(
                 owner=owner, kind=Transaction.Kind.INCOME,
                 occurred_at__year=yy, occurred_at__month=mm,
-            ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+            ).aggregate(s=Sum("base_amount"))["s"] or Decimal("0")
         )
         expense = (
             Transaction.objects.filter(
                 owner=owner, kind=Transaction.Kind.EXPENSE,
                 occurred_at__year=yy, occurred_at__month=mm,
-            ).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+            ).aggregate(s=Sum("base_amount"))["s"] or Decimal("0")
         )
         max_val = max(max_val, income, expense)
         label = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep",
@@ -297,11 +369,11 @@ def dashboard(request, tenant):
 
     total_income = (
         Transaction.objects.filter(owner=owner, kind=Transaction.Kind.INCOME)
-        .aggregate(s=Sum("amount"))["s"] or Decimal("0")
+        .aggregate(s=Sum("base_amount"))["s"] or Decimal("0")
     )
     total_expense = (
         Transaction.objects.filter(owner=owner, kind=Transaction.Kind.EXPENSE)
-        .aggregate(s=Sum("amount"))["s"] or Decimal("0")
+        .aggregate(s=Sum("base_amount"))["s"] or Decimal("0")
     )
     active_subs = Subscription.objects.filter(owner=owner, is_archived=False).count()
 
@@ -379,9 +451,27 @@ def service_detail(request, tenant, pk):
     subs = _decorate_subs(
         list(service.subscriptions.filter(is_archived=False).select_related("client"))
     )
+    control = ControlSettings.load(owner)
+    business = tenant.business_name or owner.username
+    for sub in subs:
+        renewal = _renewal_request_for(sub)
+        public_url = request.build_absolute_uri(
+            reverse("jheliztv_public_renewal", kwargs={"token": renewal.token})
+        )
+        phone = _international_phone(sub.client.whatsapp, control.country)
+        sub.renewal_phone = f"+{phone}" if phone else ""
+        expiry = timezone.localtime(sub.expires_at).strftime("%d/%m/%Y")
+        text = (
+            f"Hola {sub.client.name} 👋\n\nTu servicio está próximo a vencer.\n\n"
+            f"📺 Plataforma: {sub.service.name}\n📧 Correo: {_masked_account(sub.account_email)}\n"
+            f"📅 Vencimiento: {expiry}\n\n¿Deseas renovar? Confirma aquí:\n{public_url}\n\n"
+            f"Gracias por confiar en {business}."
+        )
+        sub.renewal_url = public_url
+        sub.renewal_whatsapp_link = f"https://wa.me/{phone}?text={quote(text)}" if phone else ""
     # KPIs del servicio (estilo KINEMANAGER).
-    ingresos = sum((s.cost for s in subs), Decimal("0"))
-    egresos = sum((s.investment for s in subs), Decimal("0"))
+    ingresos = sum((s.cost * s.exchange_rate for s in subs), Decimal("0"))
+    egresos = sum((s.investment * s.exchange_rate for s in subs), Decimal("0"))
     n_clients = len({s.client_id for s in subs})
     form = SubscriptionForm(initial={"service": service})
     form.fields["client"].queryset = Client.objects.filter(owner=owner)
@@ -491,6 +581,11 @@ def subscription_add(request, tenant):
     n = len(emails)
     cost_each = (_dec(post.get("cost")) / n).quantize(Decimal("0.01"))
     inv_each = (_dec(post.get("investment")) / n).quantize(Decimal("0.01"))
+    base_currency = normalize_currency(ControlSettings.load(owner).currency)
+    payment_currency = normalize_currency(post.get("currency") or base_currency)
+    if payment_currency != base_currency and _dec(post.get("exchange_rate")) <= 0:
+        messages.error(request, f"Ingresa el tipo de cambio de {payment_currency} a {base_currency}.")
+        return redirect("jheliztv_service_detail", pk=service.pk)
 
     for email in emails:
         create_subscription(
@@ -507,6 +602,8 @@ def subscription_add(request, tenant):
                 "plan_label": plan_label,
                 "cost": cost_each,
                 "investment": inv_each,
+                "currency": post.get("currency"),
+                "exchange_rate": post.get("exchange_rate"),
                 "starts_at": starts,
                 "expires_at": expires,
             },
@@ -520,9 +617,13 @@ def subscription_add(request, tenant):
 
 
 @tenant_required
-@require_POST
 def subscription_edit(request, tenant, pk):
     sub = get_object_or_404(Subscription, pk=pk, owner=request.user)
+    # Los navegadores móviles pueden restaurar o recargar la URL final de un
+    # formulario POST. En ese caso no mostramos un 405: volvemos a la vista
+    # segura desde la que se abre el modal de edición.
+    if request.method != "POST":
+        return redirect("jheliztv_service_detail", pk=sub.service_id)
     # Al editar no se cambian cliente ni servicio: los tomamos de la propia
     # suscripción (el modal no los reenvía y antes mandaba "client" vacío).
     data = request.POST.copy()
@@ -761,6 +862,39 @@ def client_report_pdf(request, tenant, pk):
 # ---------------------------------------------------------------------------
 # Correos en stock (disponibilidad por plataforma)
 # ---------------------------------------------------------------------------
+def _international_phone(raw, country):
+    import phonenumbers
+
+    value = (raw or "").strip()
+    if not value:
+        return ""
+    try:
+        parsed = phonenumbers.parse(value, None if value.startswith("+") else country)
+    except phonenumbers.NumberParseException:
+        return ""
+    if not phonenumbers.is_possible_number(parsed):
+        return ""
+    return phonenumbers.format_number(
+        parsed, phonenumbers.PhoneNumberFormat.E164
+    ).lstrip("+")
+
+
+def _masked_account(value):
+    value = (value or "").strip()
+    if "@" not in value:
+        return value[:3] + "•••"
+    local, domain = value.split("@", 1)
+    return f"{local[:3]}•••@{domain}"
+
+
+def _renewal_request_for(sub):
+    return RenewalRequest.objects.get_or_create(
+        owner=sub.owner,
+        subscription=sub,
+        expiry_date=timezone.localtime(sub.expires_at).date(),
+    )[0]
+
+
 @tenant_required
 def stock_emails(request, tenant):
     owner = request.user
@@ -768,7 +902,11 @@ def stock_emails(request, tenant):
 
     q = (request.GET.get("q") or "").strip()
     if q:
-        qs = qs.filter(Q(email__icontains=q) | Q(notes__icontains=q))
+        qs = qs.filter(
+            Q(email__icontains=q)
+            | Q(customer_name__icontains=q)
+            | Q(acquisition_method__icontains=q)
+        )
 
     status = (request.GET.get("estado") or "").strip()
     if status in {StockEmail.Status.AVAILABLE, StockEmail.Status.SOLD}:
@@ -782,7 +920,14 @@ def stock_emails(request, tenant):
     else:
         service_id = ""
 
-    emails = list(qs.order_by("service__name", "status", "email"))
+    method = (request.GET.get("metodo") or "").strip()
+    if method:
+        qs = qs.filter(acquisition_method__iexact=method)
+
+    emails = list(
+        qs.order_by("service__name", "status", "inventory_number", "email")
+    )
+
 
     # Resumen por servicio (disponibles / vendidos), sobre TODO el stock.
     services = list(Service.objects.filter(owner=owner).order_by("name"))
@@ -803,12 +948,19 @@ def stock_emails(request, tenant):
 
     total_available = sum(s["available"] for s in summary)
     total_sold = sum(s["sold"] for s in summary)
+    acquisition_methods = list(
+        all_stock.exclude(acquisition_method="")
+        .order_by("acquisition_method")
+        .values_list("acquisition_method", flat=True)
+        .distinct()
+    )
 
     ctx = _ctx(
         request, tenant,
         title="Correos", jc_active="emails",
         emails=emails, services=services, summary=summary,
-        q=q, status=status, service_id=service_id,
+        q=q, status=status, service_id=service_id, method=method,
+        acquisition_methods=acquisition_methods,
         total_available=total_available, total_sold=total_sold,
     )
     return render(request, "jheliztv/emails.html", ctx)
@@ -826,17 +978,26 @@ def stock_email_add(request, tenant):
         messages.error(request, "Ingresá al menos un correo.")
         return redirect("jheliztv_emails")
     password = (request.POST.get("password") or "").strip()
-    notes = (request.POST.get("notes") or "").strip()
+    acquisition_method = (request.POST.get("acquisition_method") or "").strip()
+    customer_name = (request.POST.get("customer_name") or "").strip()
     status = (
         StockEmail.Status.SOLD
         if request.POST.get("status") == StockEmail.Status.SOLD
         else StockEmail.Status.AVAILABLE
     )
+    if status == StockEmail.Status.SOLD and not customer_name:
+        messages.error(request, "Indicá el cliente para agregar correos vendidos.")
+        return redirect("jheliztv_emails")
     created = skipped = 0
     for email in emails:
         obj, was_created = StockEmail.objects.get_or_create(
             owner=owner, service=service, email=email.strip().lower(),
-            defaults={"password": password, "notes": notes, "status": status},
+            defaults={
+                "password": password,
+                "acquisition_method": acquisition_method,
+                "customer_name": customer_name,
+                "status": status,
+            },
         )
         if was_created:
             created += 1
@@ -856,10 +1017,17 @@ def stock_email_add(request, tenant):
 @require_POST
 def stock_email_toggle(request, tenant, pk):
     item = get_object_or_404(StockEmail, pk=pk, owner=request.user)
-    item.status = (
-        StockEmail.Status.SOLD if item.is_available else StockEmail.Status.AVAILABLE
-    )
-    item.save(update_fields=["status", "updated_at"])
+    if item.is_available:
+        customer_name = (request.POST.get("customer_name") or "").strip()
+        if not customer_name:
+            messages.error(request, "Indicá el cliente antes de marcar el correo como vendido.")
+            return redirect("jheliztv_emails")
+        item.status = StockEmail.Status.SOLD
+        item.customer_name = customer_name
+    else:
+        item.status = StockEmail.Status.AVAILABLE
+        item.customer_name = ""
+    item.save(update_fields=["status", "customer_name", "updated_at"])
     messages.success(
         request,
         f"{item.email} marcado como {item.get_status_display().lower()}.",
@@ -890,9 +1058,13 @@ def stock_email_edit(request, tenant, pk):
         return redirect("jheliztv_emails")
     item.email = email
     item.password = (request.POST.get("password") or "").strip()
-    item.notes = (request.POST.get("notes") or "").strip()
+    item.acquisition_method = (request.POST.get("acquisition_method") or "").strip()
+    item.customer_name = (request.POST.get("customer_name") or "").strip()
     if request.POST.get("status") in {StockEmail.Status.AVAILABLE, StockEmail.Status.SOLD}:
         item.status = request.POST["status"]
+    if item.status == StockEmail.Status.SOLD and not item.customer_name:
+        messages.error(request, "Indicá el cliente para guardar el correo como vendido.")
+        return redirect("jheliztv_emails")
     item.save()
     messages.success(request, "Correo actualizado.")
     return redirect("jheliztv_emails")
@@ -906,6 +1078,17 @@ def stock_email_delete(request, tenant, pk):
     return redirect("jheliztv_emails")
 
 
+@tenant_required
+@require_GET
+def stock_email_secret(request, tenant, pk):
+    """Entrega la clave únicamente al propietario autenticado."""
+    item = get_object_or_404(StockEmail, pk=pk, owner=request.user)
+    response = JsonResponse({"password": item.password or ""})
+    response["Cache-Control"] = "no-store, private"
+    response["Pragma"] = "no-cache"
+    return response
+
+
 # ---------------------------------------------------------------------------
 # Movimientos + buscador + notificaciones
 # ---------------------------------------------------------------------------
@@ -917,11 +1100,187 @@ def transaction_add(request, tenant):
     if form.is_valid():
         tx = form.save(commit=False)
         tx.owner = request.user
+        control = ControlSettings.load(request.user)
+        if tx.currency != normalize_currency(control.currency) and not request.POST.get("exchange_rate"):
+            messages.error(request, f"Ingresa el tipo de cambio de {tx.currency} a {control.currency}.")
+            return redirect("jheliztv_dashboard")
+        tx.set_conversion(control.currency, form.cleaned_data.get("exchange_rate"))
         tx.save()
         messages.success(request, "Movimiento registrado.")
     else:
         messages.error(request, "Revisá el movimiento.")
     return redirect("jheliztv_dashboard")
+
+
+@tenant_required
+def money_settings(request, tenant):
+    control = ControlSettings.load(request.user)
+    if request.method == "POST":
+        form = ControlSettingsForm(request.POST, instance=control)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "País y moneda principal actualizados.")
+            return redirect("jheliztv_money_settings")
+    else:
+        form = ControlSettingsForm(instance=control)
+    return render(request, "jheliztv/money_settings.html", _ctx(
+        request, tenant, title="Monedas", jc_active="money", form=form,
+    ))
+
+
+@tenant_required
+def support_inbox(request, tenant):
+    status = (request.GET.get("estado") or "active").strip()
+    qs = SupportTicket.objects.filter(owner=request.user).select_related(
+        "client", "subscription__service"
+    ).prefetch_related("messages")
+    if status == "active":
+        qs = qs.exclude(status=SupportTicket.Status.RESOLVED)
+    elif status in SupportTicket.Status.values:
+        qs = qs.filter(status=status)
+    tickets = list(qs[:100])
+    selected = None
+    selected_id = (request.GET.get("ticket") or "").strip()
+    if selected_id.isdigit():
+        selected = next((item for item in tickets if item.pk == int(selected_id)), None)
+        if selected is None:
+            selected = SupportTicket.objects.filter(
+                pk=selected_id, owner=request.user
+            ).select_related("client", "subscription__service").prefetch_related("messages").first()
+    if selected is None and tickets:
+        selected = tickets[0]
+    counts = {
+        key: SupportTicket.objects.filter(owner=request.user, status=key).count()
+        for key in SupportTicket.Status.values
+    }
+    contacts = []
+    bot_username = settings.JHELIZ_CONTROL_TELEGRAM_BOT_USERNAME.lstrip("@")
+    for client in Client.objects.filter(owner=request.user).order_by("name"):
+        contact, _ = SupportContact.objects.get_or_create(owner=request.user, client=client)
+        contacts.append({
+            "client": client,
+            "link": f"https://t.me/{bot_username}?start=support_{contact.token.hex}",
+            "linked": bool(contact.telegram_chat_id),
+        })
+    return render(request, "jheliztv/support.html", _ctx(
+        request, tenant, title="Soporte", jc_active="support",
+        tickets=tickets, selected=selected, counts=counts, status=status,
+        support_contacts=contacts, mobile_ticket_open=selected_id.isdigit(),
+    ))
+
+
+@tenant_required
+@require_POST
+def support_reply(request, tenant, pk):
+    ticket = get_object_or_404(SupportTicket, pk=pk, owner=request.user)
+    text = (request.POST.get("message") or "").strip()
+    if not text:
+        messages.error(request, "Escribe una respuesta antes de enviarla.")
+        return redirect(f"{reverse('jheliztv_support')}?ticket={ticket.pk}")
+    add_support_message(ticket, SupportMessage.Sender.AGENT, text)
+    if ticket.customer_chat_id:
+        from .telegram_alerts import _button, _markup, send_message
+        send_message(
+            ticket.customer_chat_id,
+            f"💬 <b>Respuesta a {ticket.display_number}</b>\n\n{html.escape(text)}",
+            _markup([[_button("✍️ Responder", f"cs_reply:{ticket.pk}"), _button("✅ Solucionado", f"cs_close:{ticket.pk}")]]),
+        )
+        messages.success(request, "Respuesta enviada al cliente.")
+    else:
+        messages.warning(request, "Respuesta guardada. El cliente todavía no vinculó Telegram.")
+    return redirect(f"{reverse('jheliztv_support')}?ticket={ticket.pk}")
+
+
+@tenant_required
+@require_POST
+def support_status(request, tenant, pk):
+    ticket = get_object_or_404(SupportTicket, pk=pk, owner=request.user)
+    status = request.POST.get("status")
+    if not set_support_status(ticket, status):
+        messages.error(request, "Estado no válido.")
+    else:
+        messages.success(request, "Estado del ticket actualizado.")
+        if status == SupportTicket.Status.RESOLVED and ticket.customer_chat_id:
+            from .telegram_alerts import send_message
+            send_message(ticket.customer_chat_id, f"✅ Tu ticket <b>{ticket.display_number}</b> fue marcado como resuelto.")
+    return redirect(f"{reverse('jheliztv_support')}?ticket={ticket.pk}")
+
+
+@tenant_required
+def renewals_inbox(request, tenant):
+    renewals = RenewalRequest.objects.filter(owner=request.user).select_related(
+        "subscription__client", "subscription__service", "payment_method"
+    )[:150]
+    methods = ResellerPaymentMethod.objects.filter(owner=request.user)
+    return render(request, "jheliztv/renewals.html", _ctx(
+        request, tenant, title="Renovaciones", jc_active="renewals",
+        renewals=renewals, payment_methods=methods,
+    ))
+
+
+@tenant_required
+@require_POST
+def payment_method_add(request, tenant):
+    label = (request.POST.get("label") or "").strip()
+    details = (request.POST.get("details") or "").strip()
+    kind = request.POST.get("kind")
+    if not label or not details or kind not in ResellerPaymentMethod.Kind.values:
+        messages.error(request, "Completa el nombre y los datos del método de pago.")
+        return redirect("jheliztv_renewals")
+    ResellerPaymentMethod.objects.create(
+        owner=request.user, kind=kind, label=label,
+        holder=(request.POST.get("holder") or "").strip(),
+        details=details, qr_image=request.FILES.get("qr_image"),
+    )
+    messages.success(request, "Método de pago agregado.")
+    return redirect("jheliztv_renewals")
+
+
+@tenant_required
+@require_POST
+def payment_method_delete(request, tenant, pk):
+    get_object_or_404(ResellerPaymentMethod, pk=pk, owner=request.user).delete()
+    messages.success(request, "Método de pago eliminado.")
+    return redirect("jheliztv_renewals")
+
+
+@tenant_required
+@require_POST
+def renewal_review(request, tenant, pk):
+    renewal = get_object_or_404(RenewalRequest, pk=pk, owner=request.user)
+    action = request.POST.get("action")
+    if action == "approve":
+        try:
+            days = max(1, min(3660, int(request.POST.get("days") or 30)))
+        except ValueError:
+            days = 30
+        sub, error = renew_subscription_operation(request.user, renewal.subscription_id, days)
+        if error:
+            messages.error(request, "No se pudo renovar la suscripción.")
+        else:
+            renewal.status = RenewalRequest.Status.APPROVED
+            renewal.reviewed_at = timezone.now()
+            renewal.save(update_fields=["status", "reviewed_at", "updated_at"])
+            messages.success(request, f"Pago aprobado y suscripción renovada por {days} días.")
+    elif action == "reject":
+        renewal.status = RenewalRequest.Status.REJECTED
+        renewal.rejection_reason = (request.POST.get("reason") or "El comprobante no pudo verificarse.")[:500]
+        renewal.reviewed_at = timezone.now()
+        renewal.save(update_fields=["status", "rejection_reason", "reviewed_at", "updated_at"])
+        messages.success(request, "Comprobante rechazado.")
+    return redirect("jheliztv_renewals")
+
+
+@tenant_required
+def renewal_proof(request, tenant, pk):
+    renewal = get_object_or_404(RenewalRequest, pk=pk, owner=request.user)
+    if not renewal.proof:
+        return HttpResponse(status=404)
+    response = FileResponse(renewal.proof.open("rb"), content_type="application/octet-stream")
+    response["Content-Disposition"] = f'inline; filename="comprobante-{renewal.display_number}.jpg"'
+    response["Cache-Control"] = "no-store, private"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @tenant_required

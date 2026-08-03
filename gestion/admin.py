@@ -54,9 +54,12 @@ class SubscriptionAdmin(ModelAdmin):
 
 @admin.register(StockEmail)
 class StockEmailAdmin(ModelAdmin):
-    list_display = ("email", "service", "status", "owner", "updated_at")
-    list_filter = ("status", "service")
-    search_fields = ("email", "notes")
+    list_display = (
+        "inventory_number", "email", "service", "acquisition_method",
+        "status", "customer_name", "owner", "updated_at",
+    )
+    list_filter = ("status", "service", "acquisition_method")
+    search_fields = ("email", "customer_name", "acquisition_method")
     autocomplete_fields = ("service",)
 
 

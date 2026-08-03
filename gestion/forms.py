@@ -8,7 +8,8 @@ from django import forms
 from config.date_utils import add_service_duration
 from django.utils import timezone
 
-from .models import Client, Service, Subscription, Transaction
+from .currencies import COUNTRY_CHOICES, CURRENCY_CHOICES, normalize_currency
+from .models import Client, ControlSettings, Service, Subscription, Transaction
 
 
 class ServiceForm(forms.ModelForm):
@@ -113,16 +114,17 @@ class SubscriptionForm(forms.ModelForm):
         profiles = cleaned.get("profiles") or 1
         cleaned["profiles"] = max(1, min(7, int(profiles)))
 
-        # Moneda por defecto soles (S/).
+        # Código ISO de moneda; el símbolo se resuelve sólo al mostrarlo.
         if not cleaned.get("currency"):
-            cleaned["currency"] = "S/"
+            cleaned["currency"] = "PEN"
+        cleaned["currency"] = normalize_currency(cleaned["currency"])
         return cleaned
 
 
 class TransactionForm(forms.ModelForm):
     class Meta:
         model = Transaction
-        fields = ("kind", "amount", "currency", "description", "client", "occurred_at")
+        fields = ("kind", "amount", "currency", "exchange_rate", "description", "client", "occurred_at")
         widgets = {
             "occurred_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
         }
@@ -133,7 +135,23 @@ class TransactionForm(forms.ModelForm):
         self.fields["occurred_at"].required = False
 
     def clean_currency(self):
-        return self.cleaned_data.get("currency") or "S/"
+        return normalize_currency(self.cleaned_data.get("currency"))
 
     def clean_occurred_at(self):
         return self.cleaned_data.get("occurred_at") or timezone.now()
+
+
+class ControlSettingsForm(forms.ModelForm):
+    class Meta:
+        model = ControlSettings
+        fields = ("country", "currency")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["country"] = forms.ChoiceField(
+            label="País", choices=COUNTRY_CHOICES,
+            initial=getattr(self.instance, "country", "PE") or "PE",
+        )
+
+    def clean_currency(self):
+        return normalize_currency(self.cleaned_data.get("currency"))

@@ -12,6 +12,7 @@ django-htmx>=1.22
 django-extensions>=4.0
 django-unfold>=0.50
 requests>=2.32
+phonenumbers>=8.13
 # --- Seguridad ---
 cryptography>=42.0          # Fernet para EncryptedTextField
 django-axes>=7.0            # bloqueo por intentos fallidos en el login del admin

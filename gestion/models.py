@@ -12,13 +12,19 @@ from __future__ import annotations
 
 from datetime import timedelta
 from decimal import Decimal
+import uuid
 
 from django.conf import settings
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
 from config.date_utils import add_service_duration
 from orders.encryption import EncryptedTextField
+from .currencies import CURRENCY_CHOICES, normalize_currency
+
+
+def renewal_link_expiry():
+    return timezone.now() + timedelta(days=45)
 
 
 class ServiceCategory(models.Model):
@@ -191,7 +197,11 @@ class Subscription(models.Model):
     )
 
     # Finanzas (USD por defecto; la divisa se guarda por si se cambia a futuro).
-    currency = models.CharField("Moneda", max_length=8, default="S/")
+    currency = models.CharField("Moneda", max_length=8, choices=CURRENCY_CHOICES, default="PEN")
+    exchange_rate = models.DecimalField(
+        "Tipo de cambio a moneda principal", max_digits=18, decimal_places=8,
+        default=Decimal("1"),
+    )
     cost = models.DecimalField(
         "Costo (venta al cliente)", max_digits=10, decimal_places=2, default=Decimal("0.00")
     )
@@ -300,10 +310,17 @@ class StockEmail(models.Model):
         verbose_name="Servicio",
     )
     email = models.CharField("Correo / usuario", max_length=160)
-    password = models.CharField("Contraseña", max_length=160, blank=True)
+    password = EncryptedTextField("Contraseña", blank=True)
+    inventory_number = models.PositiveIntegerField(
+        "Número de inventario", null=True, blank=True, editable=False,
+    )
     status = models.CharField(
         "Estado", max_length=12, choices=Status.choices, default=Status.AVAILABLE,
     )
+    acquisition_method = models.CharField(
+        "Método de adquisición", max_length=120, blank=True,
+    )
+    customer_name = models.CharField("Cliente", max_length=160, blank=True)
     notes = models.CharField("Notas", max_length=200, blank=True)
     created_at = models.DateTimeField("Creado", auto_now_add=True)
     updated_at = models.DateTimeField("Actualizado", auto_now=True)
@@ -311,11 +328,22 @@ class StockEmail(models.Model):
     class Meta:
         verbose_name = "Correo en stock"
         verbose_name_plural = "Correos en stock"
-        ordering = ["status", "service__name", "email"]
+        ordering = ["service__name", "status", "inventory_number", "email"]
         constraints = [
             models.UniqueConstraint(
                 fields=["owner", "service", "email"],
                 name="uniq_stock_email_per_owner_service",
+            ),
+            models.UniqueConstraint(
+                fields=["owner", "service", "inventory_number"],
+                name="uniq_stock_number_per_owner_service",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(status="available")
+                    | ~models.Q(customer_name="")
+                ),
+                name="sold_stock_email_requires_customer",
             ),
         ]
 
@@ -328,7 +356,25 @@ class StockEmail(models.Model):
 
     def save(self, *args, **kwargs):
         self.email = (self.email or "").strip().lower()
-        super().save(*args, **kwargs)
+        self.acquisition_method = (self.acquisition_method or "").strip()
+        self.customer_name = (self.customer_name or "").strip()
+        if self.status == self.Status.AVAILABLE:
+            self.customer_name = ""
+        if self.inventory_number or not self.owner_id or not self.service_id:
+            return super().save(*args, **kwargs)
+        for _attempt in range(3):
+            last_number = (
+                StockEmail.objects.filter(owner_id=self.owner_id, service_id=self.service_id)
+                .aggregate(last=models.Max("inventory_number"))["last"]
+                or 0
+            )
+            self.inventory_number = last_number + 1
+            try:
+                with transaction.atomic():
+                    return super().save(*args, **kwargs)
+            except IntegrityError:
+                self.inventory_number = None
+        raise IntegrityError("No se pudo asignar un número único al correo.")
 
 
 class Transaction(models.Model):
@@ -348,7 +394,17 @@ class Transaction(models.Model):
     )
     kind = models.CharField("Tipo", max_length=10, choices=Kind.choices)
     amount = models.DecimalField("Monto", max_digits=10, decimal_places=2)
-    currency = models.CharField("Moneda", max_length=8, default="S/")
+    currency = models.CharField("Moneda original", max_length=8, choices=CURRENCY_CHOICES, default="PEN")
+    exchange_rate = models.DecimalField(
+        "Tipo de cambio", max_digits=18, decimal_places=8, default=Decimal("1"),
+        help_text="Cuánto vale 1 unidad de la moneda original en la moneda principal.",
+    )
+    base_currency = models.CharField(
+        "Moneda principal al registrar", max_length=8, choices=CURRENCY_CHOICES, default="PEN"
+    )
+    base_amount = models.DecimalField(
+        "Monto convertido", max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
     description = models.CharField("Descripción", max_length=200, blank=True)
     client = models.ForeignKey(
         Client, on_delete=models.SET_NULL, null=True, blank=True,
@@ -369,6 +425,24 @@ class Transaction(models.Model):
     def __str__(self) -> str:
         return f"{self.get_kind_display()} {self.amount} {self.currency}"
 
+    def set_conversion(self, base_currency, exchange_rate=Decimal("1")):
+        self.currency = normalize_currency(self.currency)
+        self.base_currency = normalize_currency(base_currency)
+        self.exchange_rate = Decimal(str(exchange_rate or 1))
+        if self.currency == self.base_currency:
+            self.exchange_rate = Decimal("1")
+        self.base_amount = (self.amount * self.exchange_rate).quantize(Decimal("0.01"))
+
+    def save(self, *args, **kwargs):
+        if not self.base_amount and self.amount:
+            base = "PEN"
+            if self.owner_id:
+                control = ControlSettings.objects.filter(owner_id=self.owner_id).only("currency").first()
+                if control:
+                    base = control.currency
+            self.set_conversion(base, self.exchange_rate)
+        super().save(*args, **kwargs)
+
 
 class ControlSettings(models.Model):
     """Ajustes por inquilino de Jheliz Control (créditos del revendedor, divisa)."""
@@ -384,7 +458,8 @@ class ControlSettings(models.Model):
     credits = models.DecimalField(
         "Mis créditos", max_digits=12, decimal_places=2, default=Decimal("0.00")
     )
-    currency = models.CharField("Moneda", max_length=8, default="S/")
+    country = models.CharField("País", max_length=2, default="PE")
+    currency = models.CharField("Moneda principal", max_length=8, choices=CURRENCY_CHOICES, default="PEN")
 
     class Meta:
         verbose_name = "Ajustes de Jheliz Control"
@@ -557,6 +632,189 @@ class TelegramActionReceipt(models.Model):
         indexes = [
             models.Index(fields=["created_at"], name="telegram_action_created_idx")
         ]
+
+
+class SupportContact(models.Model):
+    """Enlace privado que conecta un cliente final con el soporte de su revendedor."""
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="jc_support_contacts",
+    )
+    client = models.OneToOneField(
+        Client, on_delete=models.CASCADE, related_name="support_contact",
+    )
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    telegram_chat_id = models.CharField(max_length=32, blank=True, db_index=True)
+    telegram_username = models.CharField(max_length=64, blank=True)
+    linked_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Contacto de soporte"
+        verbose_name_plural = "Contactos de soporte"
+
+
+class SupportTicket(models.Model):
+    class Status(models.TextChoices):
+        NEW = "new", "Nuevo"
+        OPEN = "open", "En atención"
+        WAITING = "waiting", "Esperando cliente"
+        RESOLVED = "resolved", "Resuelto"
+
+    class Priority(models.TextChoices):
+        NORMAL = "normal", "Normal"
+        URGENT = "urgent", "Urgente"
+
+    class Category(models.TextChoices):
+        ACCESS = "access", "No puedo ingresar"
+        PASSWORD = "password", "Contraseña incorrecta"
+        BLOCKED = "blocked", "Cuenta o perfil bloqueado"
+        CODE = "code", "Código de acceso"
+        DEVICE = "device", "Pantalla o dispositivo"
+        RENEWAL = "renewal", "Renovación o vencimiento"
+        OTHER = "other", "Otro problema"
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="jc_support_tickets",
+    )
+    client = models.ForeignKey(
+        Client, on_delete=models.CASCADE, related_name="support_tickets",
+    )
+    subscription = models.ForeignKey(
+        Subscription, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="support_tickets",
+    )
+    number = models.PositiveIntegerField()
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.NEW)
+    priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.NORMAL)
+    category = models.CharField(max_length=16, choices=Category.choices, default=Category.OTHER)
+    subject = models.CharField(max_length=160, blank=True)
+    customer_chat_id = models.CharField(max_length=32, blank=True, db_index=True)
+    last_message_at = models.DateTimeField(default=timezone.now, db_index=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-last_message_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["owner", "number"], name="uniq_support_ticket_number")
+        ]
+        indexes = [
+            models.Index(fields=["owner", "status", "-last_message_at"], name="support_owner_status_idx")
+        ]
+
+    @property
+    def display_number(self):
+        return f"S-{self.number:04d}"
+
+
+class SupportMessage(models.Model):
+    class Sender(models.TextChoices):
+        CUSTOMER = "customer", "Cliente"
+        AGENT = "agent", "Distribuidor"
+        SYSTEM = "system", "Sistema"
+
+    ticket = models.ForeignKey(
+        SupportTicket, on_delete=models.CASCADE, related_name="messages",
+    )
+    sender = models.CharField(max_length=10, choices=Sender.choices)
+    text = models.TextField()
+    telegram_message_id = models.BigIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+
+class SupportCustomerSession(models.Model):
+    telegram_chat_id = models.CharField(max_length=32, unique=True)
+    contact = models.ForeignKey(
+        SupportContact, on_delete=models.CASCADE, related_name="customer_sessions",
+    )
+    state = models.CharField(max_length=48, blank=True)
+    data = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class ResellerPaymentMethod(models.Model):
+    class Kind(models.TextChoices):
+        YAPE = "yape", "Yape"
+        PLIN = "plin", "Plin"
+        BANK = "bank", "Transferencia bancaria"
+        USDT = "usdt", "USDT"
+        PAYPAL = "paypal", "PayPal"
+        ZELLE = "zelle", "Zelle"
+        MERCADOPAGO = "mercadopago", "Mercado Pago"
+        OTHER = "other", "Otro"
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="jc_payment_methods",
+    )
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    label = models.CharField(max_length=80)
+    holder = models.CharField(max_length=120, blank=True)
+    details = models.TextField(help_text="Número, cuenta, wallet o instrucciones de pago.")
+    qr_image = models.ImageField(upload_to="jheliz_control/payment_methods/", blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "label"]
+
+
+class RenewalRequest(models.Model):
+    class Status(models.TextChoices):
+        INVITED = "invited", "Enlace enviado"
+        DECLINED = "declined", "No renovará"
+        PAYMENT_PENDING = "payment_pending", "Esperando pago"
+        PROOF_SENT = "proof_sent", "Pago por verificar"
+        APPROVED = "approved", "Aprobado"
+        REJECTED = "rejected", "Rechazado"
+        HELP = "help", "Necesita ayuda"
+
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="jc_renewal_requests",
+    )
+    subscription = models.ForeignKey(
+        Subscription, on_delete=models.CASCADE, related_name="renewal_requests",
+    )
+    expiry_date = models.DateField()
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.INVITED)
+    payment_method = models.ForeignKey(
+        ResellerPaymentMethod, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="renewal_requests",
+    )
+    proof = models.ImageField(upload_to="jheliz_control/renewal_proofs/", blank=True, null=True)
+    customer_note = models.CharField(max_length=500, blank=True)
+    rejection_reason = models.CharField(max_length=500, blank=True)
+    link_expires_at = models.DateTimeField(default=renewal_link_expiry)
+    requested_at = models.DateTimeField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["subscription", "expiry_date"], name="uniq_renewal_request_cycle"
+            )
+        ]
+
+    @property
+    def display_number(self):
+        return f"R-{self.pk:05d}" if self.pk else "R-NUEVA"
+
+    @property
+    def link_expired(self):
+        return timezone.now() > self.link_expires_at
 
 
 class Tenant(models.Model):

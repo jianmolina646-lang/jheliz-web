@@ -1,0 +1,116 @@
+{% extends "jheliztv/base.html" %}
+{% block title %}País y monedas{% endblock %}
+{% block jc_content %}
+<!--
+THESIS: Convertir la configuración monetaria en una decisión clara, sin el formulario genérico anterior.
+OWN-WORLD: Superficies grafito Lovable, verde operativo, controles de 44px y tarjetas de bordes finos.
+STORY: El revendedor elige país y moneda, comprende el impacto y guarda sin perder contexto.
+FIRST VIEWPORT: Hero breve, formulario principal ancho e información de conversión en una tarjeta lateral.
+FORM: Réplica visual directa de src/routes/moneda.tsx del proyecto Lovable (12).
+-->
+<main class="lvm-page">
+  <div class="lvm-grid-bg" aria-hidden="true"></div>
+  <div class="lvm-container">
+    <header class="lvm-hero">
+      <div class="lvm-eyebrow"><span></span>Configuración financiera</div>
+      <h1>País y monedas</h1>
+      <p>Elige la moneda en la que quieres ver el balance general. También puedes registrar cobros en USDT u otra moneda.</p>
+    </header>
+
+    <div class="lvm-grid">
+      <form method="post" class="lvm-card lvm-form-card">
+        {% csrf_token %}
+        {% if form.errors %}
+          <div class="lvm-error" role="alert">
+            <span class="material-symbols-outlined">error</span>
+            <span>Revisa los campos marcados antes de guardar.</span>
+          </div>
+        {% endif %}
+
+        <div class="lvm-card-header">
+          <span class="lvm-card-icon"><span class="material-symbols-outlined">paid</span></span>
+          <div>
+            <h2>Moneda principal</h2>
+            <p>Se aplicará a tu panel y al bot de control. No altera el valor histórico de operaciones anteriores.</p>
+          </div>
+        </div>
+
+        <div class="lvm-fields">
+          <div class="lvm-field">
+            <label for="{{ form.country.id_for_label }}">País del negocio</label>
+            <div class="lvm-select">
+              {{ form.country }}
+              <span class="material-symbols-outlined">expand_more</span>
+            </div>
+            <p id="countryHelp">Define el formato regional de fechas y montos.</p>
+            {{ form.country.errors }}
+          </div>
+
+          <div class="lvm-field">
+            <label for="{{ form.currency.id_for_label }}">Moneda del balance</label>
+            <div class="lvm-select">
+              {{ form.currency }}
+              <span class="material-symbols-outlined">expand_more</span>
+            </div>
+            <p id="currencyHelp">Todos los totales del panel se mostrarán en esta moneda.</p>
+            <small id="currencySuggestion" aria-live="polite"></small>
+            {{ form.currency.errors }}
+          </div>
+        </div>
+
+        <div class="lvm-form-footer">
+          <p>Los cambios se aplican de inmediato en el panel.</p>
+          <button type="submit">
+            <span class="material-symbols-outlined">save</span>
+            Guardar configuración
+          </button>
+        </div>
+      </form>
+
+      <aside class="lvm-card lvm-info">
+        <div class="lvm-info-title">
+          <span><span class="material-symbols-outlined">info</span></span>
+          <h2>Ejemplo: Chile + USDT</h2>
+        </div>
+        <p>Selecciona <strong>CLP</strong> como moneda principal. Si recibes <strong>10 USDT</strong>, registra la tasa del momento, por ejemplo <strong>950</strong>. Conservarás “10 USDT” y el balance sumará “$9.500 CLP”.</p>
+        <div class="lvm-info-note">La tasa se guarda por operación, por lo que los reportes históricos no cambian después.</div>
+      </aside>
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block jc_scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const country = document.getElementById("id_country");
+  const currency = document.getElementById("id_currency");
+  const defaults = {PE:"PEN",CL:"CLP",MX:"MXN",US:"USD",CO:"COP",AR:"ARS",BR:"BRL",BO:"BOB",EC:"USD",OT:"USD"};
+  const form = document.querySelector(".lvm-form-card");
+  const submit = form && form.querySelector('button[type="submit"]');
+  let currencyEdited = Boolean(country && currency && currency.value !== (defaults[country.value] || "USD"));
+  if (country) country.setAttribute("aria-describedby", "countryHelp");
+  if (currency) currency.setAttribute("aria-describedby", "currencyHelp currencySuggestion");
+  document.querySelectorAll(".lvm-field").forEach(function (field) {
+    const select = field.querySelector("select");
+    const errors = field.querySelector(".errorlist");
+    if (select && errors) {
+      errors.id = select.id + "Errors";
+      select.setAttribute("aria-invalid", "true");
+      select.setAttribute("aria-errormessage", errors.id);
+    }
+  });
+  if (currency) currency.addEventListener("change", function () { currencyEdited = true; });
+  if (country && currency) country.addEventListener("change", function () {
+    const suggested = defaults[country.value] || "USD";
+    const status = document.getElementById("currencySuggestion");
+    if (!currencyEdited) currency.value = suggested;
+    if (status) status.textContent = currencyEdited ? `Sugerencia para este país: ${suggested}.` : `Moneda sugerida aplicada: ${suggested}.`;
+  });
+  if (form && submit) form.addEventListener("submit", function () {
+    submit.disabled = true;
+    submit.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span>Guardando…';
+  });
+});
+</script>
+{% endblock %}

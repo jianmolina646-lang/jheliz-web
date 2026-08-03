@@ -1,104 +1,248 @@
 {% extends "jheliztv/base.html" %}
-{% load i18n %}
 
 {% block jc_content %}
-  <section class="jc-page-head">
-    <div>
-      <p class="jc-eyebrow">Resumen operativo</p>
-      <h1>Inicio</h1>
-      <p>Estado general de tus clientes, suscripciones, movimientos y vencimientos.</p>
-    </div>
-  </section>
-  <div class="jc-metrics">
-    <div class="jc-metric">
-      <div class="jc-metric__icon"><span class="material-symbols-outlined">groups</span></div>
+<main class="lv-dashboard">
+  <div class="lv-dashboard__canvas" aria-hidden="true"></div>
+  <div class="lv-dashboard__container">
+    <header class="lv-dashboard__header">
       <div>
-        <div class="jc-metric__v">{{ total_clients }}</div>
-        <div class="jc-metric__l">Mis usuarios</div>
+        <div class="lv-dashboard__eyebrow"><span></span>Panel general</div>
+        <h1>Inicio</h1>
+        <p>Resumen operativo de JHELIZ: métricas clave, rendimiento y actividad reciente.</p>
       </div>
-    </div>
-    <div class="jc-metric">
-      <div class="jc-metric__icon is-blue"><span class="material-symbols-outlined">account_balance_wallet</span></div>
-      <div>
-        <div class="jc-metric__v">{{ jc_currency }} {{ jc_settings.credits }}</div>
-        <div class="jc-metric__l">Mis créditos</div>
-      </div>
-    </div>
-    <div class="jc-metric">
-      <div class="jc-metric__icon"><span class="material-symbols-outlined">subscriptions</span></div>
-      <div>
-        <div class="jc-metric__v">{{ active_subs }}</div>
-        <div class="jc-metric__l">Suscripciones activas</div>
-      </div>
-    </div>
-    <div class="jc-metric">
-      <div class="jc-metric__icon {% if net < 0 %}is-red{% endif %}"><span class="material-symbols-outlined">trending_up</span></div>
-      <div>
-        <div class="jc-metric__v">{{ jc_currency }} {{ net }}</div>
-        <div class="jc-metric__l">Balance (ingresos − egresos)</div>
-      </div>
-    </div>
-  </div>
+      <a class="lv-dashboard__new-order" href="{% url 'jheliztv_clients' %}">
+        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        Nueva orden
+      </a>
+    </header>
 
-  <div class="jc-panel" style="margin-top:16px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-      <h2 class="jc-section-title"><span class="material-symbols-outlined">bar_chart</span> Ingresos vs. egresos ({{ jc_currency }})</h2>
-      <button type="button" class="jc-btn jc-btn--sm" data-jc-open="modalTx">
-        <span class="material-symbols-outlined">add</span> Registrar movimiento
-      </button>
-    </div>
+    <section class="lv-dashboard-metrics" aria-label="Métricas principales">
+      <article class="lv-dashboard-metric lv-dashboard-metric--accent">
+        <span class="lv-dashboard-metric__line" aria-hidden="true"></span>
+        <header><span>Total clientes</span><i class="material-symbols-outlined">group</i></header>
+        <strong>{{ total_clients }}</strong>
+        <small>Base registrada</small>
+      </article>
+      <article class="lv-dashboard-metric">
+        <span class="lv-dashboard-metric__line" aria-hidden="true"></span>
+        <header><span>Créditos activos</span><i class="material-symbols-outlined">account_balance_wallet</i></header>
+        <strong>{{ jc_currency_symbol }} {{ jc_settings.credits }}</strong>
+        <small>Capital disponible · {{ jc_currency }}</small>
+      </article>
+      <article class="lv-dashboard-metric">
+        <span class="lv-dashboard-metric__line" aria-hidden="true"></span>
+        <header><span>Suscripciones</span><i class="material-symbols-outlined">play_circle</i></header>
+        <strong>{{ active_subs }}</strong>
+        <small>Servicios activos</small>
+      </article>
+      <article class="lv-dashboard-metric lv-dashboard-metric--accent">
+        <span class="lv-dashboard-metric__line" aria-hidden="true"></span>
+        <header><span>Saldo actual</span><i class="material-symbols-outlined">trending_up</i></header>
+        <strong>{{ jc_currency_symbol }} {{ net }}</strong>
+        <small>Ingresos − egresos · {{ jc_currency }}</small>
+      </article>
+    </section>
 
-    <div class="jc-chart">
-      {% for row in series %}
-        <div class="jc-chart__col">
-          <div class="jc-chart__bars">
-            <div class="jc-bar jc-bar--in" style="height:{{ row.income_pct }}%" title="Ingresos {{ jc_currency }} {{ row.income }}"></div>
-            <div class="jc-bar jc-bar--out" style="height:{{ row.expense_pct }}%" title="Egresos {{ jc_currency }} {{ row.expense }}"></div>
+    <section class="lv-dashboard-chart">
+      <header>
+        <div>
+          <span>Análisis de datos</span>
+          <h2>Tendencia de rendimiento</h2>
+        </div>
+        <div class="lv-dashboard-chart__period">
+          <span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>
+          Últimos 6 meses
+        </div>
+      </header>
+      <div class="lv-dashboard-chart__body">
+        <div class="lv-dashboard-chart__plot" data-dashboard-chart>
+          <svg viewBox="0 0 1000 260" preserveAspectRatio="none" role="img" aria-label="Ingresos y egresos de los últimos seis meses">
+            <defs>
+              <linearGradient id="lvIncomeFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="oklch(0.86 0.22 155)" stop-opacity=".45"/>
+                <stop offset="100%" stop-color="oklch(0.86 0.22 155)" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="lvExpenseFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="oklch(0.68 0.2 25)" stop-opacity=".28"/>
+                <stop offset="100%" stop-color="oklch(0.68 0.2 25)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <g class="lv-dashboard-chart__grid" aria-hidden="true">
+              <line x1="0" y1="20" x2="1000" y2="20"/><line x1="0" y1="75" x2="1000" y2="75"/>
+              <line x1="0" y1="130" x2="1000" y2="130"/><line x1="0" y1="185" x2="1000" y2="185"/>
+              <line x1="0" y1="240" x2="1000" y2="240"/>
+            </g>
+            <path data-income-area fill="url(#lvIncomeFill)"></path>
+            <path data-expense-area fill="url(#lvExpenseFill)"></path>
+            <path data-income-line class="lv-dashboard-chart__income"></path>
+            <path data-expense-line class="lv-dashboard-chart__expense"></path>
+            <g data-chart-points></g>
+          </svg>
+          <div class="lv-dashboard-chart__tooltip" data-chart-tooltip hidden></div>
+          <div class="lv-dashboard-chart__axis">
+            {% for row in series %}
+              <button type="button"
+                      data-chart-point
+                      data-index="{{ forloop.counter0 }}"
+                      data-income="{{ row.income }}"
+                      data-expense="{{ row.expense }}"
+                      data-income-pct="{{ row.income_pct }}"
+                      data-expense-pct="{{ row.expense_pct }}">{{ row.label }}</button>
+            {% endfor %}
           </div>
-          <div class="jc-chart__lbl">{{ row.label }}</div>
         </div>
-      {% endfor %}
-    </div>
-    <div class="jc-legend">
-      <span><i style="background:#10b981"></i>Ingresos: {{ jc_currency }} {{ total_income }}</span>
-      <span><i style="background:#ef4444"></i>Egresos: {{ jc_currency }} {{ total_expense }}</span>
-    </div>
-  </div>
+        <div class="lv-dashboard-chart__legend">
+          <span><i class="is-income"></i><b>Ingresos:</b> {{ jc_currency_symbol }} {{ total_income }} {{ jc_currency }}</span>
+          <span><i class="is-expense"></i><b>Egresos:</b> {{ jc_currency_symbol }} {{ total_expense }} {{ jc_currency }}</span>
+        </div>
+      </div>
+    </section>
 
-  {# ── Modal: registrar movimiento ───────────────────────────────── #}
-  <div class="jc-modal" id="modalTx" aria-hidden="true">
-    <div class="jc-modal__backdrop" data-jc-close></div>
-    <div class="jc-modal__box" role="dialog" aria-modal="true">
-      <form method="post" action="{% url 'jheliztv_transaction_add' %}">
-        {% csrf_token %}
-        <div class="jc-modal__head">
-          <h3><span class="material-symbols-outlined">payments</span> Registrar movimiento</h3>
-          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
-        </div>
-        <div class="jc-modal__body">
-          <div class="jc-grid2">
-            <div class="jc-field">
-              <label>Tipo</label>
-              <select name="kind">
-                <option value="income">Ingreso</option>
-                <option value="expense">Egreso</option>
-              </select>
+    <section class="lv-dashboard-operation">
+      <article class="lv-dashboard-activity">
+        <header>
+          <span><i class="material-symbols-outlined" aria-hidden="true">monitoring</i>Registros de actividad del sistema</span>
+          <small>Últimos eventos</small>
+        </header>
+        <ul>
+          <li><time>Ahora</time><b>[SYNC]</b><span>Panel sincronizado con los datos operativos.</span></li>
+          <li><time>Activo</time><b>[CLIENTES]</b><span>{{ total_clients }} clientes registrados en el sistema.</span></li>
+          <li><time>Activo</time><b>[SERVICIOS]</b><span>{{ active_subs }} suscripciones se encuentran vigentes.</span></li>
+        </ul>
+      </article>
+
+      <article class="lv-dashboard-quick">
+        <span>Acción rápida</span>
+        <h2>Nueva orden<br>de servicio</h2>
+        <p>Registra un cliente y asígnale su siguiente suscripción.</p>
+        <a href="{% url 'jheliztv_clients' %}">Crear orden<span class="material-symbols-outlined" aria-hidden="true">north_east</span></a>
+      </article>
+    </section>
+
+    <button type="button" class="lv-dashboard__transaction" data-jc-open="modalTx">
+      <span class="material-symbols-outlined" aria-hidden="true">add</span>
+      Registrar movimiento
+    </button>
+
+    <section class="lv-dashboard-upcoming">
+      <article class="lv-dashboard-expirations">
+        <header>
+          <span><i class="material-symbols-outlined" aria-hidden="true">calendar_month</i>Próximos vencimientos</span>
+          <small>Hoy</small>
+        </header>
+        <div class="lv-dashboard-expirations__list">
+          {% for sub in jc_alerts %}
+            <article>
+              <div>
+                <h3>{{ sub.client.name }}</h3>
+                <p><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>{{ sub.service.name }}</p>
+                <a href="{% url 'jheliztv_service_detail' sub.service.pk %}">Revisar<span class="material-symbols-outlined">chevron_right</span></a>
+              </div>
+              <time>{{ sub.expires_at|date:"d/m" }}</time>
+            </article>
+          {% empty %}
+            <div class="lv-dashboard-expirations__empty">
+              <span class="material-symbols-outlined">verified</span>
+              <div><h3>Sin vencimientos críticos</h3><p>No hay servicios que requieran atención inmediata.</p></div>
             </div>
-            <div class="jc-field">
-              <label>Monto</label>
-              <input type="number" step="0.01" name="amount" required>
-            </div>
-          </div>
-          <div class="jc-field">
-            <label>Descripción</label>
-            <input type="text" name="description" placeholder="Ej. Compra de créditos / venta puntual">
-          </div>
+          {% endfor %}
         </div>
-        <div class="jc-modal__foot">
-          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
-          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar</button>
+      </article>
+
+      <article class="lv-dashboard-alerts">
+        <div>
+          <h2><span class="material-symbols-outlined" aria-hidden="true">notifications</span>Alertas automáticas</h2>
+          <p>Los avisos están activos para tus servicios.</p>
         </div>
-      </form>
-    </div>
+        <span class="lv-dashboard-alerts__switch" role="img" aria-label="Alertas activas"><i></i></span>
+      </article>
+    </section>
   </div>
+</main>
+
+<div class="jc-modal" id="modalTx" aria-hidden="true">
+  <div class="jc-modal__backdrop" data-jc-close></div>
+  <div class="jc-modal__box" role="dialog" aria-modal="true">
+    <form method="post" action="{% url 'jheliztv_transaction_add' %}">
+      {% csrf_token %}
+      <div class="jc-modal__head"><h3>Registrar movimiento</h3><button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button></div>
+      <div class="jc-modal__body">
+        <div class="jc-grid2">
+          <div class="jc-field"><label>Tipo</label><select name="kind"><option value="income">Ingreso</option><option value="expense">Egreso</option></select></div>
+          <div class="jc-field"><label>Monto</label><input type="number" step="0.01" min="0.01" name="amount" required></div>
+        </div>
+        <div class="jc-grid2">
+          <div class="jc-field"><label for="txCurrency">Moneda recibida</label><select id="txCurrency" name="currency" data-money-currency>{% for code, info in jc_currencies.items %}<option value="{{ code }}" {% if code == jc_currency %}selected{% endif %}>{{ code }} · {{ info.name }}</option>{% endfor %}</select></div>
+          <div class="jc-field" data-money-rate-wrap hidden aria-live="polite"><label for="txExchangeRate">Tipo de cambio a {{ jc_currency }}</label><input id="txExchangeRate" type="number" step="0.00000001" min="0.00000001" name="exchange_rate" value="1" data-money-rate aria-describedby="txRateHelp"><small id="txRateHelp">Cuánto vale 1 unidad recibida en {{ jc_currency }}.</small></div>
+        </div>
+        <div class="jc-field"><label>Descripción</label><input type="text" name="description"></div>
+      </div>
+      <div class="jc-modal__foot"><button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button><button type="submit" class="jc-btn">Guardar</button></div>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const currency = document.querySelector("[data-money-currency]");
+  const wrap = document.querySelector("[data-money-rate-wrap]");
+  const rate = document.querySelector("[data-money-rate]");
+  if (currency && wrap && rate) {
+    const sync = () => {
+      const foreign = currency.value !== "{{ jc_currency|escapejs }}";
+      wrap.hidden = !foreign;
+      rate.required = foreign;
+      if (!foreign) rate.value = "1";
+    };
+    let previous = currency.value;
+    currency.addEventListener("change", function () {
+      if (currency.value !== previous && currency.value !== "{{ jc_currency|escapejs }}") {
+        rate.value = "";
+        setTimeout(() => rate.focus(), 0);
+      }
+      previous = currency.value;
+      sync();
+    });
+    sync();
+  }
+
+  const chart = document.querySelector("[data-dashboard-chart]");
+  if (!chart) return;
+  const points = Array.from(chart.querySelectorAll("[data-chart-point]"));
+  if (!points.length) return;
+  const xFor = (index) => points.length === 1 ? 500 : index * (1000 / (points.length - 1));
+  const yFor = (value) => 240 - (Math.max(0, Math.min(100, value)) * 2.2);
+  const coords = (key) => points.map((point, index) => [xFor(index), yFor(Number(point.dataset[key] || 0))]);
+  const curve = (rows) => {
+    if (!rows.length) return "";
+    if (rows.length === 1) return `M ${rows[0][0]} ${rows[0][1]}`;
+    let d = `M ${rows[0][0]} ${rows[0][1]}`;
+    for (let i = 1; i < rows.length; i++) {
+      const prev = rows[i - 1], current = rows[i], mid = (prev[0] + current[0]) / 2;
+      d += ` C ${mid} ${prev[1]}, ${mid} ${current[1]}, ${current[0]} ${current[1]}`;
+    }
+    return d;
+  };
+  const income = coords("incomePct");
+  const expense = coords("expensePct");
+  const incomeLine = curve(income);
+  const expenseLine = curve(expense);
+  chart.querySelector("[data-income-line]").setAttribute("d", incomeLine);
+  chart.querySelector("[data-expense-line]").setAttribute("d", expenseLine);
+  chart.querySelector("[data-income-area]").setAttribute("d", `${incomeLine} L 1000 260 L 0 260 Z`);
+  chart.querySelector("[data-expense-area]").setAttribute("d", `${expenseLine} L 1000 260 L 0 260 Z`);
+
+  const tooltip = chart.querySelector("[data-chart-tooltip]");
+  points.forEach((point, index) => {
+    point.addEventListener("mouseenter", () => {
+      tooltip.innerHTML = `<b>${point.textContent}</b><span>Ingresos: {{ jc_currency_symbol|escapejs }} ${point.dataset.income}</span><span>Egresos: {{ jc_currency_symbol|escapejs }} ${point.dataset.expense}</span>`;
+      tooltip.style.left = `${income[index][0] / 10}%`;
+      tooltip.hidden = false;
+    });
+    point.addEventListener("mouseleave", () => { tooltip.hidden = true; });
+    point.addEventListener("focus", () => point.dispatchEvent(new Event("mouseenter")));
+    point.addEventListener("blur", () => { tooltip.hidden = true; });
+  });
+});
+</script>
 {% endblock %}

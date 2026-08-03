@@ -1,114 +1,233 @@
 {% extends "jheliztv/base.html" %}
 
 {% block jc_content %}
-  <section class="jc-page-head jc-page-head--board">
-    <div><p class="jc-eyebrow">Catálogo operativo</p><h1>Servicios</h1><p>Organiza las plataformas y consulta sus suscripciones activas.</p></div>
-    <button type="button" class="jc-btn" data-jc-open="modalSvc">
-      <span class="material-symbols-outlined">add</span> Agregar servicio
-    </button>
-  </section>
-
-  <div class="jc-board-stats jc-board-stats--services">
-    <div class="jc-board-stat"><span class="material-symbols-outlined">apps</span><div><strong>{{ categories|length }}</strong><small>Categorías activas</small></div></div>
-    <div class="jc-board-stat"><span class="material-symbols-outlined">subscriptions</span><div><strong>En línea</strong><small>Catálogo operativo</small></div></div>
-    <div class="jc-board-stat"><span class="material-symbols-outlined">category</span><div><strong>{{ uncategorized|length }}</strong><small>Sin categoría</small></div></div>
-    <div class="jc-board-stat"><span class="material-symbols-outlined">verified</span><div><strong>Activo</strong><small>Estado del sistema</small></div></div>
-  </div>
-
-  <div class="jc-catalog-shell">
-  {% for group in categories %}
-    {% if group.services %}
-      <section class="jc-cat">
-        <div class="jc-cat__head">
-          <span class="material-symbols-outlined">{{ group.cat.icon }}</span>
-          <h3>{{ group.cat.name }}</h3>
-        </div>
-        <div class="jc-services">
-          {% for svc in group.services %}
-            <a class="jc-svc" href="{% url 'jheliztv_service_detail' svc.pk %}">
-              {% if svc.image %}
-                <img class="jc-svc__img" src="{{ svc.image.url }}" alt="{{ svc.name }}">
-              {% elif svc.icon %}
-                <div class="jc-svc__ph"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
-              {% else %}
-                <div class="jc-svc__ph jc-svc__ph--mono">{{ svc.name|first|upper }}</div>
-              {% endif %}
-              <div class="jc-svc__name">{{ svc.name }}</div>
-              <div class="jc-svc__count">{{ svc.active_subscriptions.count }} cuenta(s)</div>
-              <button type="button" class="jc-svc__del" title="Eliminar"
-                      onclick="event.preventDefault();event.stopPropagation();if(confirm('¿Eliminar {{ svc.name|escapejs }}? Solo si no lo vendés.')){document.getElementById('delsvc{{ svc.pk }}').submit();}">
-                <span class="material-symbols-outlined">delete</span>
-              </button>
-              <form id="delsvc{{ svc.pk }}" method="post" action="{% url 'jheliztv_service_delete' svc.pk %}" style="display:none">{% csrf_token %}</form>
-            </a>
-          {% endfor %}
-        </div>
-      </section>
-    {% endif %}
-  {% endfor %}
-
-  {% if uncategorized %}
-    <section class="jc-cat">
-      <div class="jc-cat__head"><span class="material-symbols-outlined">apps</span><h3>Sin categoría</h3></div>
-      <div class="jc-services">
-        {% for svc in uncategorized %}
-          <a class="jc-svc" href="{% url 'jheliztv_service_detail' svc.pk %}">
-            {% if svc.image %}<img class="jc-svc__img" src="{{ svc.image.url }}" alt="{{ svc.name }}">
-            {% elif svc.icon %}<div class="jc-svc__ph"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
-            {% else %}<div class="jc-svc__ph jc-svc__ph--mono">{{ svc.name|first|upper }}</div>{% endif %}
-            <div class="jc-svc__name">{{ svc.name }}</div>
-            <div class="jc-svc__count">{{ svc.active_subscriptions.count }} cuenta(s)</div>
-          </a>
-        {% endfor %}
+<main class="lv-services">
+  <div class="lv-services__canvas" aria-hidden="true"></div>
+  <div class="lv-services__container">
+    <header class="lv-services__header">
+      <div>
+        <div class="lv-services__eyebrow"><span></span>Catálogo operativo</div>
+        <h1>Servicios</h1>
+        <p>Organiza las plataformas y consulta sus suscripciones activas.</p>
       </div>
-    </section>
-  {% endif %}
+      <button type="button" class="lv-services__add" data-jc-open="modalSvc">
+        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        Agregar servicio
+      </button>
+    </header>
 
-  {% if not categories and not uncategorized %}
-    <div class="jc-panel jc-empty">
-      <span class="material-symbols-outlined">add_business</span>
-      Todavía no tenés servicios. Agregá el primero con el botón de arriba.
+    <section class="lv-service-stats" aria-label="Resumen del catálogo">
+      <article class="lv-service-stat lv-service-stat--accent">
+        <span class="material-symbols-outlined" aria-hidden="true">grid_view</span>
+        <div><strong>{{ categories|length }}</strong><small>Categorías activas</small></div>
+      </article>
+      <article class="lv-service-stat">
+        <span class="material-symbols-outlined" aria-hidden="true">deployed_code</span>
+        <div><strong>En línea</strong><small>Catálogo operativo</small></div>
+      </article>
+      <article class="lv-service-stat">
+        <span class="material-symbols-outlined" aria-hidden="true">layers</span>
+        <div><strong>{{ uncategorized|length }}</strong><small>Sin categoría</small></div>
+      </article>
+      <article class="lv-service-stat">
+        <span class="material-symbols-outlined" aria-hidden="true">verified_user</span>
+        <div><strong>Activo</strong><small>Estado del sistema</small></div>
+      </article>
+    </section>
+
+    <div class="lv-service-categories">
+      {% for group in categories %}
+        {% if group.services %}
+          <section class="lv-service-category">
+            <header class="lv-service-category__header">
+              <div class="lv-service-category__title">
+                <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
+                <h2>{{ group.cat.name }}</h2>
+              </div>
+              <span>{{ group.services|length }} servicio{{ group.services|length|pluralize }}</span>
+            </header>
+            <div class="lv-service-grid">
+              {% for svc in group.services %}
+                <article class="lv-service-card{% if svc.active_subscriptions.count %} lv-service-card--active{% endif %}">
+                  <a class="lv-service-card__link" href="{% url 'jheliztv_service_detail' svc.pk %}" aria-label="Abrir {{ svc.name }}">
+                    <span class="lv-service-card__accent" aria-hidden="true"></span>
+                    <div class="lv-service-card__media">
+                      {% if svc.image %}<img src="{{ svc.image.url }}" alt="{{ svc.name }}">
+                      {% elif svc.icon %}<div class="lv-service-card__placeholder"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
+                      {% else %}<div class="lv-service-card__placeholder">{{ svc.name|first|upper }}</div>{% endif %}
+                      <div class="lv-service-card__shade" aria-hidden="true"></div>
+                      <span class="lv-service-card__code">{{ svc.name|slice:":3"|upper }}</span>
+                      <span class="lv-service-card__status"><i><b></b></i>{% if svc.active_subscriptions.count %}Activo{% else %}Vacío{% endif %}</span>
+                    </div>
+                    <div class="lv-service-card__body">
+                      <div><h3>{{ svc.name }}</h3><p><span class="lv-service-card__count-label">{{ svc.active_subscriptions.count }} cuenta{{ svc.active_subscriptions.count|pluralize }}</span></p></div>
+                      <span class="lv-service-card__arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                    </div>
+                  </a>
+                  <button type="button" class="lv-service-card__delete" title="Eliminar {{ svc.name }}" aria-label="Eliminar {{ svc.name }}"
+                          onclick="event.preventDefault();event.stopPropagation();if(confirm('¿Eliminar {{ svc.name|escapejs }}? Solo si no lo vendés.')){document.getElementById('delsvc{{ svc.pk }}').submit();}">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                  <form id="delsvc{{ svc.pk }}" method="post" action="{% url 'jheliztv_service_delete' svc.pk %}" hidden>{% csrf_token %}</form>
+                </article>
+              {% endfor %}
+            </div>
+          </section>
+        {% endif %}
+      {% endfor %}
+
+      {% if uncategorized %}
+        <section class="lv-service-category">
+          <header class="lv-service-category__header">
+            <div class="lv-service-category__title">
+              <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
+              <h2>Sin categoría</h2>
+            </div>
+            <span>{{ uncategorized|length }} servicio{{ uncategorized|length|pluralize }}</span>
+          </header>
+          <div class="lv-service-grid">
+            {% for svc in uncategorized %}
+              <article class="lv-service-card{% if svc.active_subscriptions.count %} lv-service-card--active{% endif %}">
+                <a class="lv-service-card__link" href="{% url 'jheliztv_service_detail' svc.pk %}" aria-label="Abrir {{ svc.name }}">
+                  <span class="lv-service-card__accent" aria-hidden="true"></span>
+                  <div class="lv-service-card__media">
+                    {% if svc.image %}<img src="{{ svc.image.url }}" alt="{{ svc.name }}">
+                    {% elif svc.icon %}<div class="lv-service-card__placeholder"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
+                    {% else %}<div class="lv-service-card__placeholder">{{ svc.name|first|upper }}</div>{% endif %}
+                    <div class="lv-service-card__shade" aria-hidden="true"></div>
+                    <span class="lv-service-card__code">{{ svc.name|slice:":3"|upper }}</span>
+                    <span class="lv-service-card__status"><i><b></b></i>{% if svc.active_subscriptions.count %}Activo{% else %}Vacío{% endif %}</span>
+                  </div>
+                  <div class="lv-service-card__body">
+                    <div><h3>{{ svc.name }}</h3><p><span class="lv-service-card__count-label">{{ svc.active_subscriptions.count }} cuenta{{ svc.active_subscriptions.count|pluralize }}</span></p></div>
+                    <span class="lv-service-card__arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                  </div>
+                </a>
+                <button type="button" class="lv-service-card__delete" title="Eliminar {{ svc.name }}" aria-label="Eliminar {{ svc.name }}"
+                        onclick="event.preventDefault();event.stopPropagation();if(confirm('¿Eliminar {{ svc.name|escapejs }}? Solo si no lo vendés.')){document.getElementById('delsvc{{ svc.pk }}').submit();}">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+                <form id="delsvc{{ svc.pk }}" method="post" action="{% url 'jheliztv_service_delete' svc.pk %}" hidden>{% csrf_token %}</form>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      {% if not categories and not uncategorized %}
+        <div class="lv-services__empty">
+          <span class="material-symbols-outlined">add_business</span>
+          <h2>Tu catálogo está vacío</h2>
+          <p>Todavía no tenés servicios. Agregá el primero con el botón de arriba.</p>
+        </div>
+      {% endif %}
     </div>
-  {% endif %}
   </div>
+</main>
 
   {# ── Modal: agregar servicio ───────────────────────────────────── #}
   <div class="jc-modal" id="modalSvc" aria-hidden="true">
     <div class="jc-modal__backdrop" data-jc-close></div>
-    <div class="jc-modal__box" role="dialog" aria-modal="true">
-      <form method="post" action="{% url 'jheliztv_service_add' %}" enctype="multipart/form-data">
+    <div class="jc-modal__box jc-service-add-dialog" role="dialog" aria-modal="true" aria-labelledby="serviceAddTitle" aria-describedby="serviceAddDescription">
+      <form method="post" action="{% url 'jheliztv_service_add' %}" enctype="multipart/form-data" data-jc-service-add-form>
         {% csrf_token %}
-        <div class="jc-modal__head">
-          <h3><span class="material-symbols-outlined">add_circle</span> Agregar servicio</h3>
-          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        <div class="jc-service-add__head">
+          <span class="jc-service-add__hero-icon material-symbols-outlined" aria-hidden="true">play_circle</span>
+          <div class="jc-service-add__heading">
+            <h3 id="serviceAddTitle">Agregar servicio</h3>
+            <p id="serviceAddDescription">Crea un nuevo servicio para ofrecer a tus clientes.</p>
+          </div>
+          <button type="button" class="jc-service-add__close" data-jc-close aria-label="Cerrar">
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
         </div>
-        <div class="jc-modal__body">
-          <div class="jc-field">
-            <label>Nombre</label>
-            <input type="text" name="name" required placeholder="Ej. Disney+, Spotify, Canva…">
-          </div>
-          <div class="jc-grid2">
-            <div class="jc-field">
-              <label>Categoría</label>
-              <select name="category">
-                <option value="">— Sin categoría —</option>
-                {% for c in all_categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}
-              </select>
+
+        <div class="jc-service-add__body">
+          <section class="jc-service-add__card">
+            <header class="jc-service-add__card-head">
+              <span class="material-symbols-outlined" aria-hidden="true">grid_view</span>
+              <h4>Información del servicio</h4>
+            </header>
+            <div class="jc-service-add__grid">
+              <div class="jc-service-add__field">
+                <label for="serviceAddName">Nombre</label>
+                <div class="jc-service-add__control">
+                  <span class="material-symbols-outlined" aria-hidden="true">text_fields</span>
+                  <input id="serviceAddName" type="text" name="name" required placeholder="Ej. Disney+, Spotify, Canva Pro...">
+                </div>
+              </div>
+
+              <div class="jc-service-add__field">
+                <label for="serviceAddCategory">Categoría</label>
+                <div class="jc-service-add__control">
+                  <span class="material-symbols-outlined" aria-hidden="true">sell</span>
+                  <select id="serviceAddCategory" name="category">
+                    <option value="">— Sin categoría —</option>
+                    {% for c in all_categories %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}
+                  </select>
+                  <span class="material-symbols-outlined jc-service-add__chevron" aria-hidden="true">expand_more</span>
+                </div>
+                <div class="jc-service-add__category-preview" data-jc-service-category-preview hidden>
+                  <span class="material-symbols-outlined" aria-hidden="true">check</span>
+                  <strong data-jc-service-category-name></strong>
+                </div>
+              </div>
             </div>
-            <div class="jc-field">
-              <label>Icono (si no subís imagen)</label>
-              <input type="text" name="icon" placeholder="Ej. live_tv, music_note">
-              <div class="jc-help">Nombre de Material Symbols.</div>
+          </section>
+
+          <section class="jc-service-add__card">
+            <header class="jc-service-add__card-head">
+              <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+              <h4>Personalización</h4>
+            </header>
+            <div class="jc-service-add__grid">
+              <div class="jc-service-add__field">
+                <label for="serviceAddIcon">Icono (si no subes imagen)</label>
+                <div class="jc-service-add__control">
+                  <span class="material-symbols-outlined jc-service-add__icon-preview" data-jc-service-icon-preview aria-hidden="true">auto_awesome</span>
+                  <input id="serviceAddIcon" type="text" name="icon" placeholder="Ej. live_tv, music_note" autocomplete="off">
+                </div>
+                <p class="jc-service-add__help">Nombre del icono de Material Symbols.</p>
+                <div class="jc-service-add__suggestions" aria-label="Iconos sugeridos">
+                  <button type="button" data-jc-service-icon="live_tv">live_tv</button>
+                  <button type="button" data-jc-service-icon="music_note">music_note</button>
+                  <button type="button" data-jc-service-icon="movie">movie</button>
+                  <button type="button" data-jc-service-icon="sports_esports">sports_esports</button>
+                </div>
+              </div>
+
+              <div class="jc-service-add__field">
+                <div class="jc-service-add__label-row">
+                  <label for="serviceAddImage">Imagen representativa</label>
+                  <button type="button" data-jc-service-image-remove hidden>Quitar</button>
+                </div>
+                <div class="jc-service-add__dropzone" data-jc-service-dropzone role="button" tabindex="0" aria-label="Seleccionar imagen">
+                  <div class="jc-service-add__upload-empty" data-jc-service-upload-empty>
+                    <span class="material-symbols-outlined" aria-hidden="true">upload</span>
+                    <strong>Arrastra una imagen o selecciónala</strong>
+                    <small><span class="material-symbols-outlined" aria-hidden="true">image</span> PNG, JPG o SVG</small>
+                  </div>
+                  <div class="jc-service-add__upload-preview" data-jc-service-upload-preview hidden>
+                    <img alt="Vista previa del servicio" data-jc-service-preview-image>
+                    <strong data-jc-service-file-name></strong>
+                    <small>Haz clic para cambiar</small>
+                  </div>
+                  <input id="serviceAddImage" type="file" name="image" accept="image/*" tabindex="-1">
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="jc-field">
-            <label>Imagen representativa</label>
-            <input type="file" name="image" accept="image/*">
-          </div>
+          </section>
         </div>
-        <div class="jc-modal__foot">
-          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
-          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar</button>
+
+        <div class="jc-service-add__foot">
+          <span data-jc-service-save-summary>Escribe un nombre para el servicio.</span>
+          <div>
+            <button type="button" class="jc-service-add__cancel" data-jc-close>Cancelar</button>
+            <button type="submit" class="jc-service-add__save">
+              <span class="material-symbols-outlined" aria-hidden="true">save</span>
+              Guardar servicio
+            </button>
+          </div>
         </div>
       </form>
     </div>

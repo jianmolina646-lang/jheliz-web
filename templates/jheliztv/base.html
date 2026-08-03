@@ -2,120 +2,120 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{{ title|default:"JHELIZCONTROLTV" }} · JHELIZCONTROLTV</title>
   <meta name="robots" content="noindex,nofollow">
-  <script>
-    (function(){if(localStorage.getItem("jc-theme")==="light"){document.documentElement.classList.add("jc-theme-light");}})();
-  </script>
+  <script>(function(){if(localStorage.getItem("jc-theme")==="light"){document.documentElement.classList.add("jc-theme-light");}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
-  <link rel="stylesheet" href="{% static 'css/jheliz-control.css' %}?v=reference-ui-v7-20260726">
-  <style>body{margin:0;background:#070b09;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}</style>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
+  <link rel="stylesheet" href="{% static 'css/jheliz-control.css' %}?v=client-add-v14-20260728">
+  <link rel="stylesheet" href="{% static 'css/mail-control-redesign.css' %}?v=mobile-nav-clearance-20260730">
+  <link rel="stylesheet" href="{% static 'css/jheliz-shell-v17.css' %}?v=mobile-support-clearance-v31-20260730">
+  <link rel="stylesheet" href="{% static 'css/add-subscription-dialog.css' %}?v=lovable-add-subscription-v1-20260730">
+  <link rel="stylesheet" href="{% static 'css/add-emails-dialog.css' %}?v=lovable-add-emails-v1-20260730">
+  <link rel="stylesheet" href="{% static 'css/add-service-dialog.css' %}?v=lovable-add-service-v1-20260730">
+  <style>body{margin:0;background:#070b09;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif}</style>
 </head>
 <body>
-<div class="jc jc-app" data-notif-url="{% url 'jheliztv_notifications' %}" data-currency="{{ jc_currency|default:'S/' }}">
-  <aside class="jc-sidebar">
-    <a class="jc-brand" href="{% url 'jheliztv_dashboard' %}">
-      <span class="jc-logo" aria-hidden="true">
-        <svg viewBox="0 0 64 64" width="36" height="36">
-          <rect x="2" y="2" width="60" height="60" rx="18" fill="#35e58f"/>
-          <path d="M17 13 L51 32 L17 51 Z" fill="rgba(7,17,12,.13)"/>
-          <text x="32" y="42" text-anchor="middle" font-family="Inter,Segoe UI,sans-serif"
-                font-size="29" font-weight="800" fill="#07110c" letter-spacing="-2">JC</text>
-        </svg>
-      </span>
+<div class="jc jc-app lv-shell" data-notif-url="{% url 'jheliztv_notifications' %}" data-currency="{{ jc_currency|default:'PEN' }}" data-currency-symbol="{{ jc_currency_symbol|default:'S/' }}">
+  <button type="button" class="jc-mobile-overlay" data-jc-nav-close aria-label="Cerrar navegación"></button>
+
+  <aside class="jc-sidebar lv-shell-sidebar" aria-hidden="false">
+    <span class="lv-sidebar-light" aria-hidden="true"></span>
+    <span class="lv-sidebar-topline" aria-hidden="true"></span>
+    <span class="lv-sidebar-edge" aria-hidden="true"></span>
+    <button type="button" class="lv-drawer-close" data-jc-nav-close aria-label="Cerrar menú">
+      <span class="material-symbols-outlined" aria-hidden="true">close</span>
+    </button>
+
+    <a class="jc-brand lv-shell-brand" href="{% url 'jheliztv_dashboard' %}">
+      <span class="lv-brand-mark material-symbols-outlined" aria-hidden="true">play_circle</span>
       <span class="jc-brand__txt">
-        <strong>JHELIZCONTROLTV</strong>
-        <small>{{ jc_tenant.business_name|default:"Gestión de suscripciones" }}</small>
+        <strong>JHELIZ</strong>
+        <small>{{ jc_tenant.business_name|default:"Ecomerceperu" }}</small>
       </span>
     </a>
 
-    <nav class="jc-tabs" aria-label="Navegación principal">
-      <span class="jc-nav-label">Workspace</span>
-      <a href="{% url 'jheliztv_dashboard' %}" class="jc-tab {% if jc_active == 'dashboard' %}is-active{% endif %}">
-        <span class="material-symbols-outlined">home</span><span>Inicio</span>
-      </a>
-      <a href="{% url 'jheliztv_services' %}" class="jc-tab {% if jc_active == 'services' %}is-active{% endif %}">
-        <span class="material-symbols-outlined">grid_view</span><span>Servicios</span>
-      </a>
-      <a href="{% url 'jheliztv_clients' %}" class="jc-tab {% if jc_active == 'clients' %}is-active{% endif %}">
-        <span class="material-symbols-outlined">groups</span><span>Mis clientes</span>
-      </a>
-      <a href="{% url 'jheliztv_emails' %}" class="jc-tab {% if jc_active == 'emails' %}is-active{% endif %}">
-        <span class="material-symbols-outlined">mail</span><span>Correos</span>
-      </a>
-      <span class="jc-nav-label">Automatización</span>
-      <a href="{% url 'jheliztv_telegram' %}" class="jc-tab {% if jc_active == 'telegram' %}is-active{% endif %}">
-        <span class="material-symbols-outlined">send</span><span>Telegram</span>
-      </a>
-      <a href="{% url 'jheliztv_whatsapp' %}" class="jc-tab {% if jc_active == 'whatsapp' %}is-active{% endif %}">
-        <span class="material-symbols-outlined">chat</span><span>WhatsApp</span>
-      </a>
-      <a href="{% url 'jheliztv_billing' %}" class="jc-tab {% if jc_active == 'billing' %}is-active{% endif %}">
-        <span class="material-symbols-outlined">qr_code_2</span><span>Mi suscripción</span>
-      </a>
+    <nav class="jc-tabs lv-shell-nav" id="jcPrimaryNav" aria-label="Navegación principal">
+      <a href="{% url 'jheliztv_dashboard' %}" class="jc-tab {% if jc_active == 'dashboard' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">home</span><b>Inicio</b></a>
+      <a href="{% url 'jheliztv_services' %}" class="jc-tab {% if jc_active == 'services' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">grid_view</span><b>Servicios</b></a>
+      <a href="{% url 'jheliztv_clients' %}" class="jc-tab {% if jc_active == 'clients' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">groups</span><b>Mis clientes</b></a>
+      <a href="{% url 'jheliztv_emails' %}" class="jc-tab {% if jc_active == 'emails' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">mail</span><b>Correos</b></a>
+      <a href="{% url 'jheliztv_support' %}" class="jc-tab {% if jc_active == 'support' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">support_agent</span><b>Soporte</b></a>
+      <a href="{% url 'jheliztv_renewals' %}" class="jc-tab {% if jc_active == 'renewals' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">autorenew</span><b>Renovaciones</b></a>
+      <a href="{% url 'jheliztv_telegram' %}" class="jc-tab {% if jc_active == 'telegram' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">send</span><b>Telegram</b></a>
+      <a href="{% url 'jheliztv_whatsapp' %}" class="jc-tab {% if jc_active == 'whatsapp' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">chat</span><b>WhatsApp</b></a>
+      <a href="{% url 'jheliztv_billing' %}" class="jc-tab {% if jc_active == 'billing' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">credit_card</span><b>Mi suscripción</b></a>
+      <a href="{% url 'jheliztv_money_settings' %}" class="jc-tab {% if jc_active == 'money' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">paid</span><b>País y monedas</b></a>
+
+      <div class="lv-sidebar-separator" aria-hidden="true"></div>
+      <a class="jc-new-order" href="{% url 'jheliztv_clients' %}"><span class="material-symbols-outlined">add</span><b>Nueva orden</b></a>
     </nav>
 
     <div class="jc-sidebar__footer">
-      <span class="jc-sidebar__status"><i></i>Sistema operativo</span>
-      <small>Sincronización y alertas activas</small>
+      <div class="jc-admin-card">
+        <span class="jc-admin-avatar">JC</span>
+        <span>
+          <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+          <small>{% if request.user.is_staff %}Administrador{% else %}Revendedor{% endif %}</small>
+        </span>
+      </div>
     </div>
   </aside>
 
   <section class="jc-workspace">
-    <header class="jc-topbar">
+    <header class="jc-topbar lv-shell-topbar">
+      <span class="lv-topbar-topline" aria-hidden="true"></span>
+      <span class="lv-topbar-bottomline" aria-hidden="true"></span>
+
+      <button type="button" class="jc-menu-toggle" id="jcMenuToggle" aria-label="Abrir navegación" aria-controls="jcPrimaryNav" aria-expanded="false">
+        <span class="material-symbols-outlined" aria-hidden="true">menu</span>
+      </button>
       <a class="jc-mobile-brand" href="{% url 'jheliztv_dashboard' %}" aria-label="JHELIZCONTROLTV">
-        <span class="jc-mobile-brand__mark">JC</span><strong>JHELIZCONTROLTV</strong>
+        <span class="jc-mobile-brand__mark material-symbols-outlined">play_circle</span>
+        <strong>JHELIZCONTROLTV</strong>
       </a>
+      <strong class="jc-desktop-title">JHELIZCONTROLTV</strong>
 
       <form class="jc-search" action="{% url 'jheliztv_search' %}" method="get" role="search">
         <span class="material-symbols-outlined">search</span>
-        <input type="search" name="q" value="{{ q|default:'' }}"
-               placeholder="Buscar cliente, @usuario o correo…" autocomplete="off">
+        <input type="search" name="q" value="{{ q|default:'' }}" placeholder="Buscar cliente, @usuario o correo…" autocomplete="off" aria-label="Buscar">
       </form>
 
       <div class="jc-topbar__actions">
-        <button type="button" class="jc-bell" id="jcThemeToggle" aria-label="Cambiar tema" title="Cambiar tema">
-          <span class="material-symbols-outlined" id="jcThemeIcon">light_mode</span>
-        </button>
         <button type="button" class="jc-bell" id="jcBell" aria-label="Notificaciones">
           <span class="material-symbols-outlined">notifications</span>
+          <i class="lv-bell-dot" aria-hidden="true"></i>
           <span class="jc-bell__count" id="jcBellCount" hidden>0</span>
         </button>
         <div class="jc-bell__panel" id="jcBellPanel" hidden></div>
-        <a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'jheliztv_logout' %}">
-          <span class="material-symbols-outlined">logout</span><span>Salir</span>
-        </a>
+        <a class="jc-support-link" href="{% url 'jheliztv_support' %}"><span class="material-symbols-outlined">support_agent</span><b>Soporte</b></a>
+        <span class="lv-topbar-separator" aria-hidden="true"></span>
+        <a class="jc-upgrade-link" href="{% url 'jheliztv_billing' %}"><span class="material-symbols-outlined">auto_awesome</span><b>Mejorar plan</b></a>
+        <a class="jc-logout-old" href="{% url 'jheliztv_logout' %}"><span class="material-symbols-outlined">logout</span><b>Salir</b></a>
       </div>
     </header>
 
     {% if jc_tenant and jc_tenant.subscription_active and jc_days_left is not None and jc_days_left <= 5 %}
-      <div class="jc-msgs">
-        <div class="jc-msg jc-msg--warning">
-          Tu alquiler vence en {{ jc_days_left }} día{{ jc_days_left|pluralize }}.
-          <a href="{% url 'jheliztv_billing' %}" style="color:#35e58f;font-weight:700;">Renovar ahora</a>.
-        </div>
-      </div>
+      <div class="jc-msgs"><div class="jc-msg jc-msg--warning">Tu alquiler vence en {{ jc_days_left }} día{{ jc_days_left|pluralize }}. <a href="{% url 'jheliztv_billing' %}" style="color:#35e58f;font-weight:700">Renovar ahora</a>.</div></div>
     {% endif %}
-
     {% if messages %}
-      <div class="jc-msgs">
-        {% for m in messages %}
-          <div class="jc-msg jc-msg--{{ m.tags }}">{{ m }}</div>
-        {% endfor %}
-      </div>
+      <div class="jc-msgs">{% for m in messages %}<div class="jc-msg jc-msg--{{ m.tags }}">{{ m }}</div>{% endfor %}</div>
     {% endif %}
 
-    <main class="jc-main jc-fade">
-      {% block jc_content %}{% endblock %}
-    </main>
+    <main class="jc-main jc-fade">{% block jc_content %}{% endblock %}</main>
   </section>
 </div>
 
-<script src="{% static 'js/jheliz-control.js' %}?v=theme-toggle-20260726"></script>
+<nav class="jc-stitch-mobile-nav" aria-label="Navegación móvil">
+  <a href="{% url 'jheliztv_dashboard' %}" class="{% if jc_active == 'dashboard' %}is-active{% endif %}"><span class="material-symbols-outlined">home</span><small>Inicio</small></a>
+  <a href="{% url 'jheliztv_services' %}" class="{% if jc_active == 'services' %}is-active{% endif %}"><span class="material-symbols-outlined">explore</span><small>Servicios</small></a>
+  <a href="{% url 'jheliztv_clients' %}" class="{% if jc_active == 'clients' %}is-active{% endif %}"><span class="material-symbols-outlined">group</span><small>Clientes</small></a>
+  <a href="{% url 'jheliztv_money_settings' %}" class="{% if jc_active == 'money' %}is-active{% endif %}"><span class="material-symbols-outlined">currency_exchange</span><small>Monedas</small></a>
+</nav>
+
+<script src="{% static 'js/jheliz-control.js' %}?v=lovable-add-service-v1-20260730"></script>
 {% block jc_scripts %}{% endblock %}
 </body>
 </html>

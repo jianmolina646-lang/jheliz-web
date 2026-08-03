@@ -23,6 +23,7 @@ from typing import Any, Iterable
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from django.db import close_old_connections
 from django.utils import timezone
 
 from . import imap_reader
@@ -107,11 +108,33 @@ def _call(method: str, **payload) -> dict:
     if not token:
         raise RuntimeError("TELEGRAM_CODES_BOT_TOKEN no configurado")
     url = TELEGRAM_API.format(token=token, method=method)
-    resp = requests.post(url, json=payload, timeout=30)
-    try:
-        data = resp.json()
-    except ValueError:
-        data = {"ok": False, "description": resp.text}
+    data: dict = {}
+    for attempt in range(3):
+        resp = requests.post(url, json=payload, timeout=30)
+        try:
+            data = resp.json()
+        except ValueError:
+            data = {"ok": False, "description": resp.text}
+        if resp.status_code != 429 and resp.status_code < 500:
+            break
+        retry_after = 1
+        if resp.status_code == 429:
+            try:
+                retry_after = max(
+                    1,
+                    min(5, int(data.get("parameters", {}).get("retry_after", 1))),
+                )
+            except (TypeError, ValueError):
+                pass
+        logger.warning(
+            "Telegram(codes) %s respondiÃ³ HTTP %s; reintento %s/2 en %ss",
+            method,
+            resp.status_code,
+            attempt + 1,
+            retry_after,
+        )
+        if attempt < 2:
+            time.sleep(retry_after)
     if not data.get("ok"):
         logger.warning("Telegram(codes) %s falló: %s", method, data)
     return data
@@ -1527,6 +1550,11 @@ def run_polling(poll_interval: float = 1.0) -> None:
         offset = 0
     logger.info("Bot de códigos iniciado (long polling), offset=%s", offset)
     while True:
+        # Este proceso vive indefinidamente y no pasa por el ciclo request/response
+        # de Django, por lo que Django no limpia por sí solo las conexiones viejas.
+        # Si PostgreSQL reinicia o corta una conexión inactiva, la descartamos aquí
+        # para que la siguiente operación abra una conexión nueva automáticamente.
+        close_old_connections()
         try:
             data = _call(
                 "getUpdates",
@@ -1538,12 +1566,14 @@ def run_polling(poll_interval: float = 1.0) -> None:
             for upd in updates:
                 offset = upd["update_id"] + 1
                 try:
+                    close_old_connections()
                     process_update(upd)
                 except Exception:
                     logger.exception("Error procesando update (codes)")
             # Persistimos el avance una vez por lote (menos escrituras a la DB).
             if updates:
                 try:
+                    close_old_connections()
                     BotState.set_offset(offset)
                 except Exception:
                     logger.exception("No pude guardar el offset del bot")

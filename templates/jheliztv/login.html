@@ -1,115 +1,92 @@
 {% extends "jheliztv/public_base.html" %}
+{% load static %}
 
-{% block pb_nav_actions %}
-  <a class="pb-btn pb-btn--primary" href="{% url 'jheliztv_register' %}">Crear cuenta</a>
+{% block pb_title %}Iniciar sesión | JHELIZCONTROLTV{% endblock %}
+{% block pb_meta_description %}Accede a JHELIZCONTROLTV para gestionar tus suscripciones, clientes y renovaciones desde un solo panel.{% endblock %}
+
+{% block pb_extra_head %}
+  <meta property="og:title" content="Iniciar sesión | JHELIZCONTROLTV">
+  <meta property="og:description" content="Sistema de gestión de suscripciones JHELIZCONTROLTV.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="{% static 'css/jheliz-login.css' %}?v=lovable-v16-20260729">
 {% endblock %}
 
+{% block pb_header %}{% endblock %}
+
 {% block pb_content %}
-<style>
-  .pb-nav{position:relative;z-index:5;max-width:1180px;padding:18px 24px;}
-  .pb-brand strong{font-size:16px;letter-spacing:-.02em;}
-  .pb-brand small{font-size:9px;color:#789487;}
-  .pb-btn{min-height:38px;border-radius:7px;padding:10px 15px;font-size:11px;}
-  .pb-btn--primary{color:#06130c;background:linear-gradient(135deg,#39efa0,#15bd70);box-shadow:0 8px 28px rgba(25,213,124,.18);}
-
-  .lg-page{position:relative;min-height:calc(100vh - 76px);display:grid;place-items:center;padding:18px 18px 48px;overflow:hidden;}
-  .lg-page::before{content:"";position:absolute;inset:0;pointer-events:none;
-    background:
-      radial-gradient(540px 390px at 50% 30%,rgba(24,216,126,.10),transparent 68%),
-      linear-gradient(rgba(54,110,76,.025) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(54,110,76,.025) 1px,transparent 1px);
-    background-size:auto,42px 42px,42px 42px;}
-  .lg-page::after{content:"";position:absolute;width:540px;height:540px;left:50%;top:48%;transform:translate(-50%,-50%);
-    border:1px solid rgba(37,220,129,.035);border-radius:50%;box-shadow:0 0 0 85px rgba(32,223,127,.012),0 0 0 170px rgba(32,223,127,.008);pointer-events:none;}
-  .lg-shell{position:relative;z-index:1;width:min(100%,430px);}
-  .lg-card{position:relative;overflow:hidden;padding:30px 30px 23px;border:1px solid rgba(74,163,111,.17);border-radius:17px;
-    color:#eaf5ef;background:linear-gradient(165deg,rgba(11,27,18,.98),rgba(5,14,9,.99));
-    box-shadow:0 30px 90px rgba(0,0,0,.48),inset 0 1px rgba(255,255,255,.025);}
-  .lg-card::before{content:"";position:absolute;inset:0;background:radial-gradient(330px 230px at 50% 8%,rgba(25,220,127,.14),transparent 65%);pointer-events:none;}
-  .lg-visual{position:relative;height:122px;display:grid;place-items:center;margin:-8px 0 1px;}
-  .lg-orbits,.lg-orbits::before,.lg-orbits::after{position:absolute;border:1px solid rgba(40,225,134,.10);border-radius:50%;}
-  .lg-orbits{width:178px;height:96px}.lg-orbits::before,.lg-orbits::after{content:"";inset:15px -22px;transform:rotate(24deg)}
-  .lg-orbits::after{transform:rotate(-24deg)}
-  .lg-dot{position:absolute;width:5px;height:5px;border-radius:50%;background:#20df7f;box-shadow:0 0 12px #20df7f;}
-  .lg-dot--a{left:27px;top:26px}.lg-dot--b{right:37px;top:14px}.lg-dot--c{right:17px;bottom:25px}.lg-dot--d{left:13px;bottom:17px}
-  .lg-logo{position:relative;z-index:2;width:76px;height:76px;display:grid;place-items:center;border:1px solid rgba(124,255,186,.35);border-radius:22px;
-    color:white;background:linear-gradient(145deg,#43eda0,#0e9e5a);box-shadow:0 0 0 9px rgba(32,223,127,.035),0 0 34px rgba(32,223,127,.28),inset 0 2px 2px rgba(255,255,255,.28);}
-  .lg-logo span{font-size:28px;font-weight:800;letter-spacing:-2px;text-shadow:0 2px 8px rgba(0,0,0,.2);}
-  .lg-brand{text-align:center;margin:3px 0 4px;font-size:23px;font-weight:800;letter-spacing:-.055em;color:#ecf8f1;}
-  .lg-brand em{color:#2bdf82;font-style:normal;}
-  .lg-tag{text-align:center;margin:0 0 23px;color:#718c7e;font-size:10px;}
-  .lg-field{position:relative;margin-bottom:14px;}
-  .lg-field label{display:block;margin:0 1px 7px;color:#2cda80;font-size:10px;font-weight:600;}
-  .lg-input{height:47px;display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid rgba(98,146,119,.16);border-radius:8px;background:#06110c;transition:border-color .18s,box-shadow .18s;}
-  .lg-input:focus-within{border-color:rgba(42,226,133,.55);box-shadow:0 0 0 3px rgba(32,223,127,.07);}
-  .lg-input .material-symbols-outlined{font-size:18px;color:#2add83;}
-  .lg-input input{width:100%;border:0;outline:0;color:#edf8f2;background:transparent;font:500 12px/1.2 Inter,system-ui,sans-serif;}
-  .lg-input input::placeholder{color:#5e7669;}
-  .lg-btn{width:100%;height:49px;display:flex;align-items:center;justify-content:center;gap:12px;margin-top:5px;border:0;border-radius:8px;cursor:pointer;
-    color:#05130b;background:linear-gradient(180deg,#37e998,#13b969);box-shadow:0 12px 32px rgba(20,203,113,.19);
-    font-size:12px;font-weight:750;transition:transform .18s,filter .18s,box-shadow .18s;}
-  .lg-btn:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 15px 36px rgba(20,203,113,.25);}
-  .lg-btn:active{transform:translateY(0)}.lg-btn .material-symbols-outlined{font-size:18px;}
-  .lg-sec{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:18px;color:#668175;font-size:9px;}
-  .lg-sec .material-symbols-outlined{font-size:14px;color:#26c876;}
-  .lg-join{display:flex;align-items:center;gap:11px;margin-top:10px;padding:12px 14px;border:1px solid rgba(98,146,119,.13);border-radius:9px;background:rgba(8,20,13,.82);}
-  .lg-join__icon{width:32px;height:32px;display:grid;place-items:center;flex:0 0 32px;border-radius:50%;color:#9aafa4;background:#101e17;}
-  .lg-join__icon .material-symbols-outlined{font-size:16px}
-  .lg-join p{flex:1;margin:0;color:#81978b;font-size:9px;line-height:1.45}.lg-join strong{display:block;color:#d6e5dd;font-size:10px}
-  .lg-join a{padding:7px 9px;border:1px solid rgba(32,223,127,.16);border-radius:6px;color:#2add83;background:#0a1a11;text-decoration:none;font-size:9px;font-weight:700;white-space:nowrap;}
-  .lg-join a:hover{border-color:#20df7f;background:rgba(32,223,127,.07)}
-
-  @media(max-width:600px){
-    .pb-nav{padding:13px 14px}.pb-brand svg{width:34px;height:34px}.pb-brand strong{font-size:13px}.pb-brand small{font-size:8px}
-    .pb-btn{min-height:34px;padding:8px 11px;font-size:9px}.lg-page{min-height:calc(100vh - 62px);padding:10px 10px 28px}
-    .lg-shell{max-width:360px}.lg-card{padding:22px 20px 18px;border-radius:14px}.lg-visual{height:104px}
-    .lg-logo{width:68px;height:68px;border-radius:19px}.lg-brand{font-size:20px}.lg-tag{margin-bottom:18px}
-    .lg-input{height:44px}.lg-btn{height:46px}.lg-join{padding:10px}
-  }
-</style>
-
-<main class="lg-page">
-  <div class="lg-shell">
-    <section class="lg-card" aria-labelledby="loginTitle">
-      <div class="lg-visual" aria-hidden="true">
-        <div class="lg-orbits"></div>
-        <i class="lg-dot lg-dot--a"></i><i class="lg-dot lg-dot--b"></i><i class="lg-dot lg-dot--c"></i><i class="lg-dot lg-dot--d"></i>
-        <div class="lg-logo"><span>JC</span></div>
-      </div>
-      <h1 class="lg-brand" id="loginTitle">JHELIZ<em>CONTROLTV</em></h1>
-      <p class="lg-tag">Sistema de gestión de suscripciones</p>
-
-      <form method="post" action="{% url 'jheliztv_login' %}">
-        {% csrf_token %}
-        <div class="lg-field">
-          <label for="jcLoginUsername">Usuario</label>
-          <div class="lg-input">
-            <span class="material-symbols-outlined" aria-hidden="true">person</span>
-            <input id="jcLoginUsername" type="text" name="username" value="{{ username|default:'' }}"
-                   placeholder="Tu usuario" required autofocus autocomplete="username">
-          </div>
-        </div>
-        <div class="lg-field">
-          <label for="jcLoginPassword">Contraseña</label>
-          <div class="lg-input">
-            <span class="material-symbols-outlined" aria-hidden="true">lock</span>
-            <input id="jcLoginPassword" type="password" name="password" placeholder="Tu contraseña"
-                   required autocomplete="current-password">
-          </div>
-        </div>
-        <button type="submit" class="lg-btn">
-          Iniciar sesión <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
-        </button>
-      </form>
-
-      <div class="lg-sec"><span class="material-symbols-outlined" aria-hidden="true">verified_user</span>Tus datos están protegidos y cifrados</div>
-    </section>
-
-    <div class="lg-join">
-      <span class="lg-join__icon"><span class="material-symbols-outlined" aria-hidden="true">group_add</span></span>
-      <p><strong>¿No tienes cuenta?</strong>Crea tu cuenta gratis y comienza ahora.</p>
-      <a href="{% url 'jheliztv_register' %}">Crear cuenta</a>
-    </div>
+<div class="jli-page">
+  <div class="jli-ambient" aria-hidden="true"></div>
+  <div class="jli-grid" aria-hidden="true"></div>
+  <div class="jli-orbits" aria-hidden="true">
+    <span class="jli-orbit jli-orbit--large"></span>
+    <span class="jli-orbit jli-orbit--medium"></span>
+    <span class="jli-orbit-glow"></span>
   </div>
-</main>
+
+  <header class="jli-header">
+    <a href="{% url 'jheliztv_landing' %}" class="jli-brand" aria-label="JHELIZCONTROLTV">
+      <span class="jli-brand__mark">JC</span>
+      <span class="jli-brand__copy">
+        <strong>JHELIZCONTROLTV</strong>
+        <small>Gestión de suscripciones</small>
+      </span>
+    </a>
+    <a href="{% url 'jheliztv_register' %}" class="jli-create">Crear cuenta</a>
+  </header>
+
+  <main class="jli-main">
+    <div class="jli-shell">
+      <div class="jli-shell__glow" aria-hidden="true"></div>
+      <section class="jli-card" aria-labelledby="loginTitle">
+        <div class="jli-identity">
+          <div class="jli-logo" aria-hidden="true">JC</div>
+          <div>
+            <h1 id="loginTitle">JHELIZ<span>CONTROLTV</span></h1>
+            <p>Sistema de gestión de suscripciones</p>
+          </div>
+        </div>
+
+        <form method="post" action="{% url 'jheliztv_login' %}" class="jli-form" data-login-form>
+          {% csrf_token %}
+          <div class="jli-field">
+            <label for="jcLoginUsername">Usuario</label>
+            <div class="jli-input">
+              <span class="jli-input__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              </span>
+              <input id="jcLoginUsername" type="text" name="username" value="{{ username|default:'' }}"
+                     placeholder="Tu usuario" required autocomplete="username">
+            </div>
+          </div>
+
+          <div class="jli-field">
+            <label for="jcLoginPassword">Contraseña</label>
+            <div class="jli-input">
+              <span class="jli-input__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              </span>
+              <input id="jcLoginPassword" type="password" name="password" placeholder="Tu contraseña"
+                     required autocomplete="current-password">
+            </div>
+          </div>
+
+          <button type="submit" class="jli-submit">
+            <span data-login-label>Iniciar sesión</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+          </button>
+
+          <p class="jli-security">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z"></path><path d="m9 12 2 2 4-4"></path></svg>
+            Tus datos están protegidos y cifrados
+          </p>
+        </form>
+      </section>
+    </div>
+  </main>
+</div>
+{% endblock %}
+
+{% block pb_scripts %}
+  <script src="{% static 'js/jheliz-login.js' %}?v=lovable-v16-20260729" defer></script>
 {% endblock %}

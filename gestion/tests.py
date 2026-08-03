@@ -4,6 +4,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.db import connection, IntegrityError, transaction
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -656,6 +657,7 @@ class OwnerControlPanelTests(TestCase):
 @override_settings(
     ALLOWED_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz", "testserver"],
     JHELIZTV_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz"],
+    SECURE_SSL_REDIRECT=False,
 )
 class StockEmailTests(TestCase):
     """Zona de correos en stock: alta masiva, filtros, cambio de estado
@@ -672,21 +674,25 @@ class StockEmailTests(TestCase):
         SaasSettings.load()
 
     def _register(self, username):
-        self.client.post(
-            self.REGISTER,
-            {
-                "username": username, "business_name": "Negocio",
-                "password": "clave123", "password2": "clave123",
-            },
-            HTTP_HOST=self.HOST,
+        from .models import Tenant
+
+        user = get_user_model().objects.create_user(
+            username=username, password="clave123"
         )
-        return get_user_model().objects.get(username=username)
+        tenant = Tenant.objects.create(user=user, business_name="Negocio")
+        tenant.start_trial()
+        self.client.force_login(user)
+        self.stock_user = user
+        return user
 
     def _add_service(self, name="Netflix"):
-        self.client.post(
-            "/app/servicios/agregar/", {"name": name}, HTTP_HOST=self.HOST
-        )
-        return Service.objects.get(name=name)
+        return Service.objects.create(owner=self.stock_user, name=name)
+
+    def test_inventory_page_returns_a_valid_response(self):
+        self._register("stock-page")
+        response = self.client.get(self.EMAILS, HTTP_HOST=self.HOST)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Inventario")
 
     def test_bulk_add_and_dedupe(self):
         from .models import StockEmail
@@ -695,7 +701,11 @@ class StockEmailTests(TestCase):
         svc = self._add_service()
         r = self.client.post(
             self.EMAIL_ADD,
-            {"service": svc.pk, "emails": "a@x.com\nB@x.com, a@x.com"},
+            {
+                "service": svc.pk,
+                "emails": "a@x.com\nB@x.com, a@x.com",
+                "acquisition_method": "Factura DirecTV",
+            },
             HTTP_HOST=self.HOST,
         )
         self.assertEqual(r.status_code, 302)
@@ -703,6 +713,12 @@ class StockEmailTests(TestCase):
             StockEmail.objects.filter(owner=user).values_list("email", flat=True)
         )
         self.assertEqual(emails, {"a@x.com", "b@x.com"})
+        first = StockEmail.objects.get(owner=user, email="a@x.com")
+        second = StockEmail.objects.get(owner=user, email="b@x.com")
+        self.assertEqual(first.acquisition_method, "Factura DirecTV")
+        self.assertEqual(
+            {first.inventory_number, second.inventory_number}, {1, 2}
+        )
         # Todos arrancan disponibles.
         self.assertEqual(
             StockEmail.objects.filter(
@@ -724,9 +740,25 @@ class StockEmailTests(TestCase):
         user = self._register("stock2")
         svc = self._add_service()
         item = StockEmail.objects.create(owner=user, service=svc, email="c@x.com")
-        self.client.post(f"/app/correos/{item.pk}/estado/", HTTP_HOST=self.HOST)
+        self.client.post(
+            f"/app/correos/{item.pk}/estado/",
+            {"customer_name": "Juan Pérez"},
+            HTTP_HOST=self.HOST,
+        )
         item.refresh_from_db()
         self.assertEqual(item.status, StockEmail.Status.SOLD)
+        self.assertEqual(item.customer_name, "Juan Pérez")
+        self.client.post(f"/app/correos/{item.pk}/estado/", HTTP_HOST=self.HOST)
+        item.refresh_from_db()
+        self.assertEqual(item.status, StockEmail.Status.AVAILABLE)
+        self.assertEqual(item.customer_name, "")
+
+    def test_selling_requires_customer(self):
+        from .models import StockEmail
+
+        user = self._register("stockcustomer")
+        svc = self._add_service()
+        item = StockEmail.objects.create(owner=user, service=svc, email="sale@x.com")
         self.client.post(f"/app/correos/{item.pk}/estado/", HTTP_HOST=self.HOST)
         item.refresh_from_db()
         self.assertEqual(item.status, StockEmail.Status.AVAILABLE)
@@ -740,7 +772,7 @@ class StockEmailTests(TestCase):
         StockEmail.objects.create(owner=user, service=nf, email="nf1@x.com")
         StockEmail.objects.create(
             owner=user, service=nf, email="nf2@x.com",
-            status=StockEmail.Status.SOLD,
+            status=StockEmail.Status.SOLD, customer_name="Cliente histórico",
         )
         StockEmail.objects.create(owner=user, service=pr, email="pr1@x.com")
 
@@ -751,6 +783,42 @@ class StockEmailTests(TestCase):
         self.assertContains(r, "nf1@x.com")
         self.assertNotContains(r, "nf2@x.com")
         self.assertNotContains(r, "pr1@x.com")
+
+    def test_password_is_encrypted_and_loaded_on_demand(self):
+        from .models import StockEmail
+
+        user = self._register("stocksecret")
+        svc = self._add_service()
+        item = StockEmail.objects.create(
+            owner=user, service=svc, email="secret@x.com", password="clave-segura"
+        )
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT password FROM gestion_stockemail WHERE id = %s", [item.pk]
+            )
+            stored = cursor.fetchone()[0]
+        self.assertNotEqual(stored, "clave-segura")
+        self.assertTrue(stored.startswith("gAAAAA"))
+
+        page = self.client.get(self.EMAILS, HTTP_HOST=self.HOST)
+        self.assertNotContains(page, "clave-segura")
+        secret = self.client.get(
+            f"/app/correos/{item.pk}/clave.json", HTTP_HOST=self.HOST
+        )
+        self.assertEqual(secret.status_code, 200)
+        self.assertEqual(secret.json(), {"password": "clave-segura"})
+        self.assertEqual(secret["Cache-Control"], "no-store, private")
+
+    def test_database_rejects_sold_without_customer(self):
+        from .models import StockEmail
+
+        user = self._register("stockconstraint")
+        svc = self._add_service()
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            StockEmail.objects.create(
+                owner=user, service=svc, email="invalid@x.com",
+                status=StockEmail.Status.SOLD,
+            )
 
     def test_tenant_isolation(self):
         from .models import StockEmail
@@ -774,6 +842,12 @@ class StockEmailTests(TestCase):
         self.assertEqual(
             self.client.post(
                 f"/app/correos/{item.pk}/eliminar/", HTTP_HOST=self.HOST
+            ).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(
+                f"/app/correos/{item.pk}/clave.json", HTTP_HOST=self.HOST
             ).status_code,
             404,
         )

@@ -1,0 +1,112 @@
+{% extends "jheliztv/base.html" %}
+{% block jc_content %}
+<section class="lvs-support-page">
+  <div class="lvs-support-grid" aria-hidden="true"></div>
+  <div class="lvs-support-container">
+    <header class="lvs-support-header">
+      <div>
+        <div class="lvs-support-eyebrow"><span></span>Centro de atención</div>
+        <h1>Soporte de clientes</h1>
+        <p>Responde consultas sin revelar tu cuenta personal de Telegram.</p>
+      </div>
+      <button class="lvs-support-links-button" type="button" data-jc-open="supportLinks">
+        <span class="material-symbols-outlined">link</span>Enlaces de soporte
+      </button>
+    </header>
+
+    <nav class="lvs-support-filters" aria-label="Estados de tickets">
+      <div>
+        <a href="?estado=active" class="{% if status == 'active' %}is-active{% endif %}"><span>Activos</span><b>{{ counts.new|add:counts.open|add:counts.waiting }}</b></a>
+        <a href="?estado=new" class="{% if status == 'new' %}is-active{% endif %}"><span>Nuevos</span><b>{{ counts.new }}</b></a>
+        <a href="?estado=open" class="{% if status == 'open' %}is-active{% endif %}"><span>En atención</span><b>{{ counts.open }}</b></a>
+        <a href="?estado=waiting" class="{% if status == 'waiting' %}is-active{% endif %}"><span>Esperando</span><b>{{ counts.waiting }}</b></a>
+        <a href="?estado=resolved" class="{% if status == 'resolved' %}is-active{% endif %}"><span>Resueltos</span><b>{{ counts.resolved }}</b></a>
+      </div>
+    </nav>
+
+    <div class="lvs-support-workspace {% if mobile_ticket_open %}has-mobile-ticket{% endif %}">
+      <aside class="lvs-ticket-panel" aria-label="Lista de tickets">
+        <header class="lvs-panel-bar"><span>Bandeja</span><small>{{ tickets|length }} ticket{{ tickets|length|pluralize:"s" }}</small></header>
+        <div class="lvs-ticket-list">
+          {% for ticket in tickets %}
+            <a href="?estado={{ status }}&ticket={{ ticket.pk }}" class="lvs-ticket-row {% if selected.pk == ticket.pk %}is-active{% endif %}">
+              <span class="lvs-ticket-dot lvs-ticket-dot--{{ ticket.status }}"></span><span class="jc-sr-only">Estado: {{ ticket.get_status_display }}</span>
+              <span class="lvs-ticket-copy"><strong>{{ ticket.display_number }} · {{ ticket.client.name }}</strong><small>{% if ticket.subscription %}{{ ticket.subscription.service.name }}{% else %}Sin servicio{% endif %} · {{ ticket.get_category_display }}</small></span>
+              <time>{{ ticket.last_message_at|timesince }}</time>
+            </a>
+          {% empty %}
+            <div class="lvs-empty-panel">
+              <span class="lvs-empty-icon"><span class="material-symbols-outlined">task_alt</span></span>
+              <h3>Bandeja al día</h3><p>No hay tickets en este estado.</p>
+            </div>
+          {% endfor %}
+        </div>
+      </aside>
+
+      <article class="lvs-conversation-panel">
+        <header class="lvs-panel-bar"><span>Conversación</span><small>{% if selected %}{{ selected.display_number }}{% else %}Sin selección{% endif %}</small></header>
+        {% if selected %}
+          <a class="lvs-mobile-ticket-back" href="?estado={{ status }}"><span class="material-symbols-outlined">arrow_back</span>Volver a tickets</a>
+          <header class="lvs-conversation-head">
+            <div><span>{{ selected.display_number }}</span><h2>{{ selected.client.name }}</h2><p>{% if selected.subscription %}{{ selected.subscription.service.name }} · {{ selected.subscription.account_email }}{% else %}Sin servicio asociado{% endif %}</p></div>
+            <span class="lvs-status-badge lvs-status-badge--{{ selected.status }}">{{ selected.get_status_display }}</span>
+          </header>
+          <div class="lvs-message-stream" role="log" aria-label="Historial de conversación" data-message-stream>
+            {% for item in selected.messages.all %}
+              <div class="lvs-message {% if item.sender == 'agent' %}lvs-message--agent{% else %}lvs-message--customer{% endif %}">
+                <strong>{% if item.sender == 'agent' %}Tú{% else %}{{ selected.client.name }}{% endif %}</strong>
+                <p>{{ item.text|linebreaksbr }}</p><time>{{ item.created_at|date:"d/m/Y H:i" }}</time>
+              </div>
+            {% endfor %}
+          </div>
+          <footer class="lvs-reply-box">
+            {% if selected.status != 'resolved' %}
+              <form method="post" action="{% url 'jheliztv_support_reply' selected.pk %}" class="lvs-reply-form">
+                {% csrf_token %}<label for="supportReply">Responder al cliente</label>
+                <textarea id="supportReply" name="message" rows="3" maxlength="4000" required placeholder="Escribe una respuesta clara…"></textarea>
+                <button type="submit"><span class="material-symbols-outlined">send</span>Enviar respuesta</button>
+              </form>
+            {% else %}<p class="lvs-resolved-note">Este ticket está resuelto. Reábrelo para responder.</p>{% endif %}
+            <form method="post" action="{% url 'jheliztv_support_status' selected.pk %}" class="lvs-status-actions">
+              {% csrf_token %}
+              <button name="status" value="open" type="submit" {% if selected.status == 'open' %}disabled aria-current="true"{% endif %}>{% if selected.status == 'resolved' %}Reabrir ticket{% else %}En atención{% endif %}</button>
+              <button name="status" value="waiting" type="submit" {% if selected.status == 'waiting' %}disabled aria-current="true"{% endif %}>Esperando cliente</button>
+              <button name="status" value="resolved" type="submit" {% if selected.status == 'resolved' %}disabled aria-current="true"{% endif %}>Marcar resuelto</button>
+            </form>
+          </footer>
+        {% else %}
+          <div class="lvs-empty-panel">
+            <span class="lvs-empty-icon"><span class="material-symbols-outlined">forum</span></span>
+            <h3>Selecciona un ticket</h3><p>La conversación completa aparecerá aquí.</p>
+          </div>
+        {% endif %}
+      </article>
+    </div>
+  </div>
+</section>
+
+<div class="jc-modal" id="supportLinks" aria-hidden="true">
+  <div class="jc-modal__backdrop" data-jc-close></div>
+  <div class="jc-modal__box jc-support-links" role="dialog" aria-modal="true" aria-labelledby="supportLinksTitle">
+    <div class="jc-modal__head"><h3 id="supportLinksTitle">Enlaces privados de soporte</h3><button type="button" class="jc-modal__close" data-jc-close aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button></div>
+    <div class="jc-modal__body">
+      <p class="jc-support-links-help">Comparte con cada cliente únicamente su propio enlace.</p>
+      {% for contact in support_contacts %}
+        <div class="jc-support-link-row"><span><strong>{{ contact.client.name }}</strong><small>{% if contact.linked %}Telegram conectado{% else %}Pendiente de conectar{% endif %}</small></span><input id="supportLink{{ forloop.counter }}" value="{{ contact.link }}" readonly aria-label="Enlace de soporte de {{ contact.client.name }}"><button type="button" data-copy-target="supportLink{{ forloop.counter }}" aria-label="Copiar enlace de {{ contact.client.name }}"><span class="material-symbols-outlined">content_copy</span></button></div>
+      {% empty %}<p>Primero agrega un cliente.</p>{% endfor %}
+    </div><p class="jc-sr-only" id="copyStatus" role="status" aria-live="polite"></p>
+  </div>
+</div>
+<script>
+document.addEventListener("click", async function (event) {
+  const button = event.target.closest("[data-copy-target]");
+  if (!button) return;
+  const input = document.getElementById(button.dataset.copyTarget);
+  const status = document.getElementById("copyStatus");
+  try { await navigator.clipboard.writeText(input.value); button.classList.add("is-copied"); if (status) status.textContent = "Enlace copiado"; setTimeout(() => button.classList.remove("is-copied"), 1200); }
+  catch (_) { try { input.select(); document.execCommand("copy"); if (status) status.textContent = "Enlace copiado"; } catch (error) { if (status) status.textContent = "No se pudo copiar. Mantén presionado el enlace para copiarlo."; } }
+});
+const stream = document.querySelector("[data-message-stream]");
+if (stream) requestAnimationFrame(() => { stream.scrollTop = stream.scrollHeight; });
+</script>
+{% endblock %}

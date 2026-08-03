@@ -1,0 +1,149 @@
+{% extends "jheliztv/base.html" %}
+{% block jc_content %}
+<section class="lvr-page">
+  <div class="lvr-grid-bg" aria-hidden="true"></div>
+  <div class="lvr-container">
+    <header class="lvr-header">
+      <div>
+        <div class="lvr-eyebrow"><span></span>Cobros y renovaciones</div>
+        <h1>Solicitudes de renovación</h1>
+        <p>Revisa comprobantes y administra cómo reciben pagos tus clientes.</p>
+      </div>
+      <button type="button" class="lvr-primary-button" data-jc-open="paymentMethod">
+        <span class="material-symbols-outlined">add</span>
+        Método de pago
+      </button>
+    </header>
+
+    <div class="lvr-content">
+      <section class="lvr-panel lvr-requests">
+        <header class="lvr-panel-header">
+          <div>
+            <span class="lvr-panel-icon"><span class="material-symbols-outlined">calendar_clock</span></span>
+            <h2>Solicitudes recientes</h2>
+          </div>
+          <span>{{ renewals|length }} solicitud{{ renewals|length|pluralize:"es" }}</span>
+        </header>
+
+        {% if renewals %}
+          <ul class="lvr-request-list">
+            {% for item in renewals %}
+              <li class="lvr-request">
+                <div class="lvr-request-copy">
+                  <div class="lvr-request-id">{{ item.display_number }}</div>
+                  <div class="lvr-request-client">{{ item.subscription.client.name }}</div>
+                  <div class="lvr-request-meta">
+                    <strong>{{ item.subscription.service.name }}</strong>
+                    <i>·</i>
+                    <span>{{ item.subscription.currency }} {{ item.subscription.cost }}</span>
+                    <i>·</i>
+                    <span>vence {{ item.expiry_date|date:"d/m/Y" }}</span>
+                  </div>
+                  {% if item.payment_method %}<p class="lvr-payment-used">Pagó mediante <strong>{{ item.payment_method.label }}</strong></p>{% endif %}
+                  {% if item.proof %}
+                    <a href="{% url 'jheliztv_renewal_proof' item.pk %}" target="_blank" class="lvr-proof-link">
+                      <span class="material-symbols-outlined">receipt_long</span>Ver comprobante privado
+                    </a>
+                  {% endif %}
+                </div>
+                <span class="lvr-status lvr-status--{{ item.status }}"><i></i>{{ item.get_status_display }}</span>
+
+                {% if item.status == 'proof_sent' %}
+                  <form method="post" action="{% url 'jheliztv_renewal_review' item.pk %}" class="lvr-review" onsubmit="return confirm('Confirma que verificaste el pago de {{ item.subscription.currency }} {{ item.subscription.cost }} para {{ item.subscription.client.name|escapejs }}.')">
+                    {% csrf_token %}
+                    <label>Días<input type="number" name="days" value="30" min="1" max="3660"></label>
+                    <button name="action" value="approve">Aprobar y renovar</button>
+                    <label>Motivo si rechazas<input name="reason" maxlength="500" placeholder="Ej. Monto no coincide"></label>
+                    <button name="action" value="reject">Rechazar</button>
+                  </form>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="lvr-empty">
+            <span class="lvr-empty-icon"><span class="material-symbols-outlined">autorenew</span></span>
+            <h3>Aún no hay solicitudes</h3>
+            <p>Envía el mensaje desde una suscripción.</p>
+          </div>
+        {% endif %}
+      </section>
+
+      <aside class="lvr-panel lvr-methods">
+        <header class="lvr-panel-header">
+          <div>
+            <span class="lvr-panel-icon"><span class="material-symbols-outlined">account_balance_wallet</span></span>
+            <h2>Métodos de pago</h2>
+          </div>
+          <span>{{ payment_methods|length }}</span>
+        </header>
+
+        {% if payment_methods %}
+          <ul class="lvr-method-list">
+            {% for method in payment_methods %}
+              <li class="lvr-method">
+                <div class="lvr-method-main">
+                  <div>
+                    <strong>{{ method.label }}</strong>
+                    <small>{{ method.get_kind_display }}{% if method.holder %} · {{ method.holder }}{% endif %}</small>
+                  </div>
+                  <span class="lvr-method-status {% if method.is_active %}is-active{% endif %}"><i></i>{% if method.is_active %}Activo{% else %}Inactivo{% endif %}</span>
+                </div>
+                <pre>{{ method.details }}</pre>
+                {% if method.qr_image %}<img src="{{ method.qr_image.url }}" alt="QR {{ method.label }}">{% endif %}
+                <form method="post" action="{% url 'jheliztv_payment_method_delete' method.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" onclick="return confirm('¿Eliminar este método?')"><span class="material-symbols-outlined">delete</span>Eliminar</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="lvr-empty lvr-methods-empty">
+            <span class="lvr-empty-icon"><span class="material-symbols-outlined">account_balance_wallet</span></span>
+            <h3>Sin métodos de pago</h3>
+            <p>Agrega Yape, banco, USDT u otro método.</p>
+            <button type="button" data-jc-open="paymentMethod"><span class="material-symbols-outlined">add</span>Agregar método</button>
+          </div>
+        {% endif %}
+
+        <footer class="lvr-methods-footer">
+          <span class="material-symbols-outlined">send</span>
+          Los enlaces de pago se envían por Telegram o WhatsApp.
+        </footer>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<div class="jc-modal" id="paymentMethod" aria-hidden="true">
+  <div class="jc-modal__backdrop" data-jc-close></div>
+  <div class="jc-modal__box">
+    <form method="post" enctype="multipart/form-data" action="{% url 'jheliztv_payment_method_add' %}">
+      {% csrf_token %}
+      <div class="jc-modal__head">
+        <h3>Agregar método de pago</h3>
+        <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="jc-modal__body">
+        <div class="jc-grid2">
+          <div class="jc-field">
+            <label>Tipo</label>
+            <select name="kind">
+              <option value="yape">Yape</option><option value="plin">Plin</option><option value="bank">Transferencia bancaria</option><option value="usdt">USDT</option><option value="paypal">PayPal</option><option value="zelle">Zelle</option><option value="mercadopago">Mercado Pago</option><option value="other">Otro</option>
+            </select>
+          </div>
+          <div class="jc-field"><label>Nombre visible</label><input name="label" required placeholder="Ej. Yape principal"></div>
+        </div>
+        <div class="jc-field"><label>Titular</label><input name="holder"></div>
+        <div class="jc-field"><label>Número, cuenta o instrucciones</label><textarea name="details" rows="4" required></textarea></div>
+        <div class="jc-field"><label>QR opcional</label><input type="file" name="qr_image" accept="image/*"></div>
+      </div>
+      <div class="jc-modal__foot">
+        <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+        <button class="jc-btn" type="submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

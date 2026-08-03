@@ -1,46 +1,123 @@
 {% extends "jheliztv/base.html" %}
 
 {% block jc_content %}
-  <div class="jc-svc-head">
-    <div class="jc-svc-head__id">
-      <span class="jc-svc-logo"{% if service.image %} style="background-image:url('{{ service.image.url }}')"{% else %} style="background:{{ service.color|default:'#10b981' }}"{% endif %}>
-        {% if not service.image %}{% if service.icon %}<span class="material-symbols-outlined">{{ service.icon }}</span>{% else %}{{ service.name|first|upper }}{% endif %}{% endif %}
-      </span>
-      <div>
-        <h2 class="jc-svc-name">{{ service.name }}</h2>
-        <div class="jc-svc-sub">{{ subs|length }} suscripción{{ subs|length|pluralize:"es" }}</div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const currency = document.querySelector("[data-sub-currency]");
+  const wrap = document.querySelector("[data-sub-rate-wrap]");
+  const rate = document.querySelector("[data-sub-rate]");
+  if (!currency || !wrap) return;
+  const sync = () => {
+    const foreign = currency.value !== "{{ jc_currency|escapejs }}";
+    wrap.hidden = !foreign;
+    rate.required = foreign;
+    if (!foreign) rate.value = "1";
+  };
+  let previous = currency.value;
+  currency.addEventListener("change", function () {
+    if (currency.value !== previous && currency.value !== "{{ jc_currency|escapejs }}") {
+      rate.value = ""; setTimeout(() => rate.focus(), 0);
+    }
+    previous = currency.value; sync();
+  }); sync();
+});
+</script>
+<div class="lvsd-page">
+  <div class="lvsd-grid-bg" aria-hidden="true"></div>
+  <div class="lvsd-container">
+  <section class="lvsd-service-card">
+    <div class="lvsd-service-row">
+      <div class="lvsd-service-identity">
+        <span class="lvsd-service-logo"{% if service.image %} style="background-image:url('{{ service.image.url }}')"{% else %} style="background:{{ service.color|default:'#10b981' }}"{% endif %}>
+          {% if not service.image %}{% if service.icon %}<span class="material-symbols-outlined">{{ service.icon }}</span>{% else %}<b>{{ service.name|slice:":2"|upper }}</b>{% endif %}{% endif %}
+        </span>
+        <div class="lvsd-service-copy">
+          <div class="lvsd-eyebrow"><i></i>Servicio</div>
+          <h1>{{ service.name }}</h1>
+          <p>{{ subs|length }} suscripción{{ subs|length|pluralize:"es" }}</p>
+        </div>
+      </div>
+      <div class="lvsd-stats">
+        <article class="lvsd-stat lvsd-stat--success"><span>Ingresos</span><strong>{{ jc_currency_symbol }} {{ kpi_ingresos|stringformat:".2f" }}</strong><small>{{ jc_currency }}</small></article>
+        <article class="lvsd-stat lvsd-stat--danger"><span>Egresos</span><strong>{{ jc_currency_symbol }} {{ kpi_egresos|stringformat:".2f" }}</strong><small>{{ jc_currency }}</small></article>
+        <article class="lvsd-stat"><span>Clientes</span><strong>{{ kpi_clients }}</strong><small>activos</small></article>
       </div>
     </div>
-    <div class="jc-kpis">
-      <div class="jc-kpi jc-kpi--in"><span class="jc-kpi__label">Ingresos</span><span class="jc-kpi__val">{{ jc_currency }} {{ kpi_ingresos|stringformat:".2f" }}</span></div>
-      <div class="jc-kpi jc-kpi--out"><span class="jc-kpi__label">Egresos</span><span class="jc-kpi__val">{{ jc_currency }} {{ kpi_egresos|stringformat:".2f" }}</span></div>
-      <div class="jc-kpi jc-kpi--cli"><span class="jc-kpi__label">Clientes</span><span class="jc-kpi__val">{{ kpi_clients }}</span></div>
-    </div>
+  </section>
+
+  <div class="lvsd-actions">
+    <a class="lvsd-button lvsd-button--secondary" href="{% url 'jheliztv_services' %}"><span class="material-symbols-outlined">arrow_back</span><span>Servicios</span></a>
+    <button type="button" class="lvsd-button lvsd-button--secondary" data-jc-open="modalSvcEdit"><span class="material-symbols-outlined">edit</span><span>Editar servicio</span></button>
+    <button type="button" class="lvsd-button lvsd-button--primary" data-jc-open="modalSub"><span class="material-symbols-outlined">person_add</span><span>Nueva suscripción</span></button>
   </div>
 
-  <div class="jc-svc-actions">
-    <a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'jheliztv_services' %}">
-      <span class="material-symbols-outlined">arrow_back</span> Servicios
-    </a>
-    <button type="button" class="jc-btn jc-btn--ghost jc-btn--sm" data-jc-open="modalSvcEdit">
-      <span class="material-symbols-outlined">edit</span> Editar servicio
-    </button>
-    <button type="button" class="jc-btn" data-jc-open="modalSub">
-      <span class="material-symbols-outlined">person_add</span> Nueva suscripción
-    </button>
-  </div>
-
-  <div class="jc-panel">
+  <section class="lvsd-subscriptions">
     {% if subs %}
-    <div class="jc-subbar">
-      <span class="jc-subbar__title"><span class="material-symbols-outlined">receipt_long</span> Suscripciones registradas</span>
-      <div class="jc-search-box jc-search-box--sm">
+    <header class="lvsd-panel-head">
+      <div class="lvsd-panel-title"><span class="lvsd-panel-icon"><span class="material-symbols-outlined">receipt_long</span></span><h2>Suscripciones registradas</h2></div>
+      <label class="lvsd-search">
         <span class="material-symbols-outlined">search</span>
-        <input type="search" class="jc-subs-search" placeholder="Buscar suscripción (usuario, correo, plan…)" autocomplete="off">
+        <input type="search" class="jc-subs-search" placeholder="Buscar suscripción (usuario o cuenta)" autocomplete="off" aria-label="Buscar suscripción">
+      </label>
+    </header>
+    <div class="lvsd-mobile-list">
+      {% for s in subs %}
+      <article class="lvsd-mobile-card" data-search="{{ s.client.name|lower }} {{ s.account_email|lower }} {{ s.plan_label|lower }} {{ s.client.telegram|lower }} {{ s.client.whatsapp }}">
+        <header>
+          <span class="lvsd-avatar">{{ s.client.name|slice:":2"|upper }}</span>
+          <div>
+            <strong>{{ s.client.name }}</strong>
+            <small>{{ s.plan_label|default:"Sin plan" }} · {% if s.plan == 'completa' %}Completa{% else %}{{ s.profiles }} perfil{{ s.profiles|pluralize:"es" }}{% endif %}</small>
+          </div>
+          <span class="lvsd-time lvsd-time--{{ s.status_color }}" data-expires="{{ s.expires_ts }}">
+            <span class="material-symbols-outlined">schedule</span>
+            <span class="jc-left-label">{{ s.time_left_label }}</span>
+          </span>
+        </header>
+        <dl>
+          <div><dt>Vence</dt><dd>{{ s.expires_at|date:"d/m/Y" }}</dd></div>
+          <div><dt>Registro</dt><dd>{{ s.created_at|date:"d/m/Y" }}</dd></div>
+          <div><dt>Utilidad</dt><dd class="{% if s.profit < 0 %}is-neg{% endif %}">{% if s.profit >= 0 %}+{% else %}−{% endif %}{{ s.currency }} {{ s.profit|stringformat:".2f"|cut:"-" }}</dd></div>
+          <div>
+            <dt>Cuenta</dt>
+            <dd>
+              <button type="button" class="lvsd-view-account" data-jc-ver><span class="material-symbols-outlined">visibility</span><span data-jc-verlbl>Ver</span></button>
+              <span class="jc-acct" data-jc-acctbox hidden>
+                <span class="jc-acct__mail">{{ s.account_email }}</span>
+                {% if s.account_password %}<span class="jc-acct__pass"><code>{{ s.account_password }}</code></span>{% endif %}
+              </span>
+            </dd>
+          </div>
+        </dl>
+        <footer>
+          {% if s.renewal_whatsapp_link %}
+            <a class="lvsd-icon-button lvsd-icon-button--wa" href="{{ s.renewal_whatsapp_link }}" target="_blank" aria-label="Enviar renovación por WhatsApp"><span class="material-symbols-outlined">chat</span></a>
+          {% else %}
+            <span class="lvsd-no-whatsapp"><span class="material-symbols-outlined">speaker_notes_off</span>Sin WhatsApp</span>
+          {% endif %}
+          <span class="lvsd-mobile-actions">
+            <button type="button" class="lvsd-icon-button" aria-label="Renovar" data-jc-open="modalRenew" data-action="{% url 'jheliztv_subscription_renew' s.pk %}"><span class="material-symbols-outlined">autorenew</span></button>
+            <button type="button" class="lvsd-icon-button" aria-label="Editar"
+                    data-jc-open="modalEdit" data-action="{% url 'jheliztv_subscription_edit' s.pk %}"
+                    data-fill-account_email="{{ s.account_email }}" data-fill-account_password="{{ s.account_password }}"
+                    data-fill-plan="{{ s.plan }}" data-fill-plan_label="{{ s.plan_label }}"
+                    data-fill-profiles="{{ s.profiles }}" data-fill-profile_name="{{ s.profile_name }}"
+                    data-fill-profile_pin="{{ s.profile_pin }}" data-fill-cost="{{ s.cost }}"
+                    data-fill-investment="{{ s.investment }}" data-fill-client="{{ s.client_id }}"
+                    data-fill-service="{{ s.service_id }}"><span class="material-symbols-outlined">edit</span></button>
+            <button type="button" class="lvsd-icon-button lvsd-icon-button--danger" aria-label="Eliminar"
+                    onclick="if(confirm('¿Eliminar la suscripción de {{ s.client.name|escapejs }}?')){document.getElementById('delsub{{ s.pk }}').submit();}"><span class="material-symbols-outlined">delete</span></button>
+          </span>
+        </footer>
+      </article>
+      {% endfor %}
+      <div class="lvsd-empty jc-subs-nomatch" hidden>
+        <span class="material-symbols-outlined">search_off</span>
+        Ninguna suscripción coincide con tu búsqueda.
       </div>
     </div>
-    <div class="jc-table-wrap">
-      <table class="jc-table jc-table--subs">
+    <div class="lvsd-table-wrap">
+      <table class="lvsd-table jc-table--subs">
         <thead>
           <tr>
             <th>Usuario</th>
@@ -57,16 +134,18 @@
           {% for s in subs %}
           <tr data-search="{{ s.client.name|lower }} {{ s.account_email|lower }} {{ s.plan_label|lower }} {{ s.client.telegram|lower }} {{ s.client.whatsapp }}">
             <td>
-              <div class="jc-usr">
-                <strong>{{ s.client.name }}</strong>
-                <div class="jc-usr__icons">
-                  {% if s.wa_link %}<a class="jc-usr__ic jc-usr__ic--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><span class="material-symbols-outlined">chat</span></a>{% endif %}
-                  {% if s.tg_link %}<a class="jc-usr__ic jc-usr__ic--tg" href="{{ s.tg_link }}" target="_blank" title="Telegram"><span class="material-symbols-outlined">send</span></a>{% endif %}
+              <div class="lvsd-user">
+                <span class="lvsd-avatar">{{ s.client.name|slice:":2"|upper }}</span>
+                <div><strong>{{ s.client.name }}</strong>
+                  <div class="jc-usr__icons">
+                    {% if s.wa_link %}<a class="jc-usr__ic jc-usr__ic--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><span class="material-symbols-outlined">chat</span></a>{% endif %}
+                    {% if s.tg_link %}<a class="jc-usr__ic jc-usr__ic--tg" href="{{ s.tg_link }}" target="_blank" title="Telegram"><span class="material-symbols-outlined">send</span></a>{% endif %}
+                  </div>
                 </div>
               </div>
             </td>
             <td>
-              <button type="button" class="jc-seebtn" data-jc-ver title="Ver cuenta">
+              <button type="button" class="lvsd-view-account" data-jc-ver title="Ver cuenta">
                 <span class="material-symbols-outlined">visibility</span><span data-jc-verlbl>Ver</span>
               </button>
               <div class="jc-acct" data-jc-acctbox hidden>
@@ -76,29 +155,29 @@
                 {% endif %}
               </div>
             </td>
-            <td>{% if s.plan_label %}<strong>{{ s.plan_label }}</strong>{% else %}<small style="color:#9ca3af">—</small>{% endif %}</td>
+            <td>{% if s.plan_label %}<strong>{{ s.plan_label }}</strong>{% else %}<span class="lvsd-muted">—</span>{% endif %}</td>
             <td>
-              {% if s.plan == 'completa' %}<span class="jc-pill-soft">cuenta completa</span>
-              {% else %}<span class="jc-pill-soft">{{ s.profiles }} perfil{{ s.profiles|pluralize:"es" }}</span>{% if s.profile_name %}<br><small style="color:#6b7280">{{ s.profile_name }}</small>{% endif %}{% endif %}
+              <div class="lvsd-profiles"><strong>{% if s.plan == 'completa' %}Completa{% else %}{{ s.profiles }}{% endif %}</strong><small>{% if s.plan == 'completa' %}cuenta completa{% elif s.profile_name %}{{ s.profile_name }}{% else %}perfil{{ s.profiles|pluralize:"es" }}{% endif %}</small></div>
             </td>
             <td>
-              <span class="jc-chip jc-chip--{{ s.status_color }}" data-expires="{{ s.expires_ts }}">
+              <span class="lvsd-time lvsd-time--{{ s.status_color }}" data-expires="{{ s.expires_ts }}">
+                <span class="material-symbols-outlined">schedule</span>
                 <span class="jc-left-label">{{ s.time_left_label }}</span>
               </span>
-              <div class="jc-exp-date"><span class="material-symbols-outlined">event</span>{{ s.expires_at|date:"d/m/Y" }}</div>
+              <div class="lvsd-date"><span class="material-symbols-outlined">event</span>{{ s.expires_at|date:"d/m/Y" }}</div>
             </td>
-            <td><small style="color:#6b7280">{{ s.created_at|date:"d/m/Y" }}</small></td>
+            <td><span class="lvsd-registered">{{ s.created_at|date:"d/m/Y" }}</span></td>
             <td>
-              <span class="jc-profit {% if s.profit < 0 %}is-neg{% endif %}">
-                {% if s.profit >= 0 %}+{% else %}−{% endif %}{{ jc_currency }} {{ s.profit|stringformat:".2f"|cut:"-" }}
+              <span class="lvsd-profit {% if s.profit < 0 %}is-neg{% endif %}">
+                {% if s.profit >= 0 %}+{% else %}−{% endif %}{{ s.currency }} {{ s.profit|stringformat:".2f"|cut:"-" }}
               </span>
             </td>
             <td>
-              <div class="jc-acts">
-                {% if s.wa_link %}<a class="jc-iact jc-iact--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><span class="material-symbols-outlined">chat</span></a>{% endif %}
-                <button type="button" class="jc-iact jc-iact--renew" title="Renovar"
+              <div class="lvsd-row-actions">
+                {% if s.renewal_whatsapp_link %}<a class="lvsd-icon-button lvsd-icon-button--wa" href="{{ s.renewal_whatsapp_link }}" target="_blank" title="Enviar renovación por WhatsApp a {{ s.renewal_phone }}" aria-label="Enviar renovación por WhatsApp a {{ s.renewal_phone }}"><span class="material-symbols-outlined">chat</span></a>{% else %}<span class="lvsd-no-whatsapp" title="Agrega el WhatsApp del cliente"><span class="material-symbols-outlined">speaker_notes_off</span>Sin WhatsApp</span>{% endif %}
+                <button type="button" class="lvsd-icon-button" title="Renovar" aria-label="Renovar"
                         data-jc-open="modalRenew" data-action="{% url 'jheliztv_subscription_renew' s.pk %}"><span class="material-symbols-outlined">autorenew</span></button>
-                <button type="button" class="jc-iact jc-iact--edit" title="Editar"
+                <button type="button" class="lvsd-icon-button" title="Editar" aria-label="Editar"
                         data-jc-open="modalEdit"
                         data-action="{% url 'jheliztv_subscription_edit' s.pk %}"
                         data-fill-account_email="{{ s.account_email }}"
@@ -112,7 +191,7 @@
                         data-fill-investment="{{ s.investment }}"
                         data-fill-client="{{ s.client_id }}"
                         data-fill-service="{{ s.service_id }}"><span class="material-symbols-outlined">edit</span></button>
-                <button type="button" class="jc-iact jc-iact--del" title="Eliminar"
+                <button type="button" class="lvsd-icon-button lvsd-icon-button--danger" title="Eliminar" aria-label="Eliminar"
                         onclick="if(confirm('¿Eliminar la suscripción de {{ s.client.name|escapejs }}?')){document.getElementById('delsub{{ s.pk }}').submit();}"><span class="material-symbols-outlined">delete</span></button>
                 <form id="delsub{{ s.pk }}" method="post" action="{% url 'jheliztv_subscription_delete' s.pk %}" style="display:none">{% csrf_token %}</form>
               </div>
@@ -121,19 +200,23 @@
           {% endfor %}
         </tbody>
       </table>
-      <div class="jc-empty jc-subs-nomatch" hidden>
+      <div class="lvsd-empty jc-subs-nomatch" hidden>
         <span class="material-symbols-outlined">search_off</span>
         Ninguna suscripción coincide con tu búsqueda.
       </div>
     </div>
     {% else %}
-      <div class="jc-empty">
+      <div class="lvsd-empty">
         <span class="material-symbols-outlined">person_off</span>
         Este servicio no tiene suscripciones. Cargá la primera con "Nueva suscripción".
       </div>
     {% endif %}
+  </section>
   </div>
 
+  {% include "jheliztv/partials/add_subscription_dialog.html" %}
+
+  {% comment %}Modal anterior conservado temporalmente fuera del DOM para una reversión segura.
   {# ── Modal: nueva suscripción ─────────────────────────────────── #}
   <div class="jc-modal" id="modalSub" aria-hidden="true">
     <div class="jc-modal__backdrop" data-jc-close></div>
@@ -217,8 +300,12 @@
               <div class="jc-field"><label>¿Cuánto vendiste en total?</label><input type="number" step="0.01" name="cost" value="0.00"></div>
               <div class="jc-field"><label>¿Cuánto invertiste en total?</label><input type="number" step="0.01" name="investment" value="0.00"></div>
             </div>
-            <div class="jc-help">💡 Permite llevar un control más preciso de tus ingresos y egresos. Ej: 2 cuentas a {{ jc_currency }} 5 = {{ jc_currency }} 10.</div>
-            <div class="jc-profit-live" data-profit-out>Utilidad: +{{ jc_currency }} 0.00</div>
+            <div class="jc-grid2">
+              <div class="jc-field"><label for="subCurrency">Moneda del cobro</label><select id="subCurrency" name="currency" data-sub-currency>{% for code, info in jc_currencies.items %}<option value="{{ code }}" {% if code == jc_currency %}selected{% endif %}>{{ code }} · {{ info.name }}</option>{% endfor %}</select></div>
+              <div class="jc-field" data-sub-rate-wrap hidden aria-live="polite"><label for="subExchangeRate">Tipo de cambio a {{ jc_currency }}</label><input id="subExchangeRate" type="number" step="0.00000001" min="0.00000001" name="exchange_rate" value="1" data-sub-rate aria-describedby="subRateHelp"><small id="subRateHelp">Valor de 1 unidad en {{ jc_currency }}.</small></div>
+            </div>
+            <div class="jc-help">💡 Puedes vender en tu moneda principal o registrar el pago en USDT.</div>
+            <div class="jc-profit-live" data-profit-out>Utilidad: +{{ jc_currency_symbol }} 0.00</div>
           </div>
         </div>
         <div class="jc-modal__foot">
@@ -228,6 +315,7 @@
       </form>
     </div>
   </div>
+  {% endcomment %}
 
   {# ── Modal: editar servicio (nombre / categoría / icono / color / logo) ── #}
   <div class="jc-modal" id="modalSvcEdit" aria-hidden="true">
@@ -344,7 +432,7 @@
             <div class="jc-field"><label>Costo</label><input type="number" step="0.01" name="cost"></div>
             <div class="jc-field"><label>Inversión</label><input type="number" step="0.01" name="investment"></div>
           </div>
-          <div class="jc-profit-live" data-profit-out>Utilidad: +{{ jc_currency }} 0.00</div>
+          <div class="jc-profit-live" data-profit-out>Utilidad registrada en {{ s.currency }}</div>
         </div>
         <div class="jc-modal__foot">
           <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
@@ -353,4 +441,5 @@
       </form>
     </div>
   </div>
+</div>
 {% endblock %}

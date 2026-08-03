@@ -1,0 +1,167 @@
+/* Lovable source: src/components/jheliz/AddEmailsDialog.tsx (Refinement 19). */
+#modalEmailAdd{
+  --ea-card:oklch(.19 .006 260);
+  --ea-surface:oklch(.19 .006 260);
+  --ea-raised:oklch(.22 .007 260);
+  --ea-fg:oklch(.97 .005 260);
+  --ea-muted:oklch(.68 .01 260);
+  --ea-border:oklch(.28 .008 260);
+  --ea-brand:oklch(.86 .22 155);
+  --ea-brand-ink:oklch(.18 .02 160);
+  --ea-danger:oklch(.68 .2 25);
+  z-index:1200;
+  padding:16px!important;
+}
+#modalEmailAdd .jc-modal__backdrop{background:rgba(0,0,0,.75)!important;backdrop-filter:blur(4px)}
+#modalEmailAdd .jc-email-add-dialog{
+  width:min(760px,calc(100% - 8px))!important;
+  max-height:calc(100dvh - 32px)!important;
+  overflow:hidden!important;
+  border:1px solid color-mix(in oklab,var(--ea-border) 60%,transparent)!important;
+  border-radius:20px!important;
+  background:var(--ea-card)!important;
+  color:var(--ea-fg)!important;
+  box-shadow:0 50px 130px -30px rgba(0,0,0,.95),0 0 0 1px color-mix(in oklab,var(--ea-fg) 5%,transparent)!important;
+}
+#modalEmailAdd .jc-email-add-dialog>form{min-height:0;max-height:inherit;display:flex;flex-direction:column}
+#modalEmailAdd .jc-email-add__head{
+  min-height:64px;padding:12px 24px;display:flex;align-items:center;gap:12px;flex:none;
+  border-bottom:1px solid color-mix(in oklab,var(--ea-border) 40%,transparent);
+  background:color-mix(in oklab,var(--ea-surface) 30%,transparent);
+}
+#modalEmailAdd .jc-email-add__hero-icon{
+  width:36px;height:36px;display:grid;flex:0 0 36px;place-items:center;
+  border:1px solid color-mix(in oklab,var(--ea-brand) 25%,transparent);border-radius:12px;
+  background:color-mix(in oklab,var(--ea-brand) 15%,transparent);color:var(--ea-brand);font-size:16px;
+}
+#modalEmailAdd .jc-email-add__heading{min-width:0;flex:1}
+#modalEmailAdd .jc-email-add__heading h3{margin:0;color:var(--ea-fg);font:600 15px/1.3 "Space Grotesk",Inter,sans-serif;letter-spacing:-.01em}
+#modalEmailAdd .jc-email-add__heading p{margin:2px 0 0;color:var(--ea-muted);font:400 11.5px/1.35 Inter,sans-serif}
+#modalEmailAdd .jc-email-add__close{
+  width:28px;height:28px;padding:0;display:grid;flex:0 0 28px;place-items:center;
+  border:1px solid color-mix(in oklab,var(--ea-border) 50%,transparent);border-radius:8px;
+  background:color-mix(in oklab,var(--ea-raised) 60%,transparent);color:var(--ea-muted);cursor:pointer;
+  transition:color .15s,background-color .15s,border-color .15s,transform .15s;
+}
+#modalEmailAdd .jc-email-add__close .material-symbols-outlined{font-size:16px}
+#modalEmailAdd .jc-email-add__close:hover{border-color:var(--ea-border);background:oklch(.28 .01 260);color:var(--ea-fg)}
+#modalEmailAdd .jc-email-add__close:active{transform:scale(.95)}
+#modalEmailAdd .jc-email-add__body{
+  min-height:0;flex:1;padding:24px;display:flex;flex-direction:column;gap:16px;
+  overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;
+}
+#modalEmailAdd .jc-email-add__card{
+  padding:24px;border:1px solid color-mix(in oklab,var(--ea-border) 50%,transparent);border-radius:16px;
+  background:color-mix(in oklab,var(--ea-raised) 40%,transparent);
+  box-shadow:0 18px 40px -30px rgba(0,0,0,.9);
+}
+#modalEmailAdd .jc-email-add__card-head{margin:0 0 16px;display:flex;align-items:center;gap:8px}
+#modalEmailAdd .jc-email-add__card-head>.material-symbols-outlined{
+  width:28px;height:28px;display:grid;place-items:center;border:1px solid color-mix(in oklab,var(--ea-brand) 20%,transparent);
+  border-radius:8px;background:color-mix(in oklab,var(--ea-brand) 12%,transparent);color:var(--ea-brand);font-size:15px;
+}
+#modalEmailAdd .jc-email-add__card-head h4{margin:0;color:var(--ea-muted);font:700 11px/1 Inter,sans-serif;letter-spacing:.16em;text-transform:uppercase}
+#modalEmailAdd .jc-email-add__card-content{display:flex;flex-direction:column;gap:16px}
+#modalEmailAdd .jc-email-add__main-grid,#modalEmailAdd .jc-email-add__account-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+#modalEmailAdd .jc-email-add__field{min-width:0}
+#modalEmailAdd .jc-email-add__field>label,#modalEmailAdd .jc-email-add__label-row label,#modalEmailAdd .jc-email-add__customer label{
+  display:block;margin:0 0 6px;color:var(--ea-muted);font:600 10.5px/1 Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase;
+}
+#modalEmailAdd .jc-email-add__control{position:relative}
+#modalEmailAdd .jc-email-add__control>span:first-child{
+  position:absolute;left:12px;top:50%;z-index:1;transform:translateY(-50%);color:var(--ea-muted);font-size:17px;pointer-events:none;
+}
+#modalEmailAdd .jc-email-add__control input,#modalEmailAdd .jc-email-add__control select,#modalEmailAdd .jc-email-add__control textarea,
+#modalEmailAdd .jc-email-add__customer input{
+  width:100%!important;box-sizing:border-box!important;margin:0!important;border:1px solid color-mix(in oklab,var(--ea-border) 60%,transparent)!important;
+  border-radius:12px!important;background:color-mix(in oklab,var(--ea-surface) 60%,transparent)!important;color:var(--ea-fg)!important;
+  font:500 13.5px/1.4 Inter,sans-serif!important;outline:none!important;color-scheme:dark;
+  box-shadow:inset 0 1px 0 color-mix(in oklab,var(--ea-fg) 5%,transparent)!important;
+  transition:border-color .18s,background-color .18s,box-shadow .18s!important;
+}
+#modalEmailAdd .jc-email-add__control input,#modalEmailAdd .jc-email-add__control select{height:44px!important;min-height:44px!important;padding:0 40px 0 36px!important}
+#modalEmailAdd .jc-email-add__control textarea{min-height:152px!important;padding:12px 12px 12px 36px!important;resize:vertical;font-family:"JetBrains Mono",monospace!important;font-size:13px!important;line-height:24px!important}
+#modalEmailAdd .jc-email-add__control input::placeholder,#modalEmailAdd .jc-email-add__control textarea::placeholder{color:color-mix(in oklab,var(--ea-muted) 50%,transparent);font-weight:400}
+#modalEmailAdd .jc-email-add__control input:hover,#modalEmailAdd .jc-email-add__control select:hover,#modalEmailAdd .jc-email-add__control textarea:hover{border-color:var(--ea-border)!important}
+#modalEmailAdd .jc-email-add__control input:focus,#modalEmailAdd .jc-email-add__control select:focus,#modalEmailAdd .jc-email-add__control textarea:focus,
+#modalEmailAdd .jc-email-add__customer input:focus{
+  border-color:color-mix(in oklab,var(--ea-brand) 60%,transparent)!important;background:var(--ea-surface)!important;
+  box-shadow:0 0 0 3px color-mix(in oklab,var(--ea-brand) 14%,transparent),inset 0 1px 0 color-mix(in oklab,var(--ea-fg) 5%,transparent)!important;
+}
+#modalEmailAdd .jc-email-add__control select{appearance:none}
+#modalEmailAdd .jc-email-add__chevron{right:12px!important;left:auto!important;font-size:18px!important}
+#modalEmailAdd .jc-email-add__platform-preview{
+  width:max-content;max-width:100%;margin-top:8px;padding:6px 10px;display:inline-flex;align-items:center;gap:8px;
+  border:1px solid color-mix(in oklab,var(--ea-border) 50%,transparent);border-radius:8px;background:color-mix(in oklab,var(--ea-surface) 50%,transparent);
+}
+#modalEmailAdd .jc-email-add__platform-preview>span{width:20px;height:20px;display:grid;place-items:center;border-radius:6px;background:var(--ea-brand);color:#fff;font:700 9px/1 Inter,sans-serif}
+#modalEmailAdd .jc-email-add__platform-preview strong{overflow:hidden;color:var(--ea-fg);font:500 12px/1 Inter,sans-serif;text-overflow:ellipsis;white-space:nowrap}
+#modalEmailAdd .jc-email-add__native-status{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important}
+#modalEmailAdd .jc-email-add__status-chips{display:flex;flex-wrap:wrap;gap:8px}
+#modalEmailAdd .jc-email-add__status-chips button{
+  height:36px;padding:0 12px;display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in oklab,var(--ea-border) 60%,transparent);
+  border-radius:999px;background:color-mix(in oklab,var(--ea-surface) 50%,transparent);color:var(--ea-muted);
+  font:600 12.5px/1 Inter,sans-serif;cursor:pointer;transition:color .15s,border-color .15s,background-color .15s,transform .15s;
+}
+#modalEmailAdd .jc-email-add__status-chips button:hover{border-color:var(--ea-border);color:var(--ea-fg)}
+#modalEmailAdd .jc-email-add__status-chips button:active{transform:scale(.97)}
+#modalEmailAdd .jc-email-add__status-chips i{width:8px;height:8px;border-radius:50%;background:var(--ea-brand)}
+#modalEmailAdd .jc-email-add__status-chips button[data-jc-status-chip="sold"] i{background:var(--ea-danger)}
+#modalEmailAdd .jc-email-add__status-chips .material-symbols-outlined{display:none;color:var(--ea-brand);font-size:15px}
+#modalEmailAdd .jc-email-add__status-chips button.is-active{border-color:transparent;background:var(--ea-raised);color:var(--ea-fg);box-shadow:0 0 0 1px color-mix(in oklab,var(--ea-brand) 35%,transparent)}
+#modalEmailAdd .jc-email-add__status-chips button.is-active .material-symbols-outlined{display:inline}
+#modalEmailAdd .jc-email-add__customer{margin-top:12px}
+#modalEmailAdd .jc-email-add__customer input{height:40px!important;min-height:40px!important;padding:0 12px!important}
+#modalEmailAdd .jc-email-add__label-row{margin-bottom:6px;display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+#modalEmailAdd .jc-email-add__label-row label{margin:0}
+#modalEmailAdd .jc-email-add__count{padding:2px 8px;border-radius:999px;background:color-mix(in oklab,var(--ea-surface) 60%,transparent);color:var(--ea-muted);font:600 10.5px/1.35 Inter,sans-serif}
+#modalEmailAdd .jc-email-add__count.has-items{background:color-mix(in oklab,var(--ea-brand) 12%,transparent);color:var(--ea-brand)}
+#modalEmailAdd .jc-email-add__hint{margin:0 0 8px;color:color-mix(in oklab,var(--ea-muted) 70%,transparent);font:400 11px/1.35 Inter,sans-serif}
+#modalEmailAdd .jc-email-add__control--textarea>span:first-child{top:14px;transform:none}
+#modalEmailAdd .jc-email-add__password-toggle{
+  position:absolute;right:8px;top:50%;width:28px;height:28px;padding:0;display:grid;place-items:center;transform:translateY(-50%);
+  border:0;border-radius:6px;background:transparent;color:var(--ea-muted);cursor:pointer;
+}
+#modalEmailAdd .jc-email-add__password-toggle:hover{background:oklch(.28 .01 260);color:var(--ea-fg)}
+#modalEmailAdd .jc-email-add__password-toggle .material-symbols-outlined{font-size:17px}
+#modalEmailAdd .jc-email-add__strength{margin-top:8px;display:flex;align-items:center;gap:8px}
+#modalEmailAdd .jc-email-add__strength>div{height:4px;display:flex;flex:1;gap:4px}
+#modalEmailAdd .jc-email-add__strength>div i{height:4px;flex:1;border-radius:999px;background:color-mix(in oklab,var(--ea-fg) 10%,transparent);transition:background-color .2s}
+#modalEmailAdd .jc-email-add__strength>span{display:inline-flex;align-items:center;gap:4px;color:var(--ea-muted);font:500 10.5px/1 Inter,sans-serif}
+#modalEmailAdd .jc-email-add__strength>span .material-symbols-outlined{font-size:13px}
+#modalEmailAdd .jc-email-add__strength em{font-style:normal}
+#modalEmailAdd .jc-email-add__foot{
+  min-height:65px;padding:12px 24px;display:flex;flex:none;align-items:center;justify-content:space-between;gap:16px;
+  border-top:1px solid color-mix(in oklab,var(--ea-border) 40%,transparent);background:color-mix(in oklab,var(--ea-card) 95%,transparent);backdrop-filter:blur(10px);
+}
+#modalEmailAdd .jc-email-add__foot>span{color:var(--ea-muted);font:400 11.5px/1.35 Inter,sans-serif}
+#modalEmailAdd .jc-email-add__foot>div{display:flex;align-items:center;gap:8px}
+#modalEmailAdd .jc-email-add__cancel,#modalEmailAdd .jc-email-add__save{
+  height:40px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;
+  font:600 13px/1 Inter,sans-serif;cursor:pointer;transition:filter .15s,color .15s,background-color .15s,border-color .15s,transform .15s;
+}
+#modalEmailAdd .jc-email-add__cancel{border:1px solid color-mix(in oklab,var(--ea-border) 60%,transparent);background:color-mix(in oklab,var(--ea-surface) 60%,transparent);color:var(--ea-muted)}
+#modalEmailAdd .jc-email-add__cancel:hover{border-color:var(--ea-border);background:oklch(.28 .01 260);color:var(--ea-fg)}
+#modalEmailAdd .jc-email-add__save{gap:8px;padding-inline:20px;border:0;background:var(--ea-brand);color:var(--ea-brand-ink);box-shadow:0 14px 34px -14px color-mix(in oklab,var(--ea-brand) 70%,transparent)}
+#modalEmailAdd .jc-email-add__save:hover{filter:brightness(1.1)}
+#modalEmailAdd .jc-email-add__cancel:active,#modalEmailAdd .jc-email-add__save:active{transform:scale(.98)}
+#modalEmailAdd .jc-email-add__save .material-symbols-outlined{font-size:17px}
+@media(max-width:767px){
+  #modalEmailAdd{padding:12px!important;align-items:center!important}
+  #modalEmailAdd .jc-email-add-dialog{width:calc(100% - 0px)!important;max-height:calc(100dvh - 24px)!important;border-radius:20px!important}
+  #modalEmailAdd .jc-email-add__head{padding-inline:16px}
+  #modalEmailAdd .jc-email-add__body{padding:16px}
+  #modalEmailAdd .jc-email-add__card{padding:16px}
+  #modalEmailAdd .jc-email-add__main-grid,#modalEmailAdd .jc-email-add__account-grid{grid-template-columns:1fr}
+  #modalEmailAdd .jc-email-add__foot{padding:12px 16px max(12px,env(safe-area-inset-bottom));flex-direction:column-reverse;align-items:stretch}
+  #modalEmailAdd .jc-email-add__foot>span{display:none}
+  #modalEmailAdd .jc-email-add__foot>div{display:flex;flex-direction:column-reverse}
+  #modalEmailAdd .jc-email-add__cancel,#modalEmailAdd .jc-email-add__save{width:100%}
+}
+@media(max-width:389px){
+  #modalEmailAdd{padding:0!important}
+  #modalEmailAdd .jc-email-add-dialog{width:100%!important;max-height:100dvh!important;border-width:0!important;border-radius:0!important}
+}
+@media(prefers-reduced-motion:reduce){
+  #modalEmailAdd *{transition-duration:.01ms!important}
+}

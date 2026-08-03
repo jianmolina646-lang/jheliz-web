@@ -1,79 +1,85 @@
 {% extends "jheliztv/base.html" %}
 {% block title %}Alertas de Telegram{% endblock %}
 {% block jc_content %}
-<section class="jc-page-head jc-page-head--telegram">
-  <div>
-    <p class="jc-eyebrow">Telegram</p>
-    <h1>Alertas de Telegram</h1>
-    <p>Recibe en Telegram un resumen privado de tus clientes próximos a vencer.</p>
-  </div>
-  <div class="jc-telegram-mark" aria-hidden="true"><span class="material-symbols-outlined">send</span></div>
-</section>
+<section class="lvt-page">
+  <div class="lvt-grid-bg" aria-hidden="true"></div>
+  <div class="lvt-container">
+    <header class="lvt-header">
+      <div>
+        <div class="lvt-eyebrow"><span></span>Telegram</div>
+        <h1>Alertas de Telegram</h1>
+        <p>Recibe en Telegram un resumen privado de tus clientes próximos a vencer.</p>
+      </div>
+      <div class="lvt-header-orb" aria-hidden="true">
+        <span><span class="material-symbols-outlined">send</span></span>
+      </div>
+    </header>
 
-<div class="jc-telegram-layout">
-  <div class="jc-card jc-telegram-card">
-    {% if connection.is_linked %}
-      <div class="jc-telegram-linked">
-        <div class="jc-telegram-orb">
+    <section class="lvt-account-card">
+      <div class="lvt-account">
+        <div class="lvt-account-icon">
           <span class="material-symbols-outlined">send</span>
-          <i class="material-symbols-outlined">check</i>
+          {% if connection.is_linked %}<i><span class="material-symbols-outlined">check_circle</span></i>{% endif %}
         </div>
         <div>
-          <span class="jc-chip jc-chip--green">Conectado</span>
-          <h2>Telegram vinculado</h2>
-          <p>@{{ connection.telegram_username|default:"cuenta vinculada" }}</p>
+          {% if connection.is_linked %}
+            <span class="lvt-status is-connected"><i></i>Conectado</span>
+            <h2>Telegram vinculado</h2>
+            <p>@{{ connection.telegram_username|default:"cuenta vinculada" }}</p>
+          {% else %}
+            <span class="lvt-status is-pending"><i></i>Sin vincular</span>
+            <h2>Vincula tu Telegram</h2>
+            <p>El enlace funciona una sola vez y vence en 15 minutos.</p>
+          {% endif %}
         </div>
       </div>
-      <div class="jc-telegram-security">
-        <span class="material-symbols-outlined">shield_lock</span>
-        <p><strong>Tus alertas están activas y funcionando correctamente.</strong><br>No compartiremos datos ni información con terceros.</p>
-      </div>
-      <form method="post" action="{% url 'jheliztv_telegram_unlink' %}">
-        {% csrf_token %}
-        <button class="jc-btn jc-btn--danger-outline jc-telegram-action" type="submit">
-          <span class="material-symbols-outlined">link_off</span> Desvincular Telegram
-        </button>
-      </form>
-    {% else %}
-      <div class="jc-telegram-linked">
-        <div class="jc-telegram-orb"><span class="material-symbols-outlined">send</span></div>
-        <div>
-          <span class="jc-chip jc-chip--yellow">Sin vincular</span>
-          <h2>Vincula tu Telegram</h2>
-          <p>El enlace funciona una sola vez y vence en 15 minutos.</p>
-        </div>
-      </div>
-      <form method="post">
-        {% csrf_token %}
-        <fieldset class="jc-alert-window">
-          <legend>¿Cuándo quieres recibir avisos?</legend>
-          {% for value,label in windows %}
-            <label><input type="checkbox" name="window_{{ value }}" checked> {{ label }}</label>
-          {% empty %}
-            <label><input type="checkbox" name="window_7" checked> 7 días antes</label>
-            <label><input type="checkbox" name="window_3" checked> 3 días antes</label>
-            <label><input type="checkbox" name="window_1" checked> 1 día antes</label>
-            <label><input type="checkbox" name="window_0" checked> El mismo día</label>
-          {% endfor %}
-        </fieldset>
-        <button class="jc-btn jc-btn--primary jc-telegram-action" type="submit">
-          <span class="material-symbols-outlined">link</span> Generar enlace privado
-        </button>
-      </form>
-      {% if link_url %}
-        <p class="jc-telegram-open">
-          <a class="jc-btn jc-btn--primary" href="{{ link_url }}" target="_blank" rel="noopener">
-            <span class="material-symbols-outlined">open_in_new</span> Abrir @{{ telegram_bot_username }}
-          </a>
-        </p>
-      {% endif %}
-    {% endif %}
-  </div>
 
-  <div class="jc-telegram-note">
-    <span class="material-symbols-outlined">info</span>
-    <div><strong>¿No recibes alertas?</strong><p>Asegúrate de tener las notificaciones activadas en Telegram.</p></div>
-    {% if connection.is_linked %}<span class="jc-chip jc-chip--green">Activo</span>{% endif %}
+      {% if connection.is_linked %}
+        <div class="lvt-security">
+          <span class="material-symbols-outlined">verified_user</span>
+          <div>
+            <strong>Tus alertas están activas y funcionando correctamente.</strong>
+            <p>No compartiremos datos ni información con terceros.</p>
+          </div>
+        </div>
+        <form method="post" action="{% url 'jheliztv_telegram_unlink' %}">
+          {% csrf_token %}
+          <button class="lvt-unlink" type="submit"><span class="material-symbols-outlined">link_off</span>Desvincular Telegram</button>
+        </form>
+      {% else %}
+        <form method="post" class="lvt-link-form">
+          {% csrf_token %}
+          <fieldset class="lvt-alert-window">
+            <legend>¿Cuándo quieres recibir avisos?</legend>
+            {% for value,label in windows %}
+              <label><input type="checkbox" name="window_{{ value }}" checked><span>{{ label }}</span></label>
+            {% empty %}
+              <label><input type="checkbox" name="window_7" checked><span>7 días antes</span></label>
+              <label><input type="checkbox" name="window_3" checked><span>3 días antes</span></label>
+              <label><input type="checkbox" name="window_1" checked><span>1 día antes</span></label>
+              <label><input type="checkbox" name="window_0" checked><span>El mismo día</span></label>
+            {% endfor %}
+          </fieldset>
+          <button class="lvt-link" type="submit"><span class="material-symbols-outlined">link</span>Generar enlace privado</button>
+        </form>
+        {% if link_url %}
+          <a class="lvt-open-bot" href="{{ link_url }}" target="_blank" rel="noopener"><span class="material-symbols-outlined">open_in_new</span>Abrir @{{ telegram_bot_username }}</a>
+        {% endif %}
+      {% endif %}
+    </section>
+
+    <section class="lvt-info-list">
+      <article class="lvt-info-card">
+        <span class="lvt-info-icon"><span class="material-symbols-outlined">info</span></span>
+        <div><h3>¿No recibes alertas?</h3><p>Asegúrate de tener las notificaciones activadas en Telegram.</p></div>
+        {% if connection.is_linked %}<span class="lvt-info-badge"><i></i>Activo</span>{% endif %}
+      </article>
+      <article class="lvt-info-card">
+        <span class="lvt-info-icon"><span class="material-symbols-outlined">notifications_active</span></span>
+        <div><h3>Resumen diario</h3><p>Enviamos un resumen privado con los clientes próximos a vencer.</p></div>
+        <span class="lvt-info-badge"><i></i>Diario</span>
+      </article>
+    </section>
   </div>
-</div>
+</section>
 {% endblock %}

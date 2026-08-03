@@ -20,6 +20,7 @@ from .models import (
     TelegramActionReceipt,
     Transaction,
 )
+from .currencies import decimal_rate, normalize_currency
 
 
 def clients_for_owner(owner_id):
@@ -124,6 +125,10 @@ def create_subscription(owner, data, idempotency_key=None):
     starts_at = data.get("starts_at") or timezone.now()
     expires_at = data.get("expires_at") or add_service_duration(starts_at, days)
     control = ControlSettings.load(owner)
+    currency = normalize_currency(data.get("currency") or control.currency)
+    rate = decimal_rate(data.get("exchange_rate"))
+    if currency == normalize_currency(control.currency):
+        rate = Decimal("1")
     cost = _decimal(data.get("cost"))
     investment = _decimal(data.get("investment"))
     sub = Subscription.objects.create(
@@ -137,14 +142,15 @@ def create_subscription(owner, data, idempotency_key=None):
         profile_name=(data.get("profile_name") or "").strip(),
         profile_pin=(data.get("profile_pin") or "").strip(),
         plan_label=(data.get("plan_label") or "").strip(),
-        currency=control.currency or "S/",
+        currency=currency,
+        exchange_rate=rate,
         cost=cost,
         investment=investment,
         starts_at=starts_at,
         expires_at=expires_at,
     )
     if cost > 0:
-        Transaction.objects.create(
+        tx = Transaction(
             owner=owner,
             kind=Transaction.Kind.INCOME,
             amount=cost,
@@ -153,8 +159,10 @@ def create_subscription(owner, data, idempotency_key=None):
             client=client,
             subscription=sub,
         )
+        tx.set_conversion(control.currency, rate)
+        tx.save()
     if investment > 0:
-        Transaction.objects.create(
+        tx = Transaction(
             owner=owner,
             kind=Transaction.Kind.EXPENSE,
             amount=investment,
@@ -163,6 +171,8 @@ def create_subscription(owner, data, idempotency_key=None):
             client=client,
             subscription=sub,
         )
+        tx.set_conversion(control.currency, rate)
+        tx.save()
     return sub, None
 
 
@@ -221,12 +231,12 @@ def owner_finances(owner):
     settings_obj = ControlSettings.load(owner)
     income = (
         Transaction.objects.filter(owner=owner, kind=Transaction.Kind.INCOME)
-        .aggregate(value=Sum("amount"))["value"]
+        .aggregate(value=Sum("base_amount"))["value"]
         or 0
     )
     expense = (
         Transaction.objects.filter(owner=owner, kind=Transaction.Kind.EXPENSE)
-        .aggregate(value=Sum("amount"))["value"]
+        .aggregate(value=Sum("base_amount"))["value"]
         or 0
     )
     return {

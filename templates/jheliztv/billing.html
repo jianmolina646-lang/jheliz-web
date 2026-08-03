@@ -1,113 +1,154 @@
 {% extends "jheliztv/base.html" %}
-
+{% block title %}Mi suscripción{% endblock %}
 {% block jc_content %}
-  <section class="jc-page-head jc-page-head--billing">
-    <div><p class="jc-eyebrow">Plan y facturación</p><h1>Mi suscripción</h1><p>Consulta el estado del plan, realiza el pago y revisa tus comprobantes.</p></div>
-  </section>
+<!--
+THESIS: Resolver estado y pago del plan en una sola superficie, sin el panel fragmentado anterior.
+OWN-WORLD: Grafito Lovable, verde operativo, tarjetas translúcidas, bordes finos y controles compactos.
+STORY: El revendedor confirma vigencia, escanea el QR y entrega el comprobante sin perder contexto.
+FIRST VIEWPORT: Encabezado, estado completo y dos tarjetas iguales para QR y carga del pago.
+FORM: Réplica visual directa de src/routes/suscripcion.tsx del proyecto Lovable (11).
+-->
+<main class="lvsu-page">
+  <div class="lvsu-grid-bg" aria-hidden="true"></div>
+  <div class="lvsu-container">
+    <header class="lvsu-hero">
+      <div class="lvsu-eyebrow"><span></span>Plan y facturación</div>
+      <h1>Mi suscripción</h1>
+      <p>Consulta el estado del plan, realiza el pago y revisa tus comprobantes.</p>
+    </header>
 
-  {# ── Estado actual ──────────────────────────────────────────────── #}
-  {% if jc_days_left is not None %}{% widthratio jc_days_left 30 100 as plan_progress %}{% endif %}
-  <div class="jc-panel jc-plan-card">
-    {% if jc_tenant.subscription_active %}
-      <div style="display:flex;align-items:center;gap:12px;">
-        <span class="material-symbols-outlined" style="font-size:34px;color:#10b981;background:#d1fae5;border-radius:12px;padding:6px;">verified</span>
-        <div>
-          <div style="font-weight:700;font-size:16px;color:#065f46;">Suscripción activa</div>
-          <div style="color:#6b7280;font-size:13.5px;">
-            Vence el {{ jc_tenant.plan_expires_at|date:"d/m/Y" }}
-            {% if jc_days_left is not None %}· quedan {{ jc_days_left }} día{{ jc_days_left|pluralize }}{% endif %}
+    <section class="lvsu-status">
+      <div class="lvsu-status-main">
+        <span class="lvsu-status-icon {% if not jc_tenant.subscription_active %}is-inactive{% endif %}">
+          <span class="material-symbols-outlined">{% if jc_tenant.subscription_active %}verified{% else %}lock{% endif %}</span>
+        </span>
+        <div class="lvsu-status-copy">
+          <div class="lvsu-status-title">
+            <h2>Suscripción {% if jc_tenant.subscription_active %}activa{% else %}inactiva{% endif %}</h2>
+            <span class="lvsu-state {% if not jc_tenant.subscription_active %}is-inactive{% endif %}">
+              <i><b></b></i>{% if jc_tenant.subscription_active %}Activa{% else %}Inactiva{% endif %}
+            </span>
+          </div>
+          <p>
+            <span class="material-symbols-outlined">event</span>
+            {% if jc_tenant.plan_expires_at %}
+              Vence el <strong>{{ jc_tenant.plan_expires_at|date:"d/m/Y" }}</strong>
+            {% else %}
+              Plan pendiente de activación
+            {% endif %}
+          </p>
+        </div>
+      </div>
+      <div class="lvsu-days">
+        <strong>{% if jc_days_left is not None %}{{ jc_days_left }}{% else %}0{% endif %}</strong>
+        <span>días restantes</span>
+      </div>
+    </section>
+
+    <section class="lvsu-payment-grid">
+      <article class="lvsu-card">
+        <div class="lvsu-card-title">
+          <span><span class="material-symbols-outlined">qr_code_2</span></span>
+          <h2>Pagá escaneando el QR</h2>
+        </div>
+        <div class="lvsu-qr-content">
+          {% if saas.yape_qr %}
+            <div class="lvsu-qr-frame">
+              <img src="{{ saas.yape_qr.url }}" alt="Código QR de pago">
+            </div>
+          {% else %}
+            <div class="lvsu-qr-frame lvsu-qr-empty" role="img" aria-label="Código QR pendiente">
+              <span class="material-symbols-outlined">qr_code_2</span>
+              <small>QR pendiente</small>
+            </div>
+          {% endif %}
+          <div class="lvsu-amount">
+            <span>Monto a pagar</span>
+            <strong>S/ {{ saas.monthly_price }}</strong>
+            <small>Pago mensual · PEN</small>
           </div>
         </div>
-      </div>
-    {% else %}
-      <div style="display:flex;align-items:center;gap:12px;">
-        <span class="material-symbols-outlined" style="font-size:34px;color:#ef4444;background:#fee2e2;border-radius:12px;padding:6px;">lock</span>
-        <div>
-          <div style="font-weight:700;font-size:16px;color:#991b1b;">Suscripción inactiva</div>
-          <div style="color:#6b7280;font-size:13.5px;">Pagá escaneando el QR y subí tu comprobante para activarla.</div>
+      </article>
+
+      <article class="lvsu-card lvsu-upload-card">
+        <div class="lvsu-card-title">
+          <span><span class="material-symbols-outlined">upload</span></span>
+          <h2>Subir comprobante</h2>
         </div>
-      </div>
-    {% endif %}
-  </div>
 
-  {% if pending %}
-    <div class="jc-msg jc-msg--info" style="margin-bottom:16px;">
-      <strong>Pago en revisión.</strong> Recibimos tu comprobante del {{ pending.created_at|date:"d/m/Y H:i" }}.
-      Apenas lo confirmemos, tu cuenta se activa por {{ pending.days }} días.
-    </div>
-  {% endif %}
-  {% if last_rejected and not pending %}
-    <div class="jc-msg jc-msg--danger" style="margin-bottom:16px;">
-      Tu último comprobante fue rechazado{% if last_rejected.rejection_reason %}: {{ last_rejected.rejection_reason }}{% endif %}.
-      Volvé a intentarlo abajo.
-    </div>
-  {% endif %}
-
-  <div class="jc-grid2 jc-billing-grid">
-    {# ── Pago por QR ────────────────────────────────────────────── #}
-    <div class="jc-panel jc-payment-card">
-      <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">qr_code_2</span> Pagá escaneando el QR</h3>
-      <div style="text-align:center;">
-        {% if saas.yape_qr %}
-          <img src="{{ saas.yape_qr.url }}" alt="QR de pago" style="max-width:240px;width:100%;border-radius:14px;border:1px solid #e5e7eb;">
+        {% if pending %}
+          <div class="lvsu-review-state">
+            <span><span class="material-symbols-outlined">schedule</span></span>
+            <h3>Pago en revisión</h3>
+            <p>Recibimos tu comprobante del {{ pending.created_at|date:"d/m/Y H:i" }}. Te avisaremos cuando se apruebe.</p>
+          </div>
         {% else %}
-          <div class="jc-empty" style="padding:30px;"><span class="material-symbols-outlined">qr_code_2</span>El QR todavía no fue cargado. Escribinos para coordinar el pago.</div>
+          <form method="post" action="{% url 'jheliztv_billing_upload' %}" enctype="multipart/form-data" class="lvsu-upload-form" id="lvsuUploadForm">
+            {% csrf_token %}
+            <label for="lvsuProof" class="lvsu-file-label">Captura del pago</label>
+            <label for="lvsuProof" class="lvsu-dropzone" tabindex="0">
+              <span class="lvsu-file-icon"><span class="material-symbols-outlined">image</span></span>
+              <strong id="lvsuFileAction">Seleccionar archivo</strong>
+              <small>PNG o JPG · hasta 5 MB</small>
+            </label>
+            <input id="lvsuProof" type="file" name="proof" accept="image/png,image/jpeg" required>
+            <div class="lvsu-file-selected" id="lvsuFileSelected" hidden>
+              <span class="material-symbols-outlined">attach_file</span>
+              <span></span>
+            </div>
+            <p class="lvsu-file-error" id="lvsuFileError" role="alert" hidden></p>
+            {% if last_rejected %}
+              <p class="lvsu-rejected">Tu último comprobante fue rechazado{% if last_rejected.rejection_reason %}: {{ last_rejected.rejection_reason }}{% endif %}. Inténtalo nuevamente.</p>
+            {% else %}
+              <p class="lvsu-help">Subí la captura donde se vea el monto y la fecha del pago.</p>
+            {% endif %}
+            <button type="submit" class="lvsu-submit">
+              <span class="material-symbols-outlined">send</span>Enviar comprobante
+            </button>
+          </form>
         {% endif %}
-      </div>
-      <div style="margin-top:12px;font-size:14px;color:#374151;line-height:1.7;">
-        <div><strong>Monto:</strong> S/ {{ saas.monthly_price }}</div>
-        {% if saas.yape_holder %}<div><strong>Titular:</strong> {{ saas.yape_holder }}</div>{% endif %}
-        {% if saas.yape_phone %}<div><strong>Referencia:</strong> {{ saas.yape_phone }}</div>{% endif %}
-      </div>
-      {% if saas.instructions %}
-        <p style="margin-top:12px;color:#6b7280;font-size:13px;white-space:pre-line;">{{ saas.instructions }}</p>
-      {% endif %}
-    </div>
-
-    {# ── Subir comprobante ────────────────────────────────────────── #}
-    <div class="jc-panel jc-upload-card">
-      <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">upload</span> Subir comprobante</h3>
-      {% if pending %}
-        <p style="color:#6b7280;font-size:13.5px;">Ya tenés un comprobante en revisión. Te avisamos cuando se apruebe.</p>
-      {% else %}
-        <form method="post" action="{% url 'jheliztv_billing_upload' %}" enctype="multipart/form-data">
-          {% csrf_token %}
-          <div class="jc-field">
-            <label>Captura del pago</label>
-            <input type="file" name="proof" accept="image/*" required>
-            <div class="jc-help">Subí la captura donde se vea el monto y la fecha del pago.</div>
-          </div>
-          <button type="submit" class="jc-btn" style="width:100%;justify-content:center;">
-            <span class="material-symbols-outlined">send</span> Enviar comprobante
-          </button>
-        </form>
-      {% endif %}
-    </div>
+      </article>
+    </section>
   </div>
+</main>
+{% endblock %}
 
-  {# ── Historial ──────────────────────────────────────────────────── #}
-  {% if payments %}
-    <div class="jc-panel jc-payment-history">
-      <h3 class="jc-section-title" style="font-size:15px;"><span class="material-symbols-outlined">history</span> Mis pagos</h3>
-      <div class="jc-table-wrap">
-        <table class="jc-table">
-          <thead><tr><th>Fecha</th><th>Monto</th><th>Días</th><th>Estado</th></tr></thead>
-          <tbody>
-            {% for p in payments %}
-              <tr>
-                <td>{{ p.created_at|date:"d/m/Y H:i" }}</td>
-                <td>S/ {{ p.amount }}</td>
-                <td>{{ p.days }}</td>
-                <td>
-                  {% if p.status == 'approved' %}<span class="jc-chip jc-chip--green">Aprobado</span>
-                  {% elif p.status == 'rejected' %}<span class="jc-chip jc-chip--red">Rechazado</span>
-                  {% else %}<span class="jc-chip jc-chip--yellow">Pendiente</span>{% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  {% endif %}
+{% block jc_scripts %}
+<script>
+  (function () {
+    const input = document.getElementById("lvsuProof");
+    const zone = document.querySelector(".lvsu-dropzone");
+    const selected = document.getElementById("lvsuFileSelected");
+    const action = document.getElementById("lvsuFileAction");
+    const error = document.getElementById("lvsuFileError");
+    const form = document.getElementById("lvsuUploadForm");
+    if (!input || !zone || !selected || !action || !error || !form) return;
+    zone.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); input.click(); }
+    });
+    input.addEventListener("change", function () {
+      let file = input.files && input.files[0];
+      error.hidden = true;
+      error.textContent = "";
+      if (file && !["image/png", "image/jpeg"].includes(file.type)) {
+        error.textContent = "Selecciona una imagen PNG o JPG.";
+      } else if (file && file.size > 5 * 1024 * 1024) {
+        error.textContent = "La imagen no puede superar los 5 MB.";
+      }
+      if (error.textContent) {
+        input.value = "";
+        file = null;
+        error.hidden = false;
+      }
+      selected.hidden = !file;
+      action.textContent = file ? "Cambiar archivo" : "Seleccionar archivo";
+      selected.querySelector("span:last-child").textContent = file ? file.name : "";
+    });
+    form.addEventListener("submit", function () {
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      button.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span>Enviando…';
+    });
+  })();
+</script>
 {% endblock %}

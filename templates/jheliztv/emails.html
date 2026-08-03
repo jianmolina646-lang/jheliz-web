@@ -1,196 +1,399 @@
 {% extends "jheliztv/base.html" %}
 
+{#
+THESIS: Un inventario que se lee como estantería operativa, no como tabla administrativa genérica.
+OWN-WORLD: Superficies grafito, separación fina, verde para disponible y rojo sobrio para vendido.
+STORY: El operador identifica plataforma, número, correo, origen y disponibilidad; luego vende o libera sin perder contexto.
+FIRST VIEWPORT: Resumen compacto, filtros inmediatos y primera plataforma visible con tarjetas densas.
+FORM: Extensión del sistema visual existente; modo Operate, orden por plataforma y estado.
+#}
+
 {% block jc_content %}
+<div class="jc-correos-page">
   <section class="jc-page-head jc-page-head--emails">
-    <div><p class="jc-eyebrow">Inventario de accesos</p><h1>Correos</h1><p>Controla disponibilidad, credenciales asignadas y stock por plataforma.</p></div>
+    <div>
+      <p class="jc-eyebrow">Inventario operativo</p>
+      <h1>Correos</h1>
+      <p>Organiza cada cuenta por plataforma, método de adquisición y estado de venta.</p>
+    </div>
     <button type="button" class="jc-btn" data-jc-open="modalEmailAdd">
-      <span class="material-symbols-outlined">add</span> Agregar correos
+      <span class="material-symbols-outlined" aria-hidden="true">add</span>
+      Agregar correos
     </button>
   </section>
 
-  {# ── Resumen por plataforma ─────────────────────────────────────── #}
-  {% if summary %}
-    <div class="jc-cards jc-stock-summary">
-      <div class="jc-panel jc-stock-total">
-        <div style="font-size:12px;color:#6b7280;font-weight:600;">TOTAL</div>
-        <div style="display:flex;gap:14px;margin-top:6px;">
-          <span style="color:#059669;font-weight:800;font-size:20px;">{{ total_available }}<small style="font-size:11px;font-weight:600;display:block;color:#6b7280;">disponibles</small></span>
-          <span style="color:#dc2626;font-weight:800;font-size:20px;">{{ total_sold }}<small style="font-size:11px;font-weight:600;display:block;color:#6b7280;">vendidos</small></span>
-        </div>
+  <section class="jc-inventory-overview" aria-label="Resumen del inventario">
+    <div class="jc-inventory-total">
+      <span class="jc-inventory-total__label">Inventario total</span>
+      <p><strong>{{ total_available|add:total_sold }}</strong> <span class="jc-inventory-total__unit">cuentas</span></p>
+      <div>
+        <span><i class="is-available"></i>{{ total_available }} disponibles</span>
+        <span><i class="is-sold"></i>{{ total_sold }} vendidos</span>
       </div>
+    </div>
+    <div class="jc-inventory-platforms">
       {% for s in summary %}
         {% if s.total %}
-        <a class="jc-panel jc-stock-service{% if service_id == s.service.pk|stringformat:'s' %} is-selected{% endif %}" href="?servicio={{ s.service.pk }}">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;{% if s.service.image %}background-image:url('{{ s.service.image.url }}');background-size:cover;{% else %}background:{{ s.service.color|default:'#10b981' }};{% endif %}">{% if not s.service.image %}{{ s.service.name|first|upper }}{% endif %}</span>
-            <strong style="font-size:13px;">{{ s.service.name }}</strong>
-          </div>
-          <div style="display:flex;gap:14px;margin-top:8px;">
-            <span style="color:#059669;font-weight:800;">{{ s.available }}<small style="font-size:11px;font-weight:600;display:block;color:#6b7280;">disp.</small></span>
-            <span style="color:#dc2626;font-weight:800;">{{ s.sold }}<small style="font-size:11px;font-weight:600;display:block;color:#6b7280;">vend.</small></span>
-          </div>
-        </a>
+          <a href="?servicio={{ s.service.pk }}"
+             class="jc-inventory-platform{% if service_id == s.service.pk|stringformat:'s' %} is-selected{% endif %}">
+            <span class="jc-inventory-platform__mark"
+                  {% if s.service.image %}style="background-image:url('{{ s.service.image.url }}')"{% else %}style="background:{{ s.service.color|default:'#20df7f' }}"{% endif %}>
+              {% if not s.service.image %}{{ s.service.name|first|upper }}{% endif %}
+            </span>
+            <span>
+              <strong>{{ s.service.name }}</strong>
+              <small>{{ s.available }} libres · {{ s.sold }} vendidos</small>
+            </span>
+          </a>
         {% endif %}
+      {% empty %}
+        <p class="jc-inventory-platforms__empty">Agrega una plataforma para comenzar.</p>
       {% endfor %}
     </div>
-  {% endif %}
+  </section>
 
-  {# ── Filtros ────────────────────────────────────────────────────── #}
-  <form method="get" class="jc-filterbar">
-    <div class="jc-search-box">
-      <span class="material-symbols-outlined">search</span>
-      <input type="search" name="q" value="{{ q }}" placeholder="Buscar correo…" autocomplete="off">
+  <form method="get" class="jc-inventory-filters" aria-label="Filtrar inventario">
+    <label class="jc-inventory-search">
+      <span class="material-symbols-outlined" aria-hidden="true">search</span>
+      <span class="sr-only">Buscar</span>
+      <input type="search" name="q" value="{{ q }}" placeholder="Buscar correo, cliente o método" autocomplete="off">
+    </label>
+    <div class="jc-inventory-filter-selects">
+      <label>
+        <span class="sr-only">Plataforma</span>
+        <select name="servicio" onchange="this.form.submit()">
+          <option value="">Todas las plataformas</option>
+          {% for svc in services %}
+            <option value="{{ svc.pk }}" {% if service_id == svc.pk|stringformat:'s' %}selected{% endif %}>{{ svc.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        <span class="sr-only">Estado</span>
+        <select name="estado" onchange="this.form.submit()">
+          <option value="">Todos los estados</option>
+          <option value="available" {% if status == 'available' %}selected{% endif %}>Disponibles</option>
+          <option value="sold" {% if status == 'sold' %}selected{% endif %}>Vendidos</option>
+        </select>
+      </label>
+      <label>
+        <span class="sr-only">Método de adquisición</span>
+        <select name="metodo" onchange="this.form.submit()">
+          <option value="">Todos los métodos</option>
+          {% for value in acquisition_methods %}
+            <option value="{{ value }}" {% if method == value %}selected{% endif %}>{{ value }}</option>
+          {% endfor %}
+        </select>
+      </label>
     </div>
-    <select name="servicio" onchange="this.form.submit()">
-      <option value="">Todas las plataformas</option>
-      {% for svc in services %}
-        <option value="{{ svc.pk }}" {% if service_id == svc.pk|stringformat:'s' %}selected{% endif %}>{{ svc.name }}</option>
-      {% endfor %}
-    </select>
-    <select name="estado" onchange="this.form.submit()">
-      <option value="">Todos los estados</option>
-      <option value="available" {% if status == 'available' %}selected{% endif %}>✅ Disponibles</option>
-      <option value="sold" {% if status == 'sold' %}selected{% endif %}>🔒 Vendidos</option>
-    </select>
-    {% if q or status or service_id %}
+    {% if q or status or service_id or method %}
       <a href="{% url 'jheliztv_emails' %}" class="jc-btn jc-btn--ghost jc-btn--sm">Limpiar</a>
     {% endif %}
   </form>
 
-  {# ── Lista ──────────────────────────────────────────────────────── #}
   {% if emails %}
-    <div class="jc-panel jc-stock-table">
-      <table>
-        <thead>
-          <tr>
-            <th style="padding:10px 14px;">Plataforma</th>
-            <th style="padding:10px 14px;">Correo</th>
-            <th style="padding:10px 14px;">Contraseña</th>
-            <th style="padding:10px 14px;">Estado</th>
-            <th style="padding:10px 14px;">Notas</th>
-            <th style="padding:10px 14px;text-align:right;">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for e in emails %}
-            <tr>
-              <td style="padding:10px 14px;white-space:nowrap;">
-                <span style="display:inline-flex;align-items:center;gap:7px;">
-                  <span style="width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:11px;{% if e.service.image %}background-image:url('{{ e.service.image.url }}');background-size:cover;{% else %}background:{{ e.service.color|default:'#10b981' }};{% endif %}">{% if not e.service.image %}{{ e.service.name|first|upper }}{% endif %}</span>
-                  {{ e.service.name }}
-                </span>
-              </td>
-              <td style="padding:10px 14px;font-weight:600;">{{ e.email }}</td>
-              <td style="padding:10px 14px;color:#6b7280;">{{ e.password|default:"—" }}</td>
-              <td style="padding:10px 14px;">
-                {% if e.is_available %}
-                  <span style="background:#d1fae5;color:#065f46;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;">✅ Disponible</span>
-                {% else %}
-                  <span style="background:#fee2e2;color:#991b1b;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;">🔒 Vendido</span>
-                {% endif %}
-              </td>
-              <td style="padding:10px 14px;color:#6b7280;">{{ e.notes|default:"" }}</td>
-              <td style="padding:10px 14px;text-align:right;white-space:nowrap;">
-                <form method="post" action="{% url 'jheliztv_email_toggle' e.pk %}" style="display:inline;">
-                  {% csrf_token %}
-                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                  <button type="submit" class="jc-btn jc-btn--ghost jc-btn--sm" title="Cambiar estado">
-                    <span class="material-symbols-outlined">{% if e.is_available %}lock{% else %}lock_open{% endif %}</span>
-                    {% if e.is_available %}Marcar vendido{% else %}Marcar disponible{% endif %}
-                  </button>
-                </form>
-                <button type="button" class="jc-btn jc-btn--ghost jc-btn--sm"
-                        data-jc-open="modalEmailEdit"
-                        data-action="{% url 'jheliztv_email_edit' e.pk %}"
-                        data-fill-email="{{ e.email }}"
-                        data-fill-password="{{ e.password }}"
-                        data-fill-notes="{{ e.notes }}"
-                        data-fill-status="{{ e.status }}">
-                  <span class="material-symbols-outlined">edit</span>
-                </button>
-                <button type="button" class="jc-btn jc-btn--ghost jc-btn--sm" style="color:#dc2626;"
-                        onclick="if(confirm('¿Eliminar {{ e.email|escapejs }} del stock?')){document.getElementById('delmail{{ e.pk }}').submit();}">
-                  <span class="material-symbols-outlined">delete</span>
-                </button>
-                <form id="delmail{{ e.pk }}" method="post" action="{% url 'jheliztv_email_delete' e.pk %}" style="display:none">{% csrf_token %}</form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    {% regroup emails by service as email_groups %}
+    <div class="jc-inventory-groups">
+      {% for group in email_groups %}
+        <section class="jc-inventory-group">
+          <header class="jc-inventory-group__head">
+            <div>
+              <span class="jc-inventory-platform__mark"
+                    {% if group.grouper.image %}style="background-image:url('{{ group.grouper.image.url }}')"{% else %}style="background:{{ group.grouper.color|default:'#20df7f' }}"{% endif %}>
+                {% if not group.grouper.image %}{{ group.grouper.name|first|upper }}{% endif %}
+              </span>
+              <h2>{{ group.grouper.name }}</h2>
+            </div>
+            <span>{{ group.list|length }} en esta vista</span>
+          </header>
+
+          <div class="jc-inventory-grid">
+            {% for e in group.list %}
+              <article class="jc-email-card {% if e.is_available %}is-available{% else %}is-sold{% endif %}">
+                <header class="jc-email-card__head">
+                  <span class="jc-email-card__number">#{{ e.inventory_number|stringformat:"03d" }}</span>
+                  <span class="jc-email-card__status">
+                    <i></i>{{ e.get_status_display }}
+                  </span>
+                </header>
+
+                <div class="jc-email-card__field">
+                  <span class="jc-email-card__label">Correo</span>
+                  <div class="jc-email-card__identity">
+                    <strong title="{{ e.email }}">{{ e.email }}</strong>
+                    <button type="button" data-jc-copy="{{ e.email }}" title="Copiar correo" aria-label="Copiar correo">
+                      <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="jc-email-card__field">
+                  <span class="jc-email-card__label">Contraseña</span>
+                  <div class="jc-email-card__password"
+                       data-jc-secret-url="{% url 'jheliztv_email_secret' e.pk %}">
+                    <span data-jc-secret>••••••••••</span>
+                    <button type="button" data-jc-reveal title="Mostrar contraseña" aria-label="Mostrar contraseña">
+                      <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+                    </button>
+                    {% if e.password %}
+                      <button type="button" data-jc-copy-secret title="Copiar contraseña" aria-label="Copiar contraseña">
+                        <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+                      </button>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <dl class="jc-email-card__meta">
+                  <div>
+                    <dt><span class="material-symbols-outlined" aria-hidden="true">credit_card</span> Pago</dt>
+                    <dd>{{ e.acquisition_method|default:"Sin especificar" }}</dd>
+                  </div>
+                  <div>
+                    <dt><span class="material-symbols-outlined" aria-hidden="true">person</span> Cliente</dt>
+                    <dd>{% if e.is_available %}<span class="jc-muted">Sin asignar</span>{% else %}{{ e.customer_name }}{% endif %}</dd>
+                  </div>
+                </dl>
+
+                <footer class="jc-email-card__actions">
+                  <div class="jc-email-card__icon-actions">
+                    <button type="button" class="jc-icon-btn"
+                            data-jc-open="modalEmailEdit"
+                            data-action="{% url 'jheliztv_email_edit' e.pk %}"
+                            data-secret-url="{% url 'jheliztv_email_secret' e.pk %}"
+                            data-fill-email="{{ e.email }}"
+                            data-fill-acquisition-method="{{ e.acquisition_method }}"
+                            data-fill-customer-name="{{ e.customer_name }}"
+                            data-fill-status="{{ e.status }}"
+                            title="Editar" aria-label="Editar {{ e.email }}">
+                      <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                    </button>
+                    <button type="button" class="jc-icon-btn is-danger"
+                            onclick="if(confirm('¿Eliminar {{ e.email|escapejs }} del inventario?')){document.getElementById('delmail{{ e.pk }}').submit();}"
+                            title="Eliminar" aria-label="Eliminar {{ e.email }}">
+                      <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                    </button>
+                    <form id="delmail{{ e.pk }}" method="post" action="{% url 'jheliztv_email_delete' e.pk %}" hidden>{% csrf_token %}</form>
+                  </div>
+                  {% if e.is_available %}
+                    <button type="button" class="jc-email-card__toggle"
+                            data-jc-open="modalEmailSell"
+                            data-action="{% url 'jheliztv_email_toggle' e.pk %}"
+                            data-fill-email-display="{{ e.email }}">
+                      <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+                      Marcar como vendido
+                    </button>
+                  {% else %}
+                    <form class="jc-email-card__toggle-form" method="post" action="{% url 'jheliztv_email_toggle' e.pk %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="jc-email-card__toggle">
+                        <span class="material-symbols-outlined" aria-hidden="true">undo</span>
+                        Devolver a inventario
+                      </button>
+                    </form>
+                  {% endif %}
+                </footer>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% endfor %}
     </div>
   {% else %}
-    <div class="jc-panel jc-empty">
-      <span class="material-symbols-outlined">mail_off</span>
-      {% if q or status or service_id %}No hay correos que coincidan con el filtro.{% else %}Todavía no cargaste correos. Agregá los primeros con el botón "Agregar correos".{% endif %}
+    <div class="jc-panel jc-empty jc-inventory-empty">
+      <span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>
+      <h2>{% if q or status or service_id or method %}No encontramos coincidencias{% else %}Tu inventario está vacío{% endif %}</h2>
+      <p>{% if q or status or service_id or method %}Prueba quitando uno de los filtros.{% else %}Agrega tus primeros correos y ordénalos por plataforma.{% endif %}</p>
+      {% if not q and not status and not service_id and not method %}
+        <button type="button" class="jc-btn" data-jc-open="modalEmailAdd">Agregar correos</button>
+      {% endif %}
     </div>
   {% endif %}
+</div>
 
-  {# ── Modal: agregar correos ─────────────────────────────────────── #}
+  <datalist id="acquisitionMethods">
+    <option value="Tarjeta">
+    <option value="Factura DirecTV">
+    <option value="Factura Telmex">
+    {% for value in acquisition_methods %}<option value="{{ value }}">{% endfor %}
+  </datalist>
+
   <div class="jc-modal" id="modalEmailAdd" aria-hidden="true">
     <div class="jc-modal__backdrop" data-jc-close></div>
-    <div class="jc-modal__box" role="dialog" aria-modal="true">
-      <form method="post" action="{% url 'jheliztv_email_add' %}">
+    <div class="jc-modal__box jc-email-add-dialog" role="dialog" aria-modal="true" aria-labelledby="emailAddTitle" aria-describedby="emailAddDescription">
+      <form method="post" action="{% url 'jheliztv_email_add' %}" data-jc-inventory-form data-jc-email-add-form>
         {% csrf_token %}
-        <div class="jc-modal__head">
-          <h3><span class="material-symbols-outlined">mail</span> Agregar correos al stock</h3>
-          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        <div class="jc-email-add__head">
+          <span class="jc-email-add__hero-icon material-symbols-outlined" aria-hidden="true">mail</span>
+          <div class="jc-email-add__heading">
+            <h3 id="emailAddTitle">Agregar correos</h3>
+            <p id="emailAddDescription">Registra nuevas cuentas para tu inventario.</p>
+          </div>
+          <button type="button" class="jc-email-add__close" data-jc-close aria-label="Cerrar">
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
         </div>
-        <div class="jc-modal__body">
-          <div class="jc-field">
-            <label>Plataforma</label>
-            <select name="service" required>
-              <option value="" disabled selected>Elegí un servicio…</option>
-              {% for svc in services %}<option value="{{ svc.pk }}">{{ svc.name }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="jc-field">
-            <label>Correos (uno por línea o separados por coma)</label>
-            <textarea name="emails" rows="4" required placeholder="cuenta1@gmail.com&#10;cuenta2@gmail.com"></textarea>
-          </div>
-          <div class="jc-grid2">
-            <div class="jc-field"><label>Contraseña (opcional)</label><input type="text" name="password"></div>
-            <div class="jc-field">
-              <label>Estado</label>
-              <select name="status">
-                <option value="available">✅ Disponible para vender</option>
-                <option value="sold">🔒 Vendido / ocupado</option>
-              </select>
+
+        <div class="jc-email-add__body">
+          <section class="jc-email-add__card">
+            <header class="jc-email-add__card-head">
+              <span class="material-symbols-outlined" aria-hidden="true">layers</span>
+              <h4>Información principal</h4>
+            </header>
+            <div class="jc-email-add__card-content">
+              <div class="jc-email-add__main-grid">
+                <div class="jc-email-add__field">
+                  <label for="emailService">Plataforma</label>
+                  <div class="jc-email-add__control jc-email-add__control--select">
+                    <span class="material-symbols-outlined" aria-hidden="true">layers</span>
+                    <select id="emailService" name="service" required>
+                      <option value="" disabled selected>Selecciona una plataforma</option>
+                      {% for svc in services %}<option value="{{ svc.pk }}">{{ svc.name }}</option>{% endfor %}
+                    </select>
+                    <span class="material-symbols-outlined jc-email-add__chevron" aria-hidden="true">expand_more</span>
+                  </div>
+                  <div class="jc-email-add__platform-preview" data-jc-platform-preview hidden>
+                    <span data-jc-platform-mark>—</span>
+                    <strong data-jc-platform-name></strong>
+                  </div>
+                </div>
+
+                <div class="jc-email-add__field">
+                  <label for="stockStatus">Estado</label>
+                  <select id="stockStatus" name="status" data-jc-status-select class="jc-email-add__native-status" aria-hidden="true" tabindex="-1">
+                    <option value="available">Disponible</option>
+                    <option value="sold">Vendido</option>
+                  </select>
+                  <div class="jc-email-add__status-chips" role="group" aria-label="Estado de las cuentas">
+                    <button type="button" class="is-active" data-jc-status-chip="available">
+                      <i></i><span>Disponible</span><span class="material-symbols-outlined">check</span>
+                    </button>
+                    <button type="button" data-jc-status-chip="sold">
+                      <i></i><span>Vendido</span><span class="material-symbols-outlined">check</span>
+                    </button>
+                  </div>
+                  <div class="jc-email-add__customer" data-jc-customer-field hidden>
+                    <label for="stockCustomer">Cliente</label>
+                    <input id="stockCustomer" type="text" name="customer_name" placeholder="Nombre del cliente">
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="jc-field"><label>Notas (opcional)</label><input type="text" name="notes" placeholder="Ej. cuenta 4 pantallas"></div>
+          </section>
+
+          <section class="jc-email-add__card">
+            <header class="jc-email-add__card-head">
+              <span class="material-symbols-outlined" aria-hidden="true">inbox</span>
+              <h4>Información de la cuenta</h4>
+            </header>
+            <div class="jc-email-add__card-content">
+              <div class="jc-email-add__field">
+                <div class="jc-email-add__label-row">
+                  <label for="stockEmails">Correos</label>
+                  <span class="jc-email-add__count" data-jc-email-count>0 correos agregados</span>
+                </div>
+                <p class="jc-email-add__hint">Uno por línea o separados por coma</p>
+                <div class="jc-email-add__control jc-email-add__control--textarea">
+                  <span class="material-symbols-outlined" aria-hidden="true">alternate_email</span>
+                  <textarea id="stockEmails" name="emails" rows="6" required placeholder="cuenta1@gmail.com&#10;cuenta2@gmail.com"></textarea>
+                </div>
+              </div>
+
+              <div class="jc-email-add__account-grid">
+                <div class="jc-email-add__field">
+                  <label for="stockPassword">Contraseña</label>
+                  <div class="jc-email-add__control">
+                    <span class="material-symbols-outlined" aria-hidden="true">key</span>
+                    <input id="stockPassword" type="password" name="password" autocomplete="new-password" placeholder="Contraseña compartida">
+                    <button type="button" class="jc-email-add__password-toggle" data-jc-email-password-toggle aria-label="Mostrar contraseña">
+                      <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+                    </button>
+                  </div>
+                  <div class="jc-email-add__strength">
+                    <div data-jc-password-bars><i></i><i></i><i></i><i></i></div>
+                    <span><span class="material-symbols-outlined" aria-hidden="true">shield</span><em data-jc-password-strength>Seguridad</em></span>
+                  </div>
+                </div>
+
+                <div class="jc-email-add__field">
+                  <label for="stockMethod">Método de adquisición</label>
+                  <div class="jc-email-add__control">
+                    <span class="material-symbols-outlined" aria-hidden="true">sell</span>
+                    <input id="stockMethod" type="text" name="acquisition_method" list="acquisitionMethods" placeholder="Selecciona un método">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
-        <div class="jc-modal__foot">
-          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
-          <button type="submit" class="jc-btn"><span class="material-symbols-outlined">save</span> Guardar</button>
+
+        <div class="jc-email-add__foot">
+          <span data-jc-email-save-summary>Añade al menos un correo.</span>
+          <div>
+            <button type="button" class="jc-email-add__cancel" data-jc-close>Cancelar</button>
+            <button type="submit" class="jc-email-add__save">
+              <span class="material-symbols-outlined" aria-hidden="true">save</span>
+              Guardar correos
+            </button>
+          </div>
         </div>
       </form>
     </div>
   </div>
 
-  {# ── Modal: editar correo ───────────────────────────────────────── #}
-  <div class="jc-modal" id="modalEmailEdit" aria-hidden="true">
+  <div class="jc-modal" id="modalEmailSell" aria-hidden="true">
     <div class="jc-modal__backdrop" data-jc-close></div>
-    <div class="jc-modal__box" role="dialog" aria-modal="true">
+    <div class="jc-modal__box jc-modal__box--compact" role="dialog" aria-modal="true" aria-labelledby="emailSellTitle">
       <form method="post" action="">
         {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
         <div class="jc-modal__head">
-          <h3><span class="material-symbols-outlined">edit</span> Editar correo</h3>
-          <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+          <h3 id="emailSellTitle"><span class="material-symbols-outlined" aria-hidden="true">sell</span> Registrar venta</h3>
+          <button type="button" class="jc-modal__close" data-jc-close aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
         </div>
         <div class="jc-modal__body">
-          <div class="jc-field"><label>Correo</label><input type="text" name="email" required></div>
+          <p class="jc-modal-context">Asignar <strong data-jc-email-display></strong> a:</p>
+          <div class="jc-field">
+            <label for="sellCustomer">Cliente</label>
+            <input id="sellCustomer" type="text" name="customer_name" required autofocus placeholder="Nombre del cliente">
+          </div>
+        </div>
+        <div class="jc-modal__foot">
+          <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
+          <button type="submit" class="jc-btn">Confirmar venta</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="jc-modal" id="modalEmailEdit" aria-hidden="true">
+    <div class="jc-modal__backdrop" data-jc-close></div>
+    <div class="jc-modal__box" role="dialog" aria-modal="true" aria-labelledby="emailEditTitle">
+      <form method="post" action="" data-jc-inventory-form>
+        {% csrf_token %}
+        <div class="jc-modal__head">
+          <h3 id="emailEditTitle"><span class="material-symbols-outlined" aria-hidden="true">edit</span> Editar correo</h3>
+          <button type="button" class="jc-modal__close" data-jc-close aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="jc-modal__body">
+          <div class="jc-field"><label for="editStockEmail">Correo</label><input id="editStockEmail" type="text" name="email" required></div>
           <div class="jc-grid2">
-            <div class="jc-field"><label>Contraseña</label><input type="text" name="password"></div>
+            <div class="jc-field"><label for="editStockPassword">Contraseña</label><input id="editStockPassword" type="text" name="password"></div>
+            <div class="jc-field"><label for="editStockMethod">Método de adquisición</label><input id="editStockMethod" type="text" name="acquisition_method" list="acquisitionMethods"></div>
+          </div>
+          <div class="jc-grid2">
             <div class="jc-field">
-              <label>Estado</label>
-              <select name="status">
-                <option value="available">✅ Disponible</option>
-                <option value="sold">🔒 Vendido</option>
+              <label for="editStockStatus">Estado</label>
+              <select id="editStockStatus" name="status" data-jc-status-select>
+                <option value="available">Disponible</option>
+                <option value="sold">Vendido</option>
               </select>
             </div>
+            <div class="jc-field" data-jc-customer-field>
+              <label for="editStockCustomer">Cliente</label>
+              <input id="editStockCustomer" type="text" name="customer_name">
+            </div>
           </div>
-          <div class="jc-field"><label>Notas</label><input type="text" name="notes"></div>
         </div>
         <div class="jc-modal__foot">
           <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>

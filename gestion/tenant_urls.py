@@ -9,6 +9,7 @@ urlpatterns = [
     path("registro/", v.register, name="jheliztv_register"),
     path("ingresar/", v.login_view, name="jheliztv_login"),
     path("salir/", v.logout_view, name="jheliztv_logout"),
+    path("renovar/<uuid:token>/", v.public_renewal, name="jheliztv_public_renewal"),
 
     # Cobro (Yape)
     path("suscripcion/", v.billing, name="jheliztv_billing"),
@@ -51,7 +52,17 @@ urlpatterns = [
     path("app/correos/<int:pk>/estado/", v.stock_email_toggle, name="jheliztv_email_toggle"),
     path("app/correos/<int:pk>/editar/", v.stock_email_edit, name="jheliztv_email_edit"),
     path("app/correos/<int:pk>/eliminar/", v.stock_email_delete, name="jheliztv_email_delete"),
+    path("app/correos/<int:pk>/clave.json", v.stock_email_secret, name="jheliztv_email_secret"),
 
     # Movimientos
     path("app/movimientos/agregar/", v.transaction_add, name="jheliztv_transaction_add"),
+    path("app/configuracion/monedas/", v.money_settings, name="jheliztv_money_settings"),
+    path("app/soporte/", v.support_inbox, name="jheliztv_support"),
+    path("app/soporte/<int:pk>/responder/", v.support_reply, name="jheliztv_support_reply"),
+    path("app/soporte/<int:pk>/estado/", v.support_status, name="jheliztv_support_status"),
+    path("app/renovaciones/", v.renewals_inbox, name="jheliztv_renewals"),
+    path("app/renovaciones/metodos/agregar/", v.payment_method_add, name="jheliztv_payment_method_add"),
+    path("app/renovaciones/metodos/<int:pk>/eliminar/", v.payment_method_delete, name="jheliztv_payment_method_delete"),
+    path("app/renovaciones/<int:pk>/revisar/", v.renewal_review, name="jheliztv_renewal_review"),
+    path("app/renovaciones/<int:pk>/comprobante/", v.renewal_proof, name="jheliztv_renewal_proof"),
 ]

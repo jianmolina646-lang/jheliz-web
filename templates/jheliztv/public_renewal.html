@@ -1,0 +1,32 @@
+{% load static %}
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Renovar {{ sub.service.name }} · {{ business }}</title><meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&family=Material+Symbols+Outlined&display=swap">
+<link rel="stylesheet" href="{% static 'css/jheliz-control.css' %}?v=renewal-v14-20260728"></head>
+<body class="jc-renewal-body"><main class="jc-renewal-public">
+  <header><span class="jc-renewal-logo">JC</span><div><strong>{{ business }}</strong><small>Renovación segura</small></div></header>
+  <section class="jc-renewal-hero">
+    <span class="material-symbols-outlined">autorenew</span><p>{{ renewal.display_number }}</p><h1>{{ sub.service.name }}</h1>
+    <dl><div><dt>Cliente</dt><dd>{{ sub.client.name }}</dd></div><div><dt>Correo</dt><dd>{{ sub.account_email|slice:":3" }}•••</dd></div><div><dt>Vencimiento</dt><dd>{{ sub.expires_at|date:"d/m/Y" }}</dd></div></dl>
+  </section>
+  {% if error %}<div class="jc-renewal-error" role="alert">{{ error }}</div>{% endif %}
+  {% if expired %}
+    <section class="jc-renewal-result"><span class="material-symbols-outlined">link_off</span><h2>Este enlace venció</h2><p>Solicita a {{ business }} un enlace nuevo de renovación.</p>{% if seller_phone %}<a class="jc-renewal-primary" href="https://wa.me/{{ seller_phone }}">Contactar por WhatsApp</a>{% endif %}</section>
+  {% elif renewal.status == 'invited' %}
+    <section class="jc-renewal-choice"><h2>¿Deseas renovar tu servicio?</h2><p>Selecciona una opción para informar a tu distribuidor.</p>
+      <form method="post">{% csrf_token %}<button class="jc-renewal-primary" name="action" value="renew"><span class="material-symbols-outlined">check_circle</span>Sí, quiero renovar</button><button name="action" value="decline">No voy a renovar</button></form>
+      <form method="post" class="jc-help-request">{% csrf_token %}<label>¿Necesitas ayuda?<textarea name="note" rows="2" required placeholder="Cuéntanos brevemente qué ocurrió"></textarea></label><button name="action" value="help">Enviar solicitud de ayuda</button></form>
+    </section>
+  {% elif renewal.status == 'payment_pending' or renewal.status == 'rejected' %}
+    <section class="jc-renewal-pay"><h2>{% if renewal.status == 'rejected' %}Reenvía tu comprobante{% else %}Realiza el pago{% endif %}</h2><p>Elige uno de los métodos configurados por {{ business }}.</p>
+      <div class="jc-amount-due"><span>Total de renovación</span><strong>{{ sub.currency }} {{ sub.cost }}</strong><small>Servicio: {{ sub.service.name }} · receptor: {{ business }}</small></div>
+      {% if renewal.status == 'rejected' %}<div class="jc-renewal-error"><b>Motivo:</b> {{ renewal.rejection_reason }}</div>{% endif %}
+      <div class="jc-payment-methods">{% for method in methods %}<article><div><strong>{{ method.label }}</strong><small>{{ method.get_kind_display }}{% if method.holder %} · {{ method.holder }}{% endif %}</small></div><pre>{{ method.details }}</pre>{% if method.qr_image %}<img src="{{ method.qr_image.url }}" alt="QR de {{ method.label }}">{% endif %}<button type="button" data-copy="{{ method.details|escapejs }}">Copiar datos</button></article>{% empty %}<p class="jc-renewal-error">El distribuidor todavía no configuró métodos de pago. Contáctalo por WhatsApp.</p>{% endfor %}</div>
+      {% if not methods and seller_phone %}<a class="jc-renewal-primary" href="https://wa.me/{{ seller_phone }}">Contactar a {{ business }} por WhatsApp</a>{% endif %}
+      {% if methods %}<form method="post" enctype="multipart/form-data" class="jc-proof-form" onsubmit="this.querySelector('button[type=submit]').disabled=true">{% csrf_token %}<input type="hidden" name="action" value="proof"><label>Método utilizado<select name="payment_method" required><option value="">Seleccionar…</option>{% for method in methods %}<option value="{{ method.pk }}">{{ method.label }}</option>{% endfor %}</select></label><label>Comprobante<small>JPG, PNG o WebP · máximo 8 MB</small><input type="file" name="proof" accept="image/jpeg,image/png,image/webp" required></label><label>Nota opcional<input name="note" maxlength="500" placeholder="Ej. Pago realizado desde…"></label><button class="jc-renewal-primary" type="submit">Enviar comprobante · {{ sub.currency }} {{ sub.cost }}</button></form>{% endif %}
+    </section>
+  {% else %}
+    <section class="jc-renewal-result"><span class="material-symbols-outlined">{% if renewal.status == 'approved' %}verified{% elif renewal.status == 'declined' %}event_busy{% else %}schedule{% endif %}</span><h2>{{ renewal.get_status_display }}</h2><p>{% if renewal.status == 'proof_sent' %}Tu comprobante fue enviado. El distribuidor lo revisará pronto.{% elif renewal.status == 'approved' %}Tu pago fue aprobado y el servicio fue renovado.{% elif renewal.status == 'help' %}Tu solicitud de ayuda fue registrada.{% else %}Tu respuesta quedó registrada correctamente.{% endif %}</p></section>
+  {% endif %}
+  <footer>Enlace privado · No lo compartas. El pago será verificado por {{ business }}, no por WhatsApp.</footer>
+</main><script>document.addEventListener("click",async e=>{const b=e.target.closest("[data-copy]");if(!b)return;try{await navigator.clipboard.writeText(b.dataset.copy);b.textContent="Copiado";setTimeout(()=>b.textContent="Copiar datos",1200)}catch(_){}});</script></body></html>

@@ -1,0 +1,126 @@
+<div class="jc-modal lvas-modal" id="modalSub" aria-hidden="true">
+  <div class="jc-modal__backdrop" data-jc-close></div>
+  <div class="jc-modal__box lvas-dialog" role="dialog" aria-modal="true" aria-labelledby="lvasTitle" aria-describedby="lvasDescription">
+    <form method="post" action="{% url 'jheliztv_subscription_add' %}" class="lvas-form" data-lvas-form data-jc-subform aria-label="Agregar Suscripción · cuenta completa">
+      {% csrf_token %}
+      <input type="hidden" name="service" value="{{ service.pk }}">
+
+      <header class="lvas-header">
+        <span class="lvas-header__icon material-symbols-outlined" aria-hidden="true">person_add</span>
+        <div class="lvas-header__copy">
+          <h2 id="lvasTitle">Agregar suscripción</h2>
+          <p id="lvasDescription">{{ service.name }} · paso <span data-lvas-current>1</span> de 4</p>
+        </div>
+        <button type="button" class="lvas-close" data-jc-close aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+      </header>
+
+      <nav class="lvas-stepper" aria-label="Pasos para agregar la suscripción">
+        <ol>
+          <li class="is-active" data-lvas-stepper="1"><button type="button" data-lvas-select="1"><span>1</span><b>Cliente</b></button><i></i></li>
+          <li data-lvas-stepper="2"><button type="button" data-lvas-select="2"><span>2</span><b>Cuenta</b></button><i></i></li>
+          <li data-lvas-stepper="3"><button type="button" data-lvas-select="3"><span>3</span><b>Suscripción</b></button><i></i></li>
+          <li data-lvas-stepper="4"><button type="button" data-lvas-select="4"><span>4</span><b>Costos</b></button></li>
+        </ol>
+      </nav>
+      <div class="lvas-progress" aria-hidden="true"><span data-lvas-progress></span></div>
+
+      <div class="lvas-content">
+        <section class="lvas-step is-active" data-lvas-step="1">
+          <article class="lvas-card">
+            <header><span class="material-symbols-outlined">search</span><div><h3>Selección rápida de cliente</h3><p>Busca un cliente existente o continúa escribiendo los datos abajo.</p></div></header>
+            <label class="lvas-search"><span class="material-symbols-outlined">search</span><input type="search" class="jc-csearch" data-jc-csearch placeholder="Nombre, +teléfono o @telegram…"></label>
+            <div class="jc-clist lvas-client-list" data-jc-clist>
+              {% for c in clients %}
+                <button type="button" class="jc-citem lvas-client" data-jc-cpick
+                        data-id="{{ c.pk }}" data-name="{{ c.name }}"
+                        data-wa="{{ c.whatsapp }}" data-tg="{{ c.telegram }}"
+                        data-search="{{ c.name|lower }} {{ c.whatsapp }} {{ c.telegram|lower }}">
+                  <span>{{ c.name|slice:":2"|upper }}</span><strong>{{ c.name }}</strong>{% if c.telegram %}<small>{{ c.telegram }}</small>{% endif %}<i class="material-symbols-outlined">check</i>
+                </button>
+              {% empty %}
+                <div class="lvas-empty-client"><span class="material-symbols-outlined">search_off</span>Sin clientes registrados. Escribe uno nuevo abajo.</div>
+              {% endfor %}
+            </div>
+          </article>
+
+          <article class="lvas-card">
+            <header><span class="material-symbols-outlined">person</span><div><h3>Información del cliente</h3><p>Datos de contacto del comprador.</p></div></header>
+            <input type="hidden" name="client" data-jc-client value="">
+            <div class="lvas-fields">
+              <label class="lvas-field lvas-field--wide"><span>Nombre del cliente</span><div><i class="material-symbols-outlined">person</i><input type="text" name="new_client_name" data-jc-cname placeholder="Selecciona arriba o escribe"></div></label>
+              <label class="lvas-field"><span>WhatsApp <small>opcional</small></span><div><i class="material-symbols-outlined">phone</i><input type="text" name="new_client_whatsapp" data-jc-cwa placeholder="+51 999 999 999"></div></label>
+              <label class="lvas-field"><span>Telegram <small>opcional</small></span><div><i class="material-symbols-outlined">alternate_email</i><input type="text" name="new_client_telegram" data-jc-ctg placeholder="@usuario"></div></label>
+            </div>
+          </article>
+        </section>
+
+        <section class="lvas-step" data-lvas-step="2" hidden>
+          <article class="lvas-card">
+            <header><span class="material-symbols-outlined">mail</span><div><h3>Correos de la cuenta</h3><p>Separa con coma. Se creará una suscripción independiente por cada correo.</p></div></header>
+            <label class="lvas-field"><span>Correos</span><textarea name="account_emails" rows="4" placeholder="correo1@ejemplo.com,&#10;correo2@ejemplo.com" required></textarea></label>
+            <p class="lvas-help"><span class="material-symbols-outlined">mail</span>El último correo puede ir sin coma.</p>
+          </article>
+          <article class="lvas-card">
+            <header><span class="material-symbols-outlined">key</span><div><h3>Contraseña</h3><p>La misma contraseña se aplicará a todos los correos.</p></div></header>
+            <label class="lvas-field"><span>Contraseña</span><div><i class="material-symbols-outlined">key</i><input type="password" name="account_password" placeholder="Contraseña123" autocomplete="off"><button type="button" data-lvas-password aria-label="Mostrar contraseña"><span class="material-symbols-outlined">visibility</span></button></div></label>
+          </article>
+        </section>
+
+        <section class="lvas-step" data-lvas-step="3" hidden>
+          <article class="lvas-card">
+            <header><span class="material-symbols-outlined">auto_awesome</span><div><h3>Plan y duración</h3><p>Define el plan contratado y su vigencia.</p></div></header>
+            <div class="lvas-fields">
+              <label class="lvas-field"><span>Plan de suscripción</span><div><i class="material-symbols-outlined">auto_awesome</i><input type="text" name="plan_label" placeholder="Premium, Básico…"></div></label>
+              <div class="lvas-field">
+                <span>Tiempo del servicio</span>
+                <div class="lvas-duration" data-jc-timemode>
+                  <span><button type="button" class="is-active" data-jc-tmode="days">Por días</button><button type="button" data-jc-tmode="date">Por fecha</button></span>
+                  <label data-jc-tmpane="days"><input type="number" name="duration_days" value="30" min="1"><b>días</b></label>
+                  <label data-jc-tmpane="date" hidden><input type="date" name="expires_on"><b>vence</b></label>
+                </div>
+              </div>
+            </div>
+          </article>
+          <article class="lvas-card">
+            <header><span class="material-symbols-outlined">person</span><div><h3>Perfiles del cliente</h3><p>Selecciona el perfil asignado o la cuenta completa.</p></div></header>
+            <input type="hidden" name="plan" data-jc-plan value="perfil">
+            <input type="hidden" name="profiles" data-jc-profiles value="1">
+            <div class="jc-pchips lvas-chips" data-jc-pchips>
+              {% for i in "1234567"|make_list %}
+                <button type="button" class="jc-pchip{% if i == '1' %} is-active{% endif %}" data-jc-profile="{{ i }}"><span class="material-symbols-outlined">check</span>Perfil {{ i }}</button>
+              {% endfor %}
+              <button type="button" class="jc-pchip jc-pchip--full" data-jc-profile="full"><span class="material-symbols-outlined">check</span>Cuenta completa</button>
+            </div>
+          </article>
+        </section>
+
+        <section class="lvas-step" data-lvas-step="4" hidden>
+          <article class="lvas-card">
+            <header><span class="material-symbols-outlined">credit_card</span><div><h3>Venta e inversión</h3><p>Opcional. Se usa para calcular tu utilidad.</p></div></header>
+            <div class="lvas-fields">
+              <label class="lvas-field"><span>¿Cuánto vendiste en total?</span><div class="lvas-money"><input type="number" step="0.01" name="cost" value="0.00"><b data-lvas-currency>{{ jc_currency }}</b></div></label>
+              <label class="lvas-field"><span>¿Cuánto invertiste en total?</span><div class="lvas-money"><input type="number" step="0.01" name="investment" value="0.00"><b data-lvas-currency>{{ jc_currency }}</b></div></label>
+              <label class="lvas-field lvas-field--wide"><span>Moneda del cobro</span><div><i class="material-symbols-outlined">credit_card</i><select id="subCurrency" name="currency" data-sub-currency>{% for code, info in jc_currencies.items %}<option value="{{ code }}" {% if code == jc_currency %}selected{% endif %}>{{ code }} · {{ info.name }}</option>{% endfor %}</select></div></label>
+              <label class="lvas-field lvas-field--wide" data-sub-rate-wrap hidden aria-live="polite"><span>Tipo de cambio a {{ jc_currency }}</span><div><input id="subExchangeRate" type="number" step="0.00000001" min="0.00000001" name="exchange_rate" value="1" data-sub-rate></div><small>Valor de 1 unidad en {{ jc_currency }}.</small></label>
+            </div>
+          </article>
+          <article class="lvas-card">
+            <header><span class="material-symbols-outlined">auto_awesome</span><div><h3>Resumen financiero</h3><p>Cálculo estimado de esta suscripción.</p></div></header>
+            <div class="lvas-finance">
+              <div><span>Venta</span><strong data-lvas-sale>{{ jc_currency_symbol }} 0.00</strong></div>
+              <div><span>Inversión</span><strong data-lvas-investment>{{ jc_currency_symbol }} 0.00</strong></div>
+              <div class="is-profit"><span>Ganancia</span><strong data-profit-out>+{{ jc_currency_symbol }} 0.00</strong></div>
+            </div>
+          </article>
+        </section>
+      </div>
+
+      <footer class="lvas-footer">
+        <div><button type="button" class="lvas-button lvas-button--secondary" data-jc-close>Cancelar</button><button type="button" class="lvas-button lvas-button--secondary" data-lvas-back hidden><span class="material-symbols-outlined">arrow_back</span><b>Atrás</b></button></div>
+        <strong data-lvas-footer-profit hidden>Utilidad +{{ jc_currency_symbol }} 0.00</strong>
+        <button type="button" class="lvas-button lvas-button--primary" data-lvas-next>Continuar<span class="material-symbols-outlined">arrow_forward</span></button>
+        <button type="submit" class="lvas-button lvas-button--primary" data-lvas-submit hidden><span class="material-symbols-outlined">check</span>Agregar suscripción</button>
+      </footer>
+    </form>
+  </div>
+</div>
