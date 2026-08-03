@@ -42,7 +42,10 @@ def _usd_rate() -> Decimal:
         from orders.models import PaymentSettings  # import diferido para evitar ciclos
         settings_obj = PaymentSettings.load()
         rate = None
-        if getattr(settings_obj, "usd_rate_auto", False):
+        if (
+            getattr(settings, "BINANCE_RATE_LIVE_ENABLED", False)
+            and getattr(settings_obj, "usd_rate_auto", False)
+        ):
             from orders.binance_rate import fetch_binance_usdt_pen_rate
             rate = fetch_binance_usdt_pen_rate()
         if not rate:

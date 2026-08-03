@@ -2,6 +2,7 @@
 vistas (render + acciones) y reporte PDF."""
 from datetime import timedelta
 from decimal import Decimal
+import base64
 
 from django.contrib.auth import get_user_model
 from django.db import connection, IntegrityError, transaction
@@ -18,6 +19,11 @@ from .models import (
     ServiceCategory,
     Subscription,
     Transaction,
+)
+
+
+VALID_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 )
 
 
@@ -241,7 +247,7 @@ class TenantSaasTests(TestCase):
 
         self._register("inq2")
         tenant = self.Tenant.objects.get(user__username="inq2")
-        proof = SimpleUploadedFile("p.png", b"\x89PNG\r\n\x1a\n" + b"0" * 40, content_type="image/png")
+        proof = SimpleUploadedFile("p.png", VALID_PNG, content_type="image/png")
         self.client.post(self.BILLING_UPLOAD, {"proof": proof}, HTTP_HOST=self.HOST)
         pay = TenantPayment.objects.get(tenant=tenant)
         self.assertEqual(pay.status, TenantPayment.Status.PENDING)
@@ -251,6 +257,19 @@ class TenantSaasTests(TestCase):
         self.assertEqual(pay.status, TenantPayment.Status.APPROVED)
         # Ya activo: el panel responde 200.
         self.assertEqual(self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST).status_code, 200)
+
+    def test_payment_rejects_fake_image(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from .models import TenantPayment
+
+        self._register("inq-fake-proof")
+        proof = SimpleUploadedFile("fake.png", b"not an image", content_type="image/png")
+        response = self.client.post(
+            self.BILLING_UPLOAD, {"proof": proof}, HTTP_HOST=self.HOST
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(TenantPayment.objects.exists())
 
     def test_data_isolation_between_tenants(self):
         # Inquilino A crea un servicio y un cliente.
@@ -496,7 +515,7 @@ class TenantSaasTests(TestCase):
         r = self.client.get(f"/app/servicios/{svc.pk}/", HTTP_HOST=self.HOST)
         self.assertEqual(r.status_code, 200)
         for token in (
-            "jc-kpis", "Ingresos", "Egresos", "Clientes",
+            "lvsd-stats", "Ingresos", "Egresos", "Clientes",
             "jc-subs-search", "Suscripciones registradas", "Registro",
         ):
             self.assertContains(r, token)
@@ -633,6 +652,29 @@ class OwnerControlPanelTests(TestCase):
         self.tenant.refresh_from_db()
         self.assertEqual(pay.status, TenantPayment.Status.APPROVED)
         self.assertTrue(self.tenant.subscription_active)
+
+    def test_payment_proof_requires_owner_login(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from .models import TenantPayment
+
+        pay = TenantPayment.objects.create(
+            tenant=self.tenant,
+            amount=30,
+            proof=SimpleUploadedFile("proof.png", VALID_PNG, content_type="image/png"),
+        )
+        url = f"/control/pagos/{pay.pk}/comprobante/"
+
+        anonymous = self.client.get(url, HTTP_HOST=self.HOST)
+        self.assertRedirects(anonymous, self.CONTROL_LOGIN, fetch_redirect_response=False)
+
+        self.client.force_login(self.owner)
+        allowed = self.client.get(url, HTTP_HOST=self.HOST)
+        self.assertEqual(allowed.status_code, 200)
+        self.assertIn("no-store", allowed["Cache-Control"])
+
+        public_url = f"/media/{pay.proof.name}"
+        self.assertEqual(self.client.get(public_url, HTTP_HOST=self.HOST).status_code, 404)
 
     def test_extend_tenant_adds_days(self):
         self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)

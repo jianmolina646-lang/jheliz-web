@@ -218,12 +218,17 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if DEBUG
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        ),
     },
 }
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+PRIVATE_MEDIA_ROOT = BASE_DIR / "private_media"
 
 # Tamaño máximo de upload (multipart). Necesario para imágenes del chat
 # (5 MB efectivo + overhead de form-data). nginx en producción acepta hasta 20M
@@ -261,6 +266,13 @@ MERCADOPAGO_WEBHOOK_SECRET = config("MERCADOPAGO_WEBHOOK_SECRET", default="")
 # que borrar credenciales (útil para mantener la herramienta de diagnóstico
 # operativa mientras se decide habilitar/deshabilitar MP frente al cliente).
 MERCADOPAGO_CHECKOUT_ENABLED = config("MERCADOPAGO_CHECKOUT_ENABLED", default=True, cast=bool)
+
+# Evita depender de una API externa durante desarrollo y pruebas. En
+# produccion queda habilitado por defecto y siempre conserva el TC manual como
+# respaldo si Binance no responde.
+BINANCE_RATE_LIVE_ENABLED = config(
+    "BINANCE_RATE_LIVE_ENABLED", default=not DEBUG, cast=bool
+)
 
 # Web Push notifications (VAPID).
 # Para generar el par de claves:

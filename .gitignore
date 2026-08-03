@@ -15,6 +15,7 @@ secrets/
 
 staticfiles/
 media/
+private_media/
 
 .DS_Store
 .idea/

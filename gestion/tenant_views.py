@@ -33,6 +33,7 @@ from django.utils import timezone
 from config.date_utils import add_service_duration
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
+from PIL import Image, UnidentifiedImageError
 
 from .forms import ClientForm, ControlSettingsForm, ServiceForm, SubscriptionForm, TransactionForm
 from .currencies import CURRENCIES, currency_symbol, normalize_currency
@@ -67,6 +68,20 @@ from .views import _decorate_subs  # reuso de helpers
 from .support_operations import add_message as add_support_message, set_status as set_support_status
 
 User = get_user_model()
+
+
+def _valid_proof_image(upload) -> bool:
+    if not upload or upload.size > 8 * 1024 * 1024:
+        return False
+    try:
+        image = Image.open(upload)
+        image.verify()
+        valid = image.format in {"JPEG", "PNG", "WEBP"}
+    except (OSError, UnidentifiedImageError):
+        valid = False
+    finally:
+        upload.seek(0)
+    return valid
 
 
 # ---------------------------------------------------------------------------
@@ -183,7 +198,7 @@ def public_renewal(request, token):
                 return _public_renewal_render(request, {
                     **base_context, "error": "Selecciona el método y adjunta el comprobante.",
                 })
-            if proof.size > 8 * 1024 * 1024 or not proof.content_type.startswith("image/"):
+            if not _valid_proof_image(proof):
                 return _public_renewal_render(request, {
                     **base_context, "error": "El comprobante debe ser JPG, PNG o WebP de máximo 8 MB.",
                 })
@@ -310,6 +325,9 @@ def billing_upload(request):
     proof = request.FILES.get("proof")
     if not proof:
         messages.error(request, "Adjuntá la captura del pago por Yape.")
+        return redirect("jheliztv_billing")
+    if not _valid_proof_image(proof):
+        messages.error(request, "El comprobante debe ser JPG, PNG o WebP de máximo 8 MB.")
         return redirect("jheliztv_billing")
     if tenant.payments.filter(status=TenantPayment.Status.PENDING).exists():
         messages.info(request, "Ya tenés un pago pendiente de revisión.")

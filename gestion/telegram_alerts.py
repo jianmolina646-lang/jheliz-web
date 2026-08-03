@@ -267,6 +267,7 @@ def _premium_text(text):
     # significado. Se procesan antes del mapa general.
     semantic_prefixes = (
         ("📊 <b>RESUMEN", "summary"),
+        ("📊 RESUMEN", "summary"),
         ("📊 <b>ESTADÍSTICAS", "stats"),
         ("💰 <b>MI SALDO", "balance"),
         ("⚙️ <b>MI CUENTA", "account"),
@@ -1677,7 +1678,7 @@ def process_update(update):
             chat["id"],
             "✅ <b>Conexión activa</b>\n\n"
             f"Revendedor: <b>{html.escape(connection.owner.username)}</b>\n"
-            "Privacidad: solo puedes acceder a tus propios clientes.",
+            "Privacidad: solo recibirás datos de tus propios clientes.",
             _markup([[_button("🏠 Abrir menú", "menu")]]),
         )
     return _handle_text_state(connection, text)

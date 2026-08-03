@@ -77,6 +77,14 @@ else
     log "  (sin media/, salto)"
 fi
 
+log "Tar de /srv/jheliz/private_media ..."
+if [[ -d "$JHELIZ_ROOT/private_media" ]]; then
+    tar -czf "$WORK_DIR/private_media.tar.gz" -C "$JHELIZ_ROOT" private_media
+    log "  -> $(wc -c <"$WORK_DIR/private_media.tar.gz") bytes."
+else
+    log "  (sin private_media/, salto)"
+fi
+
 if [[ -f "$JHELIZ_ROOT/.env" ]]; then
     cp "$JHELIZ_ROOT/.env" "$WORK_DIR/dotenv"
     chmod 600 "$WORK_DIR/dotenv"
@@ -95,7 +103,7 @@ Git HEAD: $(cd "$JHELIZ_ROOT" && git rev-parse HEAD 2>/dev/null || echo 'n/a')
 Para restaurar:
   1. Levantar postgres vacío y la app.
   2. cat db.sql | docker compose exec -T db psql -U $DB_USER -d $DB_NAME
-  3. tar -xzf media.tar.gz -C /srv/jheliz/
+  3. Extraer media.tar.gz y private_media.tar.gz en /srv/jheliz/
   4. cp dotenv /srv/jheliz/.env
   5. docker compose up -d --force-recreate web
 EOF

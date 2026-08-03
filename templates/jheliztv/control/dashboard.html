@@ -44,7 +44,7 @@
             <td>S/ {{ p.amount }}</td>
             <td>{{ p.days }}</td>
             <td>
-              {% if p.proof %}<a class="jc-btn jc-btn--ghost jc-btn--sm" href="{{ p.proof.url }}" target="_blank"><span class="material-symbols-outlined">image</span> Ver</a>
+              {% if p.proof %}<a class="jc-btn jc-btn--ghost jc-btn--sm" href="{% url 'jheliztv_control_payment_proof' p.pk %}" target="_blank"><span class="material-symbols-outlined">image</span> Ver</a>
               {% else %}<small style="color:#9ca3af">—</small>{% endif %}
             </td>
             <td><small>{{ p.created_at|date:"d/m/Y H:i" }}</small></td>

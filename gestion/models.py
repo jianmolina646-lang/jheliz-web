@@ -18,6 +18,8 @@ from django.conf import settings
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
+from config.private_storage import private_media_storage
+
 from config.date_utils import add_service_duration
 from orders.encryption import EncryptedTextField
 from .currencies import CURRENCY_CHOICES, normalize_currency
@@ -791,7 +793,12 @@ class RenewalRequest(models.Model):
         ResellerPaymentMethod, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="renewal_requests",
     )
-    proof = models.ImageField(upload_to="jheliz_control/renewal_proofs/", blank=True, null=True)
+    proof = models.ImageField(
+        upload_to="jheliz_control/renewal_proofs/",
+        storage=private_media_storage,
+        blank=True,
+        null=True,
+    )
     customer_note = models.CharField(max_length=500, blank=True)
     rejection_reason = models.CharField(max_length=500, blank=True)
     link_expires_at = models.DateTimeField(default=renewal_link_expiry)
@@ -906,7 +913,8 @@ class TenantPayment(models.Model):
     amount = models.DecimalField("Monto", max_digits=10, decimal_places=2, default=Decimal("0.00"))
     days = models.PositiveIntegerField("Días que otorga", default=30)
     proof = models.ImageField(
-        "Comprobante Yape", upload_to="jheliz_control/pagos/", blank=True,
+        "Comprobante Yape", upload_to="jheliz_control/pagos/",
+        storage=private_media_storage, blank=True,
         help_text="Captura del pago por Yape subida por el inquilino.",
     )
     status = models.CharField(

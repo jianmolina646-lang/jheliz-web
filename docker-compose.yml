@@ -15,6 +15,7 @@ services:
     env_file: .env
     volumes:
       - ./media:/app/media
+      - ./private_media:/app/private_media
       # En producción Nginx sirve /srv/jheliz/staticfiles. La variable evita
       # que collectstatic escriba en un directorio distinto al publicado.
       - ${STATICFILES_DIR:-./staticfiles}:/app/staticfiles
@@ -120,6 +121,7 @@ services:
       - jheliz_backup_data:/backups
       - jheliz_mega_session:/root/.megaCmd
       - ./media:/source/media:ro
+      - ./private_media:/source/private_media:ro
       - ./.env:/source/config/.env:ro
       - ./secrets:/source/config/secrets:ro
 

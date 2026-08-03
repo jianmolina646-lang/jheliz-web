@@ -11,7 +11,12 @@ El proveedor (vos) aprueba los pagos desde el admin de la tienda
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path, re_path
+from django.http import HttpResponseNotFound
 from django.views.static import serve as static_serve
+
+
+def _private_media(request, path=""):
+    return HttpResponseNotFound()
 
 urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
@@ -23,6 +28,7 @@ urlpatterns = [
 # Media (QR de Yape, comprobantes, imágenes de servicios).
 _media_prefix = settings.MEDIA_URL.lstrip("/").rstrip("/")
 urlpatterns += [
+    re_path(r"^media/jheliz_control/(?:pagos|renewal_proofs)/(?P<path>.*)$", _private_media),
     re_path(
         rf"^{_media_prefix}/(?P<path>.*)$",
         static_serve,

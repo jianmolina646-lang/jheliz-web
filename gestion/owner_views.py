@@ -14,6 +14,7 @@ from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -121,6 +122,18 @@ def control_payment_reject(request, pk):
         pay.reject("Rechazado desde el panel de control.")
         messages.warning(request, f"Pago de {pay.tenant} rechazado.")
     return redirect("jheliztv_control_dashboard")
+
+
+@owner_required
+def control_payment_proof(request, pk):
+    pay = get_object_or_404(TenantPayment, pk=pk)
+    if not pay.proof:
+        return redirect("jheliztv_control_dashboard")
+    response = FileResponse(pay.proof.open("rb"), content_type="application/octet-stream")
+    response["Content-Disposition"] = f'inline; filename="comprobante-{pay.pk}.jpg"'
+    response["Cache-Control"] = "no-store, private"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @owner_required

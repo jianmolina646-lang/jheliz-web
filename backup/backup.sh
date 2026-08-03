@@ -81,6 +81,9 @@ pg_dump \
 if [[ -d /source/media ]]; then
     cp -a /source/media "$WORK_DIR/payload/media"
 fi
+if [[ -d /source/private_media ]]; then
+    cp -a /source/private_media "$WORK_DIR/payload/private_media"
+fi
 if [[ -f /source/config/.env ]]; then
     cp -a /source/config/.env "$WORK_DIR/payload/config/.env"
 fi

@@ -91,6 +91,11 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 
+    # Comprobantes privados de JhelizTV se entregan mediante vistas con login.
+    location ~ ^/media/jheliz_control/(pagos|renewal_proofs)/ {
+        return 404;
+    }
+
     # Resto del media (imágenes públicas de productos, OG images, etc.)
     # se sirve directo desde nginx para reducir carga sobre gunicorn.
     location /media/ {
