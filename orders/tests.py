@@ -1354,11 +1354,17 @@ class DistributorExpiryReminderTests(TestCase):
         body = mail.outbox[0].body
         self.assertNotIn("clientes finales", body)
 
-    def test_customer_does_not_get_7d_window(self):
-        # A los clientes finales no les llega la ventana de 7 días, sólo a distri.
-        self._make_item(owner=self.cliente, days_until_expiry=7)
+    def test_customer_gets_7d_window_with_customer_template(self):
+        # Clientes y distribuidores reciben la ventana de 7 días, pero con
+        # plantillas distintas.
+        item = self._make_item(owner=self.cliente, days_until_expiry=7)
         call_command("send_expiry_reminders", stdout=StringIO())
-        self.assertEqual(len(mail.outbox), 0)
+        item.refresh_from_db()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("7 d", mail.outbox[0].subject)
+        self.assertNotIn("clientes finales", mail.outbox[0].body)
+        self.assertIsNotNone(item.expiry_reminder_7d_sent_at)
+        self.assertIsNone(item.distri_reminder_7d_sent_at)
 
     def test_distributor_independent_idempotency(self):
         # 7d + 3d + 1d marcas son independientes; cada una se manda 1 sola vez.
