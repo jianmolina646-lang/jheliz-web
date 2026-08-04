@@ -16,6 +16,7 @@ import uuid
 
 from django.conf import settings
 from django.db import IntegrityError, models, transaction
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 from config.private_storage import private_media_storage
@@ -91,6 +92,11 @@ class Service(models.Model):
         verbose_name = "Servicio"
         verbose_name_plural = "Servicios"
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"), "owner", name="uniq_service_owner_name_ci"
+            ),
+        ]
 
     def __str__(self) -> str:
         return self.name
@@ -183,7 +189,7 @@ class Subscription(models.Model):
         verbose_name="Servicio",
     )
     account_email = models.CharField("Correo / usuario de la cuenta", max_length=160)
-    account_password = models.CharField("Contraseña", max_length=160, blank=True)
+    account_password = EncryptedTextField("Contraseña", blank=True)
     plan = models.CharField(
         "Plan", max_length=12, choices=Plan.choices, default=Plan.PERFIL
     )
@@ -192,7 +198,7 @@ class Subscription(models.Model):
         help_text="Cantidad de perfiles (1 a 7). En cuenta completa, 1.",
     )
     profile_name = models.CharField("Nombre de perfil", max_length=80, blank=True)
-    profile_pin = models.CharField("PIN", max_length=12, blank=True)
+    profile_pin = EncryptedTextField("PIN", blank=True)
     plan_label = models.CharField(
         "Plan de suscripción", max_length=40, blank=True,
         help_text="Nombre del plan (ej. Premium, Básico).",
@@ -223,6 +229,14 @@ class Subscription(models.Model):
         verbose_name = "Suscripción"
         verbose_name_plural = "Suscripciones"
         ordering = ["expires_at"]
+        indexes = [
+            models.Index(fields=["owner", "is_archived", "expires_at"], name="sub_owner_active_exp_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(profiles__gte=1, profiles__lte=7), name="subscription_profiles_1_7"),
+            models.CheckConstraint(condition=models.Q(exchange_rate__gt=0), name="subscription_exchange_rate_gt_0"),
+            models.CheckConstraint(condition=models.Q(cost__gte=0, investment__gte=0), name="subscription_amounts_nonnegative"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.service} · {self.client} ({self.account_email})"
@@ -423,6 +437,13 @@ class Transaction(models.Model):
         verbose_name = "Movimiento"
         verbose_name_plural = "Movimientos (ingresos / egresos)"
         ordering = ["-occurred_at"]
+        indexes = [
+            models.Index(fields=["owner", "-occurred_at"], name="tx_owner_occurred_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gte=0, base_amount__gte=0), name="transaction_amounts_nonnegative"),
+            models.CheckConstraint(condition=models.Q(exchange_rate__gt=0), name="transaction_exchange_rate_gt_0"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.get_kind_display()} {self.amount} {self.currency}"

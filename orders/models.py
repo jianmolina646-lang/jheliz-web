@@ -290,6 +290,10 @@ class Order(models.Model):
             # Métricas por usuario (clientes nuevos vs recurrentes en dashboard).
             models.Index(fields=["user", "status"], name="order_user_status_idx"),
         ]
+        constraints = [
+            models.UniqueConstraint(fields=["payment_provider", "payment_reference"], condition=~models.Q(payment_reference=""), name="uniq_order_payment_reference"),
+            models.CheckConstraint(condition=models.Q(total__gte=0, discount_amount__gte=0, combo_discount_amount__gte=0), name="order_amounts_nonnegative"),
+        ]
 
     def __str__(self) -> str:
         return f"Pedido #{self.pk} ({self.get_status_display()})"
@@ -575,6 +579,11 @@ class OrderItem(models.Model):
         indexes = [
             models.Index(fields=["expires_at"], name="orderitem_expires_idx"),
         ]
+        constraints = [
+            models.UniqueConstraint(fields=["renewal_token"], condition=~models.Q(renewal_token=""), name="uniq_orderitem_renewal_token"),
+            models.CheckConstraint(condition=models.Q(quantity__gte=1), name="orderitem_quantity_gte_1"),
+            models.CheckConstraint(condition=models.Q(unit_price__gte=0), name="orderitem_unit_price_nonnegative"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.product_name} \u2014 {self.plan_name}"
@@ -630,9 +639,6 @@ class EmailLog(models.Model):
         ordering = ("-sent_at",)
         verbose_name = "Log de email"
         verbose_name_plural = "Logs de emails"
-        indexes = [
-            models.Index(fields=["-sent_at"], name="emaillog_sent_at_idx"),
-        ]
 
     def __str__(self) -> str:
         return f"[{self.get_kind_display()}] {self.to_email} ({self.status})"
@@ -661,9 +667,6 @@ class ReminderRunLog(models.Model):
         ordering = ("-started_at",)
         verbose_name = "Run de recordatorios"
         verbose_name_plural = "Historial de recordatorios"
-        indexes = [
-            models.Index(fields=["-started_at"], name="reminderrun_started_idx"),
-        ]
 
     def __str__(self) -> str:
         ts = self.started_at.strftime("%Y-%m-%d %H:%M") if self.started_at else "?"
