@@ -99,7 +99,9 @@ fi
 
 (
     cd "$WORK_DIR/payload"
-    find . -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+    find . -type f ! -name SHA256SUMS -print0 \
+        | sort -z \
+        | xargs -0 sha256sum > SHA256SUMS
 )
 
 tar -czf "$PLAIN_ARCHIVE" -C "$WORK_DIR/payload" .
