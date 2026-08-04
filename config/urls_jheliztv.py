@@ -13,12 +13,21 @@ from django.conf.urls.static import static
 from django.urls import include, path, re_path
 from django.http import HttpResponseNotFound
 from django.views.static import serve as static_serve
+from django.views.generic import RedirectView
 
 
 def _private_media(request, path=""):
     return HttpResponseNotFound()
 
 urlpatterns = [
+    path(
+        "favicon.ico",
+        RedirectView.as_view(
+            url=f"{settings.STATIC_URL}img/favicon.ico",
+            permanent=True,
+        ),
+        name="jheliztv_favicon",
+    ),
     path("i18n/", include("django.conf.urls.i18n")),
     # Panel del dueño (solo staff): inquilinos + pagos de alquiler.
     path("control/", include("gestion.owner_urls")),

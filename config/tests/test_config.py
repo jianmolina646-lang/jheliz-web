@@ -9,6 +9,23 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 
+@override_settings(JHELIZTV_HOSTS=["jheliztv.xyz"])
+class JheliztvFaviconTests(TestCase):
+    def test_root_favicon_redirects_to_static_asset(self):
+        response = self.client.get(
+            "/favicon.ico",
+            HTTP_HOST="jheliztv.xyz",
+            secure=True,
+        )
+
+        self.assertRedirects(
+            response,
+            "/static/img/favicon.ico",
+            status_code=301,
+            fetch_redirect_response=False,
+        )
+
+
 class SecurityHeadersTests(TestCase):
     def test_csp_header_present(self):
         resp = self.client.get("/")
