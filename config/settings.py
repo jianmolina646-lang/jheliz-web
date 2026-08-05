@@ -6,6 +6,7 @@ from pathlib import Path
 
 import dj_database_url
 from decouple import Csv, config
+from django.core.exceptions import ImproperlyConfigured
 
 from config.secret_config import secret_config
 
@@ -13,6 +14,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = secret_config("SECRET_KEY", default="dev-insecure-key-change-me")
 DEBUG = config("DEBUG", default=True, cast=bool)
+if not DEBUG and SECRET_KEY == "dev-insecure-key-change-me":
+    raise ImproperlyConfigured(
+        "SECRET_KEY debe configurarse explícitamente cuando DEBUG=False."
+    )
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
     default=(
