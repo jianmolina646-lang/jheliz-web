@@ -1,0 +1,12 @@
+services:
+  web:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings_jheliztv
+
+  control_alerts_bot:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings_jheliztv
+
+  whatsapp_scheduler:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings_jheliztv

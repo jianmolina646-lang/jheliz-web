@@ -72,7 +72,7 @@ jobs:
             # Mantener el nombre de proyecto usado históricamente en producción
             # es crítico: de él dependen los nombres de los contenedores y,
             # especialmente, el volumen persistente de PostgreSQL.
-            COMPOSE="docker compose -p jheliz -f docker-compose.yml -f docker-compose.control-alerts.yml"
+            COMPOSE="docker compose -p jheliz -f docker-compose.yml -f docker-compose.control-alerts.yml -f docker-compose.jheliztv.yml"
             $COMPOSE pull || true
             if ! $COMPOSE up -d --build --wait --wait-timeout 240; then
               echo "✗ Deploy abortado: web no llegó a estado healthy."
@@ -82,17 +82,10 @@ jobs:
               exit 1
             fi
 
-            # El bot de códigos vive en el perfil `bot`, así que el `up` de arriba
-            # (sin --profile) NO lo toca y se quedaría con la imagen vieja. Lo
-            # reconstruimos y recreamos explícitamente nombrándolo: al nombrar un
-            # servicio con perfil, compose lo levanta igual. --no-deps evita volver
-            # a tocar `web`; --force-recreate garantiza que tome el código nuevo.
-            echo "→ Reconstruyendo el bot de códigos (codes_bot)..."
-            if ! $COMPOSE up -d --build --no-deps --force-recreate codes_bot; then
-              echo "✗ Falló el rebuild de codes_bot."
-              $COMPOSE logs --tail=50 codes_bot || true
-              exit 1
-            fi
+            # El verificador de códigos pertenecía a la tienda retirada. Se
+            # detiene explícitamente para que no quede como proceso huérfano.
+            $COMPOSE stop codes_bot 2>/dev/null || true
+            $COMPOSE rm -f codes_bot 2>/dev/null || true
 
             echo "→ Smoke test público..."
             if ! curl -fsS -o /dev/null --max-time 10 http://localhost:8000/; then
