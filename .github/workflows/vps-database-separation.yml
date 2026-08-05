@@ -47,8 +47,13 @@ jobs:
               echo "=== PREPARE ISOLATED DATABASE ==="
               test -n "$(find "$PROJECT_PATH/private_backups/domain-separation" -maxdepth 1 -type f -name 'pre-separation-*.tar.gz' -size +0c -print -quit)"
               if db_exists "$NEW_DB"; then
-                echo "ERROR: $NEW_DB already exists; refusing to overwrite it."
-                exit 1
+                ACTIVE_DB="$($COMPOSE exec -T web python manage.py shell -c "from django.db import connection; print(connection.settings_dict['NAME'])" | tail -1)"
+                if [ "$ACTIVE_DB" = "$NEW_DB" ]; then
+                  echo "ERROR: $NEW_DB is active; refusing to overwrite it."
+                  exit 1
+                fi
+                echo "Removing the inactive incomplete copy from a previous prepare attempt."
+                $COMPOSE exec -T db dropdb -U jheliz --force "$NEW_DB"
               fi
               $COMPOSE exec -T db createdb -U jheliz "$NEW_DB"
               $COMPOSE exec -T db pg_dump -U jheliz -d "$OLD_DB" --format=custom --no-owner --no-privileges | $COMPOSE exec -T db pg_restore -U jheliz -d "$NEW_DB" --no-owner --no-privileges
@@ -88,7 +93,12 @@ jobs:
                 AND NOT EXISTS (SELECT 1 FROM gestion_subscription s WHERE s.owner_id = u.id);
             DELETE FROM django_admin_log WHERE user_id IN (SELECT id FROM users_to_remove);
             UPDATE auditlog_logentry SET actor_id = NULL WHERE actor_id IN (SELECT id FROM users_to_remove);
-            UPDATE accounts_securityevent SET user_id = NULL WHERE user_id IN (SELECT id FROM users_to_remove);
+            DO $$
+            BEGIN
+              IF to_regclass('public.accounts_securityevent') IS NOT NULL THEN
+                EXECUTE 'UPDATE accounts_securityevent SET user_id = NULL WHERE user_id IN (SELECT id FROM users_to_remove)';
+              END IF;
+            END $$;
             DELETE FROM accounts_user_groups WHERE user_id IN (SELECT id FROM users_to_remove);
             DELETE FROM accounts_user_user_permissions WHERE user_id IN (SELECT id FROM users_to_remove);
             DELETE FROM accounts_user WHERE id IN (SELECT id FROM users_to_remove);
