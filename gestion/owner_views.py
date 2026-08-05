@@ -28,11 +28,14 @@ from .models import (
 
 
 def owner_required(view):
-    """Exige sesión iniciada de un usuario **staff** (el dueño)."""
+    """Exige el permiso global explícito del dueño de la plataforma."""
 
     @wraps(view)
     def _wrapped(request, *args, **kwargs):
-        if not (request.user.is_authenticated and request.user.is_staff):
+        if not (
+            request.user.is_authenticated
+            and request.user.has_perm("gestion.manage_tenants")
+        ):
             return redirect("jheliztv_control_login")
         return view(request, *args, **kwargs)
 
@@ -40,13 +43,13 @@ def owner_required(view):
 
 
 def control_login(request):
-    if request.user.is_authenticated and request.user.is_staff:
+    if request.user.is_authenticated and request.user.has_perm("gestion.manage_tenants"):
         return redirect("jheliztv_control_dashboard")
     if request.method == "POST":
         username = (request.POST.get("username") or "").strip()
         password = request.POST.get("password") or ""
         user = authenticate(request, username=username, password=password)
-        if user is None or not user.is_staff:
+        if user is None or not user.has_perm("gestion.manage_tenants"):
             messages.error(request, "Acceso solo para el administrador.")
             return render(request, "jheliztv/control/login.html", {"username": username})
         login(request, user)
