@@ -1,0 +1,84 @@
+name: VPS separation inventory
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: vps-separation
+  cancel-in-progress: false
+
+jobs:
+  inventory-and-backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Inventory and recoverable backup
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script_stop: true
+          envs: VPS_PROJECT_PATH
+          script: |
+            set -euo pipefail
+            PROJECT_PATH="${VPS_PROJECT_PATH:-/srv/jheliz}"
+            COMPOSE="docker compose -p jheliz -f docker-compose.yml -f docker-compose.control-alerts.yml"
+            cd "$PROJECT_PATH"
+
+            echo "=== HOST / RELEASE ==="
+            hostname
+            git rev-parse HEAD
+            $COMPOSE ps
+
+            echo "=== DATABASES ==="
+            $COMPOSE exec -T db psql -U jheliz -d postgres -Atc \
+              "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"
+
+            echo "=== JHELIZCONTROLTV DATA COUNTS ==="
+            $COMPOSE exec -T db psql -U jheliz -d jheliz -Atc \
+              "SELECT 'tenants=' || count(*) FROM gestion_tenant
+               UNION ALL SELECT 'clients=' || count(*) FROM gestion_client
+               UNION ALL SELECT 'services=' || count(*) FROM gestion_service
+               UNION ALL SELECT 'subscriptions=' || count(*) FROM gestion_subscription
+               UNION ALL SELECT 'stock_emails=' || count(*) FROM gestion_stockemail
+               UNION ALL SELECT 'tenant_payments=' || count(*) FROM gestion_tenantpayment;"
+
+            echo "=== STORE DATA COUNTS ==="
+            $COMPOSE exec -T db psql -U jheliz -d jheliz -Atc \
+              "SELECT 'products=' || count(*) FROM catalog_product
+               UNION ALL SELECT 'orders=' || count(*) FROM orders_order
+               UNION ALL SELECT 'blog_posts=' || count(*) FROM blog_blogpost;"
+
+            echo "=== NGINX DOMAIN FILES ==="
+            grep -RIlE '(^|[[:space:]])(www\.)?virtualidadsp\.com([[:space:];]|$)|(^|[[:space:]])(www\.)?jheliztv\.xyz([[:space:];]|$)' \
+              /etc/nginx/sites-enabled /etc/nginx/sites-available 2>/dev/null || true
+            grep -RHnE 'server_name .*virtualidadsp\.com|server_name .*jheliztv\.xyz' \
+              /etc/nginx/sites-enabled /etc/nginx/sites-available 2>/dev/null || true
+
+            echo "=== TLS CERTIFICATE DIRECTORIES ==="
+            find /etc/letsencrypt/live -mindepth 1 -maxdepth 1 -type l -printf '%f\n' 2>/dev/null | sort || true
+
+            echo "=== CREATING RECOVERABLE BACKUP ==="
+            TS="$(date -u +%Y%m%dT%H%M%SZ)"
+            BACKUP_ROOT="$PROJECT_PATH/private_backups/domain-separation"
+            WORK="$BACKUP_ROOT/.work-$TS"
+            FINAL="$BACKUP_ROOT/pre-separation-$TS.tar.gz"
+            umask 077
+            mkdir -p "$WORK"
+            $COMPOSE exec -T db pg_dump -U jheliz -d jheliz \
+              --format=custom --no-owner --no-privileges > "$WORK/database.dump"
+            tar -czf "$WORK/media.tar.gz" media private_media 2>/dev/null || true
+            cp .env "$WORK/dotenv"
+            cp -a /etc/nginx/sites-enabled "$WORK/nginx-sites-enabled" 2>/dev/null || true
+            cp -a /etc/nginx/sites-available "$WORK/nginx-sites-available" 2>/dev/null || true
+            git rev-parse HEAD > "$WORK/git-head.txt"
+            tar -czf "$FINAL" -C "$WORK" .
+            rm -rf "$WORK"
+            sha256sum "$FINAL"
+            test -s "$FINAL"
+            echo "BACKUP_PATH=$FINAL"
+            echo "BACKUP_BYTES=$(wc -c < "$FINAL")"
+        env:
+          VPS_PROJECT_PATH: ${{ vars.VPS_PROJECT_PATH }}
