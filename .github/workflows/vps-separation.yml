@@ -42,6 +42,12 @@ jobs:
             echo "=== STORE DATA COUNTS ==="
             $COMPOSE exec -T db psql -U jheliz -d jheliz -Atc "SELECT 'products=' || count(*) FROM catalog_product UNION ALL SELECT 'orders=' || count(*) FROM orders_order UNION ALL SELECT 'blog_posts=' || count(*) FROM blog_blogpost;"
 
+            echo "=== USER CLASSIFICATION ==="
+            $COMPOSE exec -T db psql -U jheliz -d jheliz -Atc "SELECT 'users_total=' || count(*) FROM accounts_user UNION ALL SELECT 'tenant_users=' || count(DISTINCT user_id) FROM gestion_tenant UNION ALL SELECT 'staff_users=' || count(*) FROM accounts_user WHERE is_staff OR is_superuser UNION ALL SELECT 'users_not_tenant_or_staff=' || count(*) FROM accounts_user u WHERE NOT (u.is_staff OR u.is_superuser) AND NOT EXISTS (SELECT 1 FROM gestion_tenant t WHERE t.user_id=u.id);"
+
+            echo "=== CROSS-MODULE FOREIGN KEYS INTO GESTION ==="
+            $COMPOSE exec -T db psql -U jheliz -d jheliz -Atc "SELECT conrelid::regclass || ' -> ' || confrelid::regclass FROM pg_constraint WHERE contype='f' AND ((conrelid::regclass::text LIKE 'gestion_%' AND confrelid::regclass::text NOT LIKE 'gestion_%') OR (confrelid::regclass::text LIKE 'gestion_%' AND conrelid::regclass::text NOT LIKE 'gestion_%')) ORDER BY 1;"
+
             echo "=== NGINX DOMAIN FILES ==="
             grep -RIlE '(^|[[:space:]])(www\.)?virtualidadsp\.com([[:space:];]|$)|(^|[[:space:]])(www\.)?jheliztv\.xyz([[:space:];]|$)' \
               /etc/nginx/sites-enabled /etc/nginx/sites-available 2>/dev/null || true
