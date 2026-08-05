@@ -69,12 +69,16 @@ jobs:
             # gunicorn no arranca, el container no llega a `healthy` y `up --wait`
             # devuelve no-cero — lo que hace que este step (con `set -e`) aborte
             # el workflow y la run quede roja en GitHub Actions.
-            docker compose pull || true
-            if ! docker compose up -d --build --wait --wait-timeout 240; then
+            # Mantener el nombre de proyecto usado históricamente en producción
+            # es crítico: de él dependen los nombres de los contenedores y,
+            # especialmente, el volumen persistente de PostgreSQL.
+            COMPOSE="docker compose -p jheliz -f docker-compose.yml -f docker-compose.control-alerts.yml"
+            $COMPOSE pull || true
+            if ! $COMPOSE up -d --build --wait --wait-timeout 240; then
               echo "✗ Deploy abortado: web no llegó a estado healthy."
-              docker compose ps
+              $COMPOSE ps
               echo "--- logs de web (últimas 80 líneas) ---"
-              docker compose logs --tail=80 web || true
+              $COMPOSE logs --tail=80 web || true
               exit 1
             fi
 
@@ -84,16 +88,16 @@ jobs:
             # servicio con perfil, compose lo levanta igual. --no-deps evita volver
             # a tocar `web`; --force-recreate garantiza que tome el código nuevo.
             echo "→ Reconstruyendo el bot de códigos (codes_bot)..."
-            if ! docker compose up -d --build --no-deps --force-recreate codes_bot; then
+            if ! $COMPOSE up -d --build --no-deps --force-recreate codes_bot; then
               echo "✗ Falló el rebuild de codes_bot."
-              docker compose logs --tail=50 codes_bot || true
+              $COMPOSE logs --tail=50 codes_bot || true
               exit 1
             fi
 
             echo "→ Smoke test público..."
             if ! curl -fsS -o /dev/null --max-time 10 http://localhost:8000/; then
               echo "✗ Smoke test falló."
-              docker compose logs --tail=50 web || true
+              $COMPOSE logs --tail=50 web || true
               exit 1
             fi
 
