@@ -1,4 +1,8 @@
 services:
+  db:
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jheliz -d jheliz_control"]
+
   web:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings_jheliztv
@@ -10,3 +14,7 @@ services:
   whatsapp_scheduler:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings_jheliztv
+
+  backup:
+    environment:
+      POSTGRES_DB: jheliz_control
