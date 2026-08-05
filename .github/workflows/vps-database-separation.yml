@@ -1,0 +1,146 @@
+name: VPS database separation
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: Safe separation phase
+        required: true
+        type: choice
+        options:
+          - prepare
+          - switch
+          - drop-old
+
+concurrency:
+  group: vps-database-separation
+  cancel-in-progress: false
+
+jobs:
+  separate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Run separation phase
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script_stop: false
+          command_timeout: 20m
+          envs: VPS_PROJECT_PATH,SEPARATION_PHASE
+          script: |
+            set -euo pipefail
+            PROJECT_PATH="${VPS_PROJECT_PATH:-/opt/jheliz-web}"
+            COMPOSE="docker compose -p jheliz -f docker-compose.yml -f docker-compose.control-alerts.yml -f docker-compose.jheliztv.yml"
+            OLD_DB="jheliz"
+            NEW_DB="jheliz_control"
+            cd "$PROJECT_PATH"
+
+            db_exists() {
+              $COMPOSE exec -T db psql -U jheliz -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname='$1';" | grep -qx 1
+            }
+
+            if [ "$SEPARATION_PHASE" = "prepare" ]; then
+              echo "=== PREPARE ISOLATED DATABASE ==="
+              test -n "$(find "$PROJECT_PATH/private_backups/domain-separation" -maxdepth 1 -type f -name 'pre-separation-*.tar.gz' -size +0c -print -quit)"
+              if db_exists "$NEW_DB"; then
+                echo "ERROR: $NEW_DB already exists; refusing to overwrite it."
+                exit 1
+              fi
+              $COMPOSE exec -T db createdb -U jheliz "$NEW_DB"
+              $COMPOSE exec -T db pg_dump -U jheliz -d "$OLD_DB" --format=custom --no-owner --no-privileges | $COMPOSE exec -T db pg_restore -U jheliz -d "$NEW_DB" --no-owner --no-privileges
+
+              $COMPOSE exec -T db psql -v ON_ERROR_STOP=1 -U jheliz -d "$NEW_DB" <<'SQL'
+            DO $$
+            DECLARE item record;
+            BEGIN
+              FOR item IN
+                SELECT schemaname, tablename
+                FROM pg_tables
+                WHERE schemaname = 'public'
+                  AND (
+                    tablename LIKE 'catalog\_%' ESCAPE '\'
+                    OR tablename LIKE 'orders\_%' ESCAPE '\'
+                    OR tablename LIKE 'blog\_%' ESCAPE '\'
+                    OR tablename LIKE 'support\_%' ESCAPE '\'
+                    OR tablename LIKE 'livechat\_%' ESCAPE '\'
+                    OR tablename LIKE 'discord\_bot\_%' ESCAPE '\'
+                    OR tablename LIKE 'codes\_%' ESCAPE '\'
+                    OR (
+                      tablename LIKE 'accounts\_%' ESCAPE '\'
+                      AND tablename NOT IN ('accounts_user', 'accounts_securityevent', 'accounts_user_groups', 'accounts_user_user_permissions')
+                    )
+                  )
+              LOOP
+                EXECUTE format('TRUNCATE TABLE %I.%I CASCADE', item.schemaname, item.tablename);
+              END LOOP;
+            END $$;
+
+            CREATE TEMP TABLE users_to_remove AS
+              SELECT id FROM accounts_user u
+              WHERE NOT (u.is_staff OR u.is_superuser)
+                AND NOT EXISTS (SELECT 1 FROM gestion_tenant t WHERE t.user_id = u.id)
+                AND NOT EXISTS (SELECT 1 FROM gestion_client c WHERE c.owner_id = u.id)
+                AND NOT EXISTS (SELECT 1 FROM gestion_service s WHERE s.owner_id = u.id)
+                AND NOT EXISTS (SELECT 1 FROM gestion_subscription s WHERE s.owner_id = u.id);
+            DELETE FROM django_admin_log WHERE user_id IN (SELECT id FROM users_to_remove);
+            UPDATE auditlog_logentry SET actor_id = NULL WHERE actor_id IN (SELECT id FROM users_to_remove);
+            UPDATE accounts_securityevent SET user_id = NULL WHERE user_id IN (SELECT id FROM users_to_remove);
+            DELETE FROM accounts_user_groups WHERE user_id IN (SELECT id FROM users_to_remove);
+            DELETE FROM accounts_user_user_permissions WHERE user_id IN (SELECT id FROM users_to_remove);
+            DELETE FROM accounts_user WHERE id IN (SELECT id FROM users_to_remove);
+            SQL
+
+              OLD_COUNTS="$($COMPOSE exec -T db psql -U jheliz -d "$OLD_DB" -Atc "SELECT count(*) || ':' || (SELECT count(*) FROM gestion_client) || ':' || (SELECT count(*) FROM gestion_subscription) FROM gestion_tenant;")"
+              NEW_COUNTS="$($COMPOSE exec -T db psql -U jheliz -d "$NEW_DB" -Atc "SELECT count(*) || ':' || (SELECT count(*) FROM gestion_client) || ':' || (SELECT count(*) FROM gestion_subscription) FROM gestion_tenant;")"
+              test "$OLD_COUNTS" = "$NEW_COUNTS"
+              STORE_ROWS="$($COMPOSE exec -T db psql -U jheliz -d "$NEW_DB" -Atc "SELECT (SELECT count(*) FROM catalog_product) + (SELECT count(*) FROM orders_order) + (SELECT count(*) FROM blog_blogpost);")"
+              test "$STORE_ROWS" = "0"
+              echo "PRESERVED_COUNTS=$NEW_COUNTS"
+              echo "STORE_ROWS=$STORE_ROWS"
+              echo "PREPARE_OK"
+
+            elif [ "$SEPARATION_PHASE" = "switch" ]; then
+              echo "=== SWITCH APPLICATION TO ISOLATED DATABASE ==="
+              db_exists "$NEW_DB"
+              TS="$(date -u +%Y%m%dT%H%M%SZ)"
+              cp -a .env ".env.pre-db-switch-$TS"
+              python3 -c "from pathlib import Path; from urllib.parse import urlsplit,urlunsplit; p=Path('.env'); lines=p.read_text().splitlines(); out=[]; found=False
+            for line in lines:
+             if line.startswith('DATABASE_URL='):
+              key,value=line.split('=',1); u=urlsplit(value); line=key+'='+urlunsplit((u.scheme,u.netloc,'/jheliz_control',u.query,u.fragment)); found=True
+             out.append(line)
+            assert found, 'DATABASE_URL missing'; p.write_text('\\n'.join(out)+'\\n')"
+              if ! $COMPOSE up -d --build --force-recreate --wait --wait-timeout 240 web control_alerts_bot whatsapp_scheduler; then
+                cp ".env.pre-db-switch-$TS" .env
+                $COMPOSE up -d --force-recreate web control_alerts_bot whatsapp_scheduler
+                echo "ERROR: switch failed; old .env restored."
+                exit 1
+              fi
+              ACTIVE_DB="$($COMPOSE exec -T web python manage.py shell -c "from django.db import connection; print(connection.settings_dict['NAME'])" | tail -1)"
+              test "$ACTIVE_DB" = "$NEW_DB"
+              curl -fsS -o /dev/null --max-time 15 -H 'Host: jheliztv.xyz' http://127.0.0.1:8000/
+              $COMPOSE stop codes_bot 2>/dev/null || true
+              $COMPOSE rm -f codes_bot 2>/dev/null || true
+              echo "ACTIVE_DB=$ACTIVE_DB"
+              echo "SWITCH_OK"
+
+            elif [ "$SEPARATION_PHASE" = "drop-old" ]; then
+              echo "=== DROP RETIRED STORE DATABASE ==="
+              ACTIVE_DB="$($COMPOSE exec -T web python manage.py shell -c "from django.db import connection; print(connection.settings_dict['NAME'])" | tail -1)"
+              test "$ACTIVE_DB" = "$NEW_DB"
+              test "$($COMPOSE exec -T db psql -U jheliz -d "$NEW_DB" -Atc 'SELECT count(*) FROM gestion_tenant;')" -ge 13
+              $COMPOSE exec -T db dropdb -U jheliz --force "$OLD_DB"
+              ! db_exists "$OLD_DB"
+              echo "OLD_DATABASE_REMOVED=$OLD_DB"
+              echo "DROP_OLD_OK"
+            else
+              echo "Unknown phase: $SEPARATION_PHASE"
+              exit 2
+            fi
+        env:
+          VPS_PROJECT_PATH: ${{ vars.VPS_PROJECT_PATH }}
+          SEPARATION_PHASE: ${{ inputs.phase }}
