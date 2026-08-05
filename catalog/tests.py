@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from catalog.admin import StockItemAdmin
+from config.date_utils import add_service_duration
 from catalog.models import (
     Category,
     Plan,
@@ -1244,8 +1245,12 @@ class CuentasEditBuyerTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         oi = OrderItem.objects.get(pk=self.oi.pk)
         self.assertIsNotNone(oi.expires_at)
-        # Vence = fecha de venta + duración del plan (30 días).
-        self.assertEqual((oi.expires_at - oi.order.paid_at).days, self.plan.duration_days)
+        # Los bloques de 30 días son meses comerciales y conservan el día
+        # calendario, por lo que pueden abarcar 28–31 días reales.
+        self.assertEqual(
+            oi.expires_at,
+            add_service_duration(oi.order.paid_at, self.plan.duration_days),
+        )
 
     def test_backfill_migration_fills_expiry_on_old_sales(self):
         """La migración de backfill calcula el vencimiento de ventas viejas."""
@@ -1429,10 +1434,11 @@ class CuentasEditBuyerTests(TestCase):
         self.assertEqual(oi.product_name, self.product.name)
         self.assertEqual(oi.plan_name, self.plan.name)
         self.assertEqual(oi.quantity, 1)
-        # El vencimiento se calcula igual que en la web: fecha + duración del plan.
+        # El vencimiento se calcula igual que en la web (mes comercial).
         self.assertIsNotNone(oi.expires_at)
         self.assertEqual(
-            (oi.expires_at - oi.order.paid_at).days, self.plan.duration_days,
+            oi.expires_at,
+            add_service_duration(oi.order.paid_at, self.plan.duration_days),
         )
 
         # Order queda como canal web (se ve igual que una compra normal) + delivered

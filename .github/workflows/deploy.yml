@@ -1,8 +1,9 @@
 name: Deploy to VPS
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
   workflow_dispatch: {}
 
 concurrency:
@@ -14,6 +15,10 @@ jobs:
     name: SSH + git pull + docker compose
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
 
     steps:
       - name: Deploy via SSH
@@ -25,7 +30,7 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           script_stop: true
           # Forwardea estos env vars al shell remoto; se usan en el script.
-          envs: VPS_PROJECT_PATH,MERCADOPAGO_WEBHOOK_SECRET,NGINX_CONF_SYNC,NGINX_CONF_PATH
+          envs: VPS_PROJECT_PATH,MERCADOPAGO_WEBHOOK_SECRET,NGINX_CONF_SYNC,NGINX_CONF_PATH,EXPECTED_SHA
           script: |
             set -euo pipefail
             PROJECT_PATH="${VPS_PROJECT_PATH:-/srv/jheliz}"
@@ -50,6 +55,10 @@ jobs:
 
             echo "→ Pulling latest from main..."
             git fetch --all --prune
+            if [ -n "${EXPECTED_SHA:-}" ] && [ "$(git rev-parse origin/main)" != "$EXPECTED_SHA" ]; then
+              echo "→ origin/main avanzó después del commit validado; la siguiente ejecución de CI hará el deploy."
+              exit 0
+            fi
             git checkout main
             git pull --ff-only origin main
 
@@ -158,3 +167,4 @@ jobs:
           NGINX_CONF_SYNC: "false"
           NGINX_CONF_PATH: ${{ vars.NGINX_CONF_PATH }}
           MERCADOPAGO_WEBHOOK_SECRET: ${{ secrets.MERCADOPAGO_WEBHOOK_SECRET }}
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha || '' }}

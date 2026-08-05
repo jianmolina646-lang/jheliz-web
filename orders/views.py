@@ -23,6 +23,31 @@ from .models import Coupon, Order, OrderItem, PaymentSettings
 
 logger = logging.getLogger(__name__)
 
+ORDER_ACCESS_SESSION_KEY = "order_access_uuids"
+
+
+def _remember_order_access(request, order: Order) -> None:
+    """Bind a newly created guest order to the current browser session."""
+    allowed = list(request.session.get(ORDER_ACCESS_SESSION_KEY, []))
+    value = str(order.uuid)
+    if value not in allowed:
+        allowed.append(value)
+    # Keep the session bounded even on shared sales terminals.
+    request.session[ORDER_ACCESS_SESSION_KEY] = allowed[-20:]
+
+
+def _order_access_denied(request, order: Order):
+    """Return a response when this user/session cannot view or mutate an order."""
+    if request.user.is_authenticated:
+        if request.user.is_staff or order.user_id == request.user.id:
+            return None
+        raise Http404
+    if str(order.uuid) in request.session.get(ORDER_ACCESS_SESSION_KEY, []):
+        return None
+    if order.user_id:
+        return redirect("accounts:login")
+    raise Http404
+
 
 def _plan_from_request(request) -> Plan:
     plan_id = request.POST.get("plan_id") or request.GET.get("plan")
@@ -530,9 +555,9 @@ def bank_payment(request, uuid):
     order = get_object_or_404(Order, uuid=uuid)
     payment_settings = PaymentSettings.load()
 
-    if order.user_id and request.user.is_authenticated and order.user_id != request.user.id:
-        if not request.user.is_staff:
-            raise Http404
+    denied = _order_access_denied(request, order)
+    if denied:
+        return denied
 
     if order.status not in {Order.Status.PENDING, Order.Status.VERIFYING}:
         return redirect("orders:detail", uuid=order.uuid)
@@ -571,9 +596,9 @@ def binance_payment(request, uuid):
     order = get_object_or_404(Order, uuid=uuid)
     payment_settings = PaymentSettings.load()
 
-    if order.user_id and request.user.is_authenticated and order.user_id != request.user.id:
-        if not request.user.is_staff:
-            raise Http404
+    denied = _order_access_denied(request, order)
+    if denied:
+        return denied
 
     if order.status not in {Order.Status.PENDING, Order.Status.VERIFYING}:
         return redirect("orders:detail", uuid=order.uuid)
@@ -701,28 +726,24 @@ def _create_order_from_cart(request, cart: Cart, contact: dict) -> Order:
             order.combo_discount_amount = combo
             order.save(update_fields=["combo_discount_amount"])
         order.recompute_total()
+    _remember_order_access(request, order)
     return order
 
 
 def order_detail(request, uuid):
     order = get_object_or_404(Order, uuid=uuid)
-    # Si el pedido tiene due\u00f1o autenticado, requerir login y match.
-    if order.user_id:
-        if not request.user.is_authenticated:
-            return redirect("accounts:login")
-        if order.user_id != request.user.id and not request.user.is_staff:
-            raise Http404
+    denied = _order_access_denied(request, order)
+    if denied:
+        return denied
     return render(request, "orders/detail.html", {"order": order})
 
 
 def order_receipt_pdf(request, uuid):
     """Descarga directa del recibo PDF del pedido (no oficial SUNAT)."""
     order = get_object_or_404(Order, uuid=uuid)
-    if order.user_id:
-        if not request.user.is_authenticated:
-            return redirect("accounts:login")
-        if order.user_id != request.user.id and not request.user.is_staff:
-            raise Http404
+    denied = _order_access_denied(request, order)
+    if denied:
+        return denied
     from .receipts import generate_receipt_pdf, receipt_filename
     pdf_bytes = generate_receipt_pdf(order)
     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
@@ -733,6 +754,9 @@ def order_receipt_pdf(request, uuid):
 def checkout_return(request, uuid):
     """Pantalla a la que vuelve el cliente desde Mercado Pago."""
     order = get_object_or_404(Order, uuid=uuid)
+    denied = _order_access_denied(request, order)
+    if denied:
+        return denied
     mp_status = request.GET.get("status") or request.GET.get("collection_status") or ""
     return render(request, "orders/checkout_return.html", {
         "order": order,
@@ -767,10 +791,13 @@ def mercadopago_webhook(request):
                 request.headers.get("x-request-id", ""),
             )
             return HttpResponse(status=401)
+    elif not settings.DEBUG:
+        logger.error("MERCADOPAGO_WEBHOOK_SECRET no configurado en producción")
+        return HttpResponse(status=503)
     else:
         logger.warning(
             "MERCADOPAGO_WEBHOOK_SECRET no configurado — "
-            "el webhook de Mercado Pago acepta cualquier POST."
+            "se acepta el POST únicamente porque DEBUG=True."
         )
 
     try:

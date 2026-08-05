@@ -20,7 +20,9 @@ services:
       # que collectstatic escriba en un directorio distinto al publicado.
       - ${STATICFILES_DIR:-./staticfiles}:/app/staticfiles
     ports:
-      - "8000:8000"
+      # Solo Nginx del host debe alcanzar Gunicorn. Publicar en 0.0.0.0
+      # expone Django directamente y permite saltarse TLS/UFW.
+      - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -36,7 +38,7 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: jheliz
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jheliz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_PASSWORD_FILE: ${POSTGRES_PASSWORD_FILE:-}
       POSTGRES_DB: jheliz
     volumes:
@@ -106,7 +108,7 @@ services:
     env_file: .env
     environment:
       POSTGRES_USER: jheliz
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jheliz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_DB: jheliz
       MEGA_FOLDER: ${MEGA_FOLDER:-/JhelizControlBackups}
       BACKUP_DAILY_KEEP_DAYS: ${BACKUP_DAILY_KEEP_DAYS:-30}

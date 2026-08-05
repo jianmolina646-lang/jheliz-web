@@ -335,12 +335,9 @@ class MercadoPagoWebhookViewTests(TestCase):
 
 @override_settings(MERCADOPAGO_WEBHOOK_SECRET="")
 class MercadoPagoWebhookFallbackTests(TestCase):
-    """Si el secreto no está configurado, el webhook acepta sin verificar
-    pero loguea un warning. Ese fallback existe para no romper el flujo de
-    pagos durante el rollout — el operador completa el setup del secreto y
-    en el próximo deploy se activa la verificación automáticamente.
-    """
+    """El fallback sin firma sólo se permite explícitamente en desarrollo."""
 
+    @override_settings(DEBUG=True)
     def test_unsigned_request_passes_through_when_secret_missing(self):
         with _patch.object(
             mercadopago_client, "fetch_payment",
@@ -353,6 +350,50 @@ class MercadoPagoWebhookFallbackTests(TestCase):
             )
         self.assertEqual(resp.status_code, 200)
         mocked.assert_called_once_with("PAY-1")
+
+    @override_settings(DEBUG=False)
+    def test_unsigned_request_is_disabled_in_production(self):
+        with _patch.object(mercadopago_client, "fetch_payment") as mocked:
+            resp = self.client.post(
+                "/pedidos/webhooks/mercadopago/?data.id=PAY-1",
+                data='{"data": {"id": "PAY-1"}}',
+                content_type="application/json",
+            )
+        self.assertEqual(resp.status_code, 503)
+        mocked.assert_not_called()
+
+
+class OrderAccessTests(TestCase):
+    def setUp(self):
+        self.owner = get_user_model().objects.create_user(
+            username="order-owner", password="x", email="owner@example.com",
+        )
+        self.order = Order.objects.create(
+            user=self.owner, email=self.owner.email, total=Decimal("10.00"),
+        )
+        self.detail_url = reverse("orders:detail", args=[self.order.uuid])
+        self.bank_url = reverse("orders:bank_payment", args=[self.order.uuid])
+
+    def test_anonymous_without_checkout_session_must_login(self):
+        self.assertEqual(self.client.get(self.detail_url).status_code, 302)
+        self.assertEqual(self.client.get(self.bank_url).status_code, 302)
+
+    def test_checkout_session_can_access_its_order(self):
+        from orders.views import ORDER_ACCESS_SESSION_KEY
+
+        session = self.client.session
+        session[ORDER_ACCESS_SESSION_KEY] = [str(self.order.uuid)]
+        session.save()
+        self.assertEqual(self.client.get(self.detail_url).status_code, 200)
+        self.assertEqual(self.client.get(self.bank_url).status_code, 200)
+
+    def test_other_authenticated_user_gets_not_found(self):
+        other = get_user_model().objects.create_user(
+            username="other-order-user", password="x",
+        )
+        self.client.force_login(other)
+        self.assertEqual(self.client.get(self.detail_url).status_code, 404)
+        self.assertEqual(self.client.get(self.bank_url).status_code, 404)
 
 
 # ----- PR D -----
