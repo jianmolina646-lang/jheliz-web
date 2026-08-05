@@ -880,6 +880,9 @@ class Tenant(models.Model):
         verbose_name = "Inquilino"
         verbose_name_plural = "Inquilinos"
         ordering = ["-created_at"]
+        permissions = [
+            ("manage_tenants", "Puede administrar todos los inquilinos y sus pagos"),
+        ]
 
     def __str__(self) -> str:
         return self.business_name or self.user.get_username()

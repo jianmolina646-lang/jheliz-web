@@ -626,6 +626,19 @@ class OwnerControlPanelTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Acceso solo para el administrador")
 
+    def test_staff_without_owner_permission_cannot_access_control(self):
+        U = get_user_model()
+        staff = U.objects.create_user("limited-staff", password="pw", is_staff=True)
+        self.client.force_login(staff)
+
+        response = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
+
+        self.assertRedirects(
+            response,
+            self.CONTROL_LOGIN,
+            fetch_redirect_response=False,
+        )
+
     def test_staff_sees_registered_tenants(self):
         self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
         r = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
