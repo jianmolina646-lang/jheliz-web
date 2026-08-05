@@ -37,19 +37,10 @@ jobs:
               "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"
 
             echo "=== JHELIZCONTROLTV DATA COUNTS ==="
-            $COMPOSE exec -T db psql -U jheliz -d jheliz -Atc \
-              "SELECT 'tenants=' || count(*) FROM gestion_tenant
-               UNION ALL SELECT 'clients=' || count(*) FROM gestion_client
-               UNION ALL SELECT 'services=' || count(*) FROM gestion_service
-               UNION ALL SELECT 'subscriptions=' || count(*) FROM gestion_subscription
-               UNION ALL SELECT 'stock_emails=' || count(*) FROM gestion_stockemail
-               UNION ALL SELECT 'tenant_payments=' || count(*) FROM gestion_tenantpayment;"
+            $COMPOSE exec -T db psql -U jheliz -d jheliz -Atc "SELECT 'tenants=' || count(*) FROM gestion_tenant UNION ALL SELECT 'clients=' || count(*) FROM gestion_client UNION ALL SELECT 'services=' || count(*) FROM gestion_service UNION ALL SELECT 'subscriptions=' || count(*) FROM gestion_subscription UNION ALL SELECT 'stock_emails=' || count(*) FROM gestion_stockemail UNION ALL SELECT 'tenant_payments=' || count(*) FROM gestion_tenantpayment;"
 
             echo "=== STORE DATA COUNTS ==="
-            $COMPOSE exec -T db psql -U jheliz -d jheliz -Atc \
-              "SELECT 'products=' || count(*) FROM catalog_product
-               UNION ALL SELECT 'orders=' || count(*) FROM orders_order
-               UNION ALL SELECT 'blog_posts=' || count(*) FROM blog_blogpost;"
+            $COMPOSE exec -T db psql -U jheliz -d jheliz -Atc "SELECT 'products=' || count(*) FROM catalog_product UNION ALL SELECT 'orders=' || count(*) FROM orders_order UNION ALL SELECT 'blog_posts=' || count(*) FROM blog_blogpost;"
 
             echo "=== NGINX DOMAIN FILES ==="
             grep -RIlE '(^|[[:space:]])(www\.)?virtualidadsp\.com([[:space:];]|$)|(^|[[:space:]])(www\.)?jheliztv\.xyz([[:space:];]|$)' \
