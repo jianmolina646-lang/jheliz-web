@@ -288,40 +288,7 @@ def reports_export_csv(request):
 # Top customers / Clientes valiosos (#9)
 # ---------------------------------------------------------------------------
 
-@staff_member_required
-def top_customers_view(request):
-    from accounts.models import User
-    from orders.models import Order
-
-    paid_statuses = (
-        Order.Status.PAID, Order.Status.PREPARING, Order.Status.DELIVERED,
-    )
-
-    from django.db.models import Q
-
-    customers = (
-        User.objects.annotate(
-            orders_count=Count(
-                "orders", filter=Q(orders__status__in=paid_statuses), distinct=True,
-            ),
-            total_spent=Sum(
-                "orders__total", filter=Q(orders__status__in=paid_statuses),
-            ),
-            last_order_at=Max(
-                "orders__paid_at", filter=Q(orders__status__in=paid_statuses),
-            ),
-        )
-        .filter(orders_count__gt=0)
-        .order_by("-total_spent")[:50]
-    )
-
-    ctx = _admin_context(
-        request,
-        title="Clientes valiosos",
-        customers=list(customers),
-        currency_symbol=settings.DEFAULT_CURRENCY_SYMBOL,
-    )
-    return render(request, "admin/top_customers.html", ctx)
+from config.admin.top_customers import top_customers_view
 
 
 from config.admin.health import (
