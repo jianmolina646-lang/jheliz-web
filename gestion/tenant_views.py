@@ -66,6 +66,7 @@ from .models import (
 from .whatsapp import MetaAPIError, finish_signup, process_webhook, verify_signature
 from .views import _decorate_subs  # reuso de helpers
 from .support_operations import add_message as add_support_message, set_status as set_support_status
+from accounts.security_events import record_security_event
 
 User = get_user_model()
 
@@ -1470,9 +1471,11 @@ def whatsapp_webhook(request):
     if request.method != "POST":
         return HttpResponse(status=405)
     if not verify_signature(request.body, request.headers.get("X-Hub-Signature-256", "")):
+        record_security_event("webhook.meta_invalid_signature", request=request, severity="critical", alert=True)
         return HttpResponse("Firma invalida", status=403)
     try:
         process_webhook(json.loads(request.body))
     except (ValueError, TypeError):
+        record_security_event("webhook.meta_bad_payload", request=request, severity="warning")
         return HttpResponse("JSON invalido", status=400)
     return HttpResponse("EVENT_RECEIVED")

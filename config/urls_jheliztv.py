@@ -15,6 +15,11 @@ from django.http import HttpResponseNotFound
 from django.views.static import serve as static_serve
 from django.views.generic import RedirectView
 
+from gestion import seo_views
+
+
+handler404 = "gestion.seo_views.page_not_found"
+
 
 def _private_media(request, path=""):
     return HttpResponseNotFound()
@@ -28,6 +33,8 @@ urlpatterns = [
         ),
         name="jheliztv_favicon",
     ),
+    path("robots.txt", seo_views.robots_txt, name="jheliztv_robots"),
+    path("sitemap.xml", seo_views.sitemap_xml, name="jheliztv_sitemap"),
     path("i18n/", include("django.conf.urls.i18n")),
     # Panel del dueño (solo staff): inquilinos + pagos de alquiler.
     path("control/", include("gestion.owner_urls")),

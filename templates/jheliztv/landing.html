@@ -1,14 +1,41 @@
 {% extends "jheliztv/public_base.html" %}
 {% load static %}
 
-{% block pb_title %}JHELIZ CONTROL TV — Gestión de suscripciones{% endblock %}
-{% block pb_meta_description %}Controla clientes, cuentas y renovaciones de tus servicios de streaming desde un solo panel. Recordatorios automáticos y métricas en tiempo real.{% endblock %}
+{% block pb_title %}JHELIZCONTROLTV | Gestión de suscripciones{% endblock %}
+{% block pb_meta_description %}Gestiona clientes, suscripciones, vencimientos y ganancias desde un solo panel con recordatorios por WhatsApp y Telegram.{% endblock %}
+{% block pb_robots %}index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1{% endblock %}
+{% block pb_canonical %}<link rel="canonical" href="https://jheliztv.xyz/">{% endblock %}
+{% block pb_og_title %}JHELIZCONTROLTV | Gestión de suscripciones{% endblock %}
+{% block pb_og_description %}Clientes, vencimientos, renovaciones y ganancias organizados en un solo panel para tu negocio de suscripciones.{% endblock %}
+{% block pb_og_url %}<meta property="og:url" content="https://jheliztv.xyz/">{% endblock %}
+{% block pb_twitter_title %}JHELIZCONTROLTV | Gestión de suscripciones{% endblock %}
+{% block pb_twitter_description %}Administra clientes, vencimientos, renovaciones y ganancias desde un solo panel.{% endblock %}
 {% block pb_extra_head %}
-  <meta property="og:title" content="JHELIZ CONTROL TV — Gestión de suscripciones">
-  <meta property="og:description" content="Panel todo-en-uno para administrar suscripciones de streaming: clientes, pagos, vencimientos y recordatorios.">
-  <meta property="og:type" content="website">
-  <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="{% static 'css/jheliz-landing.css' %}?v=lovable-v15-20260729">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://jheliztv.xyz/#organization",
+        "name": "JHELIZCONTROLTV",
+        "url": "https://jheliztv.xyz/",
+        "logo": "https://jheliztv.xyz{% static 'img/icon-512.png' %}"
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://jheliztv.xyz/#software",
+        "name": "JHELIZCONTROLTV",
+        "url": "https://jheliztv.xyz/",
+        "description": "Sistema de gestión de suscripciones para administrar clientes, vencimientos, renovaciones y ganancias.",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "publisher": {"@id": "https://jheliztv.xyz/#organization"}
+      }
+    ]
+  }
+  </script>
 {% endblock %}
 {% block pb_header %}{% endblock %}
 
@@ -56,7 +83,7 @@
     <section class="jl-hero" id="inicio">
       <div class="jl-container jl-hero__inner">
         <span class="jl-pill">Panel todo en uno</span>
-        <h1>Gestión de <span>suscripciones</span></h1>
+        <h1>Gestión de <span>suscripciones</span> para tu negocio</h1>
         <p>Controla clientes, cuentas, pagos y vencimientos de todos tus servicios de streaming desde un solo panel, con recordatorios automáticos y métricas en tiempo real.</p>
         <div class="jl-hero__actions">
           <a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">
@@ -198,5 +225,5 @@
 {% endblock %}
 
 {% block pb_scripts %}
-  <script src="{% static 'js/jheliz-landing.js' %}?v=lovable-v15-20260729"></script>
+  <script src="{% static 'js/jheliz-landing.js' %}?v=lovable-v15-20260729" defer></script>
 {% endblock %}

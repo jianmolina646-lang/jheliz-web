@@ -105,6 +105,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Expone actor/IP/request-id a signals de auditoría durante este request.
+    "config.request_context.SecurityRequestContextMiddleware",
     # django-otp debe ir DESPUÉS de AuthenticationMiddleware.
     "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -768,16 +770,12 @@ META_GRAPH_API_VERSION = config("META_GRAPH_API_VERSION", default="v23.0")
 # django-axes: bloqueo por intentos fallidos de login
 # ---------------------------------------------------------------------------
 #
-# IMPORTANTE: los defaults anteriores (3 intentos / 24h) eran demasiado
-# agresivos y bloqueaban a clientes que escribían mal su contraseña 2-3
-# veces. Ajustado a 30 intentos / 2 minutos — en la práctica un usuario
-# honesto NUNCA lo ve, pero queda un freno mínimo contra fuerza bruta
-# automatizada (y si llega a saltar, se destraba solo en 2 minutos).
-AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=30, cast=int)
+# Diez intentos por usuario+IP y una hora de enfriamiento frenan fuerza bruta
+# sin bloquear a todos los clientes que comparten una IP de operador/NAT.
+AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=10, cast=int)
 AXES_COOLOFF_TIME = config(
-    # Acepta horas en decimales (0.5 = 30 min, 0.0333 ≈ 2 min) para poder
-    # bajarlo sin migrar a otra unidad si más adelante hace falta.
-    "AXES_COOLOFF_TIME_HOURS", default=2.0 / 60.0, cast=float,
+    # Acepta horas en decimales (0.5 = 30 min).
+    "AXES_COOLOFF_TIME_HOURS", default=1.0, cast=float,
 )
 # Lockout sólo por (ip, username): un atacante que prueba varias contraseñas
 # del mismo usuario es lo único que queremos frenar. Así NO bloqueamos a
@@ -788,11 +786,40 @@ AXES_VERBOSE = False
 # Cuando un cliente "se desloguea" tras un login exitoso, NO debe quedar con
 # contador residual de intentos fallidos.
 AXES_RESET_ON_SUCCESS = True
+# Axes y nuestras alertas deben resolver exactamente la misma IP.
+AXES_CLIENT_IP_CALLABLE = "config.client_ip.axes_client_ip"
+
+# Sólo estos proxies pueden aportar X-Real-IP. El servicio web no está publicado
+# externamente (Docker lo enlaza a 127.0.0.1), por lo que estas redes son internas.
+TRUSTED_PROXY_NETWORKS = config(
+    "TRUSTED_PROXY_NETWORKS",
+    default="127.0.0.0/8,::1/128,172.16.0.0/12",
+    cast=Csv(),
+)
 
 # Notificaciones (email + Telegram) cuando alguien inicia sesión en el admin.
 # Útil para detectar rápido un acceso indebido — si recibes un correo de
 # login y no fuiste tú, sabés que tu password se filtró.
 ADMIN_LOGIN_NOTIFY = config("ADMIN_LOGIN_NOTIFY", default=True, cast=bool)
+SECURITY_EVENT_ALERTS = config("SECURITY_EVENT_ALERTS", default=True, cast=bool)
+
+# Logs estructurados y centralizables. Los SecurityEvent críticos también quedan
+# persistidos en PostgreSQL aunque el contenedor sea recreado.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "security": {"format": "%(asctime)s level=%(levelname)s logger=%(name)s message=%(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "security"},
+    },
+    "loggers": {
+        "security": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.security": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "axes": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
+}
 
 # ---------------------------------------------------------------------------
 # 2FA (django-otp)

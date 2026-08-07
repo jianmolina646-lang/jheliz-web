@@ -8,6 +8,7 @@ Control (landing + panel del inquilino). Cualquier otro host (la tienda) usa el
 from __future__ import annotations
 
 from django.conf import settings
+from django.http import HttpResponsePermanentRedirect
 
 
 class JheliztvHostMiddleware:
@@ -18,6 +19,10 @@ class JheliztvHostMiddleware:
 
     def __call__(self, request):
         host = request.get_host().split(":")[0].lower()
+        if host == "www.jheliztv.xyz":
+            return HttpResponsePermanentRedirect(
+                f"https://jheliztv.xyz{request.get_full_path()}"
+            )
         if host in self.hosts:
             request.urlconf = "config.urls_jheliztv"
             request.is_jheliztv = True

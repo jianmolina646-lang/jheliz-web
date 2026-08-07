@@ -30,6 +30,8 @@ from django.core.mail import send_mail
 from django.dispatch import receiver
 from django.utils import timezone
 
+from config.client_ip import get_client_ip
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,10 +72,7 @@ class HoneypotAdminAuthenticationForm(AdminAuthenticationForm):
         req = self.request
         if not req:
             return "?"
-        xff = req.META.get("HTTP_X_FORWARDED_FOR", "")
-        if xff:
-            return xff.split(",")[0].strip()
-        return req.META.get("REMOTE_ADDR", "?")
+        return get_client_ip(req) or "?"
 
     def _user_agent(self) -> str:
         req = self.request
@@ -88,12 +87,7 @@ class HoneypotAdminAuthenticationForm(AdminAuthenticationForm):
 
 
 def _client_ip(request) -> str:
-    if not request:
-        return "?"
-    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "?")
+    return get_client_ip(request) or "?"
 
 
 def _user_agent_short(request) -> str:

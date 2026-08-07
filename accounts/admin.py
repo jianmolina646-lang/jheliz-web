@@ -21,7 +21,29 @@ from .admin_helpers import (
     time_ago,
     user_card_cell,
 )
-from .models import Customer, Distributor, PushSubscription, Role, User, WalletRecharge, WalletTransaction
+from .models import Customer, Distributor, PushSubscription, Role, SecurityEvent, User, WalletRecharge, WalletTransaction
+
+
+@admin.register(SecurityEvent)
+class SecurityEventAdmin(ModelAdmin):
+    list_display = ("created_at", "severity", "event_type", "username", "ip_address", "path")
+    list_filter = ("severity", "event_type", "created_at")
+    search_fields = ("event_type", "username", "ip_address", "request_id", "path")
+    readonly_fields = (
+        "event_type", "severity", "actor", "username", "ip_address", "user_agent",
+        "path", "request_id", "metadata", "created_at",
+    )
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 VIRTUALIDADSP_FIELDSETS_EXTRA = (

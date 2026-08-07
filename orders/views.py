@@ -20,6 +20,7 @@ from . import emails, mercadopago_client, telegram
 from .cart import Cart
 from .forms import AddToCartForm, CheckoutForm, PaymentProofForm
 from .models import Coupon, Order, OrderItem, PaymentSettings
+from accounts.security_events import record_security_event
 
 logger = logging.getLogger(__name__)
 
@@ -650,9 +651,11 @@ def telegram_webhook(request, secret: str):
     expected = getattr(settings, "TELEGRAM_WEBHOOK_SECRET", "") or ""
     header = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
     if not expected or secret != expected or header != expected:
+        record_security_event("webhook.telegram_rejected", request=request, severity="warning")
         return HttpResponse(status=403)
     update = telegram.parse_update_payload(request.body)
     if not update:
+        record_security_event("webhook.telegram_bad_payload", request=request, severity="warning")
         return HttpResponse(status=400)
     try:
         telegram.process_update(update)
@@ -789,6 +792,10 @@ def mercadopago_webhook(request):
             logger.warning(
                 "MP webhook con firma inválida (request-id=%s)",
                 request.headers.get("x-request-id", ""),
+            )
+            record_security_event(
+                "webhook.mercadopago_invalid_signature", request=request, severity="critical",
+                metadata={"request_id": request.headers.get("x-request-id", "")[:100]}, alert=True,
             )
             return HttpResponse(status=401)
     elif not settings.DEBUG:

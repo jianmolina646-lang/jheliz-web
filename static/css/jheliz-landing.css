@@ -201,7 +201,7 @@
 .jl-dashboard-preview__chart i{display:flex;height:100%;flex:1;align-items:flex-end}
 .jl-dashboard-preview__chart i:before{content:"";width:100%;height:var(--bar);border-radius:6px;background:linear-gradient(180deg,color-mix(in oklab,var(--jl-brand) 85%,transparent),color-mix(in oklab,var(--jl-brand) 18%,transparent));transition:background 200ms}
 .jl-dashboard-preview__chart i:hover:before{background:var(--jl-brand)}
-.jl-features,.jl-subscriptions{position:relative;padding-block:64px}
+.jl-features,.jl-subscriptions{position:relative;padding-block:64px;content-visibility:auto;contain-intrinsic-size:auto 720px}
 .jl-section-heading{max-width:672px;margin-inline:auto;text-align:center}
 .jl-section-heading h2{margin:20px 0 0;font-size:24px;font-weight:800;letter-spacing:-.025em}
 .jl-section-heading p{margin:12px 0 0;color:var(--jl-muted-foreground);font-size:14px}

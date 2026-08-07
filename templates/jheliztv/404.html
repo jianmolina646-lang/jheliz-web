@@ -1,0 +1,15 @@
+{% extends "jheliztv/public_base.html" %}
+
+{% block pb_title %}Página no encontrada | JHELIZCONTROLTV{% endblock %}
+{% block pb_meta_description %}La página solicitada no existe o cambió de ubicación. Regresa al inicio de JHELIZCONTROLTV.{% endblock %}
+
+{% block pb_content %}
+<main class="pb-wrap" style="max-width:680px;padding-top:72px;padding-bottom:96px;text-align:center;">
+  <section class="pb-card" style="padding:48px 28px;" aria-labelledby="notFoundTitle">
+    <p style="margin:0;color:#059669;font-size:14px;font-weight:800;letter-spacing:.12em;">ERROR 404</p>
+    <h1 id="notFoundTitle" style="margin:10px 0 12px;color:#111827;font-size:clamp(30px,6vw,48px);">Página no encontrada</h1>
+    <p style="max-width:500px;margin:0 auto 26px;color:#6b7280;line-height:1.65;">La dirección que abriste no existe o fue movida. Puedes volver al inicio para conocer JHELIZCONTROLTV.</p>
+    <a class="pb-btn pb-btn--primary" href="{% url 'jheliztv_landing' %}">Volver al inicio</a>
+  </section>
+</main>
+{% endblock %}

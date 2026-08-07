@@ -52,7 +52,7 @@
                   <a class="lv-service-card__link" href="{% url 'jheliztv_service_detail' svc.pk %}" aria-label="Abrir {{ svc.name }}">
                     <span class="lv-service-card__accent" aria-hidden="true"></span>
                     <div class="lv-service-card__media">
-                      {% if svc.image %}<img src="{{ svc.image.url }}" alt="{{ svc.name }}">
+                      {% if svc.image %}<img src="{{ svc.image.url }}" alt="Logo de {{ svc.name }}" loading="lazy" decoding="async">
                       {% elif svc.icon %}<div class="lv-service-card__placeholder"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
                       {% else %}<div class="lv-service-card__placeholder">{{ svc.name|first|upper }}</div>{% endif %}
                       <div class="lv-service-card__shade" aria-hidden="true"></div>
@@ -91,7 +91,7 @@
                 <a class="lv-service-card__link" href="{% url 'jheliztv_service_detail' svc.pk %}" aria-label="Abrir {{ svc.name }}">
                   <span class="lv-service-card__accent" aria-hidden="true"></span>
                   <div class="lv-service-card__media">
-                    {% if svc.image %}<img src="{{ svc.image.url }}" alt="{{ svc.name }}">
+                    {% if svc.image %}<img src="{{ svc.image.url }}" alt="Logo de {{ svc.name }}" loading="lazy" decoding="async">
                     {% elif svc.icon %}<div class="lv-service-card__placeholder"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
                     {% else %}<div class="lv-service-card__placeholder">{{ svc.name|first|upper }}</div>{% endif %}
                     <div class="lv-service-card__shade" aria-hidden="true"></div>
@@ -208,7 +208,7 @@
                     <small><span class="material-symbols-outlined" aria-hidden="true">image</span> PNG, JPG o SVG</small>
                   </div>
                   <div class="jc-service-add__upload-preview" data-jc-service-upload-preview hidden>
-                    <img alt="Vista previa del servicio" data-jc-service-preview-image>
+                    <img alt="Vista previa del servicio seleccionado" loading="lazy" decoding="async" data-jc-service-preview-image>
                     <strong data-jc-service-file-name></strong>
                     <small>Haz clic para cambiar</small>
                   </div>
