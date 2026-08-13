@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Inventario de cuentas · Jheliz Digital{% endblock %}
 {% block body %}
 <div class="app-shell accounts-page horizon-page">
@@ -7,7 +8,7 @@
     <header class="horizon-topbar">
       <div class="horizon-breadcrumb"><span>INVENTARIO</span><b>/</b><strong>CUENTAS</strong></div>
       <form class="horizon-global-search" method="get"><span>⌕</span><input name="q" value="{{ filters.q }}" placeholder="Buscar cuentas, correos o servicios…"></form>
-      <button class="horizon-sync" type="button">↻ <span>Sincronizar</span></button>
+      <button class="horizon-sync" type="button" data-sync-button><i aria-hidden="true">↻</i> <span>Sincronizar</span></button>
       <button class="horizon-bell" type="button" aria-label="Notificaciones">♧<i>{{ summary.renewing }}</i></button>
       <div class="horizon-user"><b>{{ request.user.username|first|upper }}</b><span><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>{{ request.user.get_role_display }}</small></span></div>
     </header>
@@ -25,3 +26,4 @@
   </main>
 </div>
 {% endblock %}
+{% block extra_head %}<script src="{% static 'js/accounts-page.js' %}?v=20260813-1" defer></script>{% endblock %}
