@@ -141,6 +141,111 @@
   .jh-cc-kpi--expiring .jh-cc-kpi__bar { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
   .jh-cc-kpi--expiring .jh-cc-kpi__watermark { color: #f59e0b; }
   .jh-cc-kpi--expiring.jh-cc-kpi--alert { border-color: rgba(245,158,11,.45); }
+
+  /* Design Horizon 2026 — port fiel del proyecto Lovable. */
+  .jh-cc-theme {
+    --dh-bg: #f7f8fb; --dh-surface: #fff; --dh-surface-2: #f4f5f8;
+    --dh-ink: #202332; --dh-muted: #777d8d; --dh-border: #e6e8ef;
+    --dh-primary: #6657d9; --dh-success: #269b72; --dh-info: #3187c8;
+    color: var(--dh-ink); padding: 24px 28px 40px; margin: -24px -28px -40px;
+    background:
+      radial-gradient(60% 45% at 8% 0%, rgba(151,100,230,.09), transparent 65%),
+      radial-gradient(45% 40% at 100% 5%, rgba(58,166,218,.08), transparent 62%),
+      var(--dh-bg);
+    font-family: "DM Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+  .jh-cc-theme .material-symbols-outlined { font-weight: 400; }
+  .jh-cc-hero {
+    overflow: visible; padding: 6px 0 2px; border: 0; border-radius: 0;
+    background: transparent; box-shadow: none; align-items: flex-end;
+  }
+  .jh-cc-hero__icon { display: none; }
+  .jh-cc-hero__eyebrow {
+    margin: 0 0 8px; padding: 0; border: 0; background: transparent;
+    color: var(--dh-primary); font-size: 11px; letter-spacing: .16em;
+  }
+  .jh-cc-hero__title {
+    color: var(--dh-ink); font-family: "Space Grotesk", Inter, sans-serif;
+    font-size: clamp(30px, 3vw, 36px); font-weight: 650; letter-spacing: -.035em;
+  }
+  .jh-cc-hero__subtitle { color: var(--dh-muted); margin-top: 7px; font-size: 14px; }
+  .jh-cc-hero__subtitle strong {
+    display: inline-flex; align-items: center; margin-left: 8px; padding: 5px 10px;
+    border-radius: 999px; background: rgba(38,155,114,.10); color: var(--dh-success);
+    font-size: 11px; font-weight: 700;
+  }
+  .jh-cc-hero__cta, .jh-cc-plat__add {
+    min-height: 40px; padding: 0 16px; border: 0; border-radius: 12px;
+    background: linear-gradient(135deg,#9266e5,#6557d9 56%,#388fd0);
+    color: #fff; box-shadow: 0 14px 30px -18px rgba(83,65,193,.75);
+  }
+  .jh-cc-kpi-grid { grid-template-columns: repeat(5,minmax(150px,1fr)); gap: 14px; }
+  .jh-cc-kpi {
+    min-height: 150px; padding: 16px; border-radius: 18px; background: var(--dh-surface);
+    border: 1px solid var(--dh-border); box-shadow: 0 1px 2px rgba(20,25,40,.03),0 14px 34px -24px rgba(30,35,55,.28);
+  }
+  .jh-cc-kpi:hover { border-color: rgba(102,87,217,.28); box-shadow: 0 24px 50px -30px rgba(78,62,160,.42); }
+  .jh-cc-kpi__watermark { top: 14px; right: 14px; width: 40px; height: 40px; opacity: 1; border-radius: 14px; }
+  .jh-cc-kpi__watermark .material-symbols-outlined { font-size: 20px; }
+  .jh-cc-kpi--platforms .jh-cc-kpi__watermark { background:#f0ebff; color:#715bd0; }
+  .jh-cc-kpi--available .jh-cc-kpi__watermark { background:#e9f7f1; color:#269b72; }
+  .jh-cc-kpi--sold .jh-cc-kpi__watermark { background:#eaf4fb; color:#3187c8; }
+  .jh-cc-kpi--defective .jh-cc-kpi__watermark { background:#fff0ed; color:#da6155; }
+  .jh-cc-kpi--expiring .jh-cc-kpi__watermark { background:#fff6df; color:#c48b22; }
+  .jh-cc-kpi__label { padding-right: 45px; color: var(--dh-muted); font-size: 11px; letter-spacing:.06em; }
+  .jh-cc-kpi__label-dot { display:none; }
+  .jh-cc-kpi__value { color:var(--dh-ink); font-size:32px; margin:22px 0 12px; }
+  .jh-cc-kpi__bar-wrap { background:#eef0f4; }
+  .jh-cc-kpi__meta { color:var(--dh-muted); }
+  .jh-cc-kpi__pct { background:var(--dh-surface-2); color:var(--dh-muted); }
+  .jh-cc-search, .jh-cc-filters {
+    background:var(--dh-surface)!important; border:1px solid var(--dh-border)!important;
+    box-shadow:0 1px 2px rgba(20,25,40,.03),0 14px 34px -26px rgba(30,35,55,.3);
+  }
+  .jh-cc-search { padding:7px 8px 7px 14px!important; border-radius:14px!important; }
+  .jh-cc-search__input { color:var(--dh-ink)!important; }
+  .jh-cc-search__input::placeholder { color:#989dab!important; }
+  .jh-cc-search__btn { height:40px; border-radius:11px!important; background:#202332!important; box-shadow:none!important; }
+  .jh-cc-filters { border-radius:17px!important; padding:13px!important; }
+  .jh-cc-filters__label { color:var(--dh-muted)!important; }
+  .jh-cc-filters__row[style] { border-color:var(--dh-border)!important; }
+  .jh-cc-fchip {
+    padding:8px 12px!important; border-radius:11px!important; background:var(--dh-surface-2)!important;
+    border:1px solid var(--dh-border)!important; color:var(--dh-muted)!important; box-shadow:none!important;
+  }
+  .jh-cc-fchip__count { background:#fff!important; color:#666c7c!important; }
+  .jh-cc-fchip--active { background:#202332!important; border-color:#202332!important; color:#fff!important; }
+  .jh-cc-fchip--active .jh-cc-fchip__count { background:rgba(255,255,255,.16)!important; color:#fff!important; }
+  .jh-cc-plat {
+    padding:16px 18px!important; border-radius:18px!important; background:var(--dh-surface)!important;
+    border:1px solid var(--dh-border)!important; box-shadow:0 1px 2px rgba(20,25,40,.03),0 16px 38px -28px rgba(30,35,55,.28);
+  }
+  .jh-cc-plat[open] { border-color:rgba(102,87,217,.24)!important; }
+  .jh-cc-plat__chev { background:var(--dh-surface-2)!important; color:var(--dh-muted)!important; }
+  .jh-cc-plat__avatar {
+    width:44px!important; height:44px!important; padding:7px; border-radius:15px!important;
+    background:#fff!important; border:1px solid var(--dh-border); box-shadow:0 8px 22px -16px rgba(20,25,40,.5)!important;
+  }
+  .jh-cc-plat__avatar img { width:100%; height:100%; object-fit:contain; border-radius:8px; }
+  .jh-cc-plat__name { color:var(--dh-ink)!important; font-size:15px!important; }
+  .jh-cc-plat__meta { color:var(--dh-muted)!important; }
+  .jh-cc-plat__stat { background:var(--dh-surface-2)!important; border-color:var(--dh-border)!important; }
+  .jh-cc-plat .jh2-table th { color:#8a8f9d!important; border-color:var(--dh-border)!important; }
+  .jh-cc-plat .jh2-table td { border-color:#edf0f4!important; color:var(--dh-ink); }
+  .jh-cc-plat .jh2-table tbody tr:hover { background:#fafaff!important; }
+  .jh-cc-cred__val,.jh-cc-cred__raw { color:#303544!important; }
+  .jh-cc-cred__row--pw .jh-cc-cred__val,.jh2-table__muted { color:#858b99!important; }
+  .jh-cc-tag { background:#f5f6f9!important; border-color:#e5e7ed!important; color:#4b5160!important; }
+  .jh-cc-tag--pin { background:#f1edff!important; border-color:#ded5ff!important; color:#6657d9!important; }
+  .jh-cc-act { background:#f6f7f9!important; border-color:#e5e7ed!important; color:#666d7c!important; }
+  .jh-cc-card { background:#fff!important; border-color:var(--dh-border)!important; box-shadow:0 12px 30px -25px rgba(25,30,45,.35); }
+  .jh-cc-card__account,.jh-cc-card__meta .jh-cc-card__row { color:#303544!important; }
+  @media (max-width:1100px) { .jh-cc-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media (max-width:767px) {
+    .jh-cc-theme{padding:18px 14px 32px;margin:-18px -14px -32px;}
+    .jh-cc-hero__cta{width:100%;justify-content:center}.jh-cc-kpi-grid{grid-template-columns:1fr 1fr}
+  }
+  @media (max-width:480px) { .jh-cc-kpi-grid{grid-template-columns:1fr}.jh-cc-hero__title{font-size:28px} }
 </style>
 
 <div class="flex flex-col gap-5 jh-cc-theme">
@@ -155,10 +260,10 @@
         <span class="material-symbols-outlined" style="font-size:13px;">layers</span>
         Inventario
       </div>
-      <h1 class="jh-cc-hero__title">Control de cuentas</h1>
+      <h1 class="jh-cc-hero__title">Inventario de cuentas</h1>
       <p class="jh-cc-hero__subtitle">
-        Tu cuaderno de cuentas, organizado por plataforma. Mirá de un vistazo
-        cuántas quedan disponibles y cuáles ya vendiste para no equivocarte.
+        Todas tus cuentas, ordenadas y protegidas.
+        <strong><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px;">shield_lock</span> Datos protegidos</strong>
       </p>
     </div>
     <button type="button" id="bulk-replace-open" class="jh-cc-hero__cta">
@@ -683,7 +788,7 @@
         <span class="jh-cc-plat__avatar"
               style="--av-a:{% if first_char == 'A' %}#fb7185{% elif first_char == 'C' %}#f97316{% elif first_char == 'H' %}#2563eb{% elif first_char == 'N' %}#dc2626{% elif first_char == 'P' %}#0ea5e9{% elif first_char == 'D' %}#3b82f6{% else %}#a78bfa{% endif %};
                      --av-b:{% if first_char == 'A' %}#3b82f6{% elif first_char == 'C' %}#ea580c{% elif first_char == 'H' %}#6366f1{% elif first_char == 'N' %}#991b1b{% elif first_char == 'P' %}#0284c7{% elif first_char == 'D' %}#1d4ed8{% else %}#3b82f6{% endif %};">
-          {{ first_char }}
+          {% if g.product.image %}<img src="{{ g.product.image.url }}" alt="" loading="lazy">{% else %}{{ first_char }}{% endif %}
         </span>
         {% endwith %}
         <div class="jh-cc-plat__body">
