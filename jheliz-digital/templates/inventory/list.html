@@ -5,16 +5,13 @@
   {% include "partials/sidebar.html" %}
   <main class="horizon-workspace">
     <header class="horizon-topbar">
-      <form class="horizon-global-search" method="get"><span>⌕</span><input name="q" value="{{ filters.q }}" placeholder="Buscar cuentas, correos o servicios…"><kbd>⌘K</kbd></form>
+      <div class="horizon-breadcrumb"><span>INVENTARIO</span><b>/</b><strong>CUENTAS</strong></div>
+      <form class="horizon-global-search" method="get"><span>⌕</span><input name="q" value="{{ filters.q }}" placeholder="Buscar cuentas, correos o servicios…"></form>
+      <button class="horizon-sync" type="button">↻ <span>Sincronizar</span></button>
       <button class="horizon-bell" type="button" aria-label="Notificaciones">♧<i>{{ summary.renewing }}</i></button>
       <div class="horizon-user"><b>{{ request.user.username|first|upper }}</b><span><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>{{ request.user.get_role_display }}</small></span></div>
     </header>
     <section class="horizon-content">
-      <header class="horizon-heading"><div><h1>Inventario de cuentas</h1><p>Todas tus cuentas, ordenadas y protegidas. <span>✓ Datos enmascarados</span></p></div><div class="horizon-actions"><button type="button">▦ Vista⌄</button><button type="button">⇩ Exportar</button>{% if request.user.can_manage_inventory %}<a href="{% url 'inventory:create' %}">＋ Nueva cuenta</a>{% endif %}</div></header>
-      <form class="horizon-filters" method="get">
-        <div class="horizon-pills"><a{% if not filters.status and not filters.renewal %} class="active"{% endif %} href="{% url 'inventory:list' %}">Todas las cuentas <b>{{ summary.total }}</b></a><a{% if filters.status == 'available' %} class="active"{% endif %} href="?status=available">Disponibles <b>{{ summary.available }}</b></a><a{% if filters.status == 'sold' %} class="active"{% endif %} href="?status=sold">Vendidas <b>{{ summary.sold }}</b></a><a{% if filters.renewal == '7' %} class="active"{% endif %} href="?renewal=7">Por vencer <b>{{ summary.renewing }}</b></a></div>
-        <div class="horizon-filter-row"><label class="horizon-filter-search"><span>⌕</span><input name="q" value="{{ filters.q }}" placeholder="Buscar correo, servicio o país…"></label><label>☷<select name="service" onchange="this.form.submit()"><option value="">Todos los servicios</option>{% for service in services %}<option value="{{ service.slug }}"{% if filters.service == service.slug %} selected{% endif %}>{{ service.name }}</option>{% endfor %}</select></label><label>☷<select name="status" onchange="this.form.submit()"><option value="">Todos los estados</option>{% for value,label in statuses %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><label>□<select name="renewal" onchange="this.form.submit()"><option value="">Fecha de renovación</option>{% for value,label in renewal_choices %}<option value="{{ value }}"{% if filters.renewal == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></div>
-      </form>
       <section class="horizon-list">
         <header><div><h2>Cuentas registradas</h2><p>Inventario actualizado hace un momento</p></div><span><i></i> Sincronizado</span></header>
         <div class="horizon-rows">{% for account in accounts %}<article class="horizon-row">
