@@ -1,0 +1,23 @@
+<aside class="sidebar">
+  <a class="sidebar-brand" href="{% url 'dashboard:home' %}">
+    <span class="brand-mark">J</span><span class="brand-copy"><strong>Jheliz Digital</strong><small>Panel de control</small></span>
+  </a>
+  <nav class="nav-list" aria-label="Navegación principal">
+    <a class="nav-item{% if request.resolver_match.namespace == 'dashboard' %} active{% endif %}" href="{% url 'dashboard:home' %}"><span>▦</span> Resumen</a>
+    <a class="nav-item{% if request.resolver_match.namespace == 'inventory' %} active{% endif %}" href="{% url 'inventory:list' %}"><span>◈</span> Cuentas</a>
+    <a class="nav-item{% if request.resolver_match.namespace == 'sales' %} active{% endif %}" href="{% url 'sales:list' %}"><span>⇄</span> Ventas</a>
+    <span class="nav-item disabled"><span>▣</span> Pagos</span>
+    <span class="nav-item disabled"><span>◷</span> Renovaciones</span>
+    <a class="nav-item{% if request.resolver_match.namespace == 'replacements' %} active{% endif %}" href="{% url 'replacements:list' %}"><span>↻</span> Reposiciones</a>
+    <a class="nav-item{% if request.resolver_match.namespace == 'services' %} active{% endif %}" href="{% url 'services:list' %}"><span>◇</span> Servicios</a>
+    <span class="nav-item disabled"><span>▥</span> Reportes</span>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="role-card">
+      <span class="status-dot"></span>
+      <div><strong>{{ request.user.get_role_display }}</strong><small>Sesión protegida</small></div>
+      <span class="role-avatar">{{ request.user.username|first|upper }}</span><span class="role-user-details"><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>{{ request.user.get_role_display }}</small></span><span class="role-chevron">⌄</span>
+    </div>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="logout-button">Cerrar sesión</button></form>
+  </div>
+</aside>
