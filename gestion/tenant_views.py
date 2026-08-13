@@ -280,10 +280,6 @@ def register(request):
         errors = []
         if not username:
             errors.append("Elegí un usuario.")
-        if not email:
-            errors.append("Ingresá un correo para poder recuperar tu cuenta.")
-        elif User.objects.filter(email__iexact=email, jc_tenant__isnull=False).exists():
-            errors.append("Ese correo ya está registrado.")
         if User.objects.filter(username__iexact=username).exists():
             errors.append("Ese usuario ya existe, probá con otro.")
         if len(password) < 6:
