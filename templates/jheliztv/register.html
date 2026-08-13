@@ -20,8 +20,8 @@
         <input type="text" name="username" value="{{ form_data.username|default:'' }}" required autocomplete="username">
       </div>
       <div class="pb-field">
-        <label>Correo (opcional)</label>
-        <input type="email" name="email" value="{{ form_data.email|default:'' }}" autocomplete="email">
+        <label>Correo</label>
+        <input type="email" name="email" value="{{ form_data.email|default:'' }}" required autocomplete="email">
       </div>
       <div class="pb-field">
         <label>WhatsApp (opcional)</label>

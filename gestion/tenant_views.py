@@ -20,14 +20,17 @@ from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 
+from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth.views import PasswordResetCompleteView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
 from django.db.models import Prefetch, Q, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 
 from config.date_utils import add_service_duration
@@ -68,6 +71,51 @@ from .views import _decorate_subs  # reuso de helpers
 from .support_operations import add_message as add_support_message, set_status as set_support_status
 
 User = get_user_model()
+
+
+class TenantPasswordResetForm(forms.Form):
+    """Envía el enlace por canales vinculados sin enumerar cuentas."""
+    identifier = forms.CharField(label="Usuario o correo", max_length=254)
+
+    def save(self, **kwargs):
+        request = kwargs["request"]
+        identifier = self.cleaned_data["identifier"].strip()
+        user = (User._default_manager.filter(is_active=True, jc_tenant__isnull=False)
+                .filter(Q(username__iexact=identifier) | Q(email__iexact=identifier))
+                .distinct().first())
+        if not user:
+            return
+        if user.email:
+            PasswordResetForm({"email": user.email}).save(**kwargs)
+        connection = TelegramConnection.objects.filter(owner=user, is_enabled=True, chat_id__isnull=False).exclude(chat_id="").first()
+        if connection:
+            from django.contrib.auth.tokens import default_token_generator
+            from django.utils.encoding import force_bytes
+            from django.utils.http import urlsafe_base64_encode
+            from .telegram_alerts import send_message
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            path = reverse("jheliztv_password_reset_confirm", kwargs={"uidb64": uid, "token": token})
+            send_message(connection.chat_id, "🔑 <b>RECUPERAR CONTRASEÑA</b>\n\nSolicitaste cambiar la contraseña de JHELIZCONTROLTV. El enlace vence en 24 horas y solo puede utilizarse una vez.", {"inline_keyboard": [[{"text": "Crear contraseña nueva", "url": request.build_absolute_uri(path)}]]})
+
+
+class TenantPasswordResetView(PasswordResetView):
+    form_class = TenantPasswordResetForm
+    template_name = "jheliztv/password_reset_form.html"
+    email_template_name = "jheliztv/password_reset_email.txt"
+    html_email_template_name = "jheliztv/password_reset_email.html"
+    subject_template_name = "jheliztv/password_reset_subject.txt"
+    success_url = reverse_lazy("jheliztv_password_reset_done")
+
+class TenantPasswordResetDoneView(PasswordResetDoneView):
+    template_name = "jheliztv/password_reset_done.html"
+
+class TenantPasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = "jheliztv/password_reset_confirm.html"
+    success_url = reverse_lazy("jheliztv_password_reset_complete")
+
+class TenantPasswordResetCompleteView(PasswordResetCompleteView):
+    template_name = "jheliztv/password_reset_complete.html"
 
 
 def _valid_proof_image(upload) -> bool:
@@ -232,6 +280,10 @@ def register(request):
         errors = []
         if not username:
             errors.append("Elegí un usuario.")
+        if not email:
+            errors.append("Ingresá un correo para poder recuperar tu cuenta.")
+        elif User.objects.filter(email__iexact=email, jc_tenant__isnull=False).exists():
+            errors.append("Ese correo ya está registrado.")
         if User.objects.filter(username__iexact=username).exists():
             errors.append("Ese usuario ya existe, probá con otro.")
         if len(password) < 6:

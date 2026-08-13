@@ -8,6 +8,10 @@ urlpatterns = [
     path("", v.landing, name="jheliztv_landing"),
     path("registro/", v.register, name="jheliztv_register"),
     path("ingresar/", v.login_view, name="jheliztv_login"),
+    path("recuperar/", v.TenantPasswordResetView.as_view(), name="jheliztv_password_reset"),
+    path("recuperar/enviado/", v.TenantPasswordResetDoneView.as_view(), name="jheliztv_password_reset_done"),
+    path("recuperar/<uidb64>/<token>/", v.TenantPasswordResetConfirmView.as_view(), name="jheliztv_password_reset_confirm"),
+    path("recuperar/listo/", v.TenantPasswordResetCompleteView.as_view(), name="jheliztv_password_reset_complete"),
     path("salir/", v.logout_view, name="jheliztv_logout"),
     path("renovar/<uuid:token>/", v.public_renewal, name="jheliztv_public_renewal"),
 
