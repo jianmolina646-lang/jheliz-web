@@ -21,7 +21,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.http import FileResponse
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -38,6 +38,7 @@ from .models import (
     Tenant,
     TenantPayment,
     Transaction,
+    WhatsAppConnection,
 )
 
 User = get_user_model()
@@ -180,6 +181,40 @@ def control_users(request):
     return render(request, "jheliztv/control/users.html", {
         "title": "Usuarios", "jc_control_active": "users",
         "tenants": users, "filters": filters, "kpi": _control_kpi(all_users),
+    })
+
+
+@owner_required
+def control_user_detail(request, pk):
+    tenant = get_object_or_404(
+        Tenant.objects.filter(is_demo=False).select_related("user"), pk=pk,
+    )
+    tenant = _control_tenant_rows(
+        Tenant.objects.filter(pk=tenant.pk).select_related("user")
+    )[0]
+    clients = list(Client.objects.filter(owner=tenant.user).order_by("-created_at")[:10])
+    subscriptions = list(
+        Subscription.objects.filter(owner=tenant.user)
+        .select_related("client", "service").order_by("-created_at")[:10]
+    )
+    payments = list(tenant.payments.order_by("-created_at")[:10])
+    transactions = Transaction.objects.filter(owner=tenant.user)
+    finances = transactions.aggregate(
+        income=Sum("base_amount", filter=Q(kind=Transaction.Kind.INCOME)),
+        expenses=Sum("base_amount", filter=Q(kind=Transaction.Kind.EXPENSE)),
+    )
+    finances["income"] = finances["income"] or Decimal("0.00")
+    finances["expenses"] = finances["expenses"] or Decimal("0.00")
+    finances["balance"] = finances["income"] - finances["expenses"]
+    whatsapp_connection = WhatsAppConnection.objects.filter(owner=tenant.user).first()
+    return render(request, "jheliztv/control/user_detail.html", {
+        "title": tenant.business_name or tenant.user.username,
+        "jc_control_active": "users", "tenant": tenant,
+        "clients": clients, "subscriptions": subscriptions, "payments": payments,
+        "finances": finances, "whatsapp_connection": whatsapp_connection,
+        "active_subscriptions": Subscription.objects.filter(
+            owner=tenant.user, is_archived=False, expires_at__gt=timezone.now(),
+        ).count(),
     })
 
 

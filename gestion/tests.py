@@ -731,6 +731,40 @@ class OwnerControlPanelTests(TestCase):
         self.assertEqual(dashboard.context["kpi"]["clients"], 2)
         self.assertContains(dashboard, "Clientes registrados")
 
+    def test_owner_can_open_user_detail_with_isolated_data(self):
+        own_client = Client.objects.create(owner=self.tenant_user, name="Cliente propio")
+        other_user = get_user_model().objects.create_user("otro-negocio", password="pw")
+        other_tenant = self.Tenant.objects.create(
+            user=other_user, business_name="Otro negocio",
+            plan_expires_at=timezone.now() + timedelta(days=10),
+        )
+        Client.objects.create(owner=other_user, name="Cliente ajeno")
+        self.client.force_login(self.owner)
+
+        response = self.client.get(
+            f"/control/usuarios/{self.tenant.pk}/", HTTP_HOST=self.HOST,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["tenant"], self.tenant)
+        self.assertEqual(list(response.context["clients"]), [own_client])
+        self.assertContains(response, "Cliente propio")
+        self.assertNotContains(response, "Cliente ajeno")
+        self.assertNotContains(response, other_tenant.business_name)
+
+    def test_user_detail_requires_owner_and_rejects_demo(self):
+        anonymous = self.client.get(
+            f"/control/usuarios/{self.tenant.pk}/", HTTP_HOST=self.HOST,
+        )
+        self.assertRedirects(anonymous, self.CONTROL_LOGIN, fetch_redirect_response=False)
+        demo_user = get_user_model().objects.create_user("demo-ficha", password="pw")
+        demo = self.Tenant.objects.create(user=demo_user, is_demo=True)
+        self.client.force_login(self.owner)
+        self.assertEqual(
+            self.client.get(f"/control/usuarios/{demo.pk}/", HTTP_HOST=self.HOST).status_code,
+            404,
+        )
+
     def test_owner_generates_functional_three_day_demo_with_credentials(self):
         from .models import TenantPayment
 
