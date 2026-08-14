@@ -12,8 +12,8 @@ concurrency:
 
 jobs:
   deploy:
-    name: SSH + git pull + docker compose
-    runs-on: ubuntu-latest
+    name: Local git pull + docker compose
+    runs-on: [self-hosted, Linux, X64, jheliz-production]
     timeout-minutes: 15
     if: >-
       github.event_name == 'workflow_dispatch' ||
@@ -21,17 +21,8 @@ jobs:
        github.event.workflow_run.head_branch == 'main')
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || 22 }}
-          script_stop: true
-          # Forwardea estos env vars al shell remoto; se usan en el script.
-          envs: VPS_PROJECT_PATH,MERCADOPAGO_WEBHOOK_SECRET,NGINX_CONF_SYNC,NGINX_CONF_PATH,EXPECTED_SHA
-          script: |
+      - name: Deploy on production runner
+        run: |
             set -euo pipefail
             PROJECT_PATH="${VPS_PROJECT_PATH:-/srv/jheliz}"
             cd "$PROJECT_PATH"
