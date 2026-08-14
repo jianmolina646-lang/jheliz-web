@@ -10,25 +10,36 @@ así que el futuro dueño de la tienda no lo ve desde su propio dominio.
 """
 from __future__ import annotations
 
+from datetime import timedelta
+from decimal import Decimal
 from functools import wraps
+import secrets
 
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.http import FileResponse
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.views.decorators.http import require_POST
 
 from .models import (
+    Client,
     SaasSettings,
+    Service,
     Subscription,
     TelegramConnection,
     Tenant,
     TenantPayment,
+    Transaction,
 )
+
+User = get_user_model()
 
 
 def owner_required(view):
@@ -109,6 +120,70 @@ def control_dashboard(request):
         "saas": SaasSettings.load(),
     }
     return render(request, "jheliztv/control/dashboard.html", ctx)
+
+
+@owner_required
+@require_POST
+def control_demo_create(request):
+    now = timezone.now()
+    expired_user_ids = list(
+        Tenant.objects.filter(is_demo=True, plan_expires_at__lte=now)
+        .values_list("user_id", flat=True)
+    )
+    if expired_user_ids:
+        User.objects.filter(pk__in=expired_user_ids).delete()
+
+    username = f"demo_{secrets.token_hex(4)}"
+    password = secrets.token_urlsafe(9)
+    with transaction.atomic():
+        user = User.objects.create_user(username=username, password=password)
+        tenant = Tenant.objects.create(
+            user=user,
+            business_name="Demo JHELIZ CONTROL TV",
+            plan_expires_at=now + timedelta(days=3),
+            is_demo=True,
+        )
+        services = [
+            Service.objects.create(owner=user, name="StreamPlus", icon="live_tv", color="#10b981"),
+            Service.objects.create(owner=user, name="CineMax", icon="movie", color="#8b5cf6"),
+        ]
+        clients = [
+            Client.objects.create(owner=user, name="Ana Torres", whatsapp="+51900000001"),
+            Client.objects.create(owner=user, name="Carlos Ruiz", whatsapp="+51900000002"),
+            Client.objects.create(owner=user, name="María López", whatsapp="+51900000003"),
+        ]
+        samples = [
+            (clients[0], services[0], "demo-ana@example.com", 25, 10, 18),
+            (clients[1], services[1], "demo-carlos@example.com", 30, 12, 3),
+            (clients[2], services[0], "demo-maria@example.com", 25, 10, 1),
+        ]
+        for client, service, account, cost, investment, days in samples:
+            subscription = Subscription.objects.create(
+                owner=user, client=client, service=service,
+                account_email=account, account_password="demo-segura",
+                cost=Decimal(cost), investment=Decimal(investment),
+                expires_at=now + timedelta(days=days),
+            )
+            for kind, amount, label in (
+                (Transaction.Kind.INCOME, cost, "Venta"),
+                (Transaction.Kind.EXPENSE, investment, "Costo"),
+            ):
+                Transaction.objects.create(
+                    owner=user, kind=kind, amount=Decimal(amount),
+                    description=f"{label} demo · {service.name}",
+                    client=client, subscription=subscription,
+                    occurred_at=now - timedelta(days=max(0, 18 - days)),
+                )
+
+    response = render(request, "jheliztv/control/demo_credentials.html", {
+        "tenant": tenant,
+        "demo_username": username,
+        "demo_password": password,
+        "login_url": request.build_absolute_uri(reverse("jheliztv_login")),
+    })
+    response["Cache-Control"] = "no-store, private"
+    response["Pragma"] = "no-cache"
+    return response
 
 
 @owner_required

@@ -63,10 +63,7 @@
             Probar ahora
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
           </a>
-          <form method="post" action="{% url 'jheliztv_demo' %}">
-            {% csrf_token %}
-            <button class="jl-button jl-button--ghost" type="submit">Ver demo</button>
-          </form>
+          <a class="jl-button jl-button--ghost" href="{% url 'jheliztv_login' %}">Ingresar a una demo</a>
         </div>
 
         <div class="jl-surface jl-dashboard-preview">

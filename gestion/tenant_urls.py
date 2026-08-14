@@ -12,7 +12,6 @@ urlpatterns = [
     path("preguntas-frecuentes/", v.faq_page, name="jheliztv_faq"),
     path("contacto/", v.contact_page, name="jheliztv_contact"),
     path("registro/", v.register, name="jheliztv_register"),
-    path("demo/", v.create_demo, name="jheliztv_demo"),
     path("ingresar/", v.login_view, name="jheliztv_login"),
     path("recuperar/", v.TenantPasswordResetView.as_view(), name="jheliztv_password_reset"),
     path("recuperar/enviado/", v.TenantPasswordResetDoneView.as_view(), name="jheliztv_password_reset_done"),

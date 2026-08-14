@@ -8,6 +8,7 @@ urlpatterns = [
     path("", v.control_dashboard, name="jheliztv_control_dashboard"),
     path("ingresar/", v.control_login, name="jheliztv_control_login"),
     path("salir/", v.control_logout, name="jheliztv_control_logout"),
+    path("demos/generar/", v.control_demo_create, name="jheliztv_control_demo_create"),
     path("pagos/<int:pk>/aprobar/", v.control_payment_approve, name="jheliztv_control_payment_approve"),
     path("pagos/<int:pk>/rechazar/", v.control_payment_reject, name="jheliztv_control_payment_reject"),
     path("pagos/<int:pk>/comprobante/", v.control_payment_proof, name="jheliztv_control_payment_proof"),

@@ -3,6 +3,9 @@
 {% block jc_content %}
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
     <h2 class="jc-section-title"><span class="material-symbols-outlined">admin_panel_settings</span> Inquilinos de jheliztv.xyz</h2>
+    <form method="post" action="{% url 'jheliztv_control_demo_create' %}">{% csrf_token %}
+      <button type="submit" class="jc-btn"><span class="material-symbols-outlined">science</span> Generar demo de 3 días</button>
+    </form>
   </div>
 
   <div class="jc-metrics">
@@ -81,7 +84,7 @@
         <tbody>
           {% for t in tenants %}
           <tr>
-            <td><strong>{{ t.business_name|default:"—" }}</strong></td>
+            <td><strong>{{ t.business_name|default:"—" }}</strong>{% if t.is_demo %}<br><span class="jc-chip">Demo 3 días</span>{% endif %}</td>
             <td>{{ t.user.username }}</td>
             <td>
               {% if t.whatsapp %}<a href="https://wa.me/{{ t.whatsapp_digits }}" target="_blank" style="color:#059669;text-decoration:none;font-weight:600;">{{ t.whatsapp }}</a>

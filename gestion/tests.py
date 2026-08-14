@@ -191,7 +191,6 @@ class TenantSaasTests(TestCase):
     SERVICE_ADD = "/app/servicios/agregar/"
     CLIENT_ADD = "/app/clientes/agregar/"
     CLIENTS = "/app/clientes/"
-    DEMO = "/demo/"
 
     def setUp(self):
         from .models import SaasSettings, Tenant
@@ -238,42 +237,6 @@ class TenantSaasTests(TestCase):
         self.assertEqual(
             self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST).status_code, 200
         )
-
-    def test_demo_is_individual_seeded_read_only_and_temporary(self):
-        from .models import TenantPayment
-
-        self.assertEqual(self.client.get(self.DEMO, HTTP_HOST=self.HOST).status_code, 405)
-        response = self.client.post(self.DEMO, HTTP_HOST=self.HOST)
-        self.assertRedirects(response, self.DASHBOARD, fetch_redirect_response=False)
-
-        tenant = self.Tenant.objects.get(is_demo=True)
-        self.assertTrue(tenant.subscription_active)
-        self.assertLessEqual(tenant.plan_expires_at, timezone.now() + timedelta(hours=24, seconds=5))
-        self.assertFalse(tenant.user.has_usable_password())
-        self.assertEqual(Service.objects.filter(owner=tenant.user).count(), 2)
-        self.assertEqual(Client.objects.filter(owner=tenant.user).count(), 3)
-        self.assertEqual(Subscription.objects.filter(owner=tenant.user).count(), 3)
-
-        page = self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST)
-        self.assertContains(page, "Modo demostración")
-        self.client.post(self.CLIENT_ADD, {"name": "No debe guardarse"}, HTTP_HOST=self.HOST)
-        self.assertFalse(Client.objects.filter(owner=tenant.user, name="No debe guardarse").exists())
-        self.client.post(self.BILLING_UPLOAD, HTTP_HOST=self.HOST)
-        self.assertFalse(TenantPayment.objects.filter(tenant=tenant).exists())
-
-    def test_new_demo_does_not_share_data_and_removes_expired_demos(self):
-        self.client.post(self.DEMO, HTTP_HOST=self.HOST)
-        first = self.Tenant.objects.get(is_demo=True)
-        first_user_id = first.user_id
-        first.plan_expires_at = timezone.now() - timedelta(minutes=1)
-        first.save(update_fields=["plan_expires_at"])
-        self.client.logout()
-
-        self.client.post(self.DEMO, HTTP_HOST=self.HOST)
-        second = self.Tenant.objects.get(is_demo=True)
-        self.assertNotEqual(second.user_id, first_user_id)
-        self.assertFalse(get_user_model().objects.filter(pk=first_user_id).exists())
-        self.assertEqual(Client.objects.filter(owner=second.user).count(), 3)
 
     def test_expired_trial_blocks_until_paid(self):
         from datetime import timedelta
@@ -645,6 +608,7 @@ class OwnerControlPanelTests(TestCase):
     HOST = "jheliztv.xyz"
     CONTROL = "/control/"
     CONTROL_LOGIN = "/control/ingresar/"
+    CREATE_DEMO = "/control/demos/generar/"
 
     def setUp(self):
         from .models import SaasSettings, Tenant
@@ -694,6 +658,50 @@ class OwnerControlPanelTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Negocio Inq")
         self.assertContains(r, "Clientes registrados")
+
+    def test_owner_generates_functional_three_day_demo_with_credentials(self):
+        from .models import TenantPayment
+
+        self.client.force_login(self.owner)
+        response = self.client.post(self.CREATE_DEMO, HTTP_HOST=self.HOST, secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Demo generada")
+        self.assertIn("no-store", response["Cache-Control"])
+
+        tenant = self.Tenant.objects.get(is_demo=True)
+        username = response.context["demo_username"]
+        password = response.context["demo_password"]
+        self.assertEqual(tenant.user.username, username)
+        self.assertTrue(tenant.user.check_password(password))
+        self.assertGreater(tenant.plan_expires_at, timezone.now() + timedelta(days=2, hours=23))
+        self.assertLessEqual(tenant.plan_expires_at, timezone.now() + timedelta(days=3, seconds=5))
+        self.assertEqual(Service.objects.filter(owner=tenant.user).count(), 2)
+        self.assertEqual(Client.objects.filter(owner=tenant.user).count(), 3)
+        self.assertEqual(Subscription.objects.filter(owner=tenant.user).count(), 3)
+
+        self.client.logout()
+        login_response = self.client.post(
+            "/ingresar/", {"username": username, "password": password}, HTTP_HOST=self.HOST,
+        )
+        self.assertRedirects(login_response, "/app/", fetch_redirect_response=False)
+        self.client.post(
+            "/app/clientes/agregar/", {"name": "Cliente creado en demo"}, HTTP_HOST=self.HOST,
+        )
+        self.assertTrue(Client.objects.filter(owner=tenant.user, name="Cliente creado en demo").exists())
+
+        self.client.post("/suscripcion/pagar/", HTTP_HOST=self.HOST)
+        self.assertFalse(TenantPayment.objects.filter(tenant=tenant).exists())
+        self.assertRedirects(
+            self.client.get("/app/telegram/", HTTP_HOST=self.HOST),
+            "/app/", fetch_redirect_response=False,
+        )
+
+    def test_demo_generator_requires_owner_and_public_route_is_removed(self):
+        self.assertRedirects(
+            self.client.post(self.CREATE_DEMO, HTTP_HOST=self.HOST),
+            self.CONTROL_LOGIN, fetch_redirect_response=False,
+        )
+        self.assertEqual(self.client.post("/demo/", HTTP_HOST=self.HOST).status_code, 404)
 
     def test_approve_payment_activates_tenant(self):
         from datetime import timedelta

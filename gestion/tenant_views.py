@@ -27,7 +27,6 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.views import PasswordResetCompleteView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
-from django.db import transaction
 from django.db.models import Prefetch, Q, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -158,9 +157,6 @@ def tenant_required(view):
                 "Tu suscripción está vencida. Renueva para seguir usando Jheliz Control.",
             )
             return redirect("jheliztv_billing")
-        if tenant.is_demo and request.method not in ("GET", "HEAD", "OPTIONS"):
-            messages.warning(request, "La demo es de solo lectura. Crea tu cuenta para guardar cambios.")
-            return redirect("jheliztv_dashboard")
         return view(request, tenant, *args, **kwargs)
 
     return _wrapped
@@ -268,81 +264,6 @@ def landing(request):
         return redirect("jheliztv_dashboard")
     saas = SaasSettings.load()
     return render(request, "jheliztv/landing.html", {"saas": saas})
-
-
-@require_POST
-def create_demo(request):
-    existing_tenant = _get_tenant(request.user)
-    if existing_tenant:
-        return redirect("jheliztv_dashboard")
-
-    now = timezone.now()
-    expired_user_ids = list(
-        Tenant.objects.filter(is_demo=True, plan_expires_at__lte=now)
-        .values_list("user_id", flat=True)
-    )
-    if expired_user_ids:
-        User.objects.filter(pk__in=expired_user_ids).delete()
-
-    with transaction.atomic():
-        username = f"demo_{secrets.token_hex(6)}"
-        user = User.objects.create_user(username=username)
-        user.set_unusable_password()
-        user.save(update_fields=["password"])
-        tenant = Tenant.objects.create(
-            user=user,
-            business_name="Demo JHELIZ CONTROL TV",
-            plan_expires_at=now + timedelta(hours=24),
-            is_demo=True,
-        )
-
-        services = [
-            Service.objects.create(owner=user, name="StreamPlus", icon="live_tv", color="#10b981"),
-            Service.objects.create(owner=user, name="CineMax", icon="movie", color="#8b5cf6"),
-        ]
-        clients = [
-            Client.objects.create(owner=user, name="Ana Torres", whatsapp="+51900000001"),
-            Client.objects.create(owner=user, name="Carlos Ruiz", whatsapp="+51900000002"),
-            Client.objects.create(owner=user, name="María López", whatsapp="+51900000003"),
-        ]
-        demo_subscriptions = [
-            (clients[0], services[0], "demo-ana@example.com", 25, 10, 18),
-            (clients[1], services[1], "demo-carlos@example.com", 30, 12, 3),
-            (clients[2], services[0], "demo-maria@example.com", 25, 10, 1),
-        ]
-        for client, service, account, cost, investment, days in demo_subscriptions:
-            subscription = Subscription.objects.create(
-                owner=user,
-                client=client,
-                service=service,
-                account_email=account,
-                account_password="demo-segura",
-                cost=Decimal(cost),
-                investment=Decimal(investment),
-                expires_at=now + timedelta(days=days),
-            )
-            Transaction.objects.create(
-                owner=user,
-                kind=Transaction.Kind.INCOME,
-                amount=Decimal(cost),
-                description=f"Venta demo · {service.name}",
-                client=client,
-                subscription=subscription,
-                occurred_at=now - timedelta(days=max(0, 18 - days)),
-            )
-            Transaction.objects.create(
-                owner=user,
-                kind=Transaction.Kind.EXPENSE,
-                amount=Decimal(investment),
-                description=f"Costo demo · {service.name}",
-                client=client,
-                subscription=subscription,
-                occurred_at=now - timedelta(days=max(0, 18 - days)),
-            )
-
-    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-    messages.info(request, "Estás viendo una demo privada de 24 horas en modo solo lectura.")
-    return redirect("jheliztv_dashboard")
 
 
 def _marketing_page(request, template_name):
@@ -1401,6 +1322,9 @@ def renewals_inbox(request, tenant):
 @tenant_required
 @require_POST
 def payment_method_add(request, tenant):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite configurar métodos de pago reales.")
+        return redirect("jheliztv_dashboard")
     label = (request.POST.get("label") or "").strip()
     details = (request.POST.get("details") or "").strip()
     kind = request.POST.get("kind")
@@ -1419,6 +1343,9 @@ def payment_method_add(request, tenant):
 @tenant_required
 @require_POST
 def payment_method_delete(request, tenant, pk):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite configurar métodos de pago reales.")
+        return redirect("jheliztv_dashboard")
     get_object_or_404(ResellerPaymentMethod, pk=pk, owner=request.user).delete()
     messages.success(request, "Método de pago eliminado.")
     return redirect("jheliztv_renewals")
@@ -1507,6 +1434,9 @@ def notifications_json(request, tenant):
 
 @tenant_required
 def telegram_settings(request, tenant):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite conectar Telegram.")
+        return redirect("jheliztv_dashboard")
     connection, _ = TelegramConnection.objects.get_or_create(owner=request.user)
     link_url = ""
     if request.method == "POST":
@@ -1538,6 +1468,9 @@ def telegram_settings(request, tenant):
 @tenant_required
 @require_POST
 def telegram_unlink(request, tenant):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite conectar Telegram.")
+        return redirect("jheliztv_dashboard")
     TelegramConnection.objects.filter(owner=request.user).update(
         chat_id=None,
         telegram_username="",
@@ -1552,6 +1485,9 @@ def telegram_unlink(request, tenant):
 
 @tenant_required
 def whatsapp_settings(request, tenant):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite conectar WhatsApp.")
+        return redirect("jheliztv_dashboard")
     connection, _ = WhatsAppConnection.objects.get_or_create(owner=request.user)
     if request.method == "POST":
         connection.reminder_days = [
@@ -1588,6 +1524,8 @@ def whatsapp_settings(request, tenant):
 @tenant_required
 @require_POST
 def whatsapp_signup_complete(request, tenant):
+    if tenant.is_demo:
+        return JsonResponse({"ok": False, "error": "No disponible en la demo."}, status=403)
     try:
         payload = json.loads(request.body)
         required = ("code", "waba_id", "phone_number_id")
@@ -1610,6 +1548,9 @@ def whatsapp_signup_complete(request, tenant):
 @tenant_required
 @require_POST
 def whatsapp_unlink(request, tenant):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite conectar WhatsApp.")
+        return redirect("jheliztv_dashboard")
     WhatsAppConnection.objects.filter(owner=request.user).update(
         access_token="", waba_id="", phone_number_id=None,
         display_phone_number="", verified_name="",
