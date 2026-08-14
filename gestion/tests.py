@@ -617,6 +617,9 @@ class OwnerControlPanelTests(TestCase):
     HOST = "jheliztv.xyz"
     CONTROL = "/control/"
     CONTROL_LOGIN = "/control/ingresar/"
+    CONTROL_USERS = "/control/usuarios/"
+    CONTROL_DEMOS = "/control/demos/"
+    CONTROL_PAYMENTS = "/control/pagos/"
     CREATE_DEMO = "/control/demos/generar/"
 
     def setUp(self):
@@ -666,7 +669,33 @@ class OwnerControlPanelTests(TestCase):
         r = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Negocio Inq")
-        self.assertContains(r, "Clientes registrados")
+        self.assertContains(r, "Resumen general")
+        self.assertContains(r, "Usuarios")
+        self.assertContains(r, "Demos")
+        self.assertContains(r, "Pagos")
+
+    def test_control_separates_users_demos_and_payments(self):
+        demo_user = get_user_model().objects.create_user("demo-separada", password="pw")
+        self.Tenant.objects.create(
+            user=demo_user,
+            business_name="Demo separada",
+            is_demo=True,
+            plan_expires_at=timezone.now() + timedelta(days=3),
+        )
+        self.client.force_login(self.owner)
+
+        users = self.client.get(self.CONTROL_USERS, HTTP_HOST=self.HOST)
+        demos = self.client.get(self.CONTROL_DEMOS, HTTP_HOST=self.HOST)
+        payments = self.client.get(self.CONTROL_PAYMENTS, HTTP_HOST=self.HOST)
+
+        self.assertEqual(users.status_code, 200)
+        self.assertContains(users, "Negocio Inq")
+        self.assertNotContains(users, "Demo separada")
+        self.assertEqual(demos.status_code, 200)
+        self.assertContains(demos, "demo-separada")
+        self.assertNotContains(demos, "Negocio Inq")
+        self.assertEqual(payments.status_code, 200)
+        self.assertContains(payments, "Pagos pendientes")
 
     def test_control_shows_online_activity_and_filters_users(self):
         self.tenant.last_activity_at = timezone.now()
@@ -681,10 +710,10 @@ class OwnerControlPanelTests(TestCase):
         self.client.force_login(self.owner)
 
         response = self.client.get(
-            self.CONTROL, {"q": "Negocio Inq", "estado": "online", "tipo": "customer"},
+            self.CONTROL_USERS, {"q": "Negocio Inq", "estado": "online"},
             HTTP_HOST=self.HOST,
         )
-        self.assertContains(response, "En línea ahora")
+        self.assertContains(response, "En línea")
         self.assertContains(response, "Clientes")
         self.assertContains(response, "Negocio Inq")
         self.assertNotContains(response, "Negocio desconectado")

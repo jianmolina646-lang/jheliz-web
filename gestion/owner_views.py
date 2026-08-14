@@ -79,7 +79,23 @@ def control_logout(request):
 
 @owner_required
 def control_dashboard(request):
-    tenants = list(Tenant.objects.select_related("user").order_by("-created_at"))
+    tenants = _control_tenant_rows(Tenant.objects.select_related("user"))
+    pending = list(
+        TenantPayment.objects.filter(status=TenantPayment.Status.PENDING)
+        .select_related("tenant", "tenant__user").order_by("-created_at")[:5]
+    )
+    kpi = _control_kpi(tenants)
+    recent = sorted(
+        tenants, key=lambda tenant: tenant.last_activity_at or tenant.created_at, reverse=True,
+    )[:8]
+    return render(request, "jheliztv/control/dashboard.html", {
+        "title": "Resumen", "jc_control_active": "dashboard",
+        "kpi": kpi, "recent": recent, "pending": pending,
+    })
+
+
+def _control_tenant_rows(queryset):
+    tenants = list(queryset.order_by("-created_at"))
     online_since = timezone.now() - timedelta(minutes=5)
     section_labels = {
         "/app/": "Inicio", "/app/clientes/": "Clientes",
@@ -88,11 +104,6 @@ def control_dashboard(request):
         "/app/telegram/": "Telegram", "/app/whatsapp/": "WhatsApp",
         "/app/configuracion/monedas/": "Monedas", "/suscripcion/": "Suscripción",
     }
-    pending = list(
-        TenantPayment.objects.filter(status=TenantPayment.Status.PENDING)
-        .select_related("tenant", "tenant__user")
-        .order_by("-created_at")
-    )
     telegram_by_owner = {
         connection.owner_id: connection
         for connection in TelegramConnection.objects.select_related("owner")
@@ -116,10 +127,28 @@ def control_dashboard(request):
         else:
             t.estado, t.estado_color = "Vencido", "red"
 
+    return tenants
+
+
+def _control_kpi(tenants):
     total = len(tenants)
-    activos = sum(1 for t in tenants if t.subscription_active)
-    online = sum(1 for t in tenants if t.is_online)
-    demos = sum(1 for t in tenants if t.is_demo and t.subscription_active)
+    return {
+        "total": total,
+        "activos": sum(1 for tenant in tenants if tenant.subscription_active),
+        "vencidos": sum(1 for tenant in tenants if not tenant.subscription_active),
+        "online": sum(1 for tenant in tenants if tenant.is_online),
+        "demos": sum(1 for tenant in tenants if tenant.is_demo and tenant.subscription_active),
+        "pendientes": TenantPayment.objects.filter(status=TenantPayment.Status.PENDING).count(),
+        "subs": Subscription.objects.filter(is_archived=False).count(),
+        "telegram": sum(
+            1 for tenant in tenants
+            if tenant.telegram_connection and tenant.telegram_connection.is_linked
+            and tenant.telegram_connection.is_enabled
+        ),
+    }
+
+
+def _filter_control_tenants(request, tenants):
     q = (request.GET.get("q") or "").strip().lower()
     status_filter = (request.GET.get("estado") or "").strip()
     type_filter = (request.GET.get("tipo") or "").strip()
@@ -134,28 +163,42 @@ def control_dashboard(request):
         )]
     if type_filter:
         tenants = [t for t in tenants if (type_filter == "demo") == t.is_demo]
-    ctx = {
-        "title": "Control jheliztv",
-        "tenants": tenants,
-        "pending": pending,
-        "kpi": {
-            "total": total,
-            "activos": activos,
-            "vencidos": total - activos,
-            "pendientes": len(pending),
-            "subs": Subscription.objects.filter(is_archived=False).count(),
-            "telegram": sum(
-                1
-                for connection in telegram_by_owner.values()
-                if connection.is_linked and connection.is_enabled
-            ),
-            "online": online,
-            "demos": demos,
-        },
-        "filters": {"q": q, "estado": status_filter, "tipo": type_filter},
-        "saas": SaasSettings.load(),
-    }
-    return render(request, "jheliztv/control/dashboard.html", ctx)
+    return tenants, {"q": q, "estado": status_filter, "tipo": type_filter}
+
+
+@owner_required
+def control_users(request):
+    all_users = _control_tenant_rows(
+        Tenant.objects.filter(is_demo=False).select_related("user")
+    )
+    users, filters = _filter_control_tenants(request, all_users)
+    return render(request, "jheliztv/control/users.html", {
+        "title": "Usuarios", "jc_control_active": "users",
+        "tenants": users, "filters": filters, "kpi": _control_kpi(all_users),
+    })
+
+
+@owner_required
+def control_demos(request):
+    demos = _control_tenant_rows(
+        Tenant.objects.filter(is_demo=True).select_related("user")
+    )
+    demos, filters = _filter_control_tenants(request, demos)
+    return render(request, "jheliztv/control/demos.html", {
+        "title": "Demos", "jc_control_active": "demos",
+        "tenants": demos, "filters": filters,
+    })
+
+
+@owner_required
+def control_payments(request):
+    pending = list(
+        TenantPayment.objects.filter(status=TenantPayment.Status.PENDING)
+        .select_related("tenant", "tenant__user").order_by("-created_at")
+    )
+    return render(request, "jheliztv/control/payments.html", {
+        "title": "Pagos", "jc_control_active": "payments", "pending": pending,
+    })
 
 
 @owner_required
@@ -229,7 +272,7 @@ def control_payment_approve(request, pk):
     if pay.is_pending:
         pay.approve()
         messages.success(request, f"Pago de {pay.tenant} aprobado: +{pay.days} días de alquiler.")
-    return redirect("jheliztv_control_dashboard")
+    return redirect("jheliztv_control_payments")
 
 
 @owner_required
@@ -239,7 +282,7 @@ def control_payment_reject(request, pk):
     if pay.is_pending:
         pay.reject("Rechazado desde el panel de control.")
         messages.warning(request, f"Pago de {pay.tenant} rechazado.")
-    return redirect("jheliztv_control_dashboard")
+    return redirect("jheliztv_control_payments")
 
 
 @owner_required
@@ -264,7 +307,7 @@ def control_tenant_extend(request, pk):
         days = 30
     tenant.extend(days)
     messages.success(request, f"{tenant}: +{days} días de alquiler.")
-    return redirect("jheliztv_control_dashboard")
+    return redirect("jheliztv_control_demos" if tenant.is_demo else "jheliztv_control_users")
 
 
 @owner_required
@@ -278,7 +321,7 @@ def control_tenant_block(request, pk):
         messages.warning(request, f"{tenant} fue bloqueado: ya no puede entrar (sus datos se conservan).")
     else:
         messages.success(request, f"{tenant} fue desbloqueado: ya puede entrar de nuevo.")
-    return redirect("jheliztv_control_dashboard")
+    return redirect("jheliztv_control_demos" if tenant.is_demo else "jheliztv_control_users")
 
 
 @owner_required
