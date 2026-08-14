@@ -80,6 +80,14 @@ def control_logout(request):
 @owner_required
 def control_dashboard(request):
     tenants = list(Tenant.objects.select_related("user").order_by("-created_at"))
+    online_since = timezone.now() - timedelta(minutes=5)
+    section_labels = {
+        "/app/": "Inicio", "/app/clientes/": "Clientes",
+        "/app/servicios/": "Servicios", "/app/correos/": "Correos",
+        "/app/soporte/": "Soporte", "/app/renovaciones/": "Renovaciones",
+        "/app/telegram/": "Telegram", "/app/whatsapp/": "WhatsApp",
+        "/app/configuracion/monedas/": "Monedas", "/suscripcion/": "Suscripción",
+    }
     pending = list(
         TenantPayment.objects.filter(status=TenantPayment.Status.PENDING)
         .select_related("tenant", "tenant__user")
@@ -92,6 +100,15 @@ def control_dashboard(request):
 
     for t in tenants:
         t.telegram_connection = telegram_by_owner.get(t.user_id)
+        t.is_online = bool(t.last_activity_at and t.last_activity_at >= online_since)
+        matching_sections = [
+            (prefix, label) for prefix, label in section_labels.items()
+            if t.last_activity_path.startswith(prefix)
+        ]
+        t.activity_section = (
+            max(matching_sections, key=lambda item: len(item[0]))[1]
+            if matching_sections else ("Sin actividad" if not t.last_activity_path else "Otra sección")
+        )
         if t.is_blocked:
             t.estado, t.estado_color = "Bloqueado", "red"
         elif t.subscription_active:
@@ -101,6 +118,22 @@ def control_dashboard(request):
 
     total = len(tenants)
     activos = sum(1 for t in tenants if t.subscription_active)
+    online = sum(1 for t in tenants if t.is_online)
+    demos = sum(1 for t in tenants if t.is_demo and t.subscription_active)
+    q = (request.GET.get("q") or "").strip().lower()
+    status_filter = (request.GET.get("estado") or "").strip()
+    type_filter = (request.GET.get("tipo") or "").strip()
+    if q:
+        tenants = [t for t in tenants if q in t.user.username.lower() or q in (t.business_name or "").lower()]
+    if status_filter:
+        tenants = [t for t in tenants if (
+            (status_filter == "online" and t.is_online)
+            or (status_filter == "active" and t.subscription_active)
+            or (status_filter == "expired" and not t.subscription_active and not t.is_blocked)
+            or (status_filter == "blocked" and t.is_blocked)
+        )]
+    if type_filter:
+        tenants = [t for t in tenants if (type_filter == "demo") == t.is_demo]
     ctx = {
         "title": "Control jheliztv",
         "tenants": tenants,
@@ -116,7 +149,10 @@ def control_dashboard(request):
                 for connection in telegram_by_owner.values()
                 if connection.is_linked and connection.is_enabled
             ),
+            "online": online,
+            "demos": demos,
         },
+        "filters": {"q": q, "estado": status_filter, "tipo": type_filter},
         "saas": SaasSettings.load(),
     }
     return render(request, "jheliztv/control/dashboard.html", ctx)

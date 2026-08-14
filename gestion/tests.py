@@ -318,6 +318,15 @@ class TenantSaasTests(TestCase):
         self.assertContains(r, "Maria Lopez")
         self.assertNotContains(r, "Juan Perez")
 
+    def test_panel_navigation_records_recent_activity_without_sensitive_data(self):
+        self._register("active-user", business="Negocio activo")
+        response = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
+        self.assertEqual(response.status_code, 200)
+        tenant = self.Tenant.objects.get(user__username="active-user")
+        self.assertIsNotNone(tenant.last_activity_at)
+        self.assertEqual(tenant.last_activity_path, self.CLIENTS)
+        self.assertNotIn("?", tenant.last_activity_path)
+
     def test_clients_sort_by_name(self):
         self._register("sorter")
         ts = self.Tenant.objects.get(user__username="sorter")
@@ -658,6 +667,27 @@ class OwnerControlPanelTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Negocio Inq")
         self.assertContains(r, "Clientes registrados")
+
+    def test_control_shows_online_activity_and_filters_users(self):
+        self.tenant.last_activity_at = timezone.now()
+        self.tenant.last_activity_path = "/app/clientes/"
+        self.tenant.save(update_fields=["last_activity_at", "last_activity_path"])
+        other_user = get_user_model().objects.create_user("offline", password="pw")
+        self.Tenant.objects.create(
+            user=other_user,
+            business_name="Negocio desconectado",
+            plan_expires_at=timezone.now() + timedelta(days=3),
+        )
+        self.client.force_login(self.owner)
+
+        response = self.client.get(
+            self.CONTROL, {"q": "Negocio Inq", "estado": "online", "tipo": "customer"},
+            HTTP_HOST=self.HOST,
+        )
+        self.assertContains(response, "En línea ahora")
+        self.assertContains(response, "Clientes")
+        self.assertContains(response, "Negocio Inq")
+        self.assertNotContains(response, "Negocio desconectado")
 
     def test_owner_generates_functional_three_day_demo_with_credentials(self):
         from .models import TenantPayment

@@ -878,6 +878,8 @@ class Tenant(models.Model):
         "Demo", default=False,
         help_text="Cuenta temporal de demostración con operaciones de escritura bloqueadas.",
     )
+    last_activity_at = models.DateTimeField("Última actividad", null=True, blank=True)
+    last_activity_path = models.CharField("Última sección", max_length=200, blank=True)
     created_at = models.DateTimeField("Creado", auto_now_add=True)
 
     class Meta:

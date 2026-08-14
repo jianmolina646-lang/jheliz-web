@@ -141,6 +141,25 @@ def _get_tenant(user):
     return Tenant.objects.filter(user=user).first()
 
 
+def _record_tenant_activity(request, tenant):
+    path = (request.path or "")[:200]
+    if path.endswith("/notificaciones.json"):
+        return
+    now = timezone.now()
+    last_write = request.session.get("jc_activity_written_at", 0)
+    last_path = request.session.get("jc_activity_path", "")
+    if path == last_path and now.timestamp() - float(last_write or 0) < 60:
+        return
+    Tenant.objects.filter(pk=tenant.pk).update(
+        last_activity_at=now,
+        last_activity_path=path,
+    )
+    tenant.last_activity_at = now
+    tenant.last_activity_path = path
+    request.session["jc_activity_written_at"] = now.timestamp()
+    request.session["jc_activity_path"] = path
+
+
 def tenant_required(view):
     """Exige login + suscripción de alquiler vigente.
 
@@ -151,6 +170,7 @@ def tenant_required(view):
         tenant = _get_tenant(request.user)
         if tenant is None:
             return redirect("jheliztv_login")
+        _record_tenant_activity(request, tenant)
         if not tenant.subscription_active:
             messages.warning(
                 request,
@@ -376,6 +396,7 @@ def billing(request):
     tenant = _get_tenant(request.user)
     if tenant is None:
         return redirect("jheliztv_login")
+    _record_tenant_activity(request, tenant)
     saas = SaasSettings.load()
     pending = tenant.payments.filter(status=TenantPayment.Status.PENDING).first()
     last_rejected = (

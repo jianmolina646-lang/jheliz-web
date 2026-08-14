@@ -10,6 +10,14 @@
 
   <div class="jc-metrics">
     <div class="jc-metric">
+      <div class="jc-metric__icon"><span class="material-symbols-outlined">sensors</span></div>
+      <div><div class="jc-metric__v">{{ kpi.online }}</div><div class="jc-metric__l">En línea ahora</div></div>
+    </div>
+    <div class="jc-metric">
+      <div class="jc-metric__icon is-blue"><span class="material-symbols-outlined">science</span></div>
+      <div><div class="jc-metric__v">{{ kpi.demos }}</div><div class="jc-metric__l">Demos activas</div></div>
+    </div>
+    <div class="jc-metric">
       <div class="jc-metric__icon"><span class="material-symbols-outlined">groups</span></div>
       <div><div class="jc-metric__v">{{ kpi.total }}</div><div class="jc-metric__l">Inquilinos registrados</div></div>
     </div>
@@ -75,17 +83,38 @@
   {# ── Inquilinos ────────────────────────────────────────────────── #}
   <div class="jc-panel" style="margin-top:16px;">
     <h2 class="jc-section-title"><span class="material-symbols-outlined">groups</span> Clientes registrados</h2>
+    <form method="get" style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 18px;">
+      <input type="search" name="q" value="{{ filters.q }}" placeholder="Buscar usuario o negocio" class="jc-input" style="min-width:240px;">
+      <select name="estado" class="jc-input">
+        <option value="">Todos los estados</option>
+        <option value="online" {% if filters.estado == 'online' %}selected{% endif %}>En línea</option>
+        <option value="active" {% if filters.estado == 'active' %}selected{% endif %}>Activos</option>
+        <option value="expired" {% if filters.estado == 'expired' %}selected{% endif %}>Vencidos</option>
+        <option value="blocked" {% if filters.estado == 'blocked' %}selected{% endif %}>Bloqueados</option>
+      </select>
+      <select name="tipo" class="jc-input">
+        <option value="">Cuentas y demos</option>
+        <option value="customer" {% if filters.tipo == 'customer' %}selected{% endif %}>Cuentas reales</option>
+        <option value="demo" {% if filters.tipo == 'demo' %}selected{% endif %}>Demos</option>
+      </select>
+      <button type="submit" class="jc-btn"><span class="material-symbols-outlined">filter_alt</span> Filtrar</button>
+    </form>
     {% if tenants %}
     <div class="jc-table-wrap">
       <table class="jc-table">
         <thead>
-          <tr><th>Negocio</th><th>Usuario</th><th>WhatsApp</th><th>Telegram</th><th>Estado</th><th>Días restantes</th><th>Registrado</th><th>Acciones</th></tr>
+          <tr><th>Negocio</th><th>Usuario</th><th>Actividad</th><th>WhatsApp</th><th>Telegram</th><th>Estado</th><th>Días restantes</th><th>Registrado</th><th>Acciones</th></tr>
         </thead>
         <tbody>
           {% for t in tenants %}
           <tr>
             <td><strong>{{ t.business_name|default:"—" }}</strong>{% if t.is_demo %}<br><span class="jc-chip">Demo 3 días</span>{% endif %}</td>
             <td>{{ t.user.username }}</td>
+            <td>
+              {% if t.is_online %}<span class="jc-chip jc-chip--green">En línea</span>{% else %}<span class="jc-chip">Desconectado</span>{% endif %}<br>
+              <small>{{ t.activity_section }}</small><br>
+              <small style="color:#6b7280">{% if t.last_activity_at %}{{ t.last_activity_at|date:"d/m/Y H:i" }}{% elif t.user.last_login %}Login: {{ t.user.last_login|date:"d/m/Y H:i" }}{% else %}Nunca ingresó{% endif %}</small>
+            </td>
             <td>
               {% if t.whatsapp %}<a href="https://wa.me/{{ t.whatsapp_digits }}" target="_blank" style="color:#059669;text-decoration:none;font-weight:600;">{{ t.whatsapp }}</a>
               {% else %}<small style="color:#9ca3af">—</small>{% endif %}
