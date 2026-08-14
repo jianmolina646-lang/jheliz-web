@@ -718,6 +718,19 @@ class OwnerControlPanelTests(TestCase):
         self.assertContains(response, "Negocio Inq")
         self.assertNotContains(response, "Negocio desconectado")
 
+    def test_control_shows_client_count_for_each_user_and_total(self):
+        Client.objects.create(owner=self.tenant_user, name="Cliente uno")
+        Client.objects.create(owner=self.tenant_user, name="Cliente dos")
+        self.client.force_login(self.owner)
+
+        users = self.client.get(self.CONTROL_USERS, HTTP_HOST=self.HOST)
+        dashboard = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
+
+        self.assertEqual(users.context["tenants"][0].client_count, 2)
+        self.assertContains(users, "Clientes")
+        self.assertEqual(dashboard.context["kpi"]["clients"], 2)
+        self.assertContains(dashboard, "Clientes registrados")
+
     def test_owner_generates_functional_three_day_demo_with_credentials(self):
         from .models import TenantPayment
 

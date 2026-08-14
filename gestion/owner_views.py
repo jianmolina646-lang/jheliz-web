@@ -21,6 +21,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.http import FileResponse
 from django.db import transaction
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -95,7 +96,10 @@ def control_dashboard(request):
 
 
 def _control_tenant_rows(queryset):
-    tenants = list(queryset.order_by("-created_at"))
+    tenants = list(
+        queryset.annotate(client_count=Count("user__jc_clients", distinct=True))
+        .order_by("-created_at")
+    )
     online_since = timezone.now() - timedelta(minutes=5)
     section_labels = {
         "/app/": "Inicio", "/app/clientes/": "Clientes",
@@ -138,6 +142,7 @@ def _control_kpi(tenants):
         "vencidos": sum(1 for tenant in tenants if not tenant.subscription_active),
         "online": sum(1 for tenant in tenants if tenant.is_online),
         "demos": sum(1 for tenant in tenants if tenant.is_demo and tenant.subscription_active),
+        "clients": sum(tenant.client_count for tenant in tenants),
         "pendientes": TenantPayment.objects.filter(status=TenantPayment.Status.PENDING).count(),
         "subs": Subscription.objects.filter(is_archived=False).count(),
         "telegram": sum(
