@@ -27,6 +27,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.views import PasswordResetCompleteView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
+from django.db import transaction
 from django.db.models import Prefetch, Q, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -157,6 +158,9 @@ def tenant_required(view):
                 "Tu suscripción está vencida. Renueva para seguir usando Jheliz Control.",
             )
             return redirect("jheliztv_billing")
+        if tenant.is_demo and request.method not in ("GET", "HEAD", "OPTIONS"):
+            messages.warning(request, "La demo es de solo lectura. Crea tu cuenta para guardar cambios.")
+            return redirect("jheliztv_dashboard")
         return view(request, tenant, *args, **kwargs)
 
     return _wrapped
@@ -266,6 +270,81 @@ def landing(request):
     return render(request, "jheliztv/landing.html", {"saas": saas})
 
 
+@require_POST
+def create_demo(request):
+    existing_tenant = _get_tenant(request.user)
+    if existing_tenant:
+        return redirect("jheliztv_dashboard")
+
+    now = timezone.now()
+    expired_user_ids = list(
+        Tenant.objects.filter(is_demo=True, plan_expires_at__lte=now)
+        .values_list("user_id", flat=True)
+    )
+    if expired_user_ids:
+        User.objects.filter(pk__in=expired_user_ids).delete()
+
+    with transaction.atomic():
+        username = f"demo_{secrets.token_hex(6)}"
+        user = User.objects.create_user(username=username)
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+        tenant = Tenant.objects.create(
+            user=user,
+            business_name="Demo JHELIZ CONTROL TV",
+            plan_expires_at=now + timedelta(hours=24),
+            is_demo=True,
+        )
+
+        services = [
+            Service.objects.create(owner=user, name="StreamPlus", icon="live_tv", color="#10b981"),
+            Service.objects.create(owner=user, name="CineMax", icon="movie", color="#8b5cf6"),
+        ]
+        clients = [
+            Client.objects.create(owner=user, name="Ana Torres", whatsapp="+51900000001"),
+            Client.objects.create(owner=user, name="Carlos Ruiz", whatsapp="+51900000002"),
+            Client.objects.create(owner=user, name="María López", whatsapp="+51900000003"),
+        ]
+        demo_subscriptions = [
+            (clients[0], services[0], "demo-ana@example.com", 25, 10, 18),
+            (clients[1], services[1], "demo-carlos@example.com", 30, 12, 3),
+            (clients[2], services[0], "demo-maria@example.com", 25, 10, 1),
+        ]
+        for client, service, account, cost, investment, days in demo_subscriptions:
+            subscription = Subscription.objects.create(
+                owner=user,
+                client=client,
+                service=service,
+                account_email=account,
+                account_password="demo-segura",
+                cost=Decimal(cost),
+                investment=Decimal(investment),
+                expires_at=now + timedelta(days=days),
+            )
+            Transaction.objects.create(
+                owner=user,
+                kind=Transaction.Kind.INCOME,
+                amount=Decimal(cost),
+                description=f"Venta demo · {service.name}",
+                client=client,
+                subscription=subscription,
+                occurred_at=now - timedelta(days=max(0, 18 - days)),
+            )
+            Transaction.objects.create(
+                owner=user,
+                kind=Transaction.Kind.EXPENSE,
+                amount=Decimal(investment),
+                description=f"Costo demo · {service.name}",
+                client=client,
+                subscription=subscription,
+                occurred_at=now - timedelta(days=max(0, 18 - days)),
+            )
+
+    login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    messages.info(request, "Estás viendo una demo privada de 24 horas en modo solo lectura.")
+    return redirect("jheliztv_dashboard")
+
+
 def _marketing_page(request, template_name):
     return render(
         request,
@@ -296,7 +375,11 @@ def contact_page(request):
 
 def register(request):
     if request.user.is_authenticated:
-        return redirect("jheliztv_dashboard")
+        current_tenant = _get_tenant(request.user)
+        if current_tenant and current_tenant.is_demo:
+            logout(request)
+        else:
+            return redirect("jheliztv_dashboard")
     if request.method == "POST":
         username = (request.POST.get("username") or "").strip()
         email = (request.POST.get("email") or "").strip()
@@ -397,6 +480,9 @@ def billing_upload(request):
     tenant = _get_tenant(request.user)
     if tenant is None:
         return redirect("jheliztv_login")
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite enviar pagos.")
+        return redirect("jheliztv_dashboard")
     saas = SaasSettings.load()
     proof = request.FILES.get("proof")
     if not proof:

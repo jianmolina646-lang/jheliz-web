@@ -99,6 +99,9 @@
       </div>
     </header>
 
+    {% if jc_tenant.is_demo %}
+      <div class="jc-msgs"><div class="jc-msg jc-msg--warning">Modo demostración · Solo lectura · Disponible durante 24 horas. <a href="{% url 'jheliztv_register' %}" style="color:#35e58f;font-weight:700">Crear mi cuenta</a>.</div></div>
+    {% endif %}
     {% if jc_tenant and jc_tenant.subscription_active and jc_days_left is not None and jc_days_left <= 5 %}
       <div class="jc-msgs"><div class="jc-msg jc-msg--warning">Tu alquiler vence en {{ jc_days_left }} día{{ jc_days_left|pluralize }}. <a href="{% url 'jheliztv_billing' %}" style="color:#35e58f;font-weight:700">Renovar ahora</a>.</div></div>
     {% endif %}
