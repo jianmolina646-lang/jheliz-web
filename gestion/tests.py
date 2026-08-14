@@ -696,6 +696,25 @@ class OwnerControlPanelTests(TestCase):
         self.tenant.refresh_from_db()
         self.assertGreater(self.tenant.days_left, before)
 
+    def test_owner_can_generate_password_reset_link(self):
+        from urllib.parse import urlparse
+        self.client.force_login(self.owner)
+        response = self.client.post(f"/control/inquilinos/{self.tenant.pk}/recuperar-clave/", HTTP_HOST=self.HOST, secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Enlace para restablecer contraseña")
+        self.assertIn("no-store", response["Cache-Control"])
+        first = self.client.get(urlparse(response.context["reset_url"]).path, HTTP_HOST=self.HOST)
+        self.assertEqual(first.status_code, 302)
+        changed = self.client.post(first["Location"], {"new_password1": "nueva-clave-789", "new_password2": "nueva-clave-789"}, HTTP_HOST=self.HOST)
+        self.assertEqual(changed.status_code, 302)
+        self.tenant_user.refresh_from_db()
+        self.assertTrue(self.tenant_user.check_password("nueva-clave-789"))
+
+    def test_non_owner_cannot_generate_password_reset_link(self):
+        self.client.force_login(self.tenant_user)
+        response = self.client.post(f"/control/inquilinos/{self.tenant.pk}/recuperar-clave/", HTTP_HOST=self.HOST)
+        self.assertRedirects(response, self.CONTROL_LOGIN, fetch_redirect_response=False)
+
     def test_block_and_unblock_tenant(self):
         self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
         # Bloquear: el inquilino queda sin acceso aunque tenga alquiler vigente.
