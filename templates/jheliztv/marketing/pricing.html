@@ -1,0 +1,28 @@
+{% extends "jheliztv/marketing/base.html" %}
+{% block mk_title %}Precio del sistema de suscripciones | JHELIZCONTROLTV{% endblock %}
+{% block mk_description %}Conoce el precio de JHELIZCONTROLTV y prueba el panel para administrar clientes, pagos, cuentas y renovaciones de tu negocio.{% endblock %}
+{% block mk_canonical %}https://jheliztv.xyz/precios/{% endblock %}
+{% block mk_og_title %}Precio del sistema de suscripciones | JHELIZCONTROLTV{% endblock %}
+{% block mk_og_description %}Conoce el precio y prueba el panel para administrar clientes, pagos, cuentas y renovaciones.{% endblock %}
+{% block mk_og_url %}https://jheliztv.xyz/precios/{% endblock %}
+{% block mk_twitter_title %}Precio del sistema de suscripciones | JHELIZCONTROLTV{% endblock %}
+{% block mk_twitter_description %}Conoce el precio y prueba el panel para administrar clientes, pagos, cuentas y renovaciones.{% endblock %}
+{% block mk_content %}
+<section class="jl-marketing-hero"><div class="jl-container">
+  <span class="jl-pill">Precio simple</span>
+  <h1>Un plan claro para <span>organizar tu operación</span></h1>
+  <p>Comienza con una prueba y decide con información real de tu propio negocio.</p>
+</div></section>
+<section class="jl-marketing-section"><div class="jl-container jl-price-wrap">
+  <article class="jl-surface jl-price-card">
+    <span class="jl-pill">Plan mensual</span>
+    <h2>Jheliz Control</h2>
+    <p class="jl-price"><small>S/</small>{{ saas.monthly_price|floatformat:2 }}<span>/ mes</span></p>
+    <ul>
+      <li>Gestión de clientes y suscripciones</li><li>Control de pagos y vencimientos</li><li>Inventario de cuentas por servicio</li><li>Reportes y métricas operativas</li><li>Recordatorios y canales de soporte</li>
+    </ul>
+    <a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">Comenzar prueba de {{ trial_days }} días</a>
+    <p class="jl-price-note">La activación posterior se gestiona desde tu cuenta.</p>
+  </article>
+</div></section>
+{% endblock %}

@@ -266,6 +266,34 @@ def landing(request):
     return render(request, "jheliztv/landing.html", {"saas": saas})
 
 
+def _marketing_page(request, template_name):
+    return render(
+        request,
+        template_name,
+        {"saas": SaasSettings.load(), "trial_days": Tenant.TRIAL_DAYS},
+    )
+
+
+def features_page(request):
+    return _marketing_page(request, "jheliztv/marketing/features.html")
+
+
+def pricing_page(request):
+    return _marketing_page(request, "jheliztv/marketing/pricing.html")
+
+
+def how_it_works_page(request):
+    return _marketing_page(request, "jheliztv/marketing/how_it_works.html")
+
+
+def faq_page(request):
+    return _marketing_page(request, "jheliztv/marketing/faq.html")
+
+
+def contact_page(request):
+    return _marketing_page(request, "jheliztv/marketing/contact.html")
+
+
 def register(request):
     if request.user.is_authenticated:
         return redirect("jheliztv_dashboard")

@@ -214,6 +214,18 @@ class TenantSaasTests(TestCase):
         # En el dominio de la tienda NO se exponen las URLs del producto.
         self.assertEqual(self.client.get(self.REGISTER, HTTP_HOST="ecormecejhelizstore.com").status_code, 404)
 
+    def test_public_marketing_pages_render_on_jheliztv(self):
+        for path in (
+            "/funciones/",
+            "/precios/",
+            "/como-funciona/",
+            "/preguntas-frecuentes/",
+            "/contacto/",
+        ):
+            with self.subTest(path=path):
+                response = self.client.get(path, HTTP_HOST=self.HOST)
+                self.assertEqual(response.status_code, 200)
+
     def test_register_grants_free_trial(self):
         r = self._register("inq1")
         self.assertEqual(r.status_code, 302)

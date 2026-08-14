@@ -1,0 +1,24 @@
+{% extends "jheliztv/marketing/base.html" %}
+{% block mk_title %}Preguntas frecuentes | JHELIZCONTROLTV{% endblock %}
+{% block mk_description %}Respuestas sobre la prueba, seguridad, clientes, cuentas, pagos, recordatorios y uso de JHELIZCONTROLTV.{% endblock %}
+{% block mk_canonical %}https://jheliztv.xyz/preguntas-frecuentes/{% endblock %}
+{% block mk_og_title %}Preguntas frecuentes | JHELIZCONTROLTV{% endblock %}
+{% block mk_og_description %}Respuestas sobre la prueba, seguridad, clientes, cuentas, pagos y recordatorios de JHELIZCONTROLTV.{% endblock %}
+{% block mk_og_url %}https://jheliztv.xyz/preguntas-frecuentes/{% endblock %}
+{% block mk_twitter_title %}Preguntas frecuentes | JHELIZCONTROLTV{% endblock %}
+{% block mk_twitter_description %}Respuestas sobre la prueba, seguridad, clientes, cuentas, pagos y recordatorios de JHELIZCONTROLTV.{% endblock %}
+{% block mk_content %}
+<section class="jl-marketing-hero"><div class="jl-container">
+  <span class="jl-pill">Preguntas frecuentes</span><h1>Respuestas antes de <span>comenzar</span></h1>
+  <p>Información directa sobre el funcionamiento y alcance del sistema.</p>
+</div></section>
+<section class="jl-marketing-section"><div class="jl-container jl-faq-list">
+  <details class="jl-surface" open><summary>¿Para quién está diseñado JHELIZCONTROLTV?</summary><p>Para negocios y revendedores que necesitan organizar clientes, suscripciones, cuentas, pagos y fechas de renovación.</p></details>
+  <details class="jl-surface"><summary>¿Cuánto dura la prueba?</summary><p>La prueba inicial dura {{ trial_days }} días y permite conocer el flujo del panel antes de activar el plan mensual.</p></details>
+  <details class="jl-surface"><summary>¿Puedo registrar diferentes servicios?</summary><p>Sí. Puedes organizar las plataformas o productos digitales que administras y mantener separado el inventario de cada servicio.</p></details>
+  <details class="jl-surface"><summary>¿Mis datos son públicos?</summary><p>No. El panel de operación requiere autenticación y las áreas privadas están excluidas de los buscadores.</p></details>
+  <details class="jl-surface"><summary>¿El sistema envía recordatorios?</summary><p>Incluye herramientas para controlar vencimientos y configurar comunicaciones mediante los canales disponibles en el panel.</p></details>
+  <details class="jl-surface"><summary>¿Puedo consultar pagos y renovaciones?</summary><p>Sí. Puedes registrar movimientos, revisar vencimientos y conservar el historial operativo de cada suscripción.</p></details>
+</div></section>
+{% include "jheliztv/marketing/cta.html" %}
+{% endblock %}
