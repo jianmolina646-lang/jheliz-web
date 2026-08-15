@@ -604,6 +604,11 @@ class OwnerControlLegacyUrlTests(TestCase):
         )
 
 
+@override_settings(
+    ALLOWED_HOSTS=["jheliztv.xyz", "ecormecejhelizstore.com", "testserver"],
+    JHELIZTV_HOSTS=["jheliztv.xyz"],
+    SECURE_SSL_REDIRECT=False,
+)
 class OwnerControlPanelTests(TestCase):
     """Panel del dueño en jheliztv.xyz/control/: solo staff, ve inquilinos,
     aprueba pagos Yape y suma días — separado de la web del inquilino."""
@@ -659,7 +664,7 @@ class OwnerControlPanelTests(TestCase):
         r = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Negocio Inq")
-        self.assertContains(r, "Clientes registrados")
+        self.assertContains(r, "Inquilinos registrados")
 
     def test_approve_payment_activates_tenant(self):
         from datetime import timedelta

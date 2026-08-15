@@ -49,7 +49,9 @@ def owner_required(view):
         ):
             return redirect("jheliztv_control_login")
         from django_otp.plugins.otp_totp.models import TOTPDevice
-        if TOTPDevice.objects.filter(user=request.user, name="Jheliz Control", confirmed=True).exists() and not request.session.get("jheliz_control_otp_verified"):
+        if TOTPDevice.objects.filter(
+            user=request.user, confirmed=True
+        ).exists() and not request.session.get("jheliz_control_otp_verified"):
             request.session["jheliz_control_otp_pending_user"] = request.user.pk
             return redirect("jheliztv_control_2fa_verify")
         return view(request, *args, **kwargs)
@@ -68,7 +70,7 @@ def control_login(request):
             messages.error(request, "Acceso solo para el administrador.")
             return render(request, "jheliztv/control/login.html", {"username": username})
         from django_otp.plugins.otp_totp.models import TOTPDevice
-        if TOTPDevice.objects.filter(user=user, name="Jheliz Control", confirmed=True).exists():
+        if TOTPDevice.objects.filter(user=user, confirmed=True).exists():
             request.session["jheliz_control_otp_pending_user"] = user.pk
             request.session["jheliz_control_otp_backend"] = "django.contrib.auth.backends.ModelBackend"
             return redirect("jheliztv_control_2fa_verify")
@@ -299,7 +301,10 @@ def control_2fa_verify(request):
         token = (request.POST.get("token") or "").strip()
         from django_otp.plugins.otp_totp.models import TOTPDevice
         from django_otp.plugins.otp_static.models import StaticDevice
-        valid = any(d.verify_token(token) for d in TOTPDevice.objects.filter(user=user, name="Jheliz Control", confirmed=True))
+        valid = any(
+            device.verify_token(token)
+            for device in TOTPDevice.objects.filter(user=user, confirmed=True)
+        )
         if not valid:
             valid = any(d.verify_token(token) for d in StaticDevice.objects.filter(user=user, confirmed=True))
         if valid:
