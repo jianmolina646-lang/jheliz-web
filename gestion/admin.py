@@ -4,7 +4,11 @@ El módulo se usa sobre todo desde sus páginas custom (dashboard verde,
 tablero de servicios, clientes). Igual registramos los modelos en el admin
 de Unfold para edición/respaldo manual.
 """
+from django.conf import settings
 from django.contrib import admin, messages
+from django.utils.encoding import force_bytes
+from django.utils.html import format_html
+from django.utils.http import urlsafe_base64_encode
 from unfold.admin import ModelAdmin
 
 from .models import (
@@ -84,7 +88,7 @@ class TenantAdmin(ModelAdmin):
     list_filter = ("is_blocked",)
     search_fields = ("business_name", "user__username", "user__email", "whatsapp")
     autocomplete_fields = ("user",)
-    actions = ("extend_30",)
+    actions = ("extend_30", "generate_password_recovery_link")
 
     @admin.display(boolean=True, description="Alquiler vigente")
     def subscription_active(self, obj):
@@ -95,6 +99,42 @@ class TenantAdmin(ModelAdmin):
         for tenant in queryset:
             tenant.extend(30)
         self.message_user(request, f"{queryset.count()} inquilino(s) +30 días.", messages.SUCCESS)
+
+    @admin.action(description="Generar enlace de recuperación (15 minutos)")
+    def generate_password_recovery_link(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(
+                request,
+                "Selecciona exactamente un inquilino para generar el enlace.",
+                messages.ERROR,
+            )
+            return
+        tenant = queryset.select_related("user").first()
+        if not tenant.user.is_active:
+            self.message_user(request, "El usuario está inactivo.", messages.ERROR)
+            return
+        from .tenant_views import password_recovery_token_generator
+
+        uid = urlsafe_base64_encode(force_bytes(tenant.user.pk))
+        token = password_recovery_token_generator.make_token(tenant.user)
+        base_url = getattr(
+            settings, "JHELIZ_CONTROL_BASE_URL", "https://jheliztv.xyz"
+        ).rstrip("/")
+        url = f"{base_url}/recuperar/{uid}/{token}/"
+        self.log_change(
+            request,
+            tenant,
+            "Generó un enlace temporal de recuperación de contraseña.",
+        )
+        self.message_user(
+            request,
+            format_html(
+                'Enlace válido durante 15 minutos y de un solo uso: '
+                '<a href="{}" target="_blank" rel="noopener">abrir o copiar enlace</a>',
+                url,
+            ),
+            messages.WARNING,
+        )
 
 
 @admin.register(TenantPayment)

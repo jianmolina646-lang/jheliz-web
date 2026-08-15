@@ -83,7 +83,7 @@ class DashboardQueryTests(TestCase):
         """Antes: 15+ queries .exists() en el bucle de nuevos vs recurrentes.
         Ahora: una sola query agregada."""
         self.client.force_login(self.staff)
-        resp, n = _query_count(self.client, "/panel-virtualidadsp/")
+        resp, n = _query_count(self.client, "/panel-jheliz-control/")
         self.assertEqual(resp.status_code, 200)
         # Tope holgado para no romperse con cambios cosméticos en Unfold.
         self.assertLess(
@@ -240,8 +240,8 @@ class AdminHelpersTests(TestCase):
     """Cubre los helpers visuales del admin de usuarios."""
 
     def test_initials_from_full_name(self):
-        u = User(first_name="VirtualidadSP", last_name="Servicios", username="jhz")
-        self.assertEqual(_initials(u), "VS")
+        u = User(first_name="JhelizTV", last_name="Servicios", username="jhz")
+        self.assertEqual(_initials(u), "JS")
 
     def test_initials_fallback_username(self):
         u = User(username="colocha", email="")

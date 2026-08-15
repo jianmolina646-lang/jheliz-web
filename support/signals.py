@@ -28,7 +28,7 @@ def _notify_ticket_message(sender, instance: TicketMessage, created: bool, **kwa
             )
             send_mail(
                 subject=f"Nueva respuesta en tu ticket #{ticket.id} — {ticket.subject}",
-                message=f"Te respondimos el ticket #{ticket.id}. Entra a virtualidadsp.com para leer.",
+                message=f"Te respondimos el ticket #{ticket.id}. Entra a jheliztv.xyz para leer.",
                 from_email=None,
                 recipient_list=[recipient],
                 html_message=html,
@@ -46,7 +46,7 @@ def _notify_ticket_message(sender, instance: TicketMessage, created: bool, **kwa
                 {"ticket": ticket, "message": instance},
             )
             send_mail(
-                subject=f"[VirtualidadSP Soporte] Ticket #{ticket.id} — {ticket.subject}",
+                subject=f"[JhelizTV Soporte] Ticket #{ticket.id} — {ticket.subject}",
                 message=f"{ticket.user.username}: {instance.body[:200]}",
                 from_email=None,
                 recipient_list=[admin_email],

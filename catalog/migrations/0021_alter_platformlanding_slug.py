@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='platformlanding',
             name='slug',
-            field=models.SlugField(help_text='Se usa en la URL: virtualidadsp.com/plataforma/<slug>/', max_length=80, unique=True, verbose_name='Slug (URL)'),
+            field=models.SlugField(help_text='Se usa en la URL: jheliztv.xyz/plataforma/<slug>/', max_length=80, unique=True, verbose_name='Slug (URL)'),
         ),
     ]

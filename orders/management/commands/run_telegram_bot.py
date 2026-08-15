@@ -4,7 +4,7 @@ from orders import telegram
 
 
 class Command(BaseCommand):
-    help = "Arranca el bot de Telegram de VirtualidadSP por long polling."
+    help = "Arranca el bot de Telegram de JhelizTV por long polling."
 
     def handle(self, *args, **options):
         if not telegram.is_configured():
@@ -12,5 +12,5 @@ class Command(BaseCommand):
                 "TELEGRAM_BOT_TOKEN no configurado en .env. Crea un bot con @BotFather y copia el token."
             ))
             return
-        self.stdout.write(self.style.SUCCESS("Bot VirtualidadSP arrancando…"))
+        self.stdout.write(self.style.SUCCESS("Bot JhelizTV arrancando…"))
         telegram.run_polling()

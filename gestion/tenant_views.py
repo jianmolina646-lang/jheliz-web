@@ -15,6 +15,7 @@ import html
 import json
 import re
 import secrets
+from hashlib import sha256
 from urllib.parse import quote
 from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
@@ -24,11 +25,17 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.contrib.auth.views import PasswordResetConfirmView
+from django.core.cache import cache
 from django.db.models import Prefetch, Q, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.encoding import force_bytes
+from django.utils.http import base36_to_int, urlsafe_base64_encode
+from django.views.generic import TemplateView
 
 from config.date_utils import add_service_duration
 from django.views.decorators.csrf import csrf_exempt
@@ -69,6 +76,24 @@ from .support_operations import add_message as add_support_message, set_status a
 from accounts.security_events import record_security_event
 
 User = get_user_model()
+
+
+class FifteenMinutePasswordResetTokenGenerator(PasswordResetTokenGenerator):
+    """Django-compatible one-use token with a tighter recovery lifetime."""
+
+    timeout_seconds = 15 * 60
+
+    def check_token(self, user, token):
+        if not super().check_token(user, token):
+            return False
+        try:
+            timestamp = base36_to_int(token.split("-", 1)[0])
+        except (TypeError, ValueError):
+            return False
+        return self._num_seconds(self._now()) - timestamp <= self.timeout_seconds
+
+
+password_recovery_token_generator = FifteenMinutePasswordResetTokenGenerator()
 
 
 def _valid_proof_image(upload) -> bool:
@@ -219,6 +244,37 @@ def landing(request):
     return render(request, "jheliztv/landing.html", {"saas": saas})
 
 
+def _marketing_page(request, template_name):
+    return render(
+        request,
+        template_name,
+        {
+            "saas": SaasSettings.load(),
+            "trial_days": Tenant.TRIAL_DAYS,
+        },
+    )
+
+
+def features_page(request):
+    return _marketing_page(request, "jheliztv/marketing/features.html")
+
+
+def pricing_page(request):
+    return _marketing_page(request, "jheliztv/marketing/pricing.html")
+
+
+def how_it_works_page(request):
+    return _marketing_page(request, "jheliztv/marketing/how_it_works.html")
+
+
+def faq_page(request):
+    return _marketing_page(request, "jheliztv/marketing/faq.html")
+
+
+def contact_page(request):
+    return _marketing_page(request, "jheliztv/marketing/contact.html")
+
+
 def register(request):
     if request.user.is_authenticated:
         return redirect("jheliztv_dashboard")
@@ -260,6 +316,7 @@ def register(request):
             request,
             f"¡Cuenta creada! Tenés {Tenant.TRIAL_DAYS} días de prueba gratis. 🎉",
         )
+        request.session["jheliztv_registration_converted"] = True
         return redirect("jheliztv_dashboard")
 
     return render(request, "jheliztv/register.html", {})
@@ -283,6 +340,66 @@ def login_view(request):
         login(request, user)
         return redirect("jheliztv_dashboard")
     return render(request, "jheliztv/login.html", {})
+
+
+def password_recovery(request):
+    """Send a one-use reset link only through an already linked Telegram chat."""
+    submitted = False
+    if request.method == "POST":
+        submitted = True
+        username = (request.POST.get("username") or "").strip()
+        remote_ip = (request.META.get("REMOTE_ADDR") or "unknown").strip()
+        ip_key = "jc:password-recovery:ip:" + sha256(remote_ip.encode()).hexdigest()
+        user_key = "jc:password-recovery:user:" + sha256(username.casefold().encode()).hexdigest()
+        ip_attempts = int(cache.get(ip_key, 0) or 0)
+        user_attempts = int(cache.get(user_key, 0) or 0)
+        if username and ip_attempts < 5 and user_attempts < 3:
+            cache.set(ip_key, ip_attempts + 1, 15 * 60)
+            cache.set(user_key, user_attempts + 1, 15 * 60)
+            user = User.objects.filter(username__iexact=username, is_active=True).first()
+            connection = None
+            if user is not None:
+                connection = TelegramConnection.objects.filter(
+                    owner=user, is_enabled=True, chat_id__isnull=False,
+                ).exclude(chat_id="").first()
+            if connection is not None:
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = password_recovery_token_generator.make_token(user)
+                path = reverse(
+                    "jheliztv_password_recovery_confirm",
+                    kwargs={"uidb64": uid, "token": token},
+                )
+                base_url = getattr(
+                    settings, "JHELIZ_CONTROL_BASE_URL", "https://jheliztv.xyz"
+                ).rstrip("/")
+                try:
+                    from .telegram_alerts import send_message
+                    send_message(
+                        connection.chat_id,
+                        "🔐 <b>Recuperación de contraseña</b>\n\n"
+                        "Se solicitó cambiar la contraseña de tu cuenta JHELIZCONTROLTV. "
+                        "El enlace es personal, temporal y de un solo uso.\n\n"
+                        f"👉 <a href=\"{base_url}{path}\">Crear nueva contraseña</a>\n\n"
+                        "Si tú no lo solicitaste, ignora este mensaje.",
+                    )
+                except Exception:
+                    # Never reveal delivery or account existence to the requester.
+                    pass
+    return render(
+        request,
+        "jheliztv/password_recovery.html",
+        {"submitted": submitted},
+    )
+
+
+class TenantPasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = "jheliztv/password_recovery_confirm.html"
+    success_url = reverse_lazy("jheliztv_password_recovery_complete")
+    token_generator = password_recovery_token_generator
+
+
+class TenantPasswordResetCompleteView(TemplateView):
+    template_name = "jheliztv/password_recovery_complete.html"
 
 
 def logout_view(request):
@@ -402,6 +519,9 @@ def dashboard(request, tenant):
         total_clients=total_clients, active_subs=active_subs,
         series=series, total_income=total_income, total_expense=total_expense,
         net=total_income - total_expense,
+        jheliztv_registration_converted=request.session.pop(
+            "jheliztv_registration_converted", False
+        ),
     )
     return render(request, "jheliztv/dashboard.html", ctx)
 

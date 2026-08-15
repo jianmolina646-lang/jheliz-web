@@ -847,23 +847,23 @@ class AdminPWAEndpointsTests(TestCase):
     para poder instalarse como PWA."""
 
     def test_admin_manifest_returns_json(self):
-        resp = self.client.get("/panel-virtualidadsp/manifest.webmanifest")
+        resp = self.client.get("/panel-jheliz-control/manifest.webmanifest")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("application/json", resp["Content-Type"])
         import json as _json
         data = _json.loads(resp.content)
-        self.assertEqual(data["short_name"], "VirtualidadSP Admin")
-        self.assertEqual(data["scope"], "/panel-virtualidadsp/")
+        self.assertEqual(data["short_name"], "JhelizTV Admin")
+        self.assertEqual(data["scope"], "/panel-jheliz-control/")
         self.assertEqual(data["display"], "standalone")
         # Debe declarar al menos 1 icono.
         self.assertGreaterEqual(len(data["icons"]), 1)
 
     def test_admin_service_worker_is_javascript(self):
-        resp = self.client.get("/panel-virtualidadsp/sw.js")
+        resp = self.client.get("/panel-jheliz-control/sw.js")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("javascript", resp["Content-Type"])
         # Scope dedicado al admin.
-        self.assertEqual(resp["Service-Worker-Allowed"], "/panel-virtualidadsp/")
+        self.assertEqual(resp["Service-Worker-Allowed"], "/panel-jheliz-control/")
         # Network-only para no servir datos viejos del admin.
         body = resp.content.decode()
         self.assertIn("self.addEventListener('install'", body)
@@ -875,7 +875,7 @@ class AdminPWAEndpointsTests(TestCase):
         # login quedaba como link muerto.
         from django.urls import reverse
         url = reverse("admin_password_reset")
-        self.assertEqual(url, "/panel-virtualidadsp/password_reset/")
+        self.assertEqual(url, "/panel-jheliz-control/password_reset/")
         resp = self.client.get(url)
         # Misma view que el reset público (200 con el formulario).
         self.assertEqual(resp.status_code, 200)
@@ -1214,13 +1214,13 @@ class CuentasEditBuyerTests(TestCase):
         # del dashboard y le agrega el ancla de la cuenta editada.
         resp = self.client.post(
             reverse("admin_cuentas_edit_buyer", args=[self.item.pk]),
-            {"customer_name": "Ana", "next": "/panel-virtualidadsp/control-cuentas/?q=x"},
+            {"customer_name": "Ana", "next": "/panel-jheliz-control/control-cuentas/?q=x"},
             follow=False,
         )
         self.assertEqual(resp.status_code, 302)
         self.assertEqual(
             resp["Location"],
-            f"/panel-virtualidadsp/control-cuentas/?q=x#cc-item-{self.item.pk}",
+            f"/panel-jheliz-control/control-cuentas/?q=x#cc-item-{self.item.pk}",
         )
         # Sin ``next`` también vuelve a la cuenta sobre el dashboard por defecto.
         resp2 = self.client.post(
@@ -1744,7 +1744,7 @@ class ProductAdminChangelistDesignTests(TestCase):
 
     def test_changelist_renders_compact_chips(self):
         self.client.force_login(self.staff)
-        resp = self.client.get("/panel-virtualidadsp/catalog/product/")
+        resp = self.client.get("/panel-jheliz-control/catalog/product/")
         self.assertEqual(resp.status_code, 200)
         # Modo de venta como chips compactos
         self.assertContains(resp, "Por perfil")
@@ -1794,7 +1794,7 @@ class PlanAdminChangelistDesignTests(TestCase):
 
     def test_customer_plan_changelist_renders_chips(self):
         self.client.force_login(self.staff)
-        resp = self.client.get("/panel-virtualidadsp/catalog/customerplan/")
+        resp = self.client.get("/panel-jheliz-control/catalog/customerplan/")
         self.assertEqual(resp.status_code, 200)
         # Producto con celda combinada
         self.assertContains(resp, "Netflix Plans Test")
@@ -1809,7 +1809,7 @@ class PlanAdminChangelistDesignTests(TestCase):
 
     def test_distributor_plan_changelist_renders_chips(self):
         self.client.force_login(self.staff)
-        resp = self.client.get("/panel-virtualidadsp/catalog/distributorplan/")
+        resp = self.client.get("/panel-jheliz-control/catalog/distributorplan/")
         self.assertEqual(resp.status_code, 200)
         # Solo se ve el plan distri (Perpetua)
         self.assertContains(resp, "Perpetua")
@@ -1820,7 +1820,7 @@ class PlanAdminChangelistDesignTests(TestCase):
 
     def test_general_plan_changelist_renders_chips(self):
         self.client.force_login(self.staff)
-        resp = self.client.get("/panel-virtualidadsp/catalog/plan/")
+        resp = self.client.get("/panel-jheliz-control/catalog/plan/")
         self.assertEqual(resp.status_code, 200)
         # Ambos planes deben aparecer (cliente + distri)
         self.assertContains(resp, "Netflix Plans Test")

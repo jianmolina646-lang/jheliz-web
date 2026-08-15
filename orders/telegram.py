@@ -24,7 +24,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
-ADMIN_BASE = "https://virtualidadsp.com/panel-virtualidadsp"
+ADMIN_BASE = "https://jheliztv.xyz/panel-jheliz-control"
 
 
 # ---------- Configuración ----------
@@ -147,7 +147,7 @@ def notify_admin(text: str, buttons: Iterable[Iterable[dict]] | None = None) -> 
     Si Discord está configurado para el back-office, ruta a Discord. Si no,
     cae al path Telegram. De esta manera, una vez que el bot de Discord
     está activo el admin queda totalmente liberado de Telegram (que pasa
-    a usarse sólo para el canal público `VirtualidadSP|Avisos`).
+    a usarse sólo para el canal público `JhelizTV|Avisos`).
     """
     # --- Discord (canal #admin) -------------------------------------------
     try:
@@ -317,7 +317,7 @@ def notify_admin_about_payment_proof(order) -> None:
 
 # ---------- Canales públicos de avisos ----------
 
-SITE_BASE = "https://virtualidadsp.com"
+SITE_BASE = "https://jheliztv.xyz"
 
 # Audiencias para anuncios. Cada anuncio se publica en uno o ambos canales
 # y los precios mostrados varían según la audiencia.
@@ -653,7 +653,7 @@ def announce_text(text: str, audience: str = AUDIENCE_ALL) -> dict | None:
 # ---------- Comandos / handlers ----------
 
 PUBLIC_HELP = (
-    "👋 Soy el bot de <b>VirtualidadSP</b>.\n\n"
+    "👋 Soy el bot de <b>JhelizTV</b>.\n\n"
     "<b>Comandos públicos</b>\n"
     "/catalogo — productos activos\n"
     "/pedido &lt;uuid&gt; — estado de un pedido\n"
@@ -861,7 +861,7 @@ def _cmd_catalogo(chat_id: int | str) -> None:
     if not products:
         send_message(chat_id, "Todavía no hay productos cargados.")
         return
-    lines = ["<b>Catálogo VirtualidadSP</b>", ""]
+    lines = ["<b>Catálogo JhelizTV</b>", ""]
     for p in products:
         plan = p.plans.filter(is_active=True).order_by("price_customer").first()
         precio = (
@@ -871,7 +871,7 @@ def _cmd_catalogo(chat_id: int | str) -> None:
         )
         lines.append(f"• <b>{p.name}</b> desde {precio}")
     lines.append("")
-    lines.append("Compra en https://virtualidadsp.com/productos/")
+    lines.append("Compra en https://jheliztv.xyz/productos/")
     send_message(chat_id, "\n".join(lines))
 
 
@@ -892,7 +892,7 @@ def _cmd_pedido(chat_id: int | str, rest: str) -> None:
         f"Pedido <b>#{order.display_number}</b>\n"
         f"Estado: <b>{order.get_status_display()}</b>\n"
         f"Total: {order.currency} {order.total}\n"
-        f"https://virtualidadsp.com/pedidos/{order.uuid}/",
+        f"https://jheliztv.xyz/pedidos/{order.uuid}/",
     )
 
 
@@ -1097,7 +1097,7 @@ def _report_text() -> str:
     _, t_month = _money_sum(month_qs)
 
     return "\n".join([
-        "<b>📊 Reporte VirtualidadSP</b>",
+        "<b>📊 Reporte JhelizTV</b>",
         f"Hoy: {today_qs.count()} pedidos · {cur_t} {t_today}",
         f"Últimos 7 días: {week_qs.count()} pedidos · {cur_t} {t_week}",
         f"Mes en curso: {month_qs.count()} pedidos · {cur_t} {t_month}",
@@ -1186,7 +1186,7 @@ def run_polling(poll_interval: float = 1.0) -> None:
     if not is_configured():
         raise RuntimeError("TELEGRAM_BOT_TOKEN no configurado")
     offset = 0
-    logger.info("Bot VirtualidadSP iniciado (long polling)")
+    logger.info("Bot JhelizTV iniciado (long polling)")
     while True:
         try:
             data = _call(

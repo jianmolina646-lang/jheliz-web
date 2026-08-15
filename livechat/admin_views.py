@@ -1,4 +1,4 @@
-"""Vistas del lado admin del chat en vivo (en `/panel-virtualidadsp/livechat/`).
+"""Vistas del lado admin del chat en vivo (en `/panel-jheliz-control/livechat/`).
 
 Diseño 2026: split-pane estilo Gmail/WhatsApp Web.
 - La lista de salas vive a la izquierda y el panel de conversación a la derecha.

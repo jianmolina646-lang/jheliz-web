@@ -106,7 +106,7 @@ def _is_admin_request(request) -> bool:
     if request is None:
         return False
     path = request.path or ""
-    admin_prefix = f"/{getattr(settings, 'ADMIN_URL_PATH', 'panel-virtualidadsp')}/"
+    admin_prefix = f"/{getattr(settings, 'ADMIN_URL_PATH', 'panel-jheliz-control')}/"
     return path.startswith(admin_prefix) or path.endswith("/login/")
 
 
@@ -137,7 +137,7 @@ def notify_admin_login(sender, request, user, **kwargs: Any) -> None:
     username = getattr(user, "get_username", lambda: str(user))()
     email = getattr(user, "email", "") or ""
 
-    subject = f"🔐 Nuevo inicio de sesión en el admin de VirtualidadSP ({username})"
+    subject = f"🔐 Nuevo inicio de sesión en el admin de JhelizTV ({username})"
     body = (
         f"Alguien acaba de iniciar sesión en tu panel admin.\n\n"
         f"• Usuario: {username}\n"
@@ -146,7 +146,7 @@ def notify_admin_login(sender, request, user, **kwargs: Any) -> None:
         f"• IP: {ip}\n"
         f"• Dispositivo: {ua}\n\n"
         f"Si NO fuiste vos, cambiá tu contraseña inmediatamente y revisá los\n"
-        f"logs en /panel-virtualidadsp/auditoria/.\n"
+        f"logs en /panel-jheliz-control/auditoria/.\n"
     )
 
     # Email.

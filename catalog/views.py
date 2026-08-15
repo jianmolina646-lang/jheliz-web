@@ -40,7 +40,7 @@ def _product_schema(request, product, plans):
         "description": product.short_description or product.description or product.name,
         "category": product.category.name,
         "url": request.build_absolute_uri(product.get_absolute_url()),
-        "brand": {"@type": "Brand", "name": "VirtualidadSP"},
+        "brand": {"@type": "Brand", "name": "JhelizTV"},
         "aggregateRating": {
             "@type": "AggregateRating",
             "ratingValue": str(product.rating),
@@ -1210,7 +1210,7 @@ def distributor_report_broken(request, item_id: int):
             text_lines.append(f"Nota: {note}")
         text_lines.append("")
         text_lines.append(
-            "🔗 https://virtualidadsp.com/panel-virtualidadsp/orders/orderitem/"
+            "🔗 https://jheliztv.xyz/panel-jheliz-control/orders/orderitem/"
             f"{item.pk}/change/"
         )
         telegram.notify_admin("\n".join(text_lines))
@@ -1291,7 +1291,7 @@ def _send_reclamacion_emails(obj):
     from django.core.mail import EmailMultiAlternatives
     from django.template.loader import render_to_string
 
-    site_name = "VirtualidadSP"
+    site_name = "JhelizTV"
     subject = f"Confirmación reclamación #{obj.numero} — {site_name}"
     ctx = {"reclamacion": obj, "site_name": site_name}
 
@@ -1310,7 +1310,7 @@ def _send_reclamacion_emails(obj):
         html = body.replace("\n", "<br>")
     msg = EmailMultiAlternatives(
         subject, body,
-        getattr(dj_settings, "DEFAULT_FROM_EMAIL", "ventas@virtualidadsp.com"),
+        getattr(dj_settings, "DEFAULT_FROM_EMAIL", "ventas@jheliztv.xyz"),
         [obj.email],
     )
     msg.attach_alternative(html, "text/html")

@@ -10,7 +10,7 @@ def _perform_global_search(q: str, limit: int):
     """Ejecuta la búsqueda cruzada y devuelve un dict con los grupos encontrados.
 
     Se usa tanto desde el endpoint JSON (modal Cmd+K) como desde la página
-    de resultados HTML (`/panel-virtualidadsp/search/?q=...&full=1`).
+    de resultados HTML (`/panel-jheliz-control/search/?q=...&full=1`).
     """
     from django.urls import reverse as _reverse
     from django.db.models import Q

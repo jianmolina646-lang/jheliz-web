@@ -240,6 +240,16 @@
 .jc-btn--ghost:hover { background: var(--jc-bg); box-shadow: none; }
 .jc-btn--sm { padding: 7px 12px; font-size: 13px; }
 
+/* ── Panel del dueño: actividad ───────────────────────────────────── */
+.jc-metric--hero{background:linear-gradient(135deg,#052e24,#064e3b);color:#fff;border-color:#10b981}.jc-metric--hero .jc-metric__l{color:#a7f3d0}
+.jc-control-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.jc-muted{color:var(--jc-muted);margin:3px 0 0;font-size:13px}
+.jc-control-search{display:flex;align-items:center;gap:8px;min-width:min(100%,330px);padding:9px 13px;border:1px solid var(--jc-line);border-radius:12px;background:var(--jc-bg)}.jc-control-search input{width:100%;border:0;outline:0;background:transparent;color:var(--jc-ink)}
+.jc-filter-row{display:flex;gap:8px;overflow:auto;padding:14px 0 12px}.jc-person{display:flex;align-items:center;gap:10px}.jc-person small{display:block;color:var(--jc-muted);margin-top:3px}.jc-avatar{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#10b981,#047857);color:#fff;font-weight:800}
+.jc-presence{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:12px;color:var(--jc-muted)}.jc-presence i{width:8px;height:8px;border-radius:50%;background:#94a3b8}.jc-presence.is-online{color:#059669}.jc-presence.is-online i{background:#22c55e;box-shadow:0 0 0 4px rgba(34,197,94,.14)}
+.jc-mini-stats{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--jc-muted)}.jc-mini-stats b{color:var(--jc-ink)}.jc-channel{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;margin:2px}.jc-channel.is-wa{background:#dcfce7;color:#15803d}.jc-channel.is-tg{background:#e0f2fe;color:#0369a1}
+.jc-timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.jc-timeline__item{display:flex;gap:10px;padding:12px;border:1px solid var(--jc-line);border-radius:12px;background:var(--jc-bg)}.jc-timeline__item>.material-symbols-outlined{color:var(--jc-green)}.jc-timeline__item p{margin:4px 0 0;color:var(--jc-muted);font-size:12px}
+@media(max-width:700px){.jc-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.jc-control-search{min-width:100%}.jc-table{min-width:850px}.jc{padding-left:10px;padding-right:10px}.jc-panel{padding:14px}}
+
 /* ── Clientes (tarjetas) ─────────────────────────────────────────────── */
 .jc-clients-search-form { margin: 4px 0 16px; }
 .jc-search-box {

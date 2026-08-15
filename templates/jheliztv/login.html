@@ -9,7 +9,10 @@
 {% block pb_twitter_description %}Acceso privado al sistema de gestión de suscripciones JHELIZCONTROLTV.{% endblock %}
 
 {% block pb_extra_head %}
-  <link rel="stylesheet" href="{% static 'css/jheliz-login.css' %}?v=lovable-v16-20260729">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Sora:wght@700;800&amp;display=swap">
+  <link rel="stylesheet" href="{% static 'css/jheliz-login.css' %}?v=clear-mode-v4-20260809">
 {% endblock %}
 
 {% block pb_header %}{% endblock %}
@@ -18,11 +21,6 @@
 <div class="jli-page">
   <div class="jli-ambient" aria-hidden="true"></div>
   <div class="jli-grid" aria-hidden="true"></div>
-  <div class="jli-orbits" aria-hidden="true">
-    <span class="jli-orbit jli-orbit--large"></span>
-    <span class="jli-orbit jli-orbit--medium"></span>
-    <span class="jli-orbit-glow"></span>
-  </div>
 
   <header class="jli-header">
     <a href="{% url 'jheliztv_landing' %}" class="jli-brand" aria-label="JHELIZCONTROLTV">
@@ -37,7 +35,6 @@
 
   <main class="jli-main">
     <div class="jli-shell">
-      <div class="jli-shell__glow" aria-hidden="true"></div>
       <section class="jli-card" aria-labelledby="loginTitle">
         <div class="jli-identity">
           <div class="jli-logo" aria-hidden="true">JC</div>
@@ -50,7 +47,7 @@
         <form method="post" action="{% url 'jheliztv_login' %}" class="jli-form" data-login-form>
           {% csrf_token %}
           <div class="jli-field">
-            <label for="jcLoginUsername">Usuario</label>
+            <label for="jcLoginUsername">USUARIO</label>
             <div class="jli-input">
               <span class="jli-input__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -61,14 +58,24 @@
           </div>
 
           <div class="jli-field">
-            <label for="jcLoginPassword">Contraseña</label>
+            <label for="jcLoginPassword">CONTRASEÑA</label>
             <div class="jli-input">
               <span class="jli-input__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
               </span>
               <input id="jcLoginPassword" type="password" name="password" placeholder="Tu contraseña"
                      required autocomplete="current-password">
+              <button type="button" class="jli-password-toggle" data-password-toggle
+                      aria-label="Mostrar contraseña" aria-pressed="false">
+                <svg class="jli-eye" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                <svg class="jli-eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18"></path><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"></path><path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c6.5 0 10 8 10 8a18.2 18.2 0 0 1-2.1 3.2"></path><path d="M6.6 6.6C3.7 8.6 2 12 2 12s3.5 8 10 8a10.5 10.5 0 0 0 5.4-1.6"></path></svg>
+              </button>
             </div>
+          </div>
+
+          <div class="jli-options">
+            <label class="jli-remember"><input type="checkbox" name="remember" value="1"><span>Mantener sesión</span></label>
+            <a class="jli-forgot" href="{% url 'jheliztv_password_recovery' %}">¿Olvidé mi contraseña?</a>
           </div>
 
           <button type="submit" class="jli-submit">
@@ -82,11 +89,12 @@
           </p>
         </form>
       </section>
+      <p class="jli-audit">Cifrado en tránsito · Registro de auditoría por cuenta</p>
     </div>
   </main>
 </div>
 {% endblock %}
 
 {% block pb_scripts %}
-  <script src="{% static 'js/jheliz-login.js' %}?v=lovable-v16-20260729" defer></script>
+  <script src="{% static 'js/jheliz-login.js' %}?v=clear-mode-v4-20260809" defer></script>
 {% endblock %}

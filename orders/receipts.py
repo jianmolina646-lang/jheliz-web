@@ -170,7 +170,7 @@ def _draw_header_band(canvas: canvas_mod.Canvas, doc: BaseDocTemplate) -> None:
         canvas.rect(x, height - band_h, width / steps + 0.5, band_h, fill=1, stroke=0)
     # Logo / nombre + título recibo
     site = doc._site
-    name = (site.site_name if site else "VirtualidadSP Store") or "VirtualidadSP Store"
+    name = (site.site_name if site else "JhelizTV Store") or "JhelizTV Store"
     canvas.setFillColor(colors.white)
     canvas.setFont("Helvetica-Bold", 20)
     canvas.drawString(15 * mm, height - 16 * mm, name)
@@ -226,7 +226,7 @@ def generate_receipt_pdf(order: "Order") -> bytes:
         leftMargin=15 * mm, rightMargin=15 * mm,
         topMargin=38 * mm, bottomMargin=24 * mm,
         title=f"Recibo Pedido {order.display_number}",
-        author=(site.site_name if site else "VirtualidadSP Store"),
+        author=(site.site_name if site else "JhelizTV Store"),
         subject="Recibo de compra",
     )
     doc._site = site
@@ -414,7 +414,7 @@ def generate_receipt_pdf(order: "Order") -> bytes:
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
     ]))
 
-    site_url = getattr(settings, "SITE_URL", "https://virtualidadsp.com") or "https://virtualidadsp.com"
+    site_url = getattr(settings, "SITE_URL", "https://jheliztv.xyz") or "https://jheliztv.xyz"
     qr_link = f"{site_url.rstrip('/')}/pedidos/{order.uuid}/"
     qr_img = _qr_image(qr_link, size_mm=22)
     qr_cell = qr_img if qr_img else Paragraph(qr_link, styles["small"])

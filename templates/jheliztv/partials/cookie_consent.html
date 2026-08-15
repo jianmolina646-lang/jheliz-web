@@ -1,0 +1,27 @@
+{% if JHELIZTV_GA4_ID %}
+<aside id="jheliztv-cookie-consent" class="jtv-cookie" hidden role="dialog" aria-label="Preferencias de analítica">
+  <p><strong>Tu privacidad importa</strong><span>Usamos analítica opcional para conocer qué páginas ayudan más y mejorar JhelizTV.</span></p>
+  <div>
+    <button type="button" data-jtv-consent="denied">Solo necesarias</button>
+    <button type="button" data-jtv-consent="granted">Aceptar analítica</button>
+  </div>
+</aside>
+<style>
+  .jtv-cookie{position:fixed;z-index:1000;right:18px;bottom:18px;width:min(430px,calc(100% - 36px));padding:18px;border:1px solid rgba(148,163,184,.28);border-radius:16px;background:#111827;color:#f8fafc;box-shadow:0 22px 55px rgba(0,0,0,.35);font-family:Inter,system-ui,sans-serif}
+  .jtv-cookie p{margin:0}.jtv-cookie strong,.jtv-cookie span{display:block}.jtv-cookie strong{font-size:15px}.jtv-cookie span{margin-top:6px;color:#cbd5e1;font-size:13px;line-height:1.45}.jtv-cookie div{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap}.jtv-cookie button{padding:9px 13px;border:1px solid #475569;border-radius:10px;background:#1e293b;color:#f8fafc;font-weight:700;cursor:pointer}.jtv-cookie button[data-jtv-consent="granted"]{border-color:#059669;background:#059669}
+</style>
+<script>
+(function () {
+  var key = "jheliztv_analytics";
+  var current = document.cookie.split("; ").find(function (item) { return item.indexOf(key + "=") === 0; });
+  var banner = document.getElementById("jheliztv-cookie-consent");
+  if (!current) banner.hidden = false;
+  banner.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-jtv-consent]");
+    if (!button) return;
+    document.cookie = key + "=" + button.dataset.jtvConsent + "; Max-Age=15552000; Path=/; SameSite=Lax; Secure";
+    window.location.reload();
+  });
+})();
+</script>
+{% endif %}

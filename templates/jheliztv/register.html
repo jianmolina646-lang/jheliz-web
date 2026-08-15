@@ -16,7 +16,7 @@
   <div class="pb-card" style="padding:28px;">
     <h1 style="margin:0 0 4px;font-size:22px;">Crear mi cuenta</h1>
     <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">Empezá a gestionar tus suscripciones hoy.</p>
-    <form method="post" action="{% url 'jheliztv_register' %}">
+    <form method="post" action="{% url 'jheliztv_register' %}" data-jheliztv-registration-form>
       {% csrf_token %}
       <div class="pb-field">
         <label>Nombre de tu negocio</label>
