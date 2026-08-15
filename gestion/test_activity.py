@@ -32,16 +32,17 @@ class ActivityDashboardTests(TestCase):
         self.assertNotIn("private-value", event.path)
         self.assertEqual(event.action, "movimiento_creado")
 
-    def test_owner_dashboard_filters_activity(self):
+    def test_owner_users_page_filters_activity(self):
         owner = get_user_model().objects.create_superuser(
             username="activity-owner", password="owner-safe-password-123"
         )
         self.client.force_login(owner)
         response = self.client.get(
-            reverse("jheliztv_control_dashboard"),
-            {"actividad": "inactivos", "q": "active"},
+            reverse("jheliztv_control_users"),
+            {"q": "active"},
             HTTP_HOST="jheliztv.xyz",
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "active-tenant")
-        self.assertContains(response, "Actividad de usuarios")
+        self.assertContains(response, "Usuarios")
+        self.assertContains(response, "Actividad")
