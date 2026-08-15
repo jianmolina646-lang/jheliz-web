@@ -1,0 +1,95 @@
+# ============================================================================
+# Nginx canónico para jheliztv.xyz — Jheliz Control
+# ============================================================================
+
+limit_req_zone $binary_remote_addr zone=jheliztv_login:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=jheliztv_general:10m rate=15r/s;
+limit_conn_zone $binary_remote_addr zone=jheliztv_connections:10m;
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name jheliztv.xyz www.jheliztv.xyz;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        access_log off;
+    }
+
+    location / {
+        return 301 https://jheliztv.xyz$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name www.jheliztv.xyz;
+
+    ssl_certificate /etc/letsencrypt/live/jheliztv.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/jheliztv.xyz/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    return 301 https://jheliztv.xyz$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name jheliztv.xyz;
+
+    ssl_certificate /etc/letsencrypt/live/jheliztv.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/jheliztv.xyz/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    client_max_body_size 20M;
+    limit_req_status 429;
+    limit_conn_status 429;
+    limit_conn jheliztv_connections 30;
+    include /etc/nginx/snippets/jheliz-agent-api.conf;
+
+    location /static/ {
+        alias /srv/jheliz/staticfiles/;
+        access_log off;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        expires 1y;
+    }
+
+    location ~ ^/media/jheliz_control/(pagos|renewal_proofs)/ {
+        return 404;
+    }
+
+    location /media/ {
+        alias /srv/jheliz/media/;
+        access_log off;
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        access_log off;
+    }
+
+    location ~ ^/(ingresar|control/ingresar|recuperar)(/|$) {
+        limit_req zone=jheliztv_login burst=5 nodelay;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_redirect off;
+    }
+
+    location / {
+        limit_req zone=jheliztv_general burst=30 nodelay;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_redirect off;
+    }
+}
