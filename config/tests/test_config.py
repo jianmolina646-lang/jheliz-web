@@ -27,6 +27,12 @@ class JheliztvFaviconTests(TestCase):
 
 
 class SecurityHeadersTests(TestCase):
+    def test_session_expires_after_30_minutes_of_inactivity(self):
+        from django.conf import settings
+
+        self.assertEqual(settings.SESSION_COOKIE_AGE, 30 * 60)
+        self.assertTrue(settings.SESSION_SAVE_EVERY_REQUEST)
+
     def test_csp_header_present(self):
         resp = self.client.get("/")
         self.assertIn("Content-Security-Policy", resp.headers)
