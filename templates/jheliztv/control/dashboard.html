@@ -6,6 +6,18 @@
   </div>
 
   <div class="jc-metrics">
+    <div class="jc-metric jc-metric--hero">
+      <div class="jc-metric__icon"><span class="material-symbols-outlined">online_prediction</span></div>
+      <div><div class="jc-metric__v">{{ kpi.online }}</div><div class="jc-metric__l">En línea ahora</div></div>
+    </div>
+    <div class="jc-metric">
+      <div class="jc-metric__icon is-blue"><span class="material-symbols-outlined">calendar_month</span></div>
+      <div><div class="jc-metric__v">{{ kpi.active_week }}</div><div class="jc-metric__l">Activos esta semana</div></div>
+    </div>
+    <div class="jc-metric">
+      <div class="jc-metric__icon {% if kpi.inactive %}is-red{% endif %}"><span class="material-symbols-outlined">person_off</span></div>
+      <div><div class="jc-metric__v">{{ kpi.inactive }}</div><div class="jc-metric__l">Inactivos 30 días</div></div>
+    </div>
     <div class="jc-metric">
       <div class="jc-metric__icon"><span class="material-symbols-outlined">groups</span></div>
       <div><div class="jc-metric__v">{{ kpi.total }}</div><div class="jc-metric__l">Inquilinos registrados</div></div>
@@ -26,6 +38,33 @@
       <div class="jc-metric__icon is-blue"><span class="material-symbols-outlined">send</span></div>
       <div><div class="jc-metric__v">{{ kpi.telegram }}</div><div class="jc-metric__l">Telegram vinculados</div></div>
     </div>
+  </div>
+
+  {# ── Recuperación de acceso ───────────────────────────────────── #}
+  <div class="jc-panel" style="margin-top:16px;">
+    <h2 class="jc-section-title"><span class="material-symbols-outlined">key</span> Recuperación de acceso</h2>
+    <p style="color:#9ca3af;margin:0 0 14px;">
+      Después de verificar la identidad del titular, genera un enlace personal válido durante 15 minutos y de un solo uso.
+      La contraseña actual no cambia hasta que el usuario confirme una nueva.
+    </p>
+    <form method="post" action="{% url 'jheliztv_control_password_recovery' %}"
+          style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;">
+      {% csrf_token %}
+      <label style="flex:1;min-width:230px;">
+        <span style="display:block;color:#d1d5db;font-size:.84rem;margin-bottom:6px;">Buscar usuario</span>
+        <input name="username" required class="jc-input" list="recoveryUsers"
+               placeholder="Escribe el usuario exacto…" autocomplete="off"
+               style="width:100%;box-sizing:border-box;padding:10px 12px;">
+        <datalist id="recoveryUsers">
+          {% for t in tenants %}
+            <option value="{{ t.user.username }}">{% if t.business_name %}{{ t.business_name }}{% else %}Usuario {{ t.user.username }}{% endif %}</option>
+          {% endfor %}
+        </datalist>
+      </label>
+      <button type="submit" class="jc-btn">
+        <span class="material-symbols-outlined">link</span> Generar enlace
+      </button>
+    </form>
   </div>
 
   {# ── Pagos pendientes ──────────────────────────────────────────── #}
@@ -71,46 +110,49 @@
 
   {# ── Inquilinos ────────────────────────────────────────────────── #}
   <div class="jc-panel" style="margin-top:16px;">
-    <h2 class="jc-section-title"><span class="material-symbols-outlined">groups</span> Clientes registrados</h2>
+    <div class="jc-control-head">
+      <div><h2 class="jc-section-title"><span class="material-symbols-outlined">groups</span> Actividad de usuarios</h2>
+      <p class="jc-muted">Uso del panel sin registrar contraseñas ni contenido privado.</p></div>
+      <form method="get" class="jc-control-search">
+        <span class="material-symbols-outlined">search</span>
+        <input type="search" name="q" value="{{ query }}" placeholder="Usuario, negocio o WhatsApp">
+        <input type="hidden" name="actividad" value="{{ activity_filter }}">
+      </form>
+    </div>
+    <nav class="jc-filter-row" aria-label="Filtros de actividad">
+      <a class="jc-sortpill {% if activity_filter == 'todos' %}is-active{% endif %}" href="?actividad=todos&q={{ query|urlencode }}">Todos</a>
+      <a class="jc-sortpill {% if activity_filter == 'online' %}is-active{% endif %}" href="?actividad=online&q={{ query|urlencode }}">En línea</a>
+      <a class="jc-sortpill {% if activity_filter == 'semana' %}is-active{% endif %}" href="?actividad=semana&q={{ query|urlencode }}">Esta semana</a>
+      <a class="jc-sortpill {% if activity_filter == 'inactivos' %}is-active{% endif %}" href="?actividad=inactivos&q={{ query|urlencode }}">Inactivos</a>
+      <a class="jc-sortpill {% if activity_filter == 'vencidos' %}is-active{% endif %}" href="?actividad=vencidos&q={{ query|urlencode }}">Vencidos</a>
+      <a class="jc-sortpill {% if activity_filter == 'sin_telegram' %}is-active{% endif %}" href="?actividad=sin_telegram&q={{ query|urlencode }}">Sin Telegram</a>
+    </nav>
     {% if tenants %}
     <div class="jc-table-wrap">
       <table class="jc-table">
         <thead>
-          <tr><th>Negocio</th><th>Usuario</th><th>WhatsApp</th><th>Telegram</th><th>Estado</th><th>Días restantes</th><th>Registrado</th><th>Acciones</th></tr>
+          <tr><th>Usuario</th><th>Actividad</th><th>Uso</th><th>Canales</th><th>Plan</th><th>Acciones</th></tr>
         </thead>
         <tbody>
           {% for t in tenants %}
           <tr>
-            <td><strong>{{ t.business_name|default:"—" }}</strong></td>
-            <td>{{ t.user.username }}</td>
             <td>
-              {% if t.whatsapp %}<a href="https://wa.me/{{ t.whatsapp_digits }}" target="_blank" style="color:#059669;text-decoration:none;font-weight:600;">{{ t.whatsapp }}</a>
-              {% else %}<small style="color:#9ca3af">—</small>{% endif %}
+              <div class="jc-person"><span class="jc-avatar">{{ t.user.username|first|upper }}</span><div>
+                <strong>{{ t.user.username }}</strong><small>{{ t.business_name|default:"Sin nombre comercial" }}</small>
+              </div></div>
             </td>
             <td>
+              <span class="jc-presence {% if t.is_online %}is-online{% endif %}"><i></i>{{ t.activity_label }}</span><br>
+              <small>{% if t.last_seen_at %}Última vez {{ t.last_seen_at|timesince }} atrás{% else %}Sin actividad registrada{% endif %}</small>
+            </td>
+            <td><div class="jc-mini-stats"><span><b>{{ t.clients_count }}</b> clientes</span><span><b>{{ t.subscriptions_count }}</b> suscripciones</span><span><b>{{ t.services_count }}</b> servicios</span></div></td>
+            <td>
+              {% if t.whatsapp %}<a class="jc-channel is-wa" href="https://wa.me/{{ t.whatsapp_digits }}" target="_blank">WhatsApp</a>{% endif %}
               {% if t.telegram_connection and t.telegram_connection.is_linked %}
-                {% if t.telegram_connection.is_enabled %}
-                  <span class="jc-chip jc-chip--green">Activo</span>
-                {% else %}
-                  <span class="jc-chip">Pausado</span>
-                {% endif %}<br>
-                <small>@{{ t.telegram_connection.telegram_username|default:"sin usuario" }}</small><br>
-                <small style="color:#6b7280">Vinculado {{ t.telegram_connection.linked_at|date:"d/m/Y H:i" }}</small><br>
-                <small style="color:#6b7280">
-                  Último aviso:
-                  {% if t.telegram_connection.last_digest_date %}
-                    {{ t.telegram_connection.last_digest_date|date:"d/m/Y" }}
-                  {% else %}
-                    aún no enviado
-                  {% endif %}
-                </small>
-              {% else %}
-                <span class="jc-chip">No vinculado</span>
+                <span class="jc-channel is-tg">Telegram</span>
               {% endif %}
             </td>
-            <td><span class="jc-chip jc-chip--{{ t.estado_color }}">{{ t.estado }}</span></td>
-            <td>{{ t.days_left }} día{{ t.days_left|pluralize }}</td>
-            <td><small>{{ t.created_at|date:"d/m/Y" }}</small></td>
+            <td><span class="jc-chip jc-chip--{{ t.estado_color }}">{{ t.estado }}</span><br><small>{{ t.days_left }} días restantes</small></td>
             <td>
               <div class="jc-acts">
                 <form method="post" action="{% url 'jheliztv_control_tenant_password_reset_link' t.pk %}" style="display:inline">{% csrf_token %}
@@ -139,5 +181,14 @@
     {% else %}
       <p style="color:#6b7280;margin:6px 2px 0;">Todavía no hay inquilinos registrados en jheliztv.xyz.</p>
     {% endif %}
+  </div>
+
+  <div class="jc-panel" style="margin-top:16px;">
+    <h2 class="jc-section-title"><span class="material-symbols-outlined">history</span> Actividad reciente</h2>
+    <div class="jc-timeline">
+      {% for event in recent_events %}
+        <div class="jc-timeline__item"><span class="material-symbols-outlined">bolt</span><div><strong>{{ event.tenant.user.username }}</strong><p>{{ event.action|cut:"_" }} · {{ event.created_at|timesince }} atrás</p></div></div>
+      {% empty %}<p class="jc-muted">La actividad empezará a aparecer desde esta actualización.</p>{% endfor %}
+    </div>
   </div>
 {% endblock %}

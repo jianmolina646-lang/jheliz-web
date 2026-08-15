@@ -1,0 +1,22 @@
+{% if JHELIZTV_GA4_ID %}
+<script>
+(function () {
+  var consent = document.cookie.split("; ").some(function (item) {
+    return item === "jheliztv_analytics=granted";
+  });
+  window.__jheliztvAnalyticsConsent = consent;
+  if (!consent) return;
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+  window.gtag("js", new Date());
+  window.gtag("config", "{{ JHELIZTV_GA4_ID|escapejs }}", {
+    anonymize_ip: true,
+    cookie_flags: "SameSite=Lax;Secure"
+  });
+  var script = document.createElement("script");
+  script.async = true;
+  script.src = "https://www.googletagmanager.com/gtag/js?id={{ JHELIZTV_GA4_ID|urlencode }}";
+  document.head.appendChild(script);
+})();
+</script>
+{% endif %}

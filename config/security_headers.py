@@ -9,7 +9,17 @@ from django.conf import settings
 # nofollow` para que un crawler malicioso (o uno que llegó a una URL
 # filtrada en logs) nunca la indexe en buscadores.
 _ADMIN_PREFIX = "/panel-jheliz-control/"
-_JHELIZTV_INDEXABLE_PATHS = {"/", "/robots.txt", "/sitemap.xml", "/favicon.ico"}
+_JHELIZTV_INDEXABLE_PATHS = {
+    "/",
+    "/funciones/",
+    "/precios/",
+    "/como-funciona/",
+    "/preguntas-frecuentes/",
+    "/contacto/",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/favicon.ico",
+}
 
 
 class SecurityHeadersMiddleware:
@@ -30,7 +40,7 @@ class SecurityHeadersMiddleware:
         if request.path.startswith(_ADMIN_PREFIX):
             response.headers.setdefault("X-Robots-Tag", "noindex, nofollow, noarchive")
         # jheliztv.xyz contiene datos de inquilinos y clientes en todas sus
-        # rutas salvo la landing y los dos archivos de descubrimiento SEO.
+        # rutas salvo las páginas públicas y los archivos de descubrimiento SEO.
         # La cabecera protege incluso URLs privadas que no figuren en robots.txt.
         if (
             getattr(request, "is_jheliztv", False)
