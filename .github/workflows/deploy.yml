@@ -12,8 +12,8 @@ concurrency:
 
 jobs:
   deploy:
-    name: SSH + git pull + docker compose
-    runs-on: ubuntu-latest
+    name: Local git pull + docker compose
+    runs-on: [self-hosted, Linux, X64, jheliz-production]
     timeout-minutes: 15
     if: >-
       github.event_name == 'workflow_dispatch' ||
@@ -21,19 +21,30 @@ jobs:
        github.event.workflow_run.head_branch == 'main')
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || 22 }}
-          script_stop: true
-          # Forwardea estos env vars al shell remoto; se usan en el script.
-          envs: VPS_PROJECT_PATH,MERCADOPAGO_WEBHOOK_SECRET,NGINX_CONF_SYNC,NGINX_CONF_PATH,EXPECTED_SHA
-          script: |
+      - name: Deploy on production runner
+        run: |
             set -euo pipefail
             PROJECT_PATH="${VPS_PROJECT_PATH:-/srv/jheliz}"
+            LEGACY_PATH="/opt/jheliz-web"
+
+            if [ ! -d "$PROJECT_PATH/.git" ]; then
+              if [ -n "$(find "$PROJECT_PATH" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+                echo "✗ $PROJECT_PATH no está vacío; no se inicializará automáticamente."
+                exit 1
+              fi
+
+              echo "→ Inicializando checkout limpio de producción..."
+              git clone https://github.com/jianmolina646-lang/jheliz-web.git "$PROJECT_PATH"
+              for persistent_path in .env media private_media secrets; do
+                if [ ! -e "$LEGACY_PATH/$persistent_path" ]; then
+                  echo "✗ Falta la ruta persistente $LEGACY_PATH/$persistent_path."
+                  exit 1
+                fi
+                ln -s "$LEGACY_PATH/$persistent_path" "$PROJECT_PATH/$persistent_path"
+              done
+              mkdir "$PROJECT_PATH/staticfiles"
+            fi
+
             cd "$PROJECT_PATH"
 
             # Sincroniza MERCADOPAGO_WEBHOOK_SECRET al .env de manera idempotente.

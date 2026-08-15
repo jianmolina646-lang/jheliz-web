@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Ingresar · Jheliz Digital{% endblock %}
+{% block extra_head %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/login-horizon.css' %}">
+  <link rel="stylesheet" href="{% static 'css/login-recovery.css' %}">
+{% endblock %}
+{% block body %}
+<main class="horizon-login">
+  <section class="horizon-brand">
+    <div class="horizon-orb" aria-hidden="true"></div>
+    <div class="horizon-grid" aria-hidden="true"></div>
+    <div class="horizon-logo"><span>J</span><strong>Jheliz Digital</strong></div>
+    <div class="horizon-copy">
+      <p class="horizon-pill"><span>✦</span> Control profesional</p>
+      <h1>Todas tus cuentas<br>digitales, <em>bajo control.</em></h1>
+      <p>Inventario, ventas, renovaciones y reposiciones en una plataforma segura y en tiempo real.</p>
+      <div class="horizon-stats">
+        <div><strong>1.248</strong><span>Cuentas</span></div>
+        <div><strong>862</strong><span>Disponibles</span></div>
+        <div><strong>99.9%</strong><span>Uptime</span></div>
+      </div>
+    </div>
+    <p class="horizon-copyright">© {% now "Y" %} Jheliz Digital · Todas las acciones quedan registradas</p>
+  </section>
+  <section class="horizon-panel">
+    <form method="post" class="horizon-card">
+      {% csrf_token %}
+      <div class="horizon-mobile-logo"><span>J</span><strong>Jheliz Digital</strong></div>
+      <p class="horizon-eyebrow">Acceso privado</p>
+      <h2>Bienvenido</h2>
+      <p class="horizon-description">Ingresa con las credenciales asignadas por el administrador.</p>
+      {% if form.non_field_errors %}<div class="form-error">Usuario o contraseña incorrectos.</div>{% endif %}
+      <div class="horizon-fields">
+        <label for="id_username">Usuario</label>
+        <div class="horizon-field"><span aria-hidden="true">♙</span><input id="id_username" name="username" type="text" autocomplete="username" placeholder="Jheliz200" required autofocus></div>
+        <label for="id_password">Contraseña</label>
+        <div class="horizon-field"><span aria-hidden="true">▣</span><input id="id_password" name="password" type="password" autocomplete="current-password" placeholder="••••••••••" required><button type="button" id="toggle-password" aria-label="Mostrar contraseña">◉</button></div>
+      </div>
+      <div class="horizon-options"><label><input type="checkbox" name="remember"> Recordarme</label><a href="{% url 'password_reset_request' %}">¿Olvidaste tu clave?</a></div>
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <button type="submit" class="horizon-submit">Ingresar al panel <span>→</span></button>
+      <p class="horizon-security"><span>♢</span> Acceso protegido · Las acciones quedan registradas</p>
+    </form>
+  </section>
+</main>
+<script>
+  (() => {
+    const button = document.getElementById("toggle-password");
+    const input = document.getElementById("id_password");
+    button?.addEventListener("click", () => {
+      const visible = input.type === "text";
+      input.type = visible ? "password" : "text";
+      button.setAttribute("aria-label", visible ? "Mostrar contraseña" : "Ocultar contraseña");
+    });
+  })();
+</script>
+{% endblock %}

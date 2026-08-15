@@ -14,9 +14,9 @@ jobs:
     name: Auditar vulnerabilidades de dependencias
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.12'
           cache: pip
@@ -40,9 +40,9 @@ jobs:
       # Fernet key valida solo para que cargue catalog/orders sin error.
       FIELD_ENCRYPTION_KEY: dQyMEwMZ8Z6oFYw1Qi0boOcevXs0rod9CYHhCyK423U=
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.12'
           cache: pip
@@ -76,9 +76,9 @@ jobs:
       ALLOWED_HOSTS: localhost,127.0.0.1,testserver
       FIELD_ENCRYPTION_KEY: dQyMEwMZ8Z6oFYw1Qi0boOcevXs0rod9CYHhCyK423U=
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: '3.12'
           cache: pip

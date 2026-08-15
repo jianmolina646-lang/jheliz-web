@@ -170,6 +170,25 @@ def _get_tenant(user):
     return Tenant.objects.filter(user=user).first()
 
 
+def _record_tenant_activity(request, tenant):
+    path = (request.path or "")[:200]
+    if path.endswith("/notificaciones.json"):
+        return
+    now = timezone.now()
+    last_write = request.session.get("jc_activity_written_at", 0)
+    last_path = request.session.get("jc_activity_path", "")
+    if path == last_path and now.timestamp() - float(last_write or 0) < 60:
+        return
+    Tenant.objects.filter(pk=tenant.pk).update(
+        last_activity_at=now,
+        last_activity_path=path,
+    )
+    tenant.last_activity_at = now
+    tenant.last_activity_path = path
+    request.session["jc_activity_written_at"] = now.timestamp()
+    request.session["jc_activity_path"] = path
+
+
 def tenant_required(view):
     """Exige login + suscripción de alquiler vigente.
 
@@ -180,6 +199,7 @@ def tenant_required(view):
         tenant = _get_tenant(request.user)
         if tenant is None:
             return redirect("jheliztv_login")
+        _record_tenant_activity(request, tenant)
         if not tenant.subscription_active:
             messages.warning(
                 request,
@@ -328,7 +348,11 @@ def contact_page(request):
 
 def register(request):
     if request.user.is_authenticated:
-        return redirect("jheliztv_dashboard")
+        current_tenant = _get_tenant(request.user)
+        if current_tenant and current_tenant.is_demo:
+            logout(request)
+        else:
+            return redirect("jheliztv_dashboard")
     if request.method == "POST":
         username = (request.POST.get("username") or "").strip()
         email = (request.POST.get("email") or "").strip()
@@ -465,6 +489,7 @@ def billing(request):
     tenant = _get_tenant(request.user)
     if tenant is None:
         return redirect("jheliztv_login")
+    _record_tenant_activity(request, tenant)
     saas = SaasSettings.load()
     pending = tenant.payments.filter(status=TenantPayment.Status.PENDING).first()
     last_rejected = (
@@ -490,6 +515,9 @@ def billing_upload(request):
     tenant = _get_tenant(request.user)
     if tenant is None:
         return redirect("jheliztv_login")
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite enviar pagos.")
+        return redirect("jheliztv_dashboard")
     saas = SaasSettings.load()
     proof = request.FILES.get("proof")
     if not proof:
@@ -1411,6 +1439,9 @@ def renewals_inbox(request, tenant):
 @tenant_required
 @require_POST
 def payment_method_add(request, tenant):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite configurar métodos de pago reales.")
+        return redirect("jheliztv_dashboard")
     label = (request.POST.get("label") or "").strip()
     details = (request.POST.get("details") or "").strip()
     kind = request.POST.get("kind")
@@ -1429,6 +1460,9 @@ def payment_method_add(request, tenant):
 @tenant_required
 @require_POST
 def payment_method_delete(request, tenant, pk):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite configurar métodos de pago reales.")
+        return redirect("jheliztv_dashboard")
     get_object_or_404(ResellerPaymentMethod, pk=pk, owner=request.user).delete()
     messages.success(request, "Método de pago eliminado.")
     return redirect("jheliztv_renewals")
@@ -1517,6 +1551,9 @@ def notifications_json(request, tenant):
 
 @tenant_required
 def telegram_settings(request, tenant):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite conectar Telegram.")
+        return redirect("jheliztv_dashboard")
     connection, _ = TelegramConnection.objects.get_or_create(owner=request.user)
     link_url = ""
     if request.method == "POST":
@@ -1548,6 +1585,9 @@ def telegram_settings(request, tenant):
 @tenant_required
 @require_POST
 def telegram_unlink(request, tenant):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite conectar Telegram.")
+        return redirect("jheliztv_dashboard")
     TelegramConnection.objects.filter(owner=request.user).update(
         chat_id=None,
         telegram_username="",
@@ -1562,6 +1602,9 @@ def telegram_unlink(request, tenant):
 
 @tenant_required
 def whatsapp_settings(request, tenant):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite conectar WhatsApp.")
+        return redirect("jheliztv_dashboard")
     connection, _ = WhatsAppConnection.objects.get_or_create(owner=request.user)
     if request.method == "POST":
         connection.reminder_days = [
@@ -1598,6 +1641,8 @@ def whatsapp_settings(request, tenant):
 @tenant_required
 @require_POST
 def whatsapp_signup_complete(request, tenant):
+    if tenant.is_demo:
+        return JsonResponse({"ok": False, "error": "No disponible en la demo."}, status=403)
     try:
         payload = json.loads(request.body)
         required = ("code", "waba_id", "phone_number_id")
@@ -1620,6 +1665,9 @@ def whatsapp_signup_complete(request, tenant):
 @tenant_required
 @require_POST
 def whatsapp_unlink(request, tenant):
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite conectar WhatsApp.")
+        return redirect("jheliztv_dashboard")
     WhatsAppConnection.objects.filter(owner=request.user).update(
         access_token="", waba_id="", phone_number_id=None,
         display_phone_number="", verified_name="",

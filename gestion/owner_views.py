@@ -11,14 +11,17 @@ así que el futuro dueño de la tienda no lo ve desde su propio dominio.
 from __future__ import annotations
 
 from datetime import timedelta
+from decimal import Decimal
 from functools import wraps
+import secrets
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.tokens import default_token_generator
-from django.db.models import Count, Q
 from django.http import FileResponse
+from django.db import transaction
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.encoding import force_bytes
@@ -29,13 +32,19 @@ from django.views.decorators.http import require_POST
 from accounts.security_events import record_security_event
 
 from .models import (
+    Client,
     SaasSettings,
+    Service,
     Subscription,
     TelegramConnection,
     Tenant,
     TenantActivityEvent,
     TenantPayment,
+    Transaction,
+    WhatsAppConnection,
 )
+
+User = get_user_model()
 
 
 def owner_required(view):
@@ -86,38 +95,34 @@ def control_logout(request):
 
 @owner_required
 def control_dashboard(request):
-    now = timezone.now()
-    query = (request.GET.get("q") or "").strip()
-    activity_filter = (request.GET.get("actividad") or "todos").strip()
-    tenant_query = Tenant.objects.select_related("user", "activity").annotate(
-        clients_count=Count("user__jc_clients", distinct=True),
-        services_count=Count("user__jc_services", distinct=True),
-        subscriptions_count=Count("user__jc_subscriptions", distinct=True),
-    )
-    if query:
-        tenant_query = tenant_query.filter(
-            Q(user__username__icontains=query)
-            | Q(business_name__icontains=query)
-            | Q(whatsapp__icontains=query)
-        )
-    if activity_filter == "online":
-        tenant_query = tenant_query.filter(activity__last_seen_at__gte=now-timedelta(minutes=10))
-    elif activity_filter == "semana":
-        tenant_query = tenant_query.filter(activity__last_seen_at__gte=now-timedelta(days=7))
-    elif activity_filter == "inactivos":
-        tenant_query = tenant_query.filter(
-            Q(activity__last_seen_at__lt=now-timedelta(days=30)) | Q(activity__isnull=True)
-        )
-    elif activity_filter == "vencidos":
-        tenant_query = tenant_query.filter(Q(plan_expires_at__lte=now) | Q(plan_expires_at__isnull=True))
-    elif activity_filter == "sin_telegram":
-        tenant_query = tenant_query.filter(Q(user__jc_telegram_connection__chat_id__isnull=True) | Q(user__jc_telegram_connection__chat_id=""))
-    tenants = list(tenant_query.order_by("-created_at"))
+    tenants = _control_tenant_rows(Tenant.objects.select_related("user"))
     pending = list(
         TenantPayment.objects.filter(status=TenantPayment.Status.PENDING)
-        .select_related("tenant", "tenant__user")
+        .select_related("tenant", "tenant__user").order_by("-created_at")[:5]
+    )
+    kpi = _control_kpi(tenants)
+    recent = sorted(
+        tenants, key=lambda tenant: tenant.last_activity_at or tenant.created_at, reverse=True,
+    )[:8]
+    return render(request, "jheliztv/control/dashboard.html", {
+        "title": "Resumen", "jc_control_active": "dashboard",
+        "kpi": kpi, "recent": recent, "pending": pending,
+    })
+
+
+def _control_tenant_rows(queryset):
+    tenants = list(
+        queryset.annotate(client_count=Count("user__jc_clients", distinct=True))
         .order_by("-created_at")
     )
+    online_since = timezone.now() - timedelta(minutes=5)
+    section_labels = {
+        "/app/": "Inicio", "/app/clientes/": "Clientes",
+        "/app/servicios/": "Servicios", "/app/correos/": "Correos",
+        "/app/soporte/": "Soporte", "/app/renovaciones/": "Renovaciones",
+        "/app/telegram/": "Telegram", "/app/whatsapp/": "WhatsApp",
+        "/app/configuracion/monedas/": "Monedas", "/suscripcion/": "Suscripción",
+    }
     telegram_by_owner = {
         connection.owner_id: connection
         for connection in TelegramConnection.objects.select_related("owner")
@@ -125,49 +130,192 @@ def control_dashboard(request):
 
     for t in tenants:
         t.telegram_connection = telegram_by_owner.get(t.user_id)
+        t.is_online = bool(t.last_activity_at and t.last_activity_at >= online_since)
+        matching_sections = [
+            (prefix, label) for prefix, label in section_labels.items()
+            if t.last_activity_path.startswith(prefix)
+        ]
+        t.activity_section = (
+            max(matching_sections, key=lambda item: len(item[0]))[1]
+            if matching_sections else ("Sin actividad" if not t.last_activity_path else "Otra sección")
+        )
         if t.is_blocked:
             t.estado, t.estado_color = "Bloqueado", "red"
         elif t.subscription_active:
             t.estado, t.estado_color = "Activo", "green"
         else:
             t.estado, t.estado_color = "Vencido", "red"
-        activity = getattr(t, "activity", None)
-        t.last_seen_at = activity.last_seen_at if activity else None
-        t.is_online = bool(t.last_seen_at and t.last_seen_at >= now-timedelta(minutes=10))
-        t.activity_label = "En línea" if t.is_online else ("Nunca ingresó" if not t.last_seen_at else "Inactivo")
+    return tenants
 
-    all_tenants = Tenant.objects.select_related("activity")
-    total = all_tenants.count()
-    activos = sum(1 for t in all_tenants if t.subscription_active)
-    online = sum(1 for t in all_tenants if getattr(t, "activity", None) and t.activity.last_seen_at >= now-timedelta(minutes=10))
-    active_week = sum(1 for t in all_tenants if getattr(t, "activity", None) and t.activity.last_seen_at >= now-timedelta(days=7))
-    inactive = total - sum(1 for t in all_tenants if getattr(t, "activity", None) and t.activity.last_seen_at >= now-timedelta(days=30))
-    recent_events = TenantActivityEvent.objects.select_related("tenant", "tenant__user")[:12]
-    ctx = {
-        "title": "Control jheliztv",
-        "tenants": tenants,
-        "pending": pending,
-        "query": query,
-        "activity_filter": activity_filter,
-        "recent_events": recent_events,
-        "kpi": {
-            "total": total,
-            "activos": activos,
-            "vencidos": total - activos,
-            "pendientes": len(pending),
-            "subs": Subscription.objects.filter(is_archived=False).count(),
-            "telegram": sum(
-                1
-                for connection in telegram_by_owner.values()
-                if connection.is_linked and connection.is_enabled
-            ),
-            "online": online,
-            "active_week": active_week,
-            "inactive": inactive,
-        },
-        "saas": SaasSettings.load(),
+
+def _control_kpi(tenants):
+    total = len(tenants)
+    return {
+        "total": total,
+        "activos": sum(1 for tenant in tenants if tenant.subscription_active),
+        "vencidos": sum(1 for tenant in tenants if not tenant.subscription_active),
+        "online": sum(1 for tenant in tenants if tenant.is_online),
+        "demos": sum(1 for tenant in tenants if tenant.is_demo and tenant.subscription_active),
+        "clients": sum(tenant.client_count for tenant in tenants),
+        "pendientes": TenantPayment.objects.filter(status=TenantPayment.Status.PENDING).count(),
+        "subs": Subscription.objects.filter(is_archived=False).count(),
+        "telegram": sum(
+            1 for tenant in tenants
+            if tenant.telegram_connection and tenant.telegram_connection.is_linked
+            and tenant.telegram_connection.is_enabled
+        ),
     }
-    return render(request, "jheliztv/control/dashboard.html", ctx)
+
+
+def _filter_control_tenants(request, tenants):
+    q = (request.GET.get("q") or "").strip().lower()
+    status_filter = (request.GET.get("estado") or "").strip()
+    type_filter = (request.GET.get("tipo") or "").strip()
+    if q:
+        tenants = [t for t in tenants if q in t.user.username.lower() or q in (t.business_name or "").lower()]
+    if status_filter:
+        tenants = [t for t in tenants if (
+            (status_filter == "online" and t.is_online)
+            or (status_filter == "active" and t.subscription_active)
+            or (status_filter == "expired" and not t.subscription_active and not t.is_blocked)
+            or (status_filter == "blocked" and t.is_blocked)
+        )]
+    if type_filter:
+        tenants = [t for t in tenants if (type_filter == "demo") == t.is_demo]
+    return tenants, {"q": q, "estado": status_filter, "tipo": type_filter}
+
+
+@owner_required
+def control_users(request):
+    all_users = _control_tenant_rows(
+        Tenant.objects.filter(is_demo=False).select_related("user")
+    )
+    users, filters = _filter_control_tenants(request, all_users)
+    return render(request, "jheliztv/control/users.html", {
+        "title": "Usuarios", "jc_control_active": "users",
+        "tenants": users, "filters": filters, "kpi": _control_kpi(all_users),
+    })
+
+
+@owner_required
+def control_user_detail(request, pk):
+    tenant = get_object_or_404(
+        Tenant.objects.filter(is_demo=False).select_related("user"), pk=pk,
+    )
+    tenant = _control_tenant_rows(
+        Tenant.objects.filter(pk=tenant.pk).select_related("user")
+    )[0]
+    clients = list(Client.objects.filter(owner=tenant.user).order_by("-created_at")[:10])
+    subscriptions = list(
+        Subscription.objects.filter(owner=tenant.user)
+        .select_related("client", "service").order_by("-created_at")[:10]
+    )
+    payments = list(tenant.payments.order_by("-created_at")[:10])
+    transactions = Transaction.objects.filter(owner=tenant.user)
+    finances = transactions.aggregate(
+        income=Sum("base_amount", filter=Q(kind=Transaction.Kind.INCOME)),
+        expenses=Sum("base_amount", filter=Q(kind=Transaction.Kind.EXPENSE)),
+    )
+    finances["income"] = finances["income"] or Decimal("0.00")
+    finances["expenses"] = finances["expenses"] or Decimal("0.00")
+    finances["balance"] = finances["income"] - finances["expenses"]
+    whatsapp_connection = WhatsAppConnection.objects.filter(owner=tenant.user).first()
+    return render(request, "jheliztv/control/user_detail.html", {
+        "title": tenant.business_name or tenant.user.username,
+        "jc_control_active": "users", "tenant": tenant,
+        "clients": clients, "subscriptions": subscriptions, "payments": payments,
+        "finances": finances, "whatsapp_connection": whatsapp_connection,
+        "active_subscriptions": Subscription.objects.filter(
+            owner=tenant.user, is_archived=False, expires_at__gt=timezone.now(),
+        ).count(),
+    })
+
+
+@owner_required
+def control_demos(request):
+    demos = _control_tenant_rows(
+        Tenant.objects.filter(is_demo=True).select_related("user")
+    )
+    demos, filters = _filter_control_tenants(request, demos)
+    return render(request, "jheliztv/control/demos.html", {
+        "title": "Demos", "jc_control_active": "demos",
+        "tenants": demos, "filters": filters,
+    })
+
+
+@owner_required
+def control_payments(request):
+    pending = list(
+        TenantPayment.objects.filter(status=TenantPayment.Status.PENDING)
+        .select_related("tenant", "tenant__user").order_by("-created_at")
+    )
+    return render(request, "jheliztv/control/payments.html", {
+        "title": "Pagos", "jc_control_active": "payments", "pending": pending,
+    })
+
+
+@owner_required
+@require_POST
+def control_demo_create(request):
+    now = timezone.now()
+    expired_user_ids = list(
+        Tenant.objects.filter(is_demo=True, plan_expires_at__lte=now)
+        .values_list("user_id", flat=True)
+    )
+    if expired_user_ids:
+        User.objects.filter(pk__in=expired_user_ids).delete()
+
+    username = f"demo_{secrets.token_hex(4)}"
+    password = secrets.token_urlsafe(9)
+    with transaction.atomic():
+        user = User.objects.create_user(username=username, password=password)
+        tenant = Tenant.objects.create(
+            user=user,
+            business_name="Demo JHELIZ CONTROL TV",
+            plan_expires_at=now + timedelta(days=3),
+            is_demo=True,
+        )
+        services = [
+            Service.objects.create(owner=user, name="StreamPlus", icon="live_tv", color="#10b981"),
+            Service.objects.create(owner=user, name="CineMax", icon="movie", color="#8b5cf6"),
+        ]
+        clients = [
+            Client.objects.create(owner=user, name="Ana Torres", whatsapp="+51900000001"),
+            Client.objects.create(owner=user, name="Carlos Ruiz", whatsapp="+51900000002"),
+            Client.objects.create(owner=user, name="María López", whatsapp="+51900000003"),
+        ]
+        samples = [
+            (clients[0], services[0], "demo-ana@example.com", 25, 10, 18),
+            (clients[1], services[1], "demo-carlos@example.com", 30, 12, 3),
+            (clients[2], services[0], "demo-maria@example.com", 25, 10, 1),
+        ]
+        for client, service, account, cost, investment, days in samples:
+            subscription = Subscription.objects.create(
+                owner=user, client=client, service=service,
+                account_email=account, account_password="demo-segura",
+                cost=Decimal(cost), investment=Decimal(investment),
+                expires_at=now + timedelta(days=days),
+            )
+            for kind, amount, label in (
+                (Transaction.Kind.INCOME, cost, "Venta"),
+                (Transaction.Kind.EXPENSE, investment, "Costo"),
+            ):
+                Transaction.objects.create(
+                    owner=user, kind=kind, amount=Decimal(amount),
+                    description=f"{label} demo · {service.name}",
+                    client=client, subscription=subscription,
+                    occurred_at=now - timedelta(days=max(0, 18 - days)),
+                )
+
+    response = render(request, "jheliztv/control/demo_credentials.html", {
+        "tenant": tenant,
+        "demo_username": username,
+        "demo_password": password,
+        "login_url": request.build_absolute_uri(reverse("jheliztv_login")),
+    })
+    response["Cache-Control"] = "no-store, private"
+    response["Pragma"] = "no-cache"
+    return response
 
 
 @owner_required
@@ -177,7 +325,7 @@ def control_payment_approve(request, pk):
     if pay.is_pending:
         pay.approve()
         messages.success(request, f"Pago de {pay.tenant} aprobado: +{pay.days} días de alquiler.")
-    return redirect("jheliztv_control_dashboard")
+    return redirect("jheliztv_control_payments")
 
 
 @owner_required
@@ -187,7 +335,7 @@ def control_payment_reject(request, pk):
     if pay.is_pending:
         pay.reject("Rechazado desde el panel de control.")
         messages.warning(request, f"Pago de {pay.tenant} rechazado.")
-    return redirect("jheliztv_control_dashboard")
+    return redirect("jheliztv_control_payments")
 
 
 @owner_required
@@ -212,7 +360,7 @@ def control_tenant_extend(request, pk):
         days = 30
     tenant.extend(days)
     messages.success(request, f"{tenant}: +{days} días de alquiler.")
-    return redirect("jheliztv_control_dashboard")
+    return redirect("jheliztv_control_demos" if tenant.is_demo else "jheliztv_control_users")
 
 
 @owner_required
@@ -226,7 +374,7 @@ def control_tenant_block(request, pk):
         messages.warning(request, f"{tenant} fue bloqueado: ya no puede entrar (sus datos se conservan).")
     else:
         messages.success(request, f"{tenant} fue desbloqueado: ya puede entrar de nuevo.")
-    return redirect("jheliztv_control_dashboard")
+    return redirect("jheliztv_control_demos" if tenant.is_demo else "jheliztv_control_users")
 
 
 @owner_required
