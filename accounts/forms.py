@@ -144,3 +144,15 @@ class WalletRechargeForm(StyledMixin, forms.ModelForm):
         if amount > 5000:
             raise forms.ValidationError("Monto demasiado alto. Avisanos por WhatsApp para recargas mayores a S/ 5,000.")
         return amount
+
+    def clean_payment_proof(self):
+        proof = self.cleaned_data.get("payment_proof")
+        if proof and proof.size > 8 * 1024 * 1024:
+            raise forms.ValidationError("La imagen supera el máximo permitido de 8 MB.")
+        return proof
+
+    def clean_user_note(self):
+        note = (self.cleaned_data.get("user_note") or "").strip()
+        if len(note) > 1000:
+            raise forms.ValidationError("La nota no puede superar los 1000 caracteres.")
+        return note

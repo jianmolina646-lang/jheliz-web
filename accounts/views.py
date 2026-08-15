@@ -181,7 +181,10 @@ def profile(request):
 # ---------------------------------------------------------------------------
 
 import json as _json
+import re as _re
 from django.conf import settings as _settings
+from django.core.exceptions import ValidationError as _ValidationError
+from django.core.validators import URLValidator as _URLValidator
 from django.http import JsonResponse, HttpResponseNotAllowed
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -212,12 +215,34 @@ def push_subscribe(request):
         data = _json.loads(request.body or b"{}")
     except _json.JSONDecodeError:
         return JsonResponse({"error": "JSON inválido"}, status=400)
-    endpoint = (data.get("endpoint") or "").strip()
-    keys = data.get("keys") or {}
-    p256dh = (keys.get("p256dh") or "").strip()
-    auth = (keys.get("auth") or "").strip()
+    if not isinstance(data, dict):
+        return JsonResponse({"error": "El cuerpo JSON debe ser un objeto"}, status=400)
+    endpoint = data.get("endpoint")
+    keys = data.get("keys")
+    if not isinstance(endpoint, str) or not isinstance(keys, dict):
+        return JsonResponse({"error": "endpoint y keys inválidos"}, status=400)
+    endpoint = endpoint.strip()
+    p256dh = keys.get("p256dh")
+    auth = keys.get("auth")
+    if not isinstance(p256dh, str) or not isinstance(auth, str):
+        return JsonResponse({"error": "keys inválidas"}, status=400)
+    p256dh = p256dh.strip()
+    auth = auth.strip()
     if not endpoint or not p256dh or not auth:
         return JsonResponse({"error": "endpoint+keys requeridos"}, status=400)
+    try:
+        _URLValidator(schemes=("https",))(endpoint)
+    except _ValidationError:
+        return JsonResponse({"error": "endpoint inválido"}, status=400)
+    key_pattern = _re.compile(r"^[A-Za-z0-9_-]+={0,2}$")
+    if (
+        len(endpoint) > 600
+        or len(p256dh) > 128
+        or len(auth) > 64
+        or not key_pattern.fullmatch(p256dh)
+        or not key_pattern.fullmatch(auth)
+    ):
+        return JsonResponse({"error": "keys inválidas"}, status=400)
 
     user = request.user if request.user.is_authenticated else None
     user_agent = (request.META.get("HTTP_USER_AGENT") or "")[:300]
@@ -245,9 +270,13 @@ def push_unsubscribe(request):
         data = _json.loads(request.body or b"{}")
     except _json.JSONDecodeError:
         return JsonResponse({"error": "JSON inválido"}, status=400)
-    endpoint = (data.get("endpoint") or "").strip()
+    if not isinstance(data, dict) or not isinstance(data.get("endpoint"), str):
+        return JsonResponse({"error": "endpoint inválido"}, status=400)
+    endpoint = data["endpoint"].strip()
     if not endpoint:
         return JsonResponse({"error": "endpoint requerido"}, status=400)
+    if len(endpoint) > 600:
+        return JsonResponse({"error": "endpoint inválido"}, status=400)
     PushSubscription.objects.filter(endpoint=endpoint).update(is_enabled=False)
     return JsonResponse({"ok": True})
 

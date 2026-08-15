@@ -1405,6 +1405,8 @@ def back_in_stock_subscribe(request, slug: str):
     error = ""
     if not email:
         error = "Necesitamos tu correo para avisarte."
+    elif len(email) > 254:
+        error = "Ese correo es demasiado largo."
     else:
         try:
             validate_email(email)
@@ -1413,7 +1415,12 @@ def back_in_stock_subscribe(request, slug: str):
 
     plan = None
     if plan_id:
-        plan = Plan.objects.filter(pk=plan_id, product=product, is_active=True).first()
+        if not str(plan_id).isdigit():
+            error = error or "El plan seleccionado no es válido."
+        else:
+            plan = Plan.objects.filter(pk=plan_id, product=product, is_active=True).first()
+            if plan is None:
+                error = error or "El plan seleccionado no está disponible."
 
     if error:
         if wants_json:
@@ -1447,4 +1454,3 @@ def back_in_stock_subscribe(request, slug: str):
         return JsonResponse({"ok": True, "created": created, "message": msg})
     messages.success(request, msg)
     return redirect("catalog:product", slug=product.slug)
-

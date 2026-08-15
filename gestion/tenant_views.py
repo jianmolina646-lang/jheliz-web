@@ -1195,9 +1195,12 @@ def stock_email_add(request, tenant):
     if not emails:
         messages.error(request, "Ingresá al menos un correo.")
         return redirect("jheliztv_emails")
+    if len(emails) > 200 or any(len(email) > 160 for email in emails):
+        messages.error(request, "Carga como máximo 200 correos de hasta 160 caracteres.")
+        return redirect("jheliztv_emails")
     password = (request.POST.get("password") or "").strip()
-    acquisition_method = (request.POST.get("acquisition_method") or "").strip()
-    customer_name = (request.POST.get("customer_name") or "").strip()
+    acquisition_method = (request.POST.get("acquisition_method") or "").strip()[:120]
+    customer_name = (request.POST.get("customer_name") or "").strip()[:160]
     status = (
         StockEmail.Status.SOLD
         if request.POST.get("status") == StockEmail.Status.SOLD
@@ -1261,8 +1264,8 @@ def stock_email_toggle(request, tenant, pk):
 def stock_email_edit(request, tenant, pk):
     item = get_object_or_404(StockEmail, pk=pk, owner=request.user)
     email = (request.POST.get("email") or "").strip().lower()
-    if not email:
-        messages.error(request, "El correo no puede quedar vacío.")
+    if not email or len(email) > 160:
+        messages.error(request, "El correo debe tener entre 1 y 160 caracteres.")
         return redirect("jheliztv_emails")
     clash = (
         StockEmail.objects.filter(
@@ -1276,8 +1279,8 @@ def stock_email_edit(request, tenant, pk):
         return redirect("jheliztv_emails")
     item.email = email
     item.password = (request.POST.get("password") or "").strip()
-    item.acquisition_method = (request.POST.get("acquisition_method") or "").strip()
-    item.customer_name = (request.POST.get("customer_name") or "").strip()
+    item.acquisition_method = (request.POST.get("acquisition_method") or "").strip()[:120]
+    item.customer_name = (request.POST.get("customer_name") or "").strip()[:160]
     if request.POST.get("status") in {StockEmail.Status.AVAILABLE, StockEmail.Status.SOLD}:
         item.status = request.POST["status"]
     if item.status == StockEmail.Status.SOLD and not item.customer_name:

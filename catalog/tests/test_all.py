@@ -643,6 +643,21 @@ class BackInStockAlertTests(TestCase):
             BackInStockAlert.objects.filter(product=self.product).exists()
         )
 
+    def test_subscribe_rejects_unknown_plan(self):
+        from catalog.models import BackInStockAlert
+
+        url = reverse(
+            "catalog:back_in_stock_subscribe",
+            kwargs={"slug": self.product.slug},
+        )
+        response = self.client.post(
+            url,
+            {"email": "user@test.com", "plan": "999999"},
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(BackInStockAlert.objects.filter(product=self.product).exists())
+
     def test_signal_notifies_when_new_stock_available(self):
         from django.core import mail
         from catalog.models import BackInStockAlert
