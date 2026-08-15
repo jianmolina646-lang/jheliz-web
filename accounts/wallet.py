@@ -16,6 +16,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import WalletRecharge, WalletTransaction
+from .security_events import record_security_event
 
 User = get_user_model()
 
@@ -44,6 +45,11 @@ def _credit(user, amount: Decimal, kind: str, reference: str = "") -> WalletTran
             user=locked, kind=kind, amount=amount,
             balance_after=new_balance, reference=reference,
         )
+        transaction.on_commit(lambda: record_security_event(
+            "wallet.credit", severity="critical", username=locked.get_username(),
+            metadata={"amount": str(amount), "kind": kind, "transaction_id": tx.pk, "reference": reference[:120]},
+            alert=True,
+        ))
     return tx
 
 
@@ -65,6 +71,10 @@ def _debit(user, amount: Decimal, kind: str, reference: str = "") -> WalletTrans
             user=locked, kind=kind, amount=amount,
             balance_after=new_balance, reference=reference,
         )
+        transaction.on_commit(lambda: record_security_event(
+            "wallet.debit", severity="warning", username=locked.get_username(),
+            metadata={"amount": str(amount), "kind": kind, "transaction_id": tx.pk, "reference": reference[:120]},
+        ))
     return tx
 
 
@@ -111,6 +121,12 @@ def approve_recharge(recharge: WalletRecharge, by_user=None) -> WalletResult:
         recharge.save(update_fields=[
             "status", "decided_at", "decided_by", "transaction", "rejection_reason",
         ])
+        transaction.on_commit(lambda: record_security_event(
+            "wallet.recharge_approved", severity="critical", actor=by_user,
+            username=recharge.user.get_username(),
+            metadata={"amount": str(recharge.amount), "recharge_id": recharge.pk, "transaction_id": tx.pk},
+            alert=True,
+        ))
     return WalletResult(
         True,
         f"Recarga aprobada. Se acreditaron S/ {recharge.amount:,.2f} a {recharge.user}.",
@@ -130,4 +146,8 @@ def reject_recharge(recharge: WalletRecharge, reason: str, by_user=None) -> Wall
     recharge.save(update_fields=[
         "status", "decided_at", "decided_by", "rejection_reason",
     ])
+    record_security_event(
+        "wallet.recharge_rejected", severity="warning", actor=by_user,
+        username=recharge.user.get_username(), metadata={"recharge_id": recharge.pk},
+    )
     return WalletResult(True, "Solicitud rechazada.")

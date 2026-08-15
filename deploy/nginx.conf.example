@@ -22,6 +22,30 @@
 #   4. Server HTTP (port 80) que redirige a HTTPS, gestionado por Certbot.
 # ============================================================================
 
+# ---- JHELIZCONTROLTV: una sola versión pública del dominio ----
+# HTTP (con o sin www) llega en un salto a la URL canónica HTTPS sin www.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name jheliztv.xyz www.jheliztv.xyz;
+    return 301 https://jheliztv.xyz$request_uri;
+}
+
+# El host www por HTTPS también se consolida en el dominio raíz. El bloque
+# HTTPS principal de jheliztv.xyz continúa usando el proxy compartido.
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name www.jheliztv.xyz;
+
+    ssl_certificate /etc/letsencrypt/live/jheliztv.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/jheliztv.xyz/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    return 301 https://jheliztv.xyz$request_uri;
+}
+
 # ---- 1) Redirect dedicado www → no-www ----
 # Evita el warning "conflicting server name www.ecormecejhelizstore.com" que
 # nginx emite si dejamos www. en el server_name del bloque principal.
@@ -86,9 +110,11 @@ server {
     location /media/payments/ {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # Sobrescribir headers aportados por Internet: este Nginx es el único proxy confiable.
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Request-ID $request_id;
     }
 
     # Comprobantes privados de JhelizTV se entregan mediante vistas con login.
@@ -118,9 +144,10 @@ server {
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Request-ID $request_id;
         proxy_read_timeout 60s;
     }
 

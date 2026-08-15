@@ -15,19 +15,21 @@ from decimal import Decimal
 from functools import wraps
 import secrets
 
+from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.tokens import default_token_generator
 from django.http import FileResponse
 from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from django.utils import timezone
 from django.views.decorators.http import require_POST
+
+from accounts.security_events import record_security_event
 
 from .models import (
     Client,
@@ -36,6 +38,7 @@ from .models import (
     Subscription,
     TelegramConnection,
     Tenant,
+    TenantActivityEvent,
     TenantPayment,
     Transaction,
     WhatsAppConnection,
@@ -54,6 +57,12 @@ def owner_required(view):
             and request.user.has_perm("gestion.manage_tenants")
         ):
             return redirect("jheliztv_control_login")
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        if TOTPDevice.objects.filter(
+            user=request.user, confirmed=True
+        ).exists() and not request.session.get("jheliz_control_otp_verified"):
+            request.session["jheliz_control_otp_pending_user"] = request.user.pk
+            return redirect("jheliztv_control_2fa_verify")
         return view(request, *args, **kwargs)
 
     return _wrapped
@@ -69,6 +78,11 @@ def control_login(request):
         if user is None or not user.has_perm("gestion.manage_tenants"):
             messages.error(request, "Acceso solo para el administrador.")
             return render(request, "jheliztv/control/login.html", {"username": username})
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        if TOTPDevice.objects.filter(user=user, confirmed=True).exists():
+            request.session["jheliz_control_otp_pending_user"] = user.pk
+            request.session["jheliz_control_otp_backend"] = "django.contrib.auth.backends.ModelBackend"
+            return redirect("jheliztv_control_2fa_verify")
         login(request, user)
         return redirect("jheliztv_control_dashboard")
     return render(request, "jheliztv/control/login.html", {})
@@ -131,7 +145,6 @@ def _control_tenant_rows(queryset):
             t.estado, t.estado_color = "Activo", "green"
         else:
             t.estado, t.estado_color = "Vencido", "red"
-
     return tenants
 
 
@@ -366,13 +379,110 @@ def control_tenant_block(request, pk):
 
 @owner_required
 @require_POST
+def control_password_recovery(request):
+    """Generate a short-lived link after the owner verifies the account holder."""
+    username = (request.POST.get("username") or "").strip()
+    tenant = (
+        Tenant.objects.select_related("user")
+        .filter(user__username__iexact=username)
+        .first()
+    )
+    if tenant is None:
+        messages.error(request, "No se encontró un usuario con ese nombre exacto.")
+        return redirect("jheliztv_control_dashboard")
+    if not tenant.user.is_active:
+        messages.error(request, "El usuario seleccionado está inactivo.")
+        return redirect("jheliztv_control_dashboard")
+
+    from .tenant_views import password_recovery_token_generator
+
+    uid = urlsafe_base64_encode(force_bytes(tenant.user.pk))
+    token = password_recovery_token_generator.make_token(tenant.user)
+    base_url = getattr(
+        settings, "JHELIZ_CONTROL_BASE_URL", "https://jheliztv.xyz"
+    ).rstrip("/")
+    recovery_url = f"{base_url}/recuperar/{uid}/{token}/"
+    record_security_event(
+        "account.password_recovery_link_generated",
+        severity="warning",
+        request=request,
+        actor=request.user,
+        username=tenant.user.get_username(),
+        metadata={"target_user_id": tenant.user_id, "tenant_id": tenant.pk},
+    )
+    return render(
+        request,
+        "jheliztv/control/password_recovery_link.html",
+        {"tenant": tenant, "recovery_url": recovery_url},
+    )
+
+
+@owner_required
+@require_POST
 def control_tenant_password_reset_link(request, pk):
     """Genera un enlace temporal para que el dueño se lo envíe al inquilino."""
     tenant = get_object_or_404(Tenant.objects.select_related("user"), pk=pk)
     uid = urlsafe_base64_encode(force_bytes(tenant.user.pk))
     token = default_token_generator.make_token(tenant.user)
-    path = reverse("jheliztv_password_reset_confirm", kwargs={"uidb64": uid, "token": token})
-    response = render(request, "jheliztv/control/password_reset_link.html", {"tenant": tenant, "reset_url": request.build_absolute_uri(path)})
+    path = reverse(
+        "jheliztv_password_reset_confirm",
+        kwargs={"uidb64": uid, "token": token},
+    )
+    response = render(
+        request,
+        "jheliztv/control/password_reset_link.html",
+        {"tenant": tenant, "reset_url": request.build_absolute_uri(path)},
+    )
     response["Cache-Control"] = "no-store, private"
     response["Pragma"] = "no-cache"
     return response
+
+
+def control_2fa_verify(request):
+    uid = request.session.get("jheliz_control_otp_pending_user")
+    if not uid:
+        return redirect("jheliztv_control_login")
+    user = get_user_model().objects.filter(pk=uid, is_active=True).first()
+    if not user or not user.has_perm("gestion.manage_tenants"):
+        return redirect("jheliztv_control_login")
+    if request.method == "POST":
+        token = (request.POST.get("token") or "").strip()
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        from django_otp.plugins.otp_static.models import StaticDevice
+        valid = any(
+            device.verify_token(token)
+            for device in TOTPDevice.objects.filter(user=user, confirmed=True)
+        )
+        if not valid:
+            valid = any(d.verify_token(token) for d in StaticDevice.objects.filter(user=user, confirmed=True))
+        if valid:
+            login(request, user, backend=request.session.pop("jheliz_control_otp_backend", "django.contrib.auth.backends.ModelBackend"))
+            request.session.pop("jheliz_control_otp_pending_user", None)
+            request.session["jheliz_control_otp_verified"] = True
+            return redirect("jheliztv_control_dashboard")
+        messages.error(request, "Código 2FA incorrecto o vencido.")
+    return render(request, "jheliztv/control/2fa_verify.html")
+
+
+@owner_required
+def control_2fa_setup(request):
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+    user=request.user
+    confirmed=TOTPDevice.objects.filter(user=user, name="Jheliz Control", confirmed=True).first()
+    pending=TOTPDevice.objects.filter(user=user, confirmed=False).order_by("-id").first()
+    if request.method == "POST" and request.POST.get("action") == "create":
+        TOTPDevice.objects.filter(user=user, confirmed=False).delete()
+        TOTPDevice.objects.create(user=user, name="Jheliz Control", confirmed=False)
+        return redirect("jheliztv_control_2fa_setup")
+    if request.method == "POST" and request.POST.get("action") == "verify" and pending:
+        if pending.verify_token((request.POST.get("token") or "").strip()):
+            pending.confirmed=True; pending.save(update_fields=["confirmed"]); request.session["jheliz_control_otp_verified"]=True
+            messages.success(request,"2FA activado correctamente para Jheliz Control.")
+            return redirect("jheliztv_control_dashboard")
+        messages.error(request,"El código no coincide.")
+    secret=uri=None
+    if pending:
+        uri=pending.config_url
+        from urllib.parse import parse_qs, urlparse
+        secret=(parse_qs(urlparse(uri).query).get("secret") or [None])[0]
+    return render(request,"jheliztv/control/2fa_setup.html",{"confirmed":confirmed,"pending":pending,"secret":secret,"uri":uri})

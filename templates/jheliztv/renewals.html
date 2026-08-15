@@ -90,7 +90,7 @@
                   <span class="lvr-method-status {% if method.is_active %}is-active{% endif %}"><i></i>{% if method.is_active %}Activo{% else %}Inactivo{% endif %}</span>
                 </div>
                 <pre>{{ method.details }}</pre>
-                {% if method.qr_image %}<img src="{{ method.qr_image.url }}" alt="QR {{ method.label }}">{% endif %}
+                {% if method.qr_image %}<img src="{{ method.qr_image.url }}" alt="Código QR de {{ method.label }}" loading="lazy" decoding="async">{% endif %}
                 <form method="post" action="{% url 'jheliztv_payment_method_delete' method.pk %}">
                   {% csrf_token %}
                   <button type="submit" onclick="return confirm('¿Eliminar este método?')"><span class="material-symbols-outlined">delete</span>Eliminar</button>

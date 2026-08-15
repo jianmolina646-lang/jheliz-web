@@ -5,12 +5,12 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.db import connection
 from django.urls import reverse
 
-from accounts.models import Role
+from accounts.models import Role, SecurityEvent
 from orders.models import Order
 
 
@@ -83,7 +83,7 @@ class DashboardQueryTests(TestCase):
         """Antes: 15+ queries .exists() en el bucle de nuevos vs recurrentes.
         Ahora: una sola query agregada."""
         self.client.force_login(self.staff)
-        resp, n = _query_count(self.client, "/panel-virtualidadsp/")
+        resp, n = _query_count(self.client, "/panel-jheliz-control/")
         self.assertEqual(resp.status_code, 200)
         # Tope holgado para no romperse con cambios cosméticos en Unfold.
         self.assertLess(
@@ -240,8 +240,8 @@ class AdminHelpersTests(TestCase):
     """Cubre los helpers visuales del admin de usuarios."""
 
     def test_initials_from_full_name(self):
-        u = User(first_name="VirtualidadSP", last_name="Servicios", username="jhz")
-        self.assertEqual(_initials(u), "VS")
+        u = User(first_name="JhelizTV", last_name="Servicios", username="jhz")
+        self.assertEqual(_initials(u), "JS")
 
     def test_initials_fallback_username(self):
         u = User(username="colocha", email="")
@@ -859,3 +859,52 @@ class WalletViewsTests(TestCase):
     def test_history_page_renders(self):
         resp = self.client.get(reverse("accounts:wallet_history"))
         self.assertEqual(resp.status_code, 200)
+
+
+class TrustedClientIPTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    @override_settings(TRUSTED_PROXY_NETWORKS=["127.0.0.0/8"])
+    def test_ignores_spoofed_headers_from_untrusted_client(self):
+        from config.client_ip import get_client_ip
+        request = self.factory.get(
+            "/", REMOTE_ADDR="203.0.113.10", HTTP_X_REAL_IP="198.51.100.99",
+            HTTP_X_FORWARDED_FOR="192.0.2.1",
+        )
+        self.assertEqual(get_client_ip(request), "203.0.113.10")
+
+    @override_settings(TRUSTED_PROXY_NETWORKS=["127.0.0.0/8"])
+    def test_accepts_overwritten_real_ip_from_trusted_proxy(self):
+        from config.client_ip import get_client_ip
+        request = self.factory.get(
+            "/", REMOTE_ADDR="127.0.0.1", HTTP_X_REAL_IP="203.0.113.20",
+            HTTP_X_FORWARDED_FOR="192.0.2.1, 198.51.100.1",
+        )
+        self.assertEqual(get_client_ip(request), "203.0.113.20")
+
+
+@override_settings(SECURITY_EVENT_ALERTS=False)
+class SecurityEventTests(TestCase):
+    def test_failed_login_is_persisted_without_password(self):
+        self.client.post(reverse("accounts:login"), {"username": "missing", "password": "super-secret"})
+        event = SecurityEvent.objects.filter(event_type="auth.login_failed").latest("created_at")
+        self.assertEqual(event.username, "missing")
+        self.assertNotIn("super-secret", str(event.metadata))
+
+    def test_password_change_creates_critical_event(self):
+        user = User.objects.create_user("security-user", password="old-password")
+        SecurityEvent.objects.all().delete()
+        user.set_password("new-password")
+        user.save(update_fields=["password"])
+        event = SecurityEvent.objects.get(event_type="account.password_changed")
+        self.assertEqual(event.severity, SecurityEvent.Severity.CRITICAL)
+        self.assertEqual(event.metadata["subject_user_id"], user.pk)
+
+    def test_privilege_change_records_old_and_new_value(self):
+        user = User.objects.create_user("promoted-user", password="password")
+        SecurityEvent.objects.all().delete()
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+        event = SecurityEvent.objects.get(event_type="account.privileges_changed")
+        self.assertEqual(event.metadata["changes"]["is_staff"], [False, True])

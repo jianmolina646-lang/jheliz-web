@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{{ title|default:"JHELIZCONTROLTV" }} · JHELIZCONTROLTV</title>
   <meta name="robots" content="noindex,nofollow">
-  <link rel="icon" href="{% static 'img/favicon.ico' %}" sizes="any">
-  <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}">
+  <link rel="icon" href="{% static 'img/favicon.ico' %}?v=20260812-jz" sizes="any">
+  <link rel="apple-touch-icon" href="{% static 'img/apple-touch-icon.png' %}?v=20260812-jz">
   <script>(function(){if(localStorage.getItem("jc-theme")==="light"){document.documentElement.classList.add("jc-theme-light");}})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="{% static 'css/add-emails-dialog.css' %}?v=lovable-add-emails-v1-20260730">
   <link rel="stylesheet" href="{% static 'css/add-service-dialog.css' %}?v=lovable-add-service-v1-20260730">
   <style>body{margin:0;background:#070b09;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif}</style>
+  {% include "jheliztv/partials/analytics_head.html" %}
 </head>
 <body>
 <div class="jc jc-app lv-shell" data-notif-url="{% url 'jheliztv_notifications' %}" data-currency="{{ jc_currency|default:'PEN' }}" data-currency-symbol="{{ jc_currency_symbol|default:'S/' }}">
@@ -121,6 +122,7 @@
 </nav>
 
 <script src="{% static 'js/jheliz-control.js' %}?v=lovable-add-service-v1-20260730"></script>
+{% include "jheliztv/partials/analytics_body.html" %}
 {% block jc_scripts %}{% endblock %}
 </body>
 </html>

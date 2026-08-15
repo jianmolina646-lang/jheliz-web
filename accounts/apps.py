@@ -7,6 +7,15 @@ class AccountsConfig(AppConfig):
     verbose_name = "Cuentas"
 
     def ready(self):
+        from auditlog.registry import auditlog
+
+        from .models import User, WalletRecharge, WalletTransaction
+
+        # El hash de contraseña nunca debe duplicarse en el historial.
+        auditlog.register(User, exclude_fields=["password"])
+        auditlog.register(WalletTransaction)
+        auditlog.register(WalletRecharge, exclude_fields=["payment_proof"])
+
         # Aplica enforcement de 2FA en el admin si ADMIN_2FA_ENFORCED es True.
         from . import admin_2fa  # noqa: F401
 
@@ -14,3 +23,7 @@ class AccountsConfig(AppConfig):
         # admin (email + Telegram). Se instala DESPUÉS de admin_2fa para que
         # el merged form herede de OTPAuthenticationForm cuando 2FA está on.
         from . import admin_security  # noqa: F401
+        from . import security_signals  # noqa: F401
+        from . import checks  # noqa: F401
+
+        security_signals.connect_otp_signals()

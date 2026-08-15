@@ -1,0 +1,26 @@
+{% if JHELIZTV_GA4_ID %}
+<script>
+(function () {
+  function track(name, parameters) {
+    if (window.__jheliztvAnalyticsConsent && window.gtag) {
+      window.gtag("event", name, parameters || {});
+    }
+  }
+  window.jheliztvTrack = track;
+
+  document.addEventListener("click", function (event) {
+    var link = event.target.closest('a[href*="/registro/"]');
+    if (link) track("begin_signup", { link_text: (link.textContent || "").trim() });
+  });
+
+  var form = document.querySelector("[data-jheliztv-registration-form]");
+  if (form) {
+    form.addEventListener("submit", function () { track("registration_submit"); });
+  }
+
+  {% if jheliztv_registration_converted %}
+  track("sign_up", { method: "password" });
+  {% endif %}
+})();
+</script>
+{% endif %}

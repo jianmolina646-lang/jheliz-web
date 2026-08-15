@@ -4,7 +4,7 @@ Uso:
     python manage.py discord_register_commands
 
 Por defecto registra los comandos como "guild commands" (sólo visibles
-dentro de tu servidor `VirtualidadSP admin`). Esto los hace aparecer al
+dentro de tu servidor `JhelizTV admin`). Esto los hace aparecer al
 instante (los globales tardan hasta 1 hora). Si pasás --global, se
 registran como comandos globales.
 """
@@ -18,7 +18,7 @@ from discord_bot import client, interactions
 
 
 class Command(BaseCommand):
-    help = "Registra los slash commands del bot VirtualidadSP en Discord."
+    help = "Registra los slash commands del bot JhelizTV en Discord."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -77,5 +77,5 @@ class Command(BaseCommand):
             "Acordate de configurar la \"Interactions Endpoint URL\" en "
             "Discord Developer Portal → General Information con:",
         )
-        site = getattr(settings, "SITE_URL", "").rstrip("/") or "https://virtualidadsp.com"
+        site = getattr(settings, "SITE_URL", "").rstrip("/") or "https://jheliztv.xyz"
         self.stdout.write(self.style.SUCCESS(f"  {site}/discord/interactions/"))

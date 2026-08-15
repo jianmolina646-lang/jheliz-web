@@ -54,6 +54,36 @@ class User(AbstractUser):
         return self.telegram_username.lstrip("@") if self.telegram_username else ""
 
 
+class SecurityEvent(models.Model):
+    """Evento defensivo persistente, sin secretos ni cuerpos de requests."""
+
+    class Severity(models.TextChoices):
+        INFO = "info", "Informativo"
+        WARNING = "warning", "Advertencia"
+        CRITICAL = "critical", "Crítico"
+
+    event_type = models.CharField(max_length=80, db_index=True)
+    severity = models.CharField(max_length=10, choices=Severity.choices, default=Severity.INFO, db_index=True)
+    actor = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="security_events",
+    )
+    username = models.CharField(max_length=254, blank=True, db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True, db_index=True)
+    user_agent = models.CharField(max_length=300, blank=True)
+    path = models.CharField(max_length=500, blank=True)
+    request_id = models.CharField(max_length=100, blank=True, db_index=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=["event_type", "-created_at"], name="security_type_time_idx")]
+
+    def __str__(self):
+        return f"{self.created_at:%Y-%m-%d %H:%M} {self.event_type}"
+
+
 class Customer(User):
     """Proxy para mostrar a los clientes en una sección propia del admin."""
 

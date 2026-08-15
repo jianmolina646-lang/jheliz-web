@@ -354,7 +354,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <label>Logo / imagen</label>
             {% if service.image %}
               <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                <img src="{{ service.image.url }}" alt="{{ service.name }}" style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid #e5e7eb;">
+                <img src="{{ service.image.url }}" alt="Logo de {{ service.name }}" width="48" height="48" loading="lazy" decoding="async" style="width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid #e5e7eb;">
                 <small style="color:#6b7280">Logo actual. Subí uno nuevo para reemplazarlo.</small>
               </div>
             {% endif %}

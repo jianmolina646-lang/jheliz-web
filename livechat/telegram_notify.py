@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 _DEBOUNCE_SECONDS = 120
 _CACHE_KEY = "livechat:tg_notified:{room_id}"
-_ADMIN_BASE = "https://virtualidadsp.com/panel-virtualidadsp"
+_ADMIN_BASE = "https://jheliztv.xyz/panel-jheliz-control"
 
 
 _DIVIDER = "━━━━━━━━━━━━━━━━━━"

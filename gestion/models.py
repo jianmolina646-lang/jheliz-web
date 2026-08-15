@@ -26,6 +26,25 @@ from orders.encryption import EncryptedTextField
 from .currencies import CURRENCY_CHOICES, normalize_currency
 
 
+class TelegramSentMessage(models.Model):
+    """Referencia mínima para administrar mensajes enviados por nuestros bots."""
+
+    bot_key = models.CharField(max_length=32, db_index=True)
+    chat_id = models.CharField(max_length=64)
+    message_id = models.BigIntegerField()
+    sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("bot_key", "chat_id", "message_id"),
+                name="uniq_telegram_sent_message",
+            ),
+        ]
+        ordering = ("-sent_at",)
+
+
 def renewal_link_expiry():
     return timezone.now() + timedelta(days=45)
 
@@ -926,6 +945,44 @@ class Tenant(models.Model):
         )
         self.plan_expires_at = add_service_duration(base, int(days))
         self.save(update_fields=["plan_expires_at"])
+
+
+class TenantActivity(models.Model):
+    """Resumen mínimo de uso del panel, sin contenido privado ni secretos."""
+
+    tenant = models.OneToOneField(
+        Tenant, on_delete=models.CASCADE, related_name="activity"
+    )
+    first_seen_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(db_index=True)
+    last_path = models.CharField(max_length=160, blank=True)
+    total_requests = models.PositiveBigIntegerField(default=0)
+    session_count = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Actividad de inquilino"
+        verbose_name_plural = "Actividad de inquilinos"
+
+
+class TenantActivityEvent(models.Model):
+    """Acción funcional sanitizada; nunca almacena formularios ni credenciales."""
+
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="activity_events"
+    )
+    action = models.CharField(max_length=60, db_index=True)
+    path = models.CharField(max_length=160, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["tenant", "-created_at"],
+                name="gestion_act_tenant_created_idx",
+            )
+        ]
 
 
 class TenantPayment(models.Model):

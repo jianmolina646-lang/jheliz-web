@@ -33,7 +33,7 @@ COLOR_INFO = 0x6366F1     # índigo: notificación neutral
 COLOR_SUCCESS = 0x22C55E  # verde
 COLOR_WARNING = 0xF59E0B  # ámbar: acción requerida
 COLOR_DANGER = 0xEF4444   # rojo: error / rechazo
-COLOR_PURPLE = 0xA855F7   # morado: marca VirtualidadSP
+COLOR_PURPLE = 0xA855F7   # morado: marca JhelizTV
 
 
 # ---------- Helpers internos ----------
@@ -54,7 +54,7 @@ def _admin_url(request, view_name: str, *args) -> str:
 
 
 def _site_url(path: str = "") -> str:
-    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://virtualidadsp.com"
+    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://jheliztv.xyz"
     return f"{base}{path}"
 
 
@@ -203,7 +203,7 @@ def notify_new_code_request(request, code_request) -> dict | None:
         fields=fields,
         color=COLOR_WARNING,
         components=components,
-        footer="Verificador de códigos · VirtualidadSP",
+        footer="Verificador de códigos · JhelizTV",
     )
 
 
@@ -312,9 +312,9 @@ def _order_admin_buttons(order) -> list[dict]:
         ``order:<accion>:<pk>``); el handler valida la identidad del
         clicker contra ``DISCORD_ADMIN_USER_IDS`` y muta el pedido.
     """
-    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://virtualidadsp.com"
+    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://jheliztv.xyz"
     admin_path = "/" + str(
-        getattr(settings, "ADMIN_URL_PATH", "panel-virtualidadsp"),
+        getattr(settings, "ADMIN_URL_PATH", "panel-jheliz-control"),
     ).strip("/")
     view_url = f"{base}{admin_path}/orders/order/{order.pk}/change/"
     deliver_url = f"{base}{admin_path}/orders/order/{order.pk}/deliver/"
@@ -383,7 +383,7 @@ def notify_new_order(order) -> dict | None:
         fields=embed_data["fields"],
         color=embed_data["color"],
         components=components,
-        footer="VirtualidadSP · Back-office",
+        footer="JhelizTV · Back-office",
     )
     if not msg:
         return None
@@ -439,9 +439,9 @@ def notify_yape_pending(order) -> dict | None:
             "inline": False,
         })
 
-    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://virtualidadsp.com"
+    base = getattr(settings, "SITE_URL", "").rstrip("/") or "https://jheliztv.xyz"
     admin_path = "/" + str(
-        getattr(settings, "ADMIN_URL_PATH", "panel-virtualidadsp"),
+        getattr(settings, "ADMIN_URL_PATH", "panel-jheliz-control"),
     ).strip("/")
     inbox_url = f"{base}{admin_path}/orders/order/?status__exact=verifying"
     order_url = f"{base}{admin_path}/orders/order/{order.pk}/change/"

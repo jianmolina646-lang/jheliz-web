@@ -54,7 +54,7 @@ FORM: Réplica visual directa de src/routes/suscripcion.tsx del proyecto Lovable
         <div class="lvsu-qr-content">
           {% if saas.yape_qr %}
             <div class="lvsu-qr-frame">
-              <img src="{{ saas.yape_qr.url }}" alt="Código QR de pago">
+              <img src="{{ saas.yape_qr.url }}" alt="Código QR para pagar la suscripción" loading="lazy" decoding="async">
             </div>
           {% else %}
             <div class="lvsu-qr-frame lvsu-qr-empty" role="img" aria-label="Código QR pendiente">

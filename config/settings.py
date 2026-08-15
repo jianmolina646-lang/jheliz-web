@@ -1,5 +1,5 @@
 """
-Django settings for VirtualidadSP.
+Django settings for JhelizTV.
 """
 
 from pathlib import Path
@@ -22,7 +22,7 @@ ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
     default=(
         "127.0.0.1,localhost,ecormecejhelizstore.com,www.ecormecejhelizstore.com,"
-        "virtualidadsp.com,www.virtualidadsp.com,"
+        "jheliztv.xyz,www.jheliztv.xyz,"
         "jheliztv.xyz,www.jheliztv.xyz"
     ),
     cast=Csv(),
@@ -34,19 +34,20 @@ JHELIZTV_HOSTS = config(
     default="jheliztv.xyz,www.jheliztv.xyz",
     cast=Csv(),
 )
+JHELIZTV_GA4_ID = config("JHELIZTV_GA4_ID", default="G-W27KX3BC5E").strip()
 ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, *JHELIZTV_HOSTS]))
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 
 # URL base del panel admin. Cambiá esto en .env para "esconder" el admin
 # de bots que escanean rutas conocidas (/admin/, /wp-admin/, etc.). El
 # valor NO debe llevar barras al inicio o al final.
-ADMIN_URL_PATH = config("ADMIN_URL_PATH", default="panel-virtualidadsp").strip("/")
+ADMIN_URL_PATH = config("ADMIN_URL_PATH", default="panel-jheliz-control").strip("/")
 
 CSRF_TRUSTED_ORIGINS = [
     "https://ecormecejhelizstore.com",
     "https://www.ecormecejhelizstore.com",
-    "https://virtualidadsp.com",
-    "https://www.virtualidadsp.com",
+    "https://jheliztv.xyz",
+    "https://www.jheliztv.xyz",
     "https://jheliztv.xyz",
     "https://www.jheliztv.xyz",
 ]
@@ -96,7 +97,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    # Ruteo por dominio: jheliztv.xyz sirve el producto SaaS (VirtualidadSP Control).
+    # Ruteo por dominio: jheliztv.xyz sirve el producto SaaS (JhelizTV Control).
     "config.host_routing.JheliztvHostMiddleware",
     # i18n: detecta el idioma del usuario (cookie / header / sesión).
     "django.middleware.locale.LocaleMiddleware",
@@ -105,6 +106,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "gestion.activity.TenantActivityMiddleware",
+    # Expone actor/IP/request-id a signals de auditoría durante este request.
+    "config.request_context.SecurityRequestContextMiddleware",
     # django-otp debe ir DESPUÉS de AuthenticationMiddleware.
     "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -245,7 +249,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Email
 EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="VirtualidadSP <no-reply@virtualidadsp.com>")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="JhelizTV <no-reply@jheliztv.xyz>")
 SUPPORT_ADMIN_EMAIL = config("SUPPORT_ADMIN_EMAIL", default="")
 
 # SMTP (opcional, para enviar correos reales en prod).
@@ -292,7 +296,7 @@ VAPID_PUBLIC_KEY = config("VAPID_PUBLIC_KEY", default="")
 VAPID_PRIVATE_KEY = config("VAPID_PRIVATE_KEY", default="")
 VAPID_CLAIM_EMAIL = config(
     "VAPID_CLAIM_EMAIL",
-    default="mailto:soporte@virtualidadsp.com",
+    default="mailto:soporte@jheliztv.xyz",
 )
 
 # Contact
@@ -422,7 +426,7 @@ CODES_RESULT_CACHE_SECONDS = config("CODES_RESULT_CACHE_SECONDS", default=45, ca
 # Discord bot (opcional)
 # Bot que reemplaza a Telegram para el back-office: pedidos nuevos, Yape,
 # pedidos de codigo, distribuidores, soporte. Telegram queda solo para el
-# canal publico de anuncios (VirtualidadSP|Avisos).
+# canal publico de anuncios (JhelizTV|Avisos).
 DISCORD_BOT_TOKEN = config("DISCORD_BOT_TOKEN", default="")
 # ID del servidor Discord (guild) — numero largo. Se obtiene en Discord con
 # click derecho sobre el nombre del servidor → "Copiar ID del servidor"
@@ -452,7 +456,7 @@ DISCORD_PUBLIC_KEY = config("DISCORD_PUBLIC_KEY", default="")
 DISCORD_APPLICATION_ID = config("DISCORD_APPLICATION_ID", default="")
 
 # Brand
-SITE_NAME = "VirtualidadSP"
+SITE_NAME = "JhelizTV"
 SITE_TAGLINE = "Netflix, Disney+ y Office en Ecuador"
 
 def _hashed_static(path: str) -> str:
@@ -470,8 +474,8 @@ def _hashed_static(path: str) -> str:
 
 # Unfold admin theme
 UNFOLD = {
-    "SITE_TITLE": "VirtualidadSP Admin",
-    "SITE_HEADER": "VirtualidadSP",
+    "SITE_TITLE": "JhelizTV Admin",
+    "SITE_HEADER": "JhelizTV",
     "SITE_SUBHEADER": "Panel de administración",
     "SITE_SYMBOL": "storefront",
     "SHOW_HISTORY": True,
@@ -511,7 +515,7 @@ UNFOLD = {
         lambda request: _hashed_static("admin/keyboard_shortcuts.js"),
         lambda request: _hashed_static("admin/notifications_bell.js"),
         # PWA: inyecta <link rel="manifest"> + theme-color, registra el service
-        # worker dedicado (/panel-virtualidadsp/sw.js) y muestra un banner
+        # worker dedicado (/panel-jheliz-control/sw.js) y muestra un banner
         # "Instalar app" para que el admin se pueda guardar en el cel como
         # app independiente.
         lambda request: _hashed_static("admin/pwa_install.js"),
@@ -546,22 +550,22 @@ UNFOLD = {
                     {
                         "title": "Dashboard",
                         "icon": "dashboard",
-                        "link": "/panel-virtualidadsp/",
+                        "link": "/panel-jheliz-control/",
                     },
                     {
                         "title": "Reportes financieros",
                         "icon": "monitoring",
-                        "link": "/panel-virtualidadsp/reports/",
+                        "link": "/panel-jheliz-control/reports/",
                     },
                     {
                         "title": "Renovaciones",
                         "icon": "autorenew",
-                        "link": "/panel-virtualidadsp/renewals/",
+                        "link": "/panel-jheliz-control/renewals/",
                     },
                     {
                         "title": "Estado de servicios",
                         "icon": "health_and_safety",
-                        "link": "/panel-virtualidadsp/health/",
+                        "link": "/panel-jheliz-control/health/",
                     },
                     {
                         "title": "Ver tienda",
@@ -577,37 +581,37 @@ UNFOLD = {
                     {
                         "title": "Productos",
                         "icon": "inventory_2",
-                        "link": "/panel-virtualidadsp/catalog/product/",
+                        "link": "/panel-jheliz-control/catalog/product/",
                     },
                     {
                         "title": "Planes — Cliente final",
                         "icon": "sell",
-                        "link": "/panel-virtualidadsp/catalog/customerplan/",
+                        "link": "/panel-jheliz-control/catalog/customerplan/",
                     },
                     {
                         "title": "Planes — Distribuidor",
                         "icon": "storefront",
-                        "link": "/panel-virtualidadsp/catalog/distributorplan/",
+                        "link": "/panel-jheliz-control/catalog/distributorplan/",
                     },
                     {
                         "title": "Categorías",
                         "icon": "category",
-                        "link": "/panel-virtualidadsp/catalog/category/",
+                        "link": "/panel-jheliz-control/catalog/category/",
                     },
                     {
                         "title": "Stock por producto",
                         "icon": "inventory",
-                        "link": "/panel-virtualidadsp/stock/",
+                        "link": "/panel-jheliz-control/stock/",
                     },
                     {
                         "title": "Stock (todos)",
                         "icon": "list_alt",
-                        "link": "/panel-virtualidadsp/catalog/stockitem/",
+                        "link": "/panel-jheliz-control/catalog/stockitem/",
                     },
                     {
                         "title": "Avísame cuando vuelva",
                         "icon": "notifications_active",
-                        "link": "/panel-virtualidadsp/catalog/backinstockalert/",
+                        "link": "/panel-jheliz-control/catalog/backinstockalert/",
                     },
                 ],
             },
@@ -618,27 +622,27 @@ UNFOLD = {
                     {
                         "title": "Pedidos clientes",
                         "icon": "receipt_long",
-                        "link": "/panel-virtualidadsp/orders/order/",
+                        "link": "/panel-jheliz-control/orders/order/",
                     },
                     {
                         "title": "Bandeja de pagos",
                         "icon": "qr_code_scanner",
-                        "link": "/panel-virtualidadsp/orders/order/yape-inbox/",
+                        "link": "/panel-jheliz-control/orders/order/yape-inbox/",
                     },
                     {
                         "title": "Items de pedidos",
                         "icon": "list_alt",
-                        "link": "/panel-virtualidadsp/orders/orderitem/",
+                        "link": "/panel-jheliz-control/orders/orderitem/",
                     },
                     {
                         "title": "Pedidos mayoristas",
                         "icon": "local_shipping",
-                        "link": "/panel-virtualidadsp/orders/distributororder/",
+                        "link": "/panel-jheliz-control/orders/distributororder/",
                     },
                     {
                         "title": "Reemplazar cuenta",
                         "icon": "sync_alt",
-                        "link": "/panel-virtualidadsp/replace-blocked-account/",
+                        "link": "/panel-jheliz-control/replace-blocked-account/",
                     },
                 ],
             },
@@ -649,27 +653,27 @@ UNFOLD = {
                     {
                         "title": "Clientes",
                         "icon": "person",
-                        "link": "/panel-virtualidadsp/accounts/customer/",
+                        "link": "/panel-jheliz-control/accounts/customer/",
                     },
                     {
                         "title": "Clientes 360°",
                         "icon": "groups",
-                        "link": "/panel-virtualidadsp/customers/",
+                        "link": "/panel-jheliz-control/customers/",
                     },
                     {
                         "title": "Clientes valiosos",
                         "icon": "workspace_premium",
-                        "link": "/panel-virtualidadsp/top-customers/",
+                        "link": "/panel-jheliz-control/top-customers/",
                     },
                     {
                         "title": "Distribuidores",
                         "icon": "badge",
-                        "link": "/panel-virtualidadsp/accounts/distributor/",
+                        "link": "/panel-jheliz-control/accounts/distributor/",
                     },
                     {
                         "title": "Movimientos de wallet",
                         "icon": "account_balance_wallet",
-                        "link": "/panel-virtualidadsp/accounts/wallettransaction/",
+                        "link": "/panel-jheliz-control/accounts/wallettransaction/",
                     },
                 ],
             },
@@ -680,22 +684,22 @@ UNFOLD = {
                     {
                         "title": "Cupones / códigos",
                         "icon": "redeem",
-                        "link": "/panel-virtualidadsp/orders/coupon/",
+                        "link": "/panel-jheliz-control/orders/coupon/",
                     },
                     {
                         "title": "Reseñas",
                         "icon": "reviews",
-                        "link": "/panel-virtualidadsp/catalog/testimonial/",
+                        "link": "/panel-jheliz-control/catalog/testimonial/",
                     },
                     {
                         "title": "Posts del blog",
                         "icon": "article",
-                        "link": "/panel-virtualidadsp/blog/blogpost/",
+                        "link": "/panel-jheliz-control/blog/blogpost/",
                     },
                     {
                         "title": "Categorías de blog",
                         "icon": "label",
-                        "link": "/panel-virtualidadsp/blog/blogcategory/",
+                        "link": "/panel-jheliz-control/blog/blogcategory/",
                     },
                 ],
             },
@@ -706,17 +710,17 @@ UNFOLD = {
                     {
                         "title": "Chats en vivo",
                         "icon": "chat",
-                        "link": "/panel-virtualidadsp/livechat/",
+                        "link": "/panel-jheliz-control/livechat/",
                     },
                     {
                         "title": "Tickets",
                         "icon": "support_agent",
-                        "link": "/panel-virtualidadsp/support/ticket/",
+                        "link": "/panel-jheliz-control/support/ticket/",
                     },
                     {
                         "title": "Solicitudes de código",
                         "icon": "mark_email_unread",
-                        "link": "/panel-virtualidadsp/support/coderequest/",
+                        "link": "/panel-jheliz-control/support/coderequest/",
                     },
                 ],
             },
@@ -727,22 +731,22 @@ UNFOLD = {
                     {
                         "title": "Config. de pagos",
                         "icon": "qr_code_2",
-                        "link": "/panel-virtualidadsp/orders/paymentsettings/",
+                        "link": "/panel-jheliz-control/orders/paymentsettings/",
                     },
                     {
                         "title": "Usuarios (staff)",
                         "icon": "group",
-                        "link": "/panel-virtualidadsp/accounts/user/",
+                        "link": "/panel-jheliz-control/accounts/user/",
                     },
                     {
                         "title": "2FA / autenticador",
                         "icon": "shield_lock",
-                        "link": "/panel-virtualidadsp/security/2fa/",
+                        "link": "/panel-jheliz-control/security/2fa/",
                     },
                     {
                         "title": "Auditoría",
                         "icon": "fact_check",
-                        "link": "/panel-virtualidadsp/auditoria/",
+                        "link": "/panel-jheliz-control/auditoria/",
                     },
                 ],
             },
@@ -768,16 +772,12 @@ META_GRAPH_API_VERSION = config("META_GRAPH_API_VERSION", default="v23.0")
 # django-axes: bloqueo por intentos fallidos de login
 # ---------------------------------------------------------------------------
 #
-# IMPORTANTE: los defaults anteriores (3 intentos / 24h) eran demasiado
-# agresivos y bloqueaban a clientes que escribían mal su contraseña 2-3
-# veces. Ajustado a 30 intentos / 2 minutos — en la práctica un usuario
-# honesto NUNCA lo ve, pero queda un freno mínimo contra fuerza bruta
-# automatizada (y si llega a saltar, se destraba solo en 2 minutos).
-AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=30, cast=int)
+# Diez intentos por usuario+IP y una hora de enfriamiento frenan fuerza bruta
+# sin bloquear a todos los clientes que comparten una IP de operador/NAT.
+AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=10, cast=int)
 AXES_COOLOFF_TIME = config(
-    # Acepta horas en decimales (0.5 = 30 min, 0.0333 ≈ 2 min) para poder
-    # bajarlo sin migrar a otra unidad si más adelante hace falta.
-    "AXES_COOLOFF_TIME_HOURS", default=2.0 / 60.0, cast=float,
+    # Acepta horas en decimales (0.5 = 30 min).
+    "AXES_COOLOFF_TIME_HOURS", default=1.0, cast=float,
 )
 # Lockout sólo por (ip, username): un atacante que prueba varias contraseñas
 # del mismo usuario es lo único que queremos frenar. Así NO bloqueamos a
@@ -788,11 +788,40 @@ AXES_VERBOSE = False
 # Cuando un cliente "se desloguea" tras un login exitoso, NO debe quedar con
 # contador residual de intentos fallidos.
 AXES_RESET_ON_SUCCESS = True
+# Axes y nuestras alertas deben resolver exactamente la misma IP.
+AXES_CLIENT_IP_CALLABLE = "config.client_ip.axes_client_ip"
+
+# Sólo estos proxies pueden aportar X-Real-IP. El servicio web no está publicado
+# externamente (Docker lo enlaza a 127.0.0.1), por lo que estas redes son internas.
+TRUSTED_PROXY_NETWORKS = config(
+    "TRUSTED_PROXY_NETWORKS",
+    default="127.0.0.0/8,::1/128,172.16.0.0/12",
+    cast=Csv(),
+)
 
 # Notificaciones (email + Telegram) cuando alguien inicia sesión en el admin.
 # Útil para detectar rápido un acceso indebido — si recibes un correo de
 # login y no fuiste tú, sabés que tu password se filtró.
 ADMIN_LOGIN_NOTIFY = config("ADMIN_LOGIN_NOTIFY", default=True, cast=bool)
+SECURITY_EVENT_ALERTS = config("SECURITY_EVENT_ALERTS", default=True, cast=bool)
+
+# Logs estructurados y centralizables. Los SecurityEvent críticos también quedan
+# persistidos en PostgreSQL aunque el contenedor sea recreado.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "security": {"format": "%(asctime)s level=%(levelname)s logger=%(name)s message=%(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "security"},
+    },
+    "loggers": {
+        "security": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django.security": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        "axes": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+    },
+}
 
 # ---------------------------------------------------------------------------
 # 2FA (django-otp)
@@ -810,7 +839,7 @@ ADMIN_LOGIN_NOTIFY = config("ADMIN_LOGIN_NOTIFY", default=True, cast=bool)
 #      temporal de rescate por SSH.
 # ---------------------------------------------------------------------------
 ADMIN_2FA_ENFORCED = config("ADMIN_2FA_ENFORCED", default=False, cast=bool)
-OTP_TOTP_ISSUER = "VirtualidadSP Admin"
+OTP_TOTP_ISSUER = "JhelizTV Admin"
 
 # ---------------------------------------------------------------------------
 # Security headers
@@ -836,6 +865,7 @@ CONTENT_SECURITY_POLICY = {
             "'unsafe-eval'",
             "https://cdn.tailwindcss.com",
             "https://unpkg.com",
+            "https://www.googletagmanager.com",
         ),
         "style-src": (
             "'self'",
@@ -845,7 +875,12 @@ CONTENT_SECURITY_POLICY = {
         "font-src": ("'self'", "data:", "https://fonts.gstatic.com"),
         "img-src": ("'self'", "data:", "https:"),
         # Tailwind CDN hace fetch de su CSS dinámicamente; htmx hace requests al backend.
-        "connect-src": ("'self'", "https://cdn.tailwindcss.com"),
+        "connect-src": (
+            "'self'",
+            "https://cdn.tailwindcss.com",
+            "https://www.google-analytics.com",
+            "https://*.google-analytics.com",
+        ),
         "frame-ancestors": ("'none'",),
         "base-uri": ("'self'",),
         "form-action": ("'self'",),

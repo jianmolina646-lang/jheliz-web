@@ -906,7 +906,7 @@ class OrdersKanbanTests(TestCase):
 
 
 class GlobalSearchTests(TestCase):
-    """Endpoint /panel-virtualidadsp/search/ con y sin ?full=1."""
+    """Endpoint /panel-jheliz-control/search/ con y sin ?full=1."""
 
     def setUp(self):
         User = get_user_model()
@@ -2805,7 +2805,7 @@ class PWATests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn("application/json", resp["Content-Type"])
         data = resp.json()
-        self.assertEqual(data["short_name"], "VirtualidadSP")
+        self.assertEqual(data["short_name"], "JhelizTV")
         self.assertEqual(data["display"], "standalone")
         # Los shortcuts de la app deben incluir el combo builder.
         shortcut_urls = [s["url"] for s in data.get("shortcuts", [])]
@@ -3042,7 +3042,7 @@ class BrevoEmailBackendTests(TestCase):
         msg = EmailMessage(
             subject="Asunto de prueba",
             body="<p>Hola</p>" if content_html else "Hola plano",
-            from_email="VirtualidadSP <ecomercejheliz@gmail.com>",
+            from_email="JhelizTV <ecomercejheliz@gmail.com>",
             to=["dest@example.com", "Otro <dos@example.com>"],
             cc=["cc@example.com"],
             reply_to=["responder@example.com"],
@@ -3057,7 +3057,7 @@ class BrevoEmailBackendTests(TestCase):
             _build_payload(self._msg(content_html=True))
         self.assertEqual(
             payload["sender"],
-            {"email": "ecomercejheliz@gmail.com", "name": "VirtualidadSP"},
+            {"email": "ecomercejheliz@gmail.com", "name": "JhelizTV"},
         )
         self.assertEqual(payload["to"], [
             {"email": "dest@example.com"},
@@ -3415,7 +3415,7 @@ class BackfillGuestUsersCommandTests(TestCase):
 
 
 class OrderItemAdminChangelistDesignTests(TestCase):
-    """Verifica el rediseño con chips de /panel-virtualidadsp/orders/orderitem/."""
+    """Verifica el rediseño con chips de /panel-jheliz-control/orders/orderitem/."""
 
     def setUp(self):
         User = get_user_model()
@@ -3457,7 +3457,7 @@ class OrderItemAdminChangelistDesignTests(TestCase):
 
     def test_changelist_renders_chips(self):
         self.client.force_login(self.staff)
-        resp = self.client.get("/panel-virtualidadsp/orders/orderitem/")
+        resp = self.client.get("/panel-jheliz-control/orders/orderitem/")
         self.assertEqual(resp.status_code, 200)
         # Producto + categoría
         self.assertContains(resp, "Netflix OI")

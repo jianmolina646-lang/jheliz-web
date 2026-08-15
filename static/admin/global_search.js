@@ -3,7 +3,7 @@
  *
  * Inserta un modal en cualquier página del admin. El usuario presiona
  * Ctrl+K (o Cmd+K en Mac) y aparece un input. Al escribir, hace fetch
- * al endpoint /panel-virtualidadsp/search/?q=... que devuelve JSON con orders,
+ * al endpoint /panel-jheliz-control/search/?q=... que devuelve JSON con orders,
  * products, customers, plans y tickets. Click en un resultado abre la
  * página de edición correspondiente.
  */
@@ -11,7 +11,7 @@
     if(window.__jhelizGlobalSearchInstalled) return;
     window.__jhelizGlobalSearchInstalled = true;
 
-    var API_URL = "/panel-virtualidadsp/search/";
+    var API_URL = "/panel-jheliz-control/search/";
 
     var styles = document.createElement("style");
     styles.textContent = (
@@ -80,23 +80,23 @@
     // Quick actions estáticas que aparecen sin escribir nada o cuando el query
     // matchea por nombre. Permiten navegar a páginas custom del admin con 2 letras.
     var QUICK_ACTIONS = [
-        { kw: "stock inventario",      label: "📦 Stock",                    url: "/panel-virtualidadsp/stock/" },
-        { kw: "renovacion vencer",     label: "🔁 Renovaciones pendientes",  url: "/panel-virtualidadsp/renewals/" },
-        { kw: "entrega lote bulk",     label: "⚡ Entrega en masa",          url: "/panel-virtualidadsp/bulk-delivery/" },
-        { kw: "reporte ventas",        label: "📊 Reportes financieros",     url: "/panel-virtualidadsp/reports/" },
-        { kw: "clientes top",          label: "⭐ Clientes valiosos",        url: "/panel-virtualidadsp/top-customers/" },
-        { kw: "cliente 360",           label: "👥 Buscar cliente",           url: "/panel-virtualidadsp/customers/" },
-        { kw: "salud health",          label: "❤️ Estado de servicios",     url: "/panel-virtualidadsp/health/" },
-        { kw: "pagos inbox bandeja comprobantes",    label: "💸 Bandeja de pagos pendientes",  url: "/panel-virtualidadsp/orders/order/yape-inbox/" },
-        { kw: "pedido nuevo",          label: "➕ Crear pedido",             url: "/panel-virtualidadsp/orders/order/add/" },
-        { kw: "producto nuevo",        label: "➕ Crear producto",           url: "/panel-virtualidadsp/catalog/product/add/" },
-        { kw: "cupon descuento",       label: "🎟 Cupones",                  url: "/panel-virtualidadsp/orders/coupon/" },
-        { kw: "ticket soporte",        label: "💬 Tickets de soporte",       url: "/panel-virtualidadsp/support/ticket/" },
-        { kw: "codigo solicitud",      label: "🔑 Solicitudes de código",    url: "/panel-virtualidadsp/support/coderequest/" },
-        { kw: "plantilla respuesta",   label: "📝 Plantillas de respuesta",  url: "/panel-virtualidadsp/support/replytemplate/" },
-        { kw: "reseña review",         label: "⭐ Reseñas",                 url: "/panel-virtualidadsp/catalog/productreview/" },
-        { kw: "landing seo",           label: "🌐 Landing pages SEO",        url: "/panel-virtualidadsp/catalog/platformlanding/" },
-        { kw: "reemplazar bloqueada",  label: "🔄 Reemplazar cuenta",        url: "/panel-virtualidadsp/replace-blocked-account/" },
+        { kw: "stock inventario",      label: "📦 Stock",                    url: "/panel-jheliz-control/stock/" },
+        { kw: "renovacion vencer",     label: "🔁 Renovaciones pendientes",  url: "/panel-jheliz-control/renewals/" },
+        { kw: "entrega lote bulk",     label: "⚡ Entrega en masa",          url: "/panel-jheliz-control/bulk-delivery/" },
+        { kw: "reporte ventas",        label: "📊 Reportes financieros",     url: "/panel-jheliz-control/reports/" },
+        { kw: "clientes top",          label: "⭐ Clientes valiosos",        url: "/panel-jheliz-control/top-customers/" },
+        { kw: "cliente 360",           label: "👥 Buscar cliente",           url: "/panel-jheliz-control/customers/" },
+        { kw: "salud health",          label: "❤️ Estado de servicios",     url: "/panel-jheliz-control/health/" },
+        { kw: "pagos inbox bandeja comprobantes",    label: "💸 Bandeja de pagos pendientes",  url: "/panel-jheliz-control/orders/order/yape-inbox/" },
+        { kw: "pedido nuevo",          label: "➕ Crear pedido",             url: "/panel-jheliz-control/orders/order/add/" },
+        { kw: "producto nuevo",        label: "➕ Crear producto",           url: "/panel-jheliz-control/catalog/product/add/" },
+        { kw: "cupon descuento",       label: "🎟 Cupones",                  url: "/panel-jheliz-control/orders/coupon/" },
+        { kw: "ticket soporte",        label: "💬 Tickets de soporte",       url: "/panel-jheliz-control/support/ticket/" },
+        { kw: "codigo solicitud",      label: "🔑 Solicitudes de código",    url: "/panel-jheliz-control/support/coderequest/" },
+        { kw: "plantilla respuesta",   label: "📝 Plantillas de respuesta",  url: "/panel-jheliz-control/support/replytemplate/" },
+        { kw: "reseña review",         label: "⭐ Reseñas",                 url: "/panel-jheliz-control/catalog/productreview/" },
+        { kw: "landing seo",           label: "🌐 Landing pages SEO",        url: "/panel-jheliz-control/catalog/platformlanding/" },
+        { kw: "reemplazar bloqueada",  label: "🔄 Reemplazar cuenta",        url: "/panel-jheliz-control/replace-blocked-account/" },
     ];
 
     function filterQuickActions(q){

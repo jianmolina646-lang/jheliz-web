@@ -15,6 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from . import interactions
+from accounts.security_events import record_security_event
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +34,13 @@ def interactions_webhook(request: HttpRequest) -> HttpResponse:
     body = request.body
 
     if not interactions.verify_signature(body, signature, timestamp, public_key):
+        record_security_event("webhook.discord_invalid_signature", request=request, severity="critical", alert=True)
         return HttpResponse("invalid signature", status=401)
 
     try:
         payload = json.loads(body.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
+        record_security_event("webhook.discord_bad_payload", request=request, severity="warning")
         return HttpResponse("bad payload", status=400)
 
     response = interactions.handle_interaction(payload)

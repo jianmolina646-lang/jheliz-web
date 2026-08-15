@@ -13,7 +13,7 @@ def robots_txt(request):
     sitemap_url = request.build_absolute_uri(reverse("django.contrib.sitemaps.views.sitemap"))
     body = "\n".join([
         "User-agent: *",
-        "Disallow: /panel-virtualidadsp/",
+        "Disallow: /panel-jheliz-control/",
         "Disallow: /cuenta/",
         "Disallow: /pedidos/",
         "Disallow: /soporte/",
@@ -51,8 +51,8 @@ def manifest_json(request):
     icon512 = request.build_absolute_uri("/static/img/icon-512.png")
     return JsonResponse({
         "id": "/?source=pwa",
-        "name": "VirtualidadSP Services TV",
-        "short_name": "VirtualidadSP",
+        "name": "JhelizTV Services TV",
+        "short_name": "JhelizTV",
         "description": "Streaming y licencias al instante en Per\u00fa.",
         "start_url": "/?source=pwa",
         "scope": "/",
@@ -90,7 +90,7 @@ def manifest_json(request):
     })
 
 
-_SERVICE_WORKER_JS = """// VirtualidadSP PWA service worker
+_SERVICE_WORKER_JS = """// JhelizTV PWA service worker
 const VERSION = 'jheliz-v4';
 const STATIC_CACHE = `static-${VERSION}`;
 const RUNTIME_CACHE = `runtime-${VERSION}`;
@@ -130,7 +130,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
   // Don't cache admin, auth, checkout or anything POST-sensitive.
-  if (url.pathname.startsWith('/panel-virtualidadsp') ||
+  if (url.pathname.startsWith('/panel-jheliz-control') ||
       url.pathname.startsWith('/cuenta') ||
       url.pathname.startsWith('/pedidos') ||
       url.pathname.startsWith('/soporte') ||
@@ -174,9 +174,9 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data ? event.data.json() : {};
   } catch (e) {
-    payload = { title: 'VirtualidadSP Store', body: event.data ? event.data.text() : '' };
+    payload = { title: 'JhelizTV Store', body: event.data ? event.data.text() : '' };
   }
-  const title = payload.title || 'VirtualidadSP Store';
+  const title = payload.title || 'JhelizTV Store';
   const options = {
     body: payload.body || '',
     icon: payload.icon || '/static/img/icon-192.png',
@@ -214,15 +214,15 @@ def service_worker(request):
 # ---------------------------------------------------------------------------
 # Admin PWA
 #
-# El panel admin (/panel-virtualidadsp/) tiene su propio manifest y service worker
+# El panel admin (/panel-jheliz-control/) tiene su propio manifest y service worker
 # para que el operador pueda instalarlo como app independiente en celular /
 # escritorio. Scope dedicado para que no se mezcle con el SW del sitio público.
 # ---------------------------------------------------------------------------
 
-_ADMIN_SERVICE_WORKER_JS = """// VirtualidadSP Admin PWA service worker
-// Scope: /panel-virtualidadsp/. Network-only para todas las requests dentro
+_ADMIN_SERVICE_WORKER_JS = """// JhelizTV Admin PWA service worker
+// Scope: /panel-jheliz-control/. Network-only para todas las requests dentro
 // del admin (queremos siempre datos frescos: pedidos, tickets, stock).
-const VERSION = 'virtualidadsp-admin-v1';
+const VERSION = 'jheliztv-admin-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -243,15 +243,15 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data ? event.data.json() : {};
   } catch (e) {
-    payload = { title: 'VirtualidadSP Admin', body: event.data ? event.data.text() : '' };
+    payload = { title: 'JhelizTV Admin', body: event.data ? event.data.text() : '' };
   }
-  const title = payload.title || 'VirtualidadSP Admin';
+  const title = payload.title || 'JhelizTV Admin';
   const options = {
     body: payload.body || '',
     icon: payload.icon || '/static/img/icon-192.png',
     badge: '/static/img/icon-192.png',
-    data: { url: payload.url || '/panel-virtualidadsp/' },
-    tag: payload.tag || 'virtualidadsp-admin',
+    data: { url: payload.url || '/panel-jheliz-control/' },
+    tag: payload.tag || 'jheliztv-admin',
     renotify: true,
   };
   event.waitUntil(self.registration.showNotification(title, options));
@@ -259,7 +259,7 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/panel-virtualidadsp/';
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/panel-jheliz-control/';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
       for (const w of wins) {
@@ -277,12 +277,12 @@ def manifest_admin_json(request):
     """PWA manifest del panel admin — instalable como app independiente."""
     icon192 = request.build_absolute_uri("/static/img/icon-192.png")
     icon512 = request.build_absolute_uri("/static/img/icon-512.png")
-    admin_root = "/panel-virtualidadsp/"
+    admin_root = "/panel-jheliz-control/"
     return JsonResponse({
         "id": admin_root + "?source=pwa",
-        "name": "VirtualidadSP Admin",
-        "short_name": "VirtualidadSP Admin",
-        "description": "Panel de administraci\u00f3n de VirtualidadSP Store.",
+        "name": "JhelizTV Admin",
+        "short_name": "JhelizTV Admin",
+        "description": "Panel de administraci\u00f3n de JhelizTV Store.",
         "start_url": admin_root + "?source=pwa",
         "scope": admin_root,
         "display": "standalone",
@@ -315,9 +315,9 @@ def manifest_admin_json(request):
 
 @cache_control(public=True, max_age=3600)
 def service_worker_admin(request):
-    """Service worker dedicado al admin (scope /panel-virtualidadsp/)."""
+    """Service worker dedicado al admin (scope /panel-jheliz-control/)."""
     response = HttpResponse(_ADMIN_SERVICE_WORKER_JS, content_type="application/javascript")
-    response["Service-Worker-Allowed"] = "/panel-virtualidadsp/"
+    response["Service-Worker-Allowed"] = "/panel-jheliz-control/"
     return response
 
 
@@ -342,7 +342,7 @@ def faq(request):
         {
             "q": "\u00bfPuedo cambiar la contrase\u00f1a de la cuenta?",
             "a": (
-                "No \u2014 las cuentas son administradas por VirtualidadSP para garantizar el servicio a todos"
+                "No \u2014 las cuentas son administradas por JhelizTV para garantizar el servicio a todos"
                 " los perfiles. Si cambias la contrase\u00f1a, se invalida la garant\u00eda."
             ),
         },

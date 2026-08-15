@@ -13,21 +13,21 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='promobanner',
             name='style',
-            field=models.CharField(choices=[('pink', 'Rosa VirtualidadSP (recomendado)'), ('dark', 'Negro'), ('amber', 'Ámbar / oferta'), ('emerald', 'Verde / nuevo'), ('slate', 'Gris claro')], default='pink', max_length=10, verbose_name='Estilo'),
+            field=models.CharField(choices=[('pink', 'Rosa JhelizTV (recomendado)'), ('dark', 'Negro'), ('amber', 'Ámbar / oferta'), ('emerald', 'Verde / nuevo'), ('slate', 'Gris claro')], default='pink', max_length=10, verbose_name='Estilo'),
         ),
         migrations.AlterField(
             model_name='sitesettings',
             name='legal_business_name',
-            field=models.CharField(blank=True, help_text="Nombre legal de la empresa, ej: 'VirtualidadSP Services E.I.R.L.'", max_length=160, verbose_name='Razón social'),
+            field=models.CharField(blank=True, help_text="Nombre legal de la empresa, ej: 'JhelizTV Services E.I.R.L.'", max_length=160, verbose_name='Razón social'),
         ),
         migrations.AlterField(
             model_name='sitesettings',
             name='site_name',
-            field=models.CharField(default='VirtualidadSP', help_text='Aparece en el header, footer y emails.', max_length=80, verbose_name='Nombre del sitio'),
+            field=models.CharField(default='JhelizTV', help_text='Aparece en el header, footer y emails.', max_length=80, verbose_name='Nombre del sitio'),
         ),
         migrations.AlterField(
             model_name='sitesettings',
             name='whatsapp_message',
-            field=models.CharField(default='Hola VirtualidadSP, tengo una consulta sobre sus productos.', max_length=200, verbose_name='Mensaje pre-rellenado de WhatsApp'),
+            field=models.CharField(default='Hola JhelizTV, tengo una consulta sobre sus productos.', max_length=200, verbose_name='Mensaje pre-rellenado de WhatsApp'),
         ),
     ]

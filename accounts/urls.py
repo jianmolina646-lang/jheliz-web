@@ -8,7 +8,7 @@ urlpatterns = [
     path("registro/", views.signup, name="signup"),
     path("ingresar/", views.JhelizLoginView.as_view(), name="login"),
     path("salir/", views.JhelizLogoutView.as_view(), name="logout"),
-    # Password reset (flujo built-in de Django con templates de VirtualidadSP).
+    # Password reset (flujo built-in de Django con templates de JhelizTV).
     path(
         "recuperar/",
         views.JhelizPasswordResetView.as_view(),

@@ -610,6 +610,26 @@ class TenantSaasTests(TestCase):
     ALLOWED_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz", "ecormecejhelizstore.com", "testserver"],
     JHELIZTV_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz"],
 )
+class OwnerControlLegacyUrlTests(TestCase):
+    def test_old_panel_url_redirects_to_owner_control(self):
+        response = self.client.get(
+            "/panel-jheliz-control/",
+            HTTP_HOST="jheliztv.xyz",
+            secure=True,
+        )
+        self.assertRedirects(
+            response,
+            "/control/",
+            status_code=301,
+            fetch_redirect_response=False,
+        )
+
+
+@override_settings(
+    ALLOWED_HOSTS=["jheliztv.xyz", "ecormecejhelizstore.com", "testserver"],
+    JHELIZTV_HOSTS=["jheliztv.xyz"],
+    SECURE_SSL_REDIRECT=False,
+)
 class OwnerControlPanelTests(TestCase):
     """Panel del dueño en jheliztv.xyz/control/: solo staff, ve inquilinos,
     aprueba pagos Yape y suma días — separado de la web del inquilino."""
@@ -1097,3 +1117,31 @@ class StockEmailTests(TestCase):
             ).status_code,
             404,
         )
+
+
+@override_settings(
+    ALLOWED_HOSTS=["jheliztv.xyz", "testserver"],
+    JHELIZTV_HOSTS=["jheliztv.xyz"],
+    SECURE_SSL_REDIRECT=False,
+)
+class OwnerControlTwoFactorTests(TestCase):
+    def setUp(self):
+        U = get_user_model()
+        self.owner = U.objects.create_user("owner2fa", password="pw", is_staff=True, is_superuser=True)
+        from django_otp.plugins.otp_totp.models import TOTPDevice
+        self.device = TOTPDevice.objects.create(user=self.owner, name="test", confirmed=True)
+
+    def test_password_requires_second_factor(self):
+        response = self.client.post(
+            "/control/ingresar/", {"username": "owner2fa", "password": "pw"}, HTTP_HOST="jheliztv.xyz"
+        )
+        self.assertRedirects(response, "/control/2fa/verificar/", fetch_redirect_response=False)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_valid_totp_completes_login(self):
+        self.client.post("/control/ingresar/", {"username": "owner2fa", "password": "pw"}, HTTP_HOST="jheliztv.xyz")
+        from django_otp.oath import totp
+        token = totp(self.device.bin_key, step=self.device.step, t0=self.device.t0, digits=self.device.digits, drift=self.device.drift)
+        response = self.client.post("/control/2fa/verificar/", {"token": str(token)}, HTTP_HOST="jheliztv.xyz")
+        self.assertRedirects(response, "/control/", fetch_redirect_response=False)
+        self.assertEqual(str(self.client.session.get("_auth_user_id")), str(self.owner.pk))

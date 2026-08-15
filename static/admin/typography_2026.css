@@ -1,4 +1,4 @@
-/* VirtualidadSP Admin · Tipografía 2026 (capa de display)
+/* JhelizTV Admin · Tipografía 2026 (capa de display)
  * ============================================================
  * Carga fuentes premium 2026 (Geist / Space Grotesk / JetBrains Mono)
  * y refresca titulares clave del admin con peso 800, tracking ajustado
@@ -186,7 +186,7 @@ nav .text-xs.uppercase {
     letter-spacing: .08em !important;
 }
 
-/* Site title (top-left "VirtualidadSP") — más prominente */
+/* Site title (top-left "JhelizTV") — más prominente */
 .unfold-admin header .site-title,
 .unfold-admin header h1,
 header [class*="text-white"] {
