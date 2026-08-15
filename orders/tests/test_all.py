@@ -1320,7 +1320,7 @@ class CartBulkTests(TestCase):
     def test_update_line_rejects_invalid_pin_and_quantity(self):
         self.client.force_login(self.distri)
         self.client.post(reverse("orders:add_to_cart"), {
-            "plan_id": self.plan.pk, "quantity": 1,
+            "plan_id": self.plan.pk, "quantity": 2,
             "profile_name": "", "pin": "", "notes": "",
         })
         self.client.post(reverse("orders:cart_update_line", args=[0]), {
