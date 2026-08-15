@@ -16,9 +16,11 @@ from functools import wraps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth.tokens import default_token_generator
 from django.db.models import Count, Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils import timezone
@@ -263,6 +265,27 @@ def control_password_recovery(request):
         "jheliztv/control/password_recovery_link.html",
         {"tenant": tenant, "recovery_url": recovery_url},
     )
+
+
+@owner_required
+@require_POST
+def control_tenant_password_reset_link(request, pk):
+    """Genera un enlace temporal para que el dueño se lo envíe al inquilino."""
+    tenant = get_object_or_404(Tenant.objects.select_related("user"), pk=pk)
+    uid = urlsafe_base64_encode(force_bytes(tenant.user.pk))
+    token = default_token_generator.make_token(tenant.user)
+    path = reverse(
+        "jheliztv_password_reset_confirm",
+        kwargs={"uidb64": uid, "token": token},
+    )
+    response = render(
+        request,
+        "jheliztv/control/password_reset_link.html",
+        {"tenant": tenant, "reset_url": request.build_absolute_uri(path)},
+    )
+    response["Cache-Control"] = "no-store, private"
+    response["Pragma"] = "no-cache"
+    return response
 
 
 def control_2fa_verify(request):

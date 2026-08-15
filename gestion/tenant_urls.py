@@ -15,6 +15,26 @@ urlpatterns = [
     path("ingresar/", v.login_view, name="jheliztv_login"),
     path("recuperar/", v.password_recovery, name="jheliztv_password_recovery"),
     path(
+        "recuperar/correo/",
+        v.TenantPasswordResetView.as_view(),
+        name="jheliztv_password_reset",
+    ),
+    path(
+        "recuperar/correo/enviado/",
+        v.TenantPasswordResetDoneView.as_view(),
+        name="jheliztv_password_reset_done",
+    ),
+    path(
+        "recuperar/correo/<uidb64>/<token>/",
+        v.StandardTenantPasswordResetConfirmView.as_view(),
+        name="jheliztv_password_reset_confirm",
+    ),
+    path(
+        "recuperar/correo/listo/",
+        v.StandardTenantPasswordResetCompleteView.as_view(),
+        name="jheliztv_password_reset_complete",
+    ),
+    path(
         "recuperar/<uidb64>/<token>/",
         v.TenantPasswordResetConfirmView.as_view(),
         name="jheliztv_password_recovery_confirm",

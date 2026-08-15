@@ -1342,6 +1342,7 @@ def cuentas_dashboard(request):
         request,
         title="Control de cuentas",
         groups=groups,
+        flat_items=items,
         kpis=kpis,
         status_options=status_options,
         status=status_filter,

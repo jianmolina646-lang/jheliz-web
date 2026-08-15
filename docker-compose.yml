@@ -72,9 +72,19 @@ services:
     build: .
     command: python manage.py run_codes_bot
     env_file: .env
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+    volumes:
+      - ./secrets/database_url.txt:/run/secrets/database_url:ro
     depends_on:
       - web
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "manage.py", "check", "--database", "default"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
     profiles:
       - bot  # Inicia junto al resto con: docker compose --profile bot up
 
@@ -129,6 +139,12 @@ services:
       - backup
     build: ./backup
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h db -U $${POSTGRES_USER} -d $${POSTGRES_DB} && pgrep -x cron >/dev/null && test -w /backups"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     env_file: .env
     environment:
       POSTGRES_USER: jheliz
