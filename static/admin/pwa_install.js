@@ -1,4 +1,4 @@
-// VirtualidadSP Admin PWA installer
+// JhelizTV Admin PWA installer
 // 1. Inyecta <link rel="manifest"> y meta theme-color para que Chrome detecte
 //    el panel como instalable.
 // 2. Registra el service worker dedicado del admin.
@@ -20,7 +20,7 @@
     if (!head.querySelector('link[rel="manifest"]')) {
       var link = document.createElement("link");
       link.rel = "manifest";
-      link.href = "/panel-virtualidadsp/manifest.webmanifest";
+      link.href = "/panel-jheliz-control/manifest.webmanifest";
       head.appendChild(link);
     }
 
@@ -51,7 +51,7 @@
 
       var title = document.createElement("meta");
       title.name = "apple-mobile-web-app-title";
-      title.content = "VirtualidadSP Admin";
+      title.content = "JhelizTV Admin";
       head.appendChild(title);
     }
   }
@@ -61,7 +61,7 @@
     if (!("serviceWorker" in navigator)) return;
     // Cumple los requisitos de PWA "instalable" (Chrome necesita SW + manifest).
     navigator.serviceWorker
-      .register("/panel-virtualidadsp/sw.js", { scope: "/panel-virtualidadsp/" })
+      .register("/panel-jheliz-control/sw.js", { scope: "/panel-jheliz-control/" })
       .catch(function () {
         // Si falla, la web sigue andando. No mostramos error al usuario.
       });
@@ -97,7 +97,7 @@
     var wrap = document.createElement("div");
     wrap.id = "jheliz-pwa-banner";
     wrap.setAttribute("role", "dialog");
-    wrap.setAttribute("aria-label", "Instalar VirtualidadSP Admin");
+    wrap.setAttribute("aria-label", "Instalar JhelizTV Admin");
     wrap.style.cssText =
       "position:fixed;left:50%;bottom:18px;transform:translateX(-50%);" +
       "z-index:99999;max-width:480px;width:calc(100% - 28px);" +
@@ -120,7 +120,7 @@
     body.style.cssText = "flex:1;min-width:0;line-height:1.25;";
     var title = document.createElement("div");
     title.style.cssText = "font-weight:700;font-size:14px;color:#fff;";
-    title.textContent = isIOS ? "Instalar VirtualidadSP Admin" : "Instalar el panel como app";
+    title.textContent = isIOS ? "Instalar JhelizTV Admin" : "Instalar el panel como app";
     var sub = document.createElement("div");
     sub.style.cssText = "font-size:12px;color:#fbcfe8;margin-top:2px;";
     sub.textContent = isIOS

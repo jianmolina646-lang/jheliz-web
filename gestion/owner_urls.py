@@ -13,4 +13,5 @@ urlpatterns = [
     path("pagos/<int:pk>/comprobante/", v.control_payment_proof, name="jheliztv_control_payment_proof"),
     path("inquilinos/<int:pk>/extender/", v.control_tenant_extend, name="jheliztv_control_tenant_extend"),
     path("inquilinos/<int:pk>/bloquear/", v.control_tenant_block, name="jheliztv_control_tenant_block"),
+    path("inquilinos/<int:pk>/recuperar-clave/", v.control_tenant_password_reset_link, name="jheliztv_control_tenant_password_reset_link"),
 ]

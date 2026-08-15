@@ -6,8 +6,17 @@ from . import tenant_views as v
 urlpatterns = [
     # Landing + auth
     path("", v.landing, name="jheliztv_landing"),
+    path("funciones/", v.features_page, name="jheliztv_features"),
+    path("precios/", v.pricing_page, name="jheliztv_pricing"),
+    path("como-funciona/", v.how_it_works_page, name="jheliztv_how_it_works"),
+    path("preguntas-frecuentes/", v.faq_page, name="jheliztv_faq"),
+    path("contacto/", v.contact_page, name="jheliztv_contact"),
     path("registro/", v.register, name="jheliztv_register"),
     path("ingresar/", v.login_view, name="jheliztv_login"),
+    path("recuperar/", v.TenantPasswordResetView.as_view(), name="jheliztv_password_reset"),
+    path("recuperar/enviado/", v.TenantPasswordResetDoneView.as_view(), name="jheliztv_password_reset_done"),
+    path("recuperar/<uidb64>/<token>/", v.TenantPasswordResetConfirmView.as_view(), name="jheliztv_password_reset_confirm"),
+    path("recuperar/listo/", v.TenantPasswordResetCompleteView.as_view(), name="jheliztv_password_reset_complete"),
     path("salir/", v.logout_view, name="jheliztv_logout"),
     path("renovar/<uuid:token>/", v.public_renewal, name="jheliztv_public_renewal"),
 

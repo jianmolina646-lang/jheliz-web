@@ -24,7 +24,7 @@ _DIVIDER = "━━━━━━━━━━━━━━━━━━"
 
 def _customer_welcome() -> str:
     return "\n".join([
-        "🎬 <b>¡BIENVENIDO A VIRTUALIDADSP!</b> 📺",
+        "🎬 <b>¡BIENVENIDO A JHELIZTV!</b> 📺",
         "",
         _DIVIDER,
         "",
@@ -40,19 +40,19 @@ def _customer_welcome() -> str:
         "",
         _DIVIDER,
         "",
-        '🛒  <b>Comprá ya:</b>  <a href="https://virtualidadsp.com">virtualidadsp.com</a>',
+        '🛒  <b>Comprá ya:</b>  <a href="https://jheliztv.xyz">jheliztv.xyz</a>',
         "💬  <b>Soporte:</b>  @ecomercejheliz",
         "🤖  <b>Bot:</b>  @jhelizservicetvxyz_bot",
         "",
         _DIVIDER,
         "",
-        "💎 <i>Gracias por elegir VirtualidadSP — entretenimiento sin pagar de más</i> ❤️",
+        "💎 <i>Gracias por elegir JhelizTV — entretenimiento sin pagar de más</i> ❤️",
     ])
 
 
 def _distrib_welcome() -> str:
     return "\n".join([
-        "🏪 <b>VIRTUALIDADSP · CANAL DE DISTRIBUIDORES</b>",
+        "🏪 <b>JHELIZTV · CANAL DE DISTRIBUIDORES</b>",
         "",
         _DIVIDER,
         "",
@@ -67,7 +67,7 @@ def _distrib_welcome() -> str:
         "",
         _DIVIDER,
         "",
-        '🛒  <b>Comprar:</b>  <a href="https://virtualidadsp.com">virtualidadsp.com</a>',
+        '🛒  <b>Comprar:</b>  <a href="https://jheliztv.xyz">jheliztv.xyz</a>',
         "💳  <b>Wallet:</b>  pagás con saldo prepago, entrega instantánea",
         "🤖  <b>Comandos del bot:</b>  /saldo  /pedido  /buscar",
         "💬  <b>Soporte directo:</b>  @ecomercejheliz",
@@ -77,7 +77,7 @@ def _distrib_welcome() -> str:
         "⚠️ <i>Canal de acceso restringido — para mayoristas autorizados</i>",
         "📩 ¿Querés ser distribuidor? Escribí a @ecomercejheliz",
         "",
-        "¡Gracias por trabajar con VirtualidadSP! 🤝",
+        "¡Gracias por trabajar con JhelizTV! 🤝",
     ])
 
 

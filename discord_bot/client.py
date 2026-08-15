@@ -40,7 +40,7 @@ def _headers() -> dict[str, str]:
     return {
         "Authorization": f"Bot {_token()}",
         "Content-Type": "application/json",
-        "User-Agent": "VirtualidadSP (https://virtualidadsp.com, 1.0)",
+        "User-Agent": "JhelizTV (https://jheliztv.xyz, 1.0)",
     }
 
 
@@ -150,7 +150,7 @@ def send_embed(
     title: str,
     description: str = "",
     fields: list[dict] | None = None,
-    color: int = 0xE91E63,  # rosa por defecto (marca VirtualidadSP)
+    color: int = 0xE91E63,  # rosa por defecto (marca JhelizTV)
     url: str | None = None,
     image_url: str | None = None,
     thumbnail_url: str | None = None,

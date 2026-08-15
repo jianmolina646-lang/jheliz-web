@@ -13,6 +13,9 @@ from datetime import datetime, time as datetime_time, timedelta
 
 import requests
 from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from django.db import close_old_connections, connections, transaction
 from django.db.models import Count, Sum
 from django.utils import timezone
@@ -1044,10 +1047,23 @@ def _account(connection, message_id=None):
         f"📅 Vinculado desde: {linked}",
         _markup(
             [
+                [_button("🔑 Cambiar contraseña", "password_reset")],
                 [_button("🔓 Desvincular Telegram", "unlink_ask")],
                 [_button("🌐 Abrir panel", url=f"{WEB_URL}/app/"), _button("⬅️ Volver", "menu")],
             ]
         ),
+        message_id,
+    )
+
+
+def _password_reset(connection, message_id=None):
+    uid = urlsafe_base64_encode(force_bytes(connection.owner.pk))
+    token = default_token_generator.make_token(connection.owner)
+    url = f"{WEB_URL}/recuperar/{uid}/{token}/"
+    return _render(
+        connection.chat_id,
+        "🔑 <b>CAMBIAR CONTRASEÑA</b>\n\nEste enlace es personal, vence en 24 horas y deja de funcionar al cambiar la contraseña. No lo compartas con nadie.",
+        _markup([[_button("Crear contraseña nueva", url=url, style="danger")], [_button("⬅️ Volver", "account")]]),
         message_id,
     )
 
@@ -1280,6 +1296,8 @@ def _handle_callback(connection, callback):
 
     if data == "menu":
         return _main_menu(connection, message_id)
+    if data == "password_reset":
+        return _password_reset(connection, message_id)
     if data.startswith("support_link:"):
         client = client_for_owner(connection.owner_id, data.split(":")[1])
         if not client:
@@ -1611,6 +1629,8 @@ def process_update(update):
         if not connection:
             _ack(callback.get("id"), "Telegram no está vinculado.")
             return _unlinked(chat["id"], (callback.get("message") or {}).get("message_id"))
+        if (callback.get("data") or "") == "password_reset":
+            return _handle_callback(connection, callback)
         if not _has_active_access(connection):
             _ack(callback.get("id"), "Tu suscripción está vencida.")
             return _inactive_plan(chat["id"], (callback.get("message") or {}).get("message_id"))
@@ -1669,6 +1689,8 @@ def process_update(update):
         return _customer_text(message, customer_session)
     if not connection:
         return _unlinked(chat["id"])
+    if text == "/recuperar":
+        return _password_reset(connection)
     if not _has_active_access(connection):
         return _inactive_plan(chat["id"])
     if text in {"/start", "/menu", "/cancelar"}:
@@ -1692,6 +1714,7 @@ def run_polling():
             commands=[
                 {"command": "menu", "description": "Abrir el panel principal"},
                 {"command": "estado", "description": "Comprobar la vinculación"},
+                {"command": "recuperar", "description": "Cambiar la contraseña del panel"},
                 {"command": "cancelar", "description": "Cancelar la operación actual"},
             ],
         )

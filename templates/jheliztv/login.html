@@ -3,12 +3,12 @@
 
 {% block pb_title %}Iniciar sesión | JHELIZCONTROLTV{% endblock %}
 {% block pb_meta_description %}Accede a JHELIZCONTROLTV para gestionar tus suscripciones, clientes y renovaciones desde un solo panel.{% endblock %}
-{% block pb_og_title %}Iniciar sesión | JHELIZCONTROLTV{% endblock %}
-{% block pb_og_description %}Acceso privado al sistema de gestión de suscripciones JHELIZCONTROLTV.{% endblock %}
-{% block pb_twitter_title %}Iniciar sesión | JHELIZCONTROLTV{% endblock %}
-{% block pb_twitter_description %}Acceso privado al sistema de gestión de suscripciones JHELIZCONTROLTV.{% endblock %}
 
 {% block pb_extra_head %}
+  <meta property="og:title" content="Iniciar sesión | JHELIZCONTROLTV">
+  <meta property="og:description" content="Sistema de gestión de suscripciones JHELIZCONTROLTV.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary">
   <link rel="stylesheet" href="{% static 'css/jheliz-login.css' %}?v=lovable-v16-20260729">
 {% endblock %}
 
@@ -69,6 +69,10 @@
               <input id="jcLoginPassword" type="password" name="password" placeholder="Tu contraseña"
                      required autocomplete="current-password">
             </div>
+          </div>
+
+          <div class="jli-options">
+            <a class="jli-forgot" href="{% url 'jheliztv_password_reset' %}">¿Olvidé mi contraseña?</a>
           </div>
 
           <button type="submit" class="jli-submit">

@@ -1,0 +1,19 @@
+{% extends "jheliztv/marketing/base.html" %}
+{% block mk_title %}Contacto y soporte | JHELIZCONTROLTV{% endblock %}
+{% block mk_description %}Contacta con JHELIZCONTROLTV para conocer el sistema o accede al soporte privado si ya administras tu negocio desde el panel.{% endblock %}
+{% block mk_canonical %}https://jheliztv.xyz/contacto/{% endblock %}
+{% block mk_og_title %}Contacto y soporte | JHELIZCONTROLTV{% endblock %}
+{% block mk_og_description %}Contacta con JHELIZCONTROLTV o accede al soporte privado si ya utilizas el panel.{% endblock %}
+{% block mk_og_url %}https://jheliztv.xyz/contacto/{% endblock %}
+{% block mk_twitter_title %}Contacto y soporte | JHELIZCONTROLTV{% endblock %}
+{% block mk_twitter_description %}Contacta con JHELIZCONTROLTV o accede al soporte privado si ya utilizas el panel.{% endblock %}
+{% block mk_content %}
+<section class="jl-marketing-hero"><div class="jl-container">
+  <span class="jl-pill">Contacto</span><h1>Estamos para ayudarte a <span>empezar</span></h1>
+  <p>Elige el canal adecuado según ya tengas una cuenta o quieras conocer el sistema.</p>
+</div></section>
+<section class="jl-marketing-section"><div class="jl-container jl-contact-grid">
+  <article class="jl-surface jl-marketing-card"><h2>Quiero probar el panel</h2><p>Crea una cuenta y utiliza la prueba inicial para configurar servicios, clientes y vencimientos.</p><a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">Crear cuenta</a></article>
+  <article class="jl-surface jl-marketing-card"><h2>Ya soy cliente</h2><p>Ingresa a tu cuenta y abre la sección de soporte para mantener la consulta asociada a tu espacio de trabajo.</p><a class="jl-button jl-button--ghost" href="{% url 'jheliztv_login' %}">Ingresar al panel</a></article>
+</div></section>
+{% endblock %}

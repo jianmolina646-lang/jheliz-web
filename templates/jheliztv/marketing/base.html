@@ -1,0 +1,72 @@
+{% extends "jheliztv/public_base.html" %}
+{% load static %}
+
+{% block pb_title %}{% block mk_title %}JHELIZCONTROLTV{% endblock %}{% endblock %}
+{% block pb_meta_description %}{% block mk_description %}Sistema para gestionar clientes, pagos, vencimientos y renovaciones de suscripciones.{% endblock %}{% endblock %}
+{% block pb_robots %}index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1{% endblock %}
+{% block pb_canonical %}<link rel="canonical" href="{% block mk_canonical %}https://jheliztv.xyz/{% endblock %}">{% endblock %}
+{% block pb_og_title %}{% block mk_og_title %}JHELIZCONTROLTV{% endblock %}{% endblock %}
+{% block pb_og_description %}{% block mk_og_description %}Sistema para gestionar clientes, pagos, vencimientos y renovaciones.{% endblock %}{% endblock %}
+{% block pb_og_url %}<meta property="og:url" content="{% block mk_og_url %}https://jheliztv.xyz/{% endblock %}">{% endblock %}
+{% block pb_twitter_title %}{% block mk_twitter_title %}JHELIZCONTROLTV{% endblock %}{% endblock %}
+{% block pb_twitter_description %}{% block mk_twitter_description %}Sistema para gestionar clientes, pagos, vencimientos y renovaciones.{% endblock %}{% endblock %}
+{% block pb_extra_head %}
+  <link rel="stylesheet" href="{% static 'css/jheliz-landing.css' %}?v=seo-public-v1-20260809">
+{% endblock %}
+{% block pb_header %}{% endblock %}
+
+{% block pb_content %}
+<div class="jl-landing jl-marketing">
+  <div class="jl-background-glow" aria-hidden="true"></div>
+  <header class="jl-navbar">
+    <div class="jl-container">
+      <nav class="jl-navbar__inner" aria-label="Navegación principal">
+        <a href="{% url 'jheliztv_landing' %}" class="jl-logo" aria-label="JHELIZCONTROLTV">
+          <span class="jl-logo__mark"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg></span>
+          <span>JHELIZ<strong>CONTROLTV</strong></span>
+        </a>
+        <div class="jl-navbar__links">
+          <a href="{% url 'jheliztv_features' %}">Funciones</a>
+          <a href="{% url 'jheliztv_pricing' %}">Precios</a>
+          <a href="{% url 'jheliztv_how_it_works' %}">Cómo funciona</a>
+          <a href="{% url 'jheliztv_faq' %}">Preguntas frecuentes</a>
+          <a href="{% url 'jheliztv_contact' %}">Contacto</a>
+        </div>
+        <a class="jl-button jl-button--primary jl-navbar__cta" href="{% url 'jheliztv_register' %}">Probar ahora</a>
+        <button type="button" class="jl-navbar__toggle" aria-expanded="false" aria-controls="jlMobileMenu" aria-label="Abrir menú">
+          <svg class="jl-navbar__menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"></path><path d="M4 6h16"></path><path d="M4 18h16"></path></svg>
+          <svg class="jl-navbar__close-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </nav>
+      <div class="jl-navbar__mobile" id="jlMobileMenu" hidden>
+        <a href="{% url 'jheliztv_features' %}">Funciones</a>
+        <a href="{% url 'jheliztv_pricing' %}">Precios</a>
+        <a href="{% url 'jheliztv_how_it_works' %}">Cómo funciona</a>
+        <a href="{% url 'jheliztv_faq' %}">Preguntas frecuentes</a>
+        <a href="{% url 'jheliztv_contact' %}">Contacto</a>
+        <a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">Probar ahora</a>
+      </div>
+    </div>
+  </header>
+
+  <main>{% block mk_content %}{% endblock %}</main>
+
+  <footer class="jl-footer">
+    <div class="jl-container jl-marketing-footer">
+      <a href="{% url 'jheliztv_landing' %}" class="jl-logo">
+        <span class="jl-logo__mark"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg></span>
+        <span>JHELIZ<strong>CONTROLTV</strong></span>
+      </a>
+      <nav aria-label="Enlaces del pie">
+        <a href="{% url 'jheliztv_features' %}">Funciones</a>
+        <a href="{% url 'jheliztv_pricing' %}">Precios</a>
+        <a href="{% url 'jheliztv_faq' %}">Preguntas frecuentes</a>
+        <a href="{% url 'jheliztv_contact' %}">Contacto</a>
+      </nav>
+      <p>© 2026 JHELIZ CONTROL TV</p>
+    </div>
+  </footer>
+</div>
+{% endblock %}
+
+{% block pb_scripts %}<script src="{% static 'js/jheliz-landing.js' %}?v=seo-public-v1-20260809" defer></script>{% endblock %}

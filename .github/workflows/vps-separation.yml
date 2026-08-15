@@ -49,9 +49,9 @@ jobs:
             $COMPOSE exec -T db psql -U jheliz -d jheliz -Atc "SELECT conrelid::regclass || ' -> ' || confrelid::regclass FROM pg_constraint WHERE contype='f' AND ((conrelid::regclass::text LIKE 'gestion_%' AND confrelid::regclass::text NOT LIKE 'gestion_%') OR (confrelid::regclass::text LIKE 'gestion_%' AND conrelid::regclass::text NOT LIKE 'gestion_%')) ORDER BY 1;"
 
             echo "=== NGINX DOMAIN FILES ==="
-            grep -RIlE '(^|[[:space:]])(www\.)?virtualidadsp\.com([[:space:];]|$)|(^|[[:space:]])(www\.)?jheliztv\.xyz([[:space:];]|$)' \
+            grep -RIlE '(^|[[:space:]])(www\.)?jheliztv\.com([[:space:];]|$)|(^|[[:space:]])(www\.)?jheliztv\.xyz([[:space:];]|$)' \
               /etc/nginx/sites-enabled /etc/nginx/sites-available 2>/dev/null || true
-            grep -RHnE 'server_name .*virtualidadsp\.com|server_name .*jheliztv\.xyz' \
+            grep -RHnE 'server_name .*jheliztv\.com|server_name .*jheliztv\.xyz' \
               /etc/nginx/sites-enabled /etc/nginx/sites-available 2>/dev/null || true
 
             echo "=== TLS CERTIFICATE DIRECTORIES ==="

@@ -243,6 +243,11 @@ def _search_account(
                 continue
             subject = _decode(msg.get("Subject"))
             result = parser(subject, html=html, text=text)
+            # Sin tipo puntual solo se consideran mensajes reconocidos por el
+            # parser. Avisos comerciales, cambios de correo y cualquier otro
+            # mensaje de Netflix clasificado como ``other`` nunca se entrega.
+            if kind is None and result.kind == "other":
+                continue
             # Cuando se pide un tipo puntual, solo entregamos ese tipo;
             # cualquier otro correo del servicio se ignora.
             if kind is not None and result.kind != kind:

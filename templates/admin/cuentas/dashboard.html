@@ -9,6 +9,77 @@
 
 {% block content %}
 <style>
+  body:has(.dh-app) { overflow: hidden !important; }
+  .dh-app { position:fixed; inset:0; z-index:40; display:flex; background:#f7f8fb; color:#202332; font-family:Inter,"DM Sans",system-ui,sans-serif; }
+  .dh-side { width:245px; flex:none; background:#1d1d2d; color:#a9a9b8; display:flex; flex-direction:column; padding:20px 10px 14px; }
+  .dh-brand { display:flex; align-items:center; gap:12px; padding:8px 8px 26px; color:#fff; }
+  .dh-brand__mark,.dh-user__mark { display:grid; place-items:center; color:#fff; font-weight:800; background:linear-gradient(135deg,#9258ee,#5748ee); box-shadow:0 12px 28px -12px #7254f5; }
+  .dh-brand__mark { width:40px; height:40px; border-radius:12px; font-size:22px; }
+  .dh-brand b { display:block; font-size:15px; line-height:1.2; }.dh-brand small { display:block; color:#9696a7; font-size:11px; margin-top:2px; }
+  .dh-nav { display:flex; flex-direction:column; gap:4px; }.dh-nav a { height:42px; padding:0 12px; border-radius:12px; display:flex; align-items:center; gap:14px; color:#aaaaba; text-decoration:none; font-size:14px; font-weight:600; }
+  .dh-nav a:hover { color:#fff; background:#29293b; }.dh-nav a.is-active { color:#fff; background:linear-gradient(100deg,#984ce9,#3f83df); box-shadow:0 13px 28px -18px #714bf1; }
+  .dh-nav .material-symbols-outlined { font-size:18px; font-variation-settings:'wght' 350; }.dh-side__foot { margin-top:auto; }
+  .dh-stage { min-width:0; flex:1; height:100vh; overflow:auto; }
+  .dh-top { height:70px; position:sticky; top:0; z-index:4; display:flex; align-items:center; gap:16px; padding:0 28px 0 32px; background:rgba(255,255,255,.9); backdrop-filter:blur(18px); border-bottom:1px solid #e8e9ef; }
+  .dh-global-search { width:min(575px,55vw); height:40px; border:1px solid #e0e2e9; border-radius:13px; background:#fff; display:flex; align-items:center; gap:10px; padding:0 13px; }
+  .dh-global-search input { border:0!important; box-shadow:none!important; outline:0!important; background:transparent!important; width:100%; color:#333746!important; font-size:14px!important; padding:0!important; }
+  .dh-kbd { margin-left:auto; border:1px solid #dddfe5; background:#f7f7f9; color:#848897; border-radius:6px; padding:1px 6px; font-size:10px; }
+  .dh-top__right { margin-left:auto; display:flex; align-items:center; gap:12px; }.dh-bell { width:40px;height:40px;border:1px solid #e0e2e9;border-radius:12px;background:#fff;color:#7c8190;display:grid;place-items:center;position:relative; }
+  .dh-bell i { position:absolute;right:-3px;top:-5px;width:17px;height:17px;border:2px solid #fff;border-radius:50%;background:#dc5262;color:#fff;font-style:normal;font-size:9px;display:grid;place-items:center; }
+  .dh-user { height:43px;display:flex;align-items:center;gap:9px;padding:3px 12px 3px 4px;background:#fff;border:1px solid #e0e2e9;border-radius:12px; }.dh-user__mark{width:32px;height:32px;border-radius:9px}.dh-user b{display:block;font-size:12px}.dh-user small{display:block;font-size:10px;color:#9397a4}
+  .dh-main { width:min(1120px,calc(100% - 48px)); margin:0 auto; padding:30px 0 46px; }
+  .dh-head { display:flex;align-items:flex-end;justify-content:space-between;gap:20px; }.dh-head h1{font-family:"Space Grotesk",Inter,sans-serif;font-size:34px;letter-spacing:-.035em;margin:0;color:#202332}.dh-head p{margin:7px 0 0;color:#7f8492;font-size:14px}.dh-safe{margin-left:8px;display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;background:#e8f7f1;color:#228a67;font-size:10px;font-weight:700}
+  .dh-primary { height:40px;padding:0 15px;border:0;border-radius:11px;background:linear-gradient(135deg,#9459e8,#4b73e4);color:#fff;font-weight:700;font-size:13px;display:inline-flex;align-items:center;gap:7px;box-shadow:0 15px 28px -17px #6d50dd;cursor:pointer}.dh-primary .material-symbols-outlined{font-size:17px}
+  .dh-stats { margin-top:22px; display:grid;grid-template-columns:repeat(4,1fr);gap:13px }.dh-stat{background:#fff;border:1px solid #e7e8ee;border-radius:16px;padding:15px;box-shadow:0 14px 32px -27px #30374f}.dh-stat__top{display:flex;align-items:center;justify-content:space-between}.dh-stat__icon{width:38px;height:38px;border-radius:13px;display:grid;place-items:center}.dh-stat__icon .material-symbols-outlined{font-size:19px}.dh-stat label{display:block;color:#858a98;font-size:11px;font-weight:600;margin-top:12px}.dh-stat strong{display:block;color:#202332;font-size:27px;letter-spacing:-.04em;margin-top:3px}.dh-stat small{display:block;color:#969aa6;font-size:10px;margin-top:6px}.dh-stat--purple .dh-stat__icon{background:#f0ebff;color:#6b57d2}.dh-stat--green .dh-stat__icon{background:#e9f7f1;color:#21916c}.dh-stat--blue .dh-stat__icon{background:#eaf4fb;color:#3187c8}.dh-stat--amber .dh-stat__icon{background:#fff5df;color:#c08720}
+  .dh-filter { margin-top:18px;background:#fff;border:1px solid #e5e7ed;border-radius:17px;padding:12px 15px;box-shadow:0 16px 35px -28px #30374f }.dh-pills{display:flex;gap:7px;overflow:auto;padding-bottom:2px}.dh-pill{white-space:nowrap;height:35px;padding:0 12px;border:1px solid #e4e6eb;border-radius:10px;background:#f7f8fa;color:#777c8a;text-decoration:none;display:flex;align-items:center;gap:7px;font-size:11px;font-weight:650}.dh-pill b{padding:2px 6px;border-radius:5px;background:#fff;font-size:9px}.dh-pill.is-active{background:#202332;color:#fff;border-color:#202332}.dh-pill.is-active b{background:#3b3e4c}.dh-filter__row{display:flex;gap:9px;margin-top:11px;padding-top:11px;border-top:1px solid #eff0f3}.dh-query{height:40px;flex:1;display:flex;align-items:center;gap:9px;padding:0 12px;background:#f7f8fa;border:1px solid #e4e6eb;border-radius:11px}.dh-query input{width:100%;border:0!important;background:transparent!important;box-shadow:none!important;outline:0!important;color:#303442!important;padding:0!important;font-size:12px!important}.dh-select{height:40px;padding:0 12px;border:1px solid #e3e5eb;border-radius:11px;background:#fff;color:#4a4e5b;font-size:11px;min-width:150px}
+  .dh-table-card { margin-top:20px;background:#fff;border:1px solid #e4e6ec;border-radius:19px;overflow:hidden;box-shadow:0 20px 45px -33px #30374f}.dh-table-title{padding:16px 19px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eceef2}.dh-table-title h2{font-size:14px;margin:0;color:#242837}.dh-table-title p{font-size:10px;margin:3px 0 0;color:#8e93a0}.dh-sync{display:flex;align-items:center;gap:5px;border:1px solid #dfe2e7;border-radius:999px;padding:5px 9px;color:#818693;font-size:9px}.dh-sync:before{content:"";width:5px;height:5px;background:#25a77b;border-radius:50%}
+  .dh-table-wrap{overflow:auto}.dh-table{width:100%;border-collapse:collapse;min-width:790px}.dh-table th{height:42px;padding:0 18px;background:#fafbfc;text-align:left;color:#858a98;font-size:9px;letter-spacing:.06em;text-transform:uppercase}.dh-table td{padding:12px 18px;border-top:1px solid #eceef2;vertical-align:middle}.dh-service{display:flex;align-items:center;gap:12px}.dh-logo{width:42px;height:42px;flex:none;border:1px solid #e1e4e9;border-radius:14px;background:#fff;padding:6px;display:grid;place-items:center;overflow:hidden;box-shadow:0 8px 18px -14px #283047}.dh-logo img{width:100%;height:100%;object-fit:contain}.dh-logo span{font-weight:800;color:#6557d9}.dh-service b{display:block;color:#242837;font-size:12px}.dh-service small{display:block;color:#858b99;font-size:10px;margin-top:4px;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dh-badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:6px 10px;font-size:10px;font-weight:700}.dh-badge:before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}.dh-badge--available{color:#168766;background:#e7f7f1;border:1px solid #c5ebdd}.dh-badge--sold{color:#287db5;background:#e7f3fb;border:1px solid #c5e1f2}.dh-badge--reserved{color:#7452bd;background:#f1ebff;border:1px solid #dfd2fb}.dh-badge--defective{color:#c2514a;background:#fff0ee;border:1px solid #f4d0cc}.dh-badge--disabled{color:#777c88;background:#f0f1f3;border:1px solid #dfe1e5}.dh-date b,.dh-meta b{display:block;color:#333746;font-size:11px}.dh-date small,.dh-meta small{display:block;color:#9296a2;font-size:9px;margin-top:4px}.dh-actions{display:flex;justify-content:flex-end;gap:5px}.dh-action{width:34px;height:34px;border:1px solid #dfe2e8;border-radius:10px;background:#fff;color:#777d8c;display:grid;place-items:center;text-decoration:none;cursor:pointer}.dh-action .material-symbols-outlined{font-size:17px}.dh-table-foot{padding:14px 19px;background:#fafbfc;border-top:1px solid #eceef2;color:#858a98;font-size:10px}
+  .jh-cc-theme { display:none!important; }
+  @media(max-width:900px){.dh-side{width:72px}.dh-brand>div:last-child,.dh-nav span:last-child{display:none}.dh-nav a{justify-content:center;padding:0}.dh-brand{justify-content:center;padding-left:0;padding-right:0}.dh-main{width:calc(100% - 28px)}.dh-stats{grid-template-columns:1fr 1fr}.dh-filter__row{flex-wrap:wrap}.dh-query{flex-basis:100%}.dh-select{flex:1}.dh-user span{display:none}.dh-user{padding-right:4px}.dh-global-search{width:auto;flex:1}}
+  @media(max-width:600px){.dh-side{display:none}.dh-top{padding:0 14px}.dh-main{padding-top:20px}.dh-head{align-items:flex-start}.dh-head h1{font-size:27px}.dh-stats{grid-template-columns:1fr 1fr}.dh-stat{padding:12px}.dh-stat strong{font-size:23px}.dh-select{min-width:calc(50% - 5px)}.dh-top__right .dh-user{display:none}}
+</style>
+
+<div class="dh-app">
+  <aside class="dh-side">
+    <div class="dh-brand"><div class="dh-brand__mark">J</div><div><b>Jheliz Digital</b><small>Panel de control</small></div></div>
+    <nav class="dh-nav">
+      <a href="/panel-virtualidadsp/"><span class="material-symbols-outlined">dashboard</span><span>Resumen</span></a>
+      <a class="is-active" href="{% url 'admin_cuentas_dashboard' %}"><span class="material-symbols-outlined">diamond</span><span>Cuentas</span></a>
+      <a href="/panel-virtualidadsp/orders/order/"><span class="material-symbols-outlined">swap_horiz</span><span>Ventas</span></a>
+      <a href="/panel-virtualidadsp/renovaciones/"><span class="material-symbols-outlined">schedule</span><span>Renovaciones</span></a>
+      <a href="/panel-virtualidadsp/stock/list/?status=defective"><span class="material-symbols-outlined">restart_alt</span><span>Reposiciones</span></a>
+      <a href="/panel-virtualidadsp/catalog/product/"><span class="material-symbols-outlined">deployed_code</span><span>Servicios</span></a>
+      <a href="/panel-virtualidadsp/reports/"><span class="material-symbols-outlined">bar_chart</span><span>Reportes</span></a>
+    </nav>
+    <nav class="dh-nav dh-side__foot"><a href="/panel-virtualidadsp/logout/"><span class="material-symbols-outlined">logout</span><span>Cerrar sesión</span></a></nav>
+  </aside>
+  <section class="dh-stage">
+    <header class="dh-top">
+      <form class="dh-global-search" method="get"><span class="material-symbols-outlined" style="font-size:15px;color:#818695">search</span><input name="q" value="{{ q }}" placeholder="Buscar cuentas, correos o servicios…"><span class="dh-kbd">⌘K</span></form>
+      <div class="dh-top__right"><div class="dh-bell"><span class="material-symbols-outlined" style="font-size:17px">notifications</span><i>0</i></div><div class="dh-user"><div class="dh-user__mark">J</div><span><b>{{ request.user.username|default:"Jheliz200" }}</b><small>Administrador</small></span></div></div>
+    </header>
+    <main class="dh-main">
+      <div class="dh-head"><div><h1>Inventario de cuentas</h1><p>Todas tus cuentas, ordenadas y protegidas.<span class="dh-safe"><span class="material-symbols-outlined" style="font-size:12px">verified_user</span>Datos protegidos</span></p></div>{% if groups %}<button class="dh-primary quick-add-btn" data-product-id="{{ groups.0.product.pk }}" data-product-name="{{ groups.0.product.name|escapejs }}"><span class="material-symbols-outlined">add</span>Nueva cuenta</button>{% endif %}</div>
+      <section class="dh-stats">
+        <div class="dh-stat dh-stat--purple"><div class="dh-stat__top"><span class="dh-stat__icon"><span class="material-symbols-outlined">wallet</span></span></div><label>Total de cuentas</label><strong>{{ kpis.total }}</strong><small>Todas las cuentas registradas</small></div>
+        <div class="dh-stat dh-stat--green"><div class="dh-stat__top"><span class="dh-stat__icon"><span class="material-symbols-outlined">check_circle</span></span></div><label>Disponibles</label><strong>{{ kpis.available }}</strong><small>Listas para vender</small></div>
+        <div class="dh-stat dh-stat--blue"><div class="dh-stat__top"><span class="dh-stat__icon"><span class="material-symbols-outlined">trending_up</span></span></div><label>Vendidas</label><strong>{{ kpis.sold }}</strong><small>Entregadas a clientes</small></div>
+        <div class="dh-stat dh-stat--amber"><div class="dh-stat__top"><span class="dh-stat__icon"><span class="material-symbols-outlined">schedule</span></span></div><label>Próximas a renovar</label><strong>{{ kpis.expiring }}</strong><small>En los próximos 7 días</small></div>
+      </section>
+      <section class="dh-filter">
+        <div class="dh-pills">{% for opt in status_options %}<a class="dh-pill {% if status == opt.value %}is-active{% endif %}" href="?status={{ opt.value }}{% if q %}&q={{ q|urlencode }}{% endif %}">{{ opt.label }}<b>{{ opt.count }}</b></a>{% endfor %}</div>
+        <form class="dh-filter__row" method="get"><label class="dh-query"><span class="material-symbols-outlined" style="font-size:15px;color:#858a98">search</span><input name="q" value="{{ q }}" placeholder="Buscar correo, servicio o cliente…"></label><select class="dh-select" name="mode"><option value="all">Todos los servicios</option>{% for opt in mode_options %}{% if opt.value != 'all' %}<option value="{{ opt.value }}" {% if mode == opt.value %}selected{% endif %}>{{ opt.label }}</option>{% endif %}{% endfor %}</select><select class="dh-select" name="status">{% for opt in status_options %}<option value="{{ opt.value }}" {% if status == opt.value %}selected{% endif %}>{{ opt.label }}</option>{% endfor %}</select><select class="dh-select" name="sort">{% for opt in sort_options %}<option value="{{ opt.value }}" {% if sort == opt.value %}selected{% endif %}>{{ opt.label }}</option>{% endfor %}</select><button class="dh-primary" type="submit">Filtrar</button></form>
+      </section>
+      <section class="dh-table-card">
+        <header class="dh-table-title"><div><h2>Cuentas registradas</h2><p>Inventario actualizado hace un momento</p></div><span class="dh-sync">Sincronizado</span></header>
+        <div class="dh-table-wrap"><table class="dh-table"><thead><tr><th>Servicio / Cuenta</th><th>Estado</th><th>Renovación</th><th>Cliente / Perfil</th><th style="text-align:right">Acciones</th></tr></thead><tbody>
+          {% for item in flat_items %}<tr><td><div class="dh-service"><span class="dh-logo">{% if item.product.image %}<img src="{{ item.product.image.url }}" alt="">{% else %}<span>{{ item.product.name|slice:':1'|upper }}</span>{% endif %}</span><div><b>{{ item.product.name }}</b><small>{{ item.email_lc|default:item.account_text|default:item.credentials|truncatechars:42 }}</small></div></div></td><td><span class="dh-badge dh-badge--{{ item.status }}">{{ item.get_status_display }}</span></td><td><div class="dh-date">{% if item.expires_at %}<b>{{ item.expires_at|date:'d/m/Y' }}</b><small>{% if item.expiry_days < 0 %}Vencida{% elif item.expiry_days == 0 %}Hoy{% else %}en {{ item.expiry_days }} días{% endif %}</small>{% else %}<b>—</b><small>Sin fecha</small>{% endif %}</div></td><td><div class="dh-meta"><b>{{ item.buyer_resale_name|default:item.buyer_email|default:'Sin cliente' }}</b><small>{% if item.profile_text %}{{ item.profile_text }}{% if item.pin_text %} · PIN {{ item.pin_text }}{% endif %}{% else %}{{ item.label|default:'Sin perfil' }}{% endif %}</small></div></td><td><div class="dh-actions"><button type="button" class="dh-action jh-cc-edit-buyer-btn" data-item-id="{{ item.pk }}" data-mode="{% if item.status == 'sold' or item.status == 'reserved' %}edit{% else %}register{% endif %}" data-customer-name="{{ item.buyer_resale_name|default:''|escape }}" data-customer-whatsapp="{{ item.buyer_resale_whatsapp|default:''|escape }}" data-buyer-email="{{ item.buyer_email|default:''|escape }}" data-sale-date="{% if item.sale_date %}{{ item.sale_date|date:'Y-m-d\TH:i' }}{% endif %}" data-source="{{ item.buyer_source_key|default:'' }}" data-telegram-username="{{ item.buyer_telegram|default:''|escape }}" data-account-label="{{ item.account_text|default:item.label|default:''|truncatechars:60|escape }}"><span class="material-symbols-outlined">more_vert</span></button><a class="dh-action" href="{% url 'admin:catalog_stockitem_change' item.pk %}"><span class="material-symbols-outlined">edit</span></a></div></td></tr>{% empty %}<tr><td colspan="5" style="padding:45px;text-align:center;color:#8b909e">No hay cuentas que coincidan con los filtros.</td></tr>{% endfor %}
+        </tbody></table></div><footer class="dh-table-foot">Mostrando {{ total_results }} resultado{{ total_results|pluralize }}</footer>
+      </section>
+    </main>
+  </section>
+</div>
+<style>
   /* ── Hero moderno (control de cuentas) ──────────────────────────── */
   .jh-cc-hero {
     position: relative; overflow: hidden;
@@ -141,6 +212,111 @@
   .jh-cc-kpi--expiring .jh-cc-kpi__bar { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
   .jh-cc-kpi--expiring .jh-cc-kpi__watermark { color: #f59e0b; }
   .jh-cc-kpi--expiring.jh-cc-kpi--alert { border-color: rgba(245,158,11,.45); }
+
+  /* Design Horizon 2026 — port fiel del proyecto Lovable. */
+  .jh-cc-theme {
+    --dh-bg: #f7f8fb; --dh-surface: #fff; --dh-surface-2: #f4f5f8;
+    --dh-ink: #202332; --dh-muted: #777d8d; --dh-border: #e6e8ef;
+    --dh-primary: #6657d9; --dh-success: #269b72; --dh-info: #3187c8;
+    color: var(--dh-ink); padding: 24px 28px 40px; margin: -24px -28px -40px;
+    background:
+      radial-gradient(60% 45% at 8% 0%, rgba(151,100,230,.09), transparent 65%),
+      radial-gradient(45% 40% at 100% 5%, rgba(58,166,218,.08), transparent 62%),
+      var(--dh-bg);
+    font-family: "DM Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+  .jh-cc-theme .material-symbols-outlined { font-weight: 400; }
+  .jh-cc-hero {
+    overflow: visible; padding: 6px 0 2px; border: 0; border-radius: 0;
+    background: transparent; box-shadow: none; align-items: flex-end;
+  }
+  .jh-cc-hero__icon { display: none; }
+  .jh-cc-hero__eyebrow {
+    margin: 0 0 8px; padding: 0; border: 0; background: transparent;
+    color: var(--dh-primary); font-size: 11px; letter-spacing: .16em;
+  }
+  .jh-cc-hero__title {
+    color: var(--dh-ink); font-family: "Space Grotesk", Inter, sans-serif;
+    font-size: clamp(30px, 3vw, 36px); font-weight: 650; letter-spacing: -.035em;
+  }
+  .jh-cc-hero__subtitle { color: var(--dh-muted); margin-top: 7px; font-size: 14px; }
+  .jh-cc-hero__subtitle strong {
+    display: inline-flex; align-items: center; margin-left: 8px; padding: 5px 10px;
+    border-radius: 999px; background: rgba(38,155,114,.10); color: var(--dh-success);
+    font-size: 11px; font-weight: 700;
+  }
+  .jh-cc-hero__cta, .jh-cc-plat__add {
+    min-height: 40px; padding: 0 16px; border: 0; border-radius: 12px;
+    background: linear-gradient(135deg,#9266e5,#6557d9 56%,#388fd0);
+    color: #fff; box-shadow: 0 14px 30px -18px rgba(83,65,193,.75);
+  }
+  .jh-cc-kpi-grid { grid-template-columns: repeat(5,minmax(150px,1fr)); gap: 14px; }
+  .jh-cc-kpi {
+    min-height: 150px; padding: 16px; border-radius: 18px; background: var(--dh-surface);
+    border: 1px solid var(--dh-border); box-shadow: 0 1px 2px rgba(20,25,40,.03),0 14px 34px -24px rgba(30,35,55,.28);
+  }
+  .jh-cc-kpi:hover { border-color: rgba(102,87,217,.28); box-shadow: 0 24px 50px -30px rgba(78,62,160,.42); }
+  .jh-cc-kpi__watermark { top: 14px; right: 14px; width: 40px; height: 40px; opacity: 1; border-radius: 14px; }
+  .jh-cc-kpi__watermark .material-symbols-outlined { font-size: 20px; }
+  .jh-cc-kpi--platforms .jh-cc-kpi__watermark { background:#f0ebff; color:#715bd0; }
+  .jh-cc-kpi--available .jh-cc-kpi__watermark { background:#e9f7f1; color:#269b72; }
+  .jh-cc-kpi--sold .jh-cc-kpi__watermark { background:#eaf4fb; color:#3187c8; }
+  .jh-cc-kpi--defective .jh-cc-kpi__watermark { background:#fff0ed; color:#da6155; }
+  .jh-cc-kpi--expiring .jh-cc-kpi__watermark { background:#fff6df; color:#c48b22; }
+  .jh-cc-kpi__label { padding-right: 45px; color: var(--dh-muted); font-size: 11px; letter-spacing:.06em; }
+  .jh-cc-kpi__label-dot { display:none; }
+  .jh-cc-kpi__value { color:var(--dh-ink); font-size:32px; margin:22px 0 12px; }
+  .jh-cc-kpi__bar-wrap { background:#eef0f4; }
+  .jh-cc-kpi__meta { color:var(--dh-muted); }
+  .jh-cc-kpi__pct { background:var(--dh-surface-2); color:var(--dh-muted); }
+  .jh-cc-search, .jh-cc-filters {
+    background:var(--dh-surface)!important; border:1px solid var(--dh-border)!important;
+    box-shadow:0 1px 2px rgba(20,25,40,.03),0 14px 34px -26px rgba(30,35,55,.3);
+  }
+  .jh-cc-search { padding:7px 8px 7px 14px!important; border-radius:14px!important; }
+  .jh-cc-search__input { color:var(--dh-ink)!important; }
+  .jh-cc-search__input::placeholder { color:#989dab!important; }
+  .jh-cc-search__btn { height:40px; border-radius:11px!important; background:#202332!important; box-shadow:none!important; }
+  .jh-cc-filters { border-radius:17px!important; padding:13px!important; }
+  .jh-cc-filters__label { color:var(--dh-muted)!important; }
+  .jh-cc-filters__row[style] { border-color:var(--dh-border)!important; }
+  .jh-cc-fchip {
+    padding:8px 12px!important; border-radius:11px!important; background:var(--dh-surface-2)!important;
+    border:1px solid var(--dh-border)!important; color:var(--dh-muted)!important; box-shadow:none!important;
+  }
+  .jh-cc-fchip__count { background:#fff!important; color:#666c7c!important; }
+  .jh-cc-fchip--active { background:#202332!important; border-color:#202332!important; color:#fff!important; }
+  .jh-cc-fchip--active .jh-cc-fchip__count { background:rgba(255,255,255,.16)!important; color:#fff!important; }
+  .jh-cc-plat {
+    padding:16px 18px!important; border-radius:18px!important; background:var(--dh-surface)!important;
+    border:1px solid var(--dh-border)!important; box-shadow:0 1px 2px rgba(20,25,40,.03),0 16px 38px -28px rgba(30,35,55,.28);
+  }
+  .jh-cc-plat[open] { border-color:rgba(102,87,217,.24)!important; }
+  .jh-cc-plat__chev { background:var(--dh-surface-2)!important; color:var(--dh-muted)!important; }
+  .jh-cc-plat__avatar {
+    width:44px!important; height:44px!important; padding:7px; border-radius:15px!important;
+    background:#fff!important; border:1px solid var(--dh-border); box-shadow:0 8px 22px -16px rgba(20,25,40,.5)!important;
+  }
+  .jh-cc-plat__avatar img { width:100%; height:100%; object-fit:contain; border-radius:8px; }
+  .jh-cc-plat__name { color:var(--dh-ink)!important; font-size:15px!important; }
+  .jh-cc-plat__meta { color:var(--dh-muted)!important; }
+  .jh-cc-plat__stat { background:var(--dh-surface-2)!important; border-color:var(--dh-border)!important; }
+  .jh-cc-plat .jh2-table th { color:#8a8f9d!important; border-color:var(--dh-border)!important; }
+  .jh-cc-plat .jh2-table td { border-color:#edf0f4!important; color:var(--dh-ink); }
+  .jh-cc-plat .jh2-table tbody tr:hover { background:#fafaff!important; }
+  .jh-cc-cred__val,.jh-cc-cred__raw { color:#303544!important; }
+  .jh-cc-cred__row--pw .jh-cc-cred__val,.jh2-table__muted { color:#858b99!important; }
+  .jh-cc-tag { background:#f5f6f9!important; border-color:#e5e7ed!important; color:#4b5160!important; }
+  .jh-cc-tag--pin { background:#f1edff!important; border-color:#ded5ff!important; color:#6657d9!important; }
+  .jh-cc-act { background:#f6f7f9!important; border-color:#e5e7ed!important; color:#666d7c!important; }
+  .jh-cc-card { background:#fff!important; border-color:var(--dh-border)!important; box-shadow:0 12px 30px -25px rgba(25,30,45,.35); }
+  .jh-cc-card__account,.jh-cc-card__meta .jh-cc-card__row { color:#303544!important; }
+  @media (max-width:1100px) { .jh-cc-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+  @media (max-width:767px) {
+    .jh-cc-theme{padding:18px 14px 32px;margin:-18px -14px -32px;}
+    .jh-cc-hero__cta{width:100%;justify-content:center}.jh-cc-kpi-grid{grid-template-columns:1fr 1fr}
+  }
+  @media (max-width:480px) { .jh-cc-kpi-grid{grid-template-columns:1fr}.jh-cc-hero__title{font-size:28px} }
 </style>
 
 <div class="flex flex-col gap-5 jh-cc-theme">
@@ -155,10 +331,10 @@
         <span class="material-symbols-outlined" style="font-size:13px;">layers</span>
         Inventario
       </div>
-      <h1 class="jh-cc-hero__title">Control de cuentas</h1>
+      <h1 class="jh-cc-hero__title">Inventario de cuentas</h1>
       <p class="jh-cc-hero__subtitle">
-        Tu cuaderno de cuentas, organizado por plataforma. Mirá de un vistazo
-        cuántas quedan disponibles y cuáles ya vendiste para no equivocarte.
+        Todas tus cuentas, ordenadas y protegidas.
+        <strong><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px;">shield_lock</span> Datos protegidos</strong>
       </p>
     </div>
     <button type="button" id="bulk-replace-open" class="jh-cc-hero__cta">
@@ -683,7 +859,7 @@
         <span class="jh-cc-plat__avatar"
               style="--av-a:{% if first_char == 'A' %}#fb7185{% elif first_char == 'C' %}#f97316{% elif first_char == 'H' %}#2563eb{% elif first_char == 'N' %}#dc2626{% elif first_char == 'P' %}#0ea5e9{% elif first_char == 'D' %}#3b82f6{% else %}#a78bfa{% endif %};
                      --av-b:{% if first_char == 'A' %}#3b82f6{% elif first_char == 'C' %}#ea580c{% elif first_char == 'H' %}#6366f1{% elif first_char == 'N' %}#991b1b{% elif first_char == 'P' %}#0284c7{% elif first_char == 'D' %}#1d4ed8{% else %}#3b82f6{% endif %};">
-          {{ first_char }}
+          {% if g.product.image %}<img src="{{ g.product.image.url }}" alt="" loading="lazy">{% else %}{{ first_char }}{% endif %}
         </span>
         {% endwith %}
         <div class="jh-cc-plat__body">
@@ -915,7 +1091,7 @@
                     <span class="material-symbols-outlined">badge</span>
                   </button>
                   {% if item.buyer_wa_digits %}
-                    <a href="https://wa.me/{{ item.buyer_wa_digits }}?text={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de VirtualidadSP Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
+                    <a href="https://wa.me/{{ item.buyer_wa_digits }}?text={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de JhelizTV Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
                        target="_blank" rel="noopener" class="jh-cc-act jh-cc-act--wa" title="Escribir al cliente por WhatsApp">
                       <span class="material-symbols-outlined">chat</span>
                     </a>
@@ -927,7 +1103,7 @@
                     </a>
                   {% endif %}
                   {% if item.buyer_email %}
-                    <a href="https://mail.google.com/mail/?view=cm&fs=1&to={{ item.buyer_email|urlencode }}&su={% filter urlencode %}VirtualidadSP Store - Tu cuenta{% endfilter %}&body={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de VirtualidadSP Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
+                    <a href="https://mail.google.com/mail/?view=cm&fs=1&to={{ item.buyer_email|urlencode }}&su={% filter urlencode %}JhelizTV Store - Tu cuenta{% endfilter %}&body={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de JhelizTV Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
                        target="_blank" rel="noopener" class="jh-cc-act jh-cc-act--gm" title="Escribir al cliente por Gmail">
                       <span class="material-symbols-outlined">mail</span>
                     </a>
@@ -1146,7 +1322,7 @@
               <span class="material-symbols-outlined">badge</span>
             </button>
             {% if item.buyer_wa_digits %}
-              <a href="https://wa.me/{{ item.buyer_wa_digits }}?text={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de VirtualidadSP Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
+              <a href="https://wa.me/{{ item.buyer_wa_digits }}?text={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de JhelizTV Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
                  target="_blank" rel="noopener" class="jh-cc-act jh-cc-act--wa" title="Escribir al cliente por WhatsApp">
                 <span class="material-symbols-outlined">chat</span>
               </a>
@@ -1158,7 +1334,7 @@
               </a>
             {% endif %}
             {% if item.buyer_email %}
-              <a href="https://mail.google.com/mail/?view=cm&fs=1&to={{ item.buyer_email|urlencode }}&su={% filter urlencode %}VirtualidadSP Store - Tu cuenta{% endfilter %}&body={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de VirtualidadSP Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
+              <a href="https://mail.google.com/mail/?view=cm&fs=1&to={{ item.buyer_email|urlencode }}&su={% filter urlencode %}JhelizTV Store - Tu cuenta{% endfilter %}&body={% filter urlencode %}Hola{% if item.buyer_resale_name %} {{ item.buyer_resale_name }}{% endif %}! Te escribo de JhelizTV Store.{% if item.expires_at %} Tu cuenta vence el {{ item.expires_at|date:'d/m/Y' }}.{% endif %} ¿Querés renovar?{% endfilter %}"
                  target="_blank" rel="noopener" class="jh-cc-act jh-cc-act--gm" title="Escribir al cliente por Gmail">
                 <span class="material-symbols-outlined">mail</span>
               </a>
@@ -1598,7 +1774,7 @@ correo_viejo@gmail.com -&gt; correo_nuevo@gmail.com:nueva_password</pre>
   function openModal(btn) {
     const itemId = btn.dataset.itemId;
     if (!itemId) return;
-    form.action = '/panel-virtualidadsp/control-cuentas/' + itemId + '/edit-buyer/';
+    form.action = '/panel-jheliz-control/control-cuentas/' + itemId + '/edit-buyer/';
     labelEl.textContent = btn.dataset.accountLabel || ('Cuenta #' + itemId);
     nameInput.value = btn.dataset.customerName || '';
     waInput.value = btn.dataset.customerWhatsapp || '';

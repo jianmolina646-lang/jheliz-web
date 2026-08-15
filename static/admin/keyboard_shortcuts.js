@@ -20,16 +20,16 @@
  * No se activan si estás escribiendo en input/textarea/select.
  */
 (function() {
-    if (!location.pathname.startsWith("/panel-virtualidadsp")) return;
+    if (!location.pathname.startsWith("/panel-jheliz-control")) return;
 
     const ROUTES = {
-        "go o": "/panel-virtualidadsp/orders/order/",
-        "go s": "/panel-virtualidadsp/stock/",
-        "go r": "/panel-virtualidadsp/renewals/",
-        "go c": "/panel-virtualidadsp/accounts/user/",
-        "go d": "/panel-virtualidadsp/",
-        "go t": "/panel-virtualidadsp/support/ticket/",
-        "go f": "/panel-virtualidadsp/reports/",
+        "go o": "/panel-jheliz-control/orders/order/",
+        "go s": "/panel-jheliz-control/stock/",
+        "go r": "/panel-jheliz-control/renewals/",
+        "go c": "/panel-jheliz-control/accounts/user/",
+        "go d": "/panel-jheliz-control/",
+        "go t": "/panel-jheliz-control/support/ticket/",
+        "go f": "/panel-jheliz-control/reports/",
     };
 
     const css = `
@@ -240,11 +240,11 @@
                     e.preventDefault();
                     break;
                 case "n":
-                    location.assign("/panel-virtualidadsp/orders/order/add/");
+                    location.assign("/panel-jheliz-control/orders/order/add/");
                     e.preventDefault();
                     break;
                 case "N":
-                    location.assign("/panel-virtualidadsp/catalog/product/add/");
+                    location.assign("/panel-jheliz-control/catalog/product/add/");
                     e.preventDefault();
                     break;
             }

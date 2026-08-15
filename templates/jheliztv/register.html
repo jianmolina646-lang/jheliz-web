@@ -1,12 +1,5 @@
 {% extends "jheliztv/public_base.html" %}
 
-{% block pb_title %}Crear cuenta | JHELIZCONTROLTV{% endblock %}
-{% block pb_meta_description %}Crea tu acceso privado a JHELIZCONTROLTV y comienza a organizar clientes, suscripciones y vencimientos.{% endblock %}
-{% block pb_og_title %}Crear cuenta | JHELIZCONTROLTV{% endblock %}
-{% block pb_og_description %}Registro privado para comenzar a gestionar suscripciones con JHELIZCONTROLTV.{% endblock %}
-{% block pb_twitter_title %}Crear cuenta | JHELIZCONTROLTV{% endblock %}
-{% block pb_twitter_description %}Registro privado para comenzar a gestionar suscripciones con JHELIZCONTROLTV.{% endblock %}
-
 {% block pb_nav_actions %}
   <a class="pb-btn pb-btn--ghost" href="{% url 'jheliztv_login' %}">Ingresar</a>
 {% endblock %}
@@ -14,7 +7,7 @@
 {% block pb_content %}
 <div class="pb-wrap" style="max-width:480px;margin:30px auto 60px;">
   <div class="pb-card" style="padding:28px;">
-    <h1 style="margin:0 0 4px;font-size:22px;">Crear mi cuenta</h1>
+    <h2 style="margin:0 0 4px;font-size:22px;">Crear mi cuenta</h2>
     <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">Empezá a gestionar tus suscripciones hoy.</p>
     <form method="post" action="{% url 'jheliztv_register' %}">
       {% csrf_token %}
