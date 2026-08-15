@@ -71,10 +71,8 @@ services:
     env_file: .env
     environment:
       DATABASE_URL_FILE: /run/secrets/database_url
-      TELEGRAM_CODES_BOT_TOKEN_FILE: /run/secrets/telegram_codes_bot_token
     volumes:
       - ./secrets/database_url.txt:/run/secrets/database_url:ro
-      - ./secrets/telegram_codes_bot_token.txt:/run/secrets/telegram_codes_bot_token:ro
     depends_on:
       - web
     restart: unless-stopped
