@@ -616,6 +616,20 @@ class PushSubscribeEndpointTests(TestCase):
         self.assertEqual(resp.status_code, 400)
         resp = self.client.post(
             reverse("accounts:push_subscribe"),
+            data=_json_push.dumps([]), content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        resp = self.client.post(
+            reverse("accounts:push_subscribe"),
+            data=_json_push.dumps({
+                "endpoint": "http://push.example.test/subscription",
+                "keys": {"p256dh": "valid-key", "auth": "valid-auth"},
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        resp = self.client.post(
+            reverse("accounts:push_subscribe"),
             data=_json_push.dumps({"endpoint": "x"}),
             content_type="application/json",
         )

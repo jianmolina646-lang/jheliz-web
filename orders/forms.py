@@ -23,12 +23,31 @@ class AddToCartForm(forms.Form):
     )
     notes = forms.CharField(
         label="Notas (opcional)",
-        required=False,
+        required=False, max_length=500,
         widget=forms.Textarea(attrs={
             "class": "form-input", "rows": 2,
             "placeholder": "Ej: ponlo en espa\u00f1ol, av\u00edsame por correo",
         }),
     )
+
+    def clean_pin(self):
+        pin = (self.cleaned_data.get("pin") or "").strip()
+        if pin and not pin.isdigit():
+            raise forms.ValidationError("El PIN solo puede contener números.")
+        return pin
+
+
+class CartLineUpdateForm(forms.Form):
+    profile_name = forms.CharField(required=False, max_length=60)
+    pin = forms.CharField(required=False, max_length=8)
+    notes = forms.CharField(required=False, max_length=500)
+    quantity = forms.IntegerField(required=False, min_value=1, max_value=50)
+
+    def clean_pin(self):
+        pin = (self.cleaned_data.get("pin") or "").strip()
+        if pin and not pin.isdigit():
+            raise forms.ValidationError("El PIN solo puede contener números.")
+        return pin
 
 
 class CheckoutForm(forms.Form):

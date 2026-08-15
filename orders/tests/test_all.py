@@ -1317,6 +1317,20 @@ class CartBulkTests(TestCase):
         # La segunda línea no debe haber cambiado
         self.assertEqual(cart[1]["profile_name"], "")
 
+    def test_update_line_rejects_invalid_pin_and_quantity(self):
+        self.client.force_login(self.distri)
+        self.client.post(reverse("orders:add_to_cart"), {
+            "plan_id": self.plan.pk, "quantity": 2,
+            "profile_name": "", "pin": "", "notes": "",
+        })
+        self.client.post(reverse("orders:cart_update_line", args=[0]), {
+            "profile_name": "Alterado", "pin": "12ab", "quantity": 999,
+        })
+        cart = self.client.session.get("cart")
+        self.assertEqual(cart[0]["profile_name"], "")
+        self.assertEqual(cart[0]["pin"], "")
+        self.assertEqual(cart[0]["quantity"], 1)
+
     def test_duplicate_line(self):
         self.client.force_login(self.distri)
         self.client.post(reverse("orders:add_to_cart"), {

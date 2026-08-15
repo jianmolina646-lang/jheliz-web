@@ -18,7 +18,7 @@ from catalog.models import Plan
 
 from . import emails, mercadopago_client, telegram
 from .cart import Cart
-from .forms import AddToCartForm, CheckoutForm, PaymentProofForm
+from .forms import AddToCartForm, CartLineUpdateForm, CheckoutForm, PaymentProofForm
 from .models import Coupon, Order, OrderItem, PaymentSettings
 from accounts.security_events import record_security_event
 
@@ -304,17 +304,17 @@ def cart_update_line(request, index: int):
     plan pueda completar el perfil de cada cliente final desde el carrito.
     """
     cart = Cart(request)
-    profile_name = (request.POST.get("profile_name") or "").strip()[:60]
-    pin = (request.POST.get("pin") or "").strip()[:8]
-    notes = (request.POST.get("notes") or "").strip()[:500]
-    fields = {"profile_name": profile_name, "pin": pin, "notes": notes}
-    raw_qty = request.POST.get("quantity")
-    if raw_qty is not None:
-        try:
-            qty = max(1, min(50, int(raw_qty)))
-            fields["quantity"] = qty
-        except (TypeError, ValueError):
-            pass
+    form = CartLineUpdateForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Revisa los datos de la línea del carrito.")
+        return redirect("orders:cart")
+    fields = {
+        "profile_name": form.cleaned_data["profile_name"].strip(),
+        "pin": form.cleaned_data["pin"],
+        "notes": form.cleaned_data["notes"].strip(),
+    }
+    if form.cleaned_data.get("quantity") is not None:
+        fields["quantity"] = form.cleaned_data["quantity"]
     cart.update_line(int(index), **fields)
     messages.success(request, "Línea del carrito actualizada.")
     return redirect("orders:cart")
