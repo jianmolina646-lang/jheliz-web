@@ -112,4 +112,5 @@ jobs:
           # Hosts incluyen el dominio real para que no rompa por
           # ALLOWED_HOSTS. No conecta a la DB porque `check` no la toca.
           ALLOWED_HOSTS: jheliztv.xyz,www.jheliztv.xyz,localhost
+          ADMIN_2FA_ENFORCED: "True"
         run: python manage.py check --deploy --fail-level WARNING
