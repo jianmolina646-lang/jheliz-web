@@ -142,6 +142,10 @@ def _call(method: str, **payload) -> dict:
             time.sleep(retry_after)
     if not data.get("ok"):
         logger.warning("Telegram(codes) %s falló: %s", method, data)
+    elif method == "sendMessage":
+        from gestion.telegram_messages import record_sent_message
+
+        record_sent_message("codes", payload, data)
     return data
 
 

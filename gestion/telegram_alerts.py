@@ -257,6 +257,10 @@ def _call(method, **payload):
     data = response.json()
     if not data.get("ok"):
         raise RuntimeError(data.get("description", "Telegram rechazó la solicitud"))
+    if method == "sendMessage":
+        from .telegram_messages import record_sent_message
+
+        record_sent_message("control", payload, data)
     return data
 
 

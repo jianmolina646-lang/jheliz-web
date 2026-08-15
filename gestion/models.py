@@ -26,6 +26,25 @@ from orders.encryption import EncryptedTextField
 from .currencies import CURRENCY_CHOICES, normalize_currency
 
 
+class TelegramSentMessage(models.Model):
+    """Referencia mínima para administrar mensajes enviados por nuestros bots."""
+
+    bot_key = models.CharField(max_length=32, db_index=True)
+    chat_id = models.CharField(max_length=64)
+    message_id = models.BigIntegerField()
+    sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("bot_key", "chat_id", "message_id"),
+                name="uniq_telegram_sent_message",
+            ),
+        ]
+        ordering = ("-sent_at",)
+
+
 def renewal_link_expiry():
     return timezone.now() + timedelta(days=45)
 
