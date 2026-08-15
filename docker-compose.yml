@@ -69,6 +69,12 @@ services:
     build: .
     command: python manage.py run_codes_bot
     env_file: .env
+    environment:
+      DATABASE_URL_FILE: /run/secrets/database_url
+      TELEGRAM_CODES_BOT_TOKEN_FILE: /run/secrets/telegram_codes_bot_token
+    volumes:
+      - ./secrets/database_url.txt:/run/secrets/database_url:ro
+      - ./secrets/telegram_codes_bot_token.txt:/run/secrets/telegram_codes_bot_token:ro
     depends_on:
       - web
     restart: unless-stopped
@@ -95,6 +101,10 @@ services:
     build: .
     command: python manage.py run_control_telegram_bot
     env_file: .env
+    environment:
+      JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN_FILE: /run/secrets/jheliz_control_telegram_bot_token
+    volumes:
+      - ./secrets/jheliz_control_telegram_bot_token.txt:/run/secrets/jheliz_control_telegram_bot_token:ro
     depends_on:
       - web
     restart: unless-stopped
