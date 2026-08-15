@@ -23,6 +23,11 @@ RUN DJANGO_SECRET_KEY=build SECRET_KEY=build DEBUG=False \
 RUN DJANGO_SECRET_KEY=build SECRET_KEY=build DEBUG=False \
     python manage.py compilemessages || true
 
+# Los procesos web y bots usan el UID/GID sin privilegios definido en Compose.
+RUN groupadd --gid 1000 app \
+ && useradd --uid 1000 --gid 1000 --create-home app \
+ && chown -R app:app /app
+
 EXPOSE 8000
 
 # Gunicorn:
