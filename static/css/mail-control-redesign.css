@@ -3060,47 +3060,48 @@ body{background:#0c0c0c!important;font-family:Inter,system-ui,sans-serif!importa
   margin-top:6px;
   overflow:hidden;
   color:var(--lc-muted-fg)!important;
-  font:600 10.5px/1.25 Inter,ui-sans-serif,system-ui,sans-serif!important;
-  letter-spacing:.14em!important;
-  text-overflow:ellipsis;
+  font:650 10px/1.3 Inter,ui-sans-serif,system-ui,sans-serif!important;
+  letter-spacing:.08em!important;
+  text-overflow:clip;
   text-transform:uppercase;
-  white-space:nowrap;
+  white-space:normal;
 }
 
 .jc-clients-tools{
   margin:20px 0 0;
-  padding:10px;
+  padding:12px;
   border:1px solid var(--lc-border);
-  border-radius:20px;
-  background:color-mix(in oklab,var(--lc-card) 60%,transparent);
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 10px 28px rgba(24,67,44,.06);
 }
 .jc-clients-search-form{margin:0!important}
 .jc-clients-search-box{
   position:relative;
   width:100%;
-  height:36px;
+  height:44px;
   display:block;
 }
 .jc-clients-search-box>.material-symbols-outlined{
   position:absolute;
-  top:11px;
-  left:12px;
+  top:13px;
+  left:14px;
   z-index:1;
   color:var(--lc-muted-fg);
-  font-size:14px!important;
+  font-size:18px!important;
   pointer-events:none;
 }
 .jc-clients-search-box input{
   width:100%;
-  height:36px!important;
-  min-height:36px!important;
-  padding:0 12px 0 36px!important;
+  height:44px!important;
+  min-height:44px!important;
+  padding:0 14px 0 44px!important;
   border:1px solid color-mix(in oklab,var(--lc-border) 80%,transparent)!important;
   border-radius:12px!important;
-  background:var(--lc-surface)!important;
+  background:#f8fbf9!important;
   color:var(--lc-fg)!important;
   box-shadow:none!important;
-  font:500 13px/1 Inter,ui-sans-serif,system-ui,sans-serif!important;
+  font:500 13.5px/1 Inter,ui-sans-serif,system-ui,sans-serif!important;
   outline:none;
   transition:border-color .15s,box-shadow .15s;
 }
@@ -3111,23 +3112,24 @@ body{background:#0c0c0c!important;font-family:Inter,system-ui,sans-serif!importa
   box-shadow:0 0 0 2px color-mix(in oklab,var(--lc-brand) 25%,transparent)!important;
 }
 .jc-clients-filters{
-  margin-top:10px;
-  padding-top:10px;
+  margin-top:12px;
+  padding-top:12px;
   display:flex;
   flex-wrap:wrap;
   align-items:center;
-  gap:4px;
+  gap:8px;
   border-top:1px solid color-mix(in oklab,var(--lc-border) 70%,transparent);
 }
 .jc-clients-filter-label,
 .jc-clients-filter{
-  height:32px;
-  padding:0 10px;
+  height:36px;
+  min-height:36px!important;
+  padding:0 12px!important;
   display:inline-flex;
   align-items:center;
   gap:6px;
   border:1px solid transparent;
-  border-radius:10px;
+  border-radius:10px!important;
   color:var(--lc-muted-fg);
   font:600 12px/1 Inter,ui-sans-serif,system-ui,sans-serif;
   text-decoration:none;
@@ -3136,17 +3138,25 @@ body{background:#0c0c0c!important;font-family:Inter,system-ui,sans-serif!importa
 .jc-clients-filter-label{padding-left:4px}
 .jc-clients-filter-label .material-symbols-outlined,
 .jc-clients-filter .material-symbols-outlined{font-size:14px!important}
-.jc-clients-filter:hover{
-  border-color:var(--lc-border);
-  background:var(--lc-surface);
-  color:var(--lc-fg);
+.jc-clients-page .jc-sortpill.jc-clients-filter{
+  border:1px solid #d5e2db!important;
+  background:#fff!important;
+  color:#49645a!important;
+  box-shadow:none!important;
+}
+.jc-clients-page .jc-sortpill.jc-clients-filter:hover{
+  border-color:#a9cbbb!important;
+  background:#f1f8f4!important;
+  color:#11613d!important;
   transform:translateY(-1px);
 }
-.jc-clients-filter.is-active{
-  border-color:color-mix(in oklab,var(--lc-brand) 40%,transparent);
-  background:color-mix(in oklab,var(--lc-brand) 12%,transparent);
-  color:var(--lc-brand);
-  box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--lc-brand) 22%,transparent),0 1px 0 color-mix(in oklab,var(--lc-brand) 18%,transparent);
+.jc-clients-page .jc-sortpill.jc-clients-filter.is-active{
+  border:1px solid #07975a!important;
+  border-radius:10px!important;
+  background:#e7f8ef!important;
+  color:#087343!important;
+  box-shadow:0 4px 12px rgba(7,151,90,.12)!important;
+  font-size:12px!important;
 }
 
 .jc-clients-page .jc-clients{
