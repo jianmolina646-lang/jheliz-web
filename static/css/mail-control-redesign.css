@@ -1699,20 +1699,18 @@ button{touch-action:manipulation}
 .lv-dashboard-chart__period .material-symbols-outlined{font-size:14px}
 .lv-dashboard-chart__body{padding:16px 8px 12px}
 .lv-dashboard-chart__plot{position:relative;width:100%}
-.lv-dashboard-chart__plot>svg{width:100%;height:260px;display:block;overflow:visible}
-.lv-dashboard-chart__grid line{stroke:color-mix(in oklab,var(--lvd-fg) 8%,transparent);stroke-width:1;stroke-dasharray:3 4}
-.lv-dashboard-chart__income,.lv-dashboard-chart__expense{fill:none;stroke-linecap:round;stroke-linejoin:round}
-.lv-dashboard-chart__income{stroke:var(--lvd-brand);stroke-width:2.25}
-.lv-dashboard-chart__expense{stroke:var(--lvd-danger);stroke-width:2}
-.lv-dashboard-chart__axis{display:grid;grid-template-columns:repeat(6,1fr);gap:0;padding:0 4px}
-.lv-dashboard-chart__axis button{
-  padding:5px 0 0;
+.lv-dashboard-chart__bars{height:280px;display:grid;grid-template-columns:repeat(6,minmax(52px,1fr));gap:14px;padding:18px 12px 0;background:repeating-linear-gradient(to bottom,color-mix(in oklab,var(--lvd-fg) 8%,transparent) 0,color-mix(in oklab,var(--lvd-fg) 8%,transparent) 1px,transparent 1px,transparent 25%)}
+.lv-dashboard-chart__month{min-width:0;display:grid;grid-template-rows:minmax(0,1fr) 30px;gap:8px;padding:0;border:0;background:transparent;cursor:pointer}
+.lv-dashboard-chart__columns{display:flex;align-items:flex-end;justify-content:center;gap:8px;min-height:0;border-bottom:1px solid color-mix(in oklab,var(--lvd-border) 90%,transparent)}
+.lv-dashboard-chart__bar{width:min(24px,34%);min-height:3px;display:block;border-radius:7px 7px 2px 2px;transition:height 420ms cubic-bezier(.2,.8,.2,1),filter 160ms ease,transform 160ms ease}
+.lv-dashboard-chart__bar.is-income{background:linear-gradient(180deg,color-mix(in oklab,var(--lvd-brand) 72%,white),var(--lvd-brand));box-shadow:0 8px 18px color-mix(in oklab,var(--lvd-brand) 22%,transparent)}
+.lv-dashboard-chart__bar.is-expense{background:linear-gradient(180deg,color-mix(in oklab,var(--lvd-danger) 68%,white),var(--lvd-danger));box-shadow:0 8px 18px color-mix(in oklab,var(--lvd-danger) 18%,transparent)}
+.lv-dashboard-chart__month:hover .lv-dashboard-chart__bar,.lv-dashboard-chart__month:focus-visible .lv-dashboard-chart__bar{filter:saturate(1.18);transform:translateY(-2px)}
+.lv-dashboard-chart__month b{
+  align-self:center;
   color:var(--lvd-muted);
-  border:0;
-  background:transparent;
   font-size:11px;
   font-weight:600;
-  cursor:default;
 }
 .lv-dashboard-chart__tooltip{
   position:absolute;
@@ -1927,8 +1925,10 @@ button{touch-action:manipulation}
   .lv-dashboard-activity li>span{font-size:11.5px}
   .lv-dashboard-chart>header{padding-inline:14px}
   .lv-dashboard-chart h2{font-size:19px}
-  .lv-dashboard-chart__plot>svg{height:220px}
-  .lv-dashboard-chart__axis button{font-size:10px}
+  .lv-dashboard-chart__bars{height:230px;gap:6px;padding-inline:4px}
+  .lv-dashboard-chart__columns{gap:4px}
+  .lv-dashboard-chart__bar{width:min(16px,38%)}
+  .lv-dashboard-chart__month b{font-size:10px}
   .lv-dashboard-expirations__list{grid-template-columns:1fr;padding:12px}
   .lv-dashboard-expirations__list>.lv-dashboard-expiration{grid-template-columns:40px minmax(0,1fr);padding:12px}
   .lv-dashboard-expiration__platform{width:40px;height:40px}

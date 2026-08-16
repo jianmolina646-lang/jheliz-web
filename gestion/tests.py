@@ -361,6 +361,33 @@ class TenantSaasTests(TestCase):
         self.assertContains(response, "Cliente próximo")
         self.assertContains(response, f'/app/servicios/{subscription.service_id}/')
 
+    def test_dashboard_chart_renders_real_monthly_transaction_values(self):
+        self._register("dashboard-chart")
+        tenant = self.Tenant.objects.get(user__username="dashboard-chart")
+        tenant.extend(30)
+        Transaction.objects.create(
+            owner=tenant.user,
+            kind=Transaction.Kind.INCOME,
+            amount=Decimal("125.50"),
+            base_amount=Decimal("125.50"),
+            occurred_at=timezone.now(),
+        )
+        Transaction.objects.create(
+            owner=tenant.user,
+            kind=Transaction.Kind.EXPENSE,
+            amount=Decimal("40.00"),
+            base_amount=Decimal("40.00"),
+            occurred_at=timezone.now(),
+        )
+
+        response = self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST)
+
+        self.assertContains(response, "lv-dashboard-chart__bars")
+        self.assertContains(response, 'data-income="125.5"')
+        self.assertContains(response, 'data-expense="40"')
+        self.assertContains(response, "data-income-bar")
+        self.assertContains(response, "data-expense-bar")
+
     def test_panel_navigation_records_recent_activity_without_sensitive_data(self):
         self._register("active-user", business="Negocio activo")
         response = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
