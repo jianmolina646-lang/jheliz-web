@@ -1,4 +1,5 @@
 {% extends "jheliztv/base.html" %}
+{% load static %}
 
 {% block jc_content %}
 <main class="lv-dashboard">
@@ -132,13 +133,29 @@
         </header>
         <div class="lv-dashboard-expirations__list">
           {% for sub in jc_alerts %}
-            <article>
-              <div>
-                <h3>{{ sub.client.name }}</h3>
-                <p><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>{{ sub.service.name }}</p>
-                <a href="{% url 'jheliztv_service_detail' sub.service.pk %}">Revisar<span class="material-symbols-outlined">chevron_right</span></a>
+            <article class="lv-dashboard-expiration">
+              <div class="lv-dashboard-expiration__platform" aria-hidden="true">
+                {% with service_name=sub.service.name|lower %}
+                  {% if "netflix" in service_name %}<img src="{% static 'img/platforms/netflix.svg' %}" alt="">
+                  {% elif "prime" in service_name %}<img src="{% static 'img/platforms/prime-video.svg' %}" alt="">
+                  {% elif "hbo" in service_name or "max" in service_name %}<img src="{% static 'img/platforms/max.svg' %}" alt="">
+                  {% elif "disney" in service_name %}<img src="{% static 'img/platforms/disney-plus.svg' %}" alt="">
+                  {% elif "crunchy" in service_name %}<img src="{% static 'img/platforms/crunchyroll.svg' %}" alt="">
+                  {% elif "paramount" in service_name %}<img src="{% static 'img/platforms/paramount-plus.svg' %}" alt="">
+                  {% elif "spotify" in service_name %}<img src="{% static 'img/platforms/spotify.svg' %}" alt="">
+                  {% elif "apple" in service_name %}<img src="{% static 'img/platforms/apple-tv-plus.svg' %}" alt="">
+                  {% else %}<span class="material-symbols-outlined">play_circle</span>
+                  {% endif %}
+                {% endwith %}
               </div>
-              <time>{{ sub.expires_at|date:"d/m" }}</time>
+              <div class="lv-dashboard-expiration__details">
+                <h3>{{ sub.client.name }}</h3>
+                <p>{{ sub.service.name }}</p>
+              </div>
+              <div class="lv-dashboard-expiration__actions">
+                <time datetime="{{ sub.expires_at|date:'c' }}"><span>Vence</span>{{ sub.expires_at|date:"d/m" }}</time>
+                <a href="{% url 'jheliztv_service_detail' sub.service.pk %}">Revisar<span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>
+              </div>
             </article>
           {% empty %}
             <div class="lv-dashboard-expirations__empty">

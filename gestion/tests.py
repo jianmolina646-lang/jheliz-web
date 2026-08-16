@@ -340,6 +340,27 @@ class TenantSaasTests(TestCase):
         self.assertContains(response, "img/platforms/prime-video.svg")
         self.assertContains(response, "img/platforms/max.svg")
 
+    def test_dashboard_expirations_use_official_platform_logos_and_actions(self):
+        self._register("dashboard-expirations")
+        tenant = self.Tenant.objects.get(user__username="dashboard-expirations")
+        tenant.extend(30)
+        client = Client.objects.create(owner=tenant.user, name="Cliente próximo")
+        service = Service.objects.create(owner=tenant.user, name="Prime Video")
+        subscription = Subscription.objects.create(
+            owner=tenant.user,
+            client=client,
+            service=service,
+            account_email="upcoming@example.com",
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+
+        response = self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST)
+
+        self.assertContains(response, "lv-dashboard-expiration")
+        self.assertContains(response, "img/platforms/prime-video.svg")
+        self.assertContains(response, "Cliente próximo")
+        self.assertContains(response, f'/app/servicios/{subscription.service_id}/')
+
     def test_panel_navigation_records_recent_activity_without_sensitive_data(self):
         self._register("active-user", business="Negocio activo")
         response = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
