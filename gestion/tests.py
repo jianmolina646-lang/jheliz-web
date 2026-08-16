@@ -404,6 +404,21 @@ class TenantSaasTests(TestCase):
         self.assertEqual(svc.color, "#e50914")
         self.assertTrue(svc.image)
 
+    def test_services_catalog_uses_official_platform_logos(self):
+        self._register("service-platform-logos")
+        tenant = self.Tenant.objects.get(user__username="service-platform-logos")
+        tenant.extend(30)
+        for service_name in ("Netflix Premium", "Prime Video", "HBO Max"):
+            Service.objects.create(owner=tenant.user, name=service_name)
+
+        response = self.client.get("/app/servicios/", HTTP_HOST=self.HOST)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "img/platforms/netflix.svg")
+        self.assertContains(response, "img/platforms/prime-video.svg")
+        self.assertContains(response, "img/platforms/max.svg")
+        self.assertContains(response, "has-official-logo", count=3)
+
     def test_service_edit_blocked_for_other_owner(self):
         # Inquilino dueño crea el servicio.
         self._register("owner1")

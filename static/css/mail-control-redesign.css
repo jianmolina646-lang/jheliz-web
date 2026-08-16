@@ -1332,7 +1332,7 @@ button{touch-action:manipulation}
   background:linear-gradient(90deg,transparent,var(--lv-border),transparent);
 }
 .lv-service-card--active .lv-service-card__accent{background:linear-gradient(90deg,transparent,color-mix(in oklab,var(--lv-brand) 60%,transparent),transparent)}
-.lv-service-card__media{position:relative;width:100%;overflow:hidden;aspect-ratio:4/3;background:var(--lv-surface-elevated)}
+.lv-service-card__media{position:relative;width:100%;overflow:hidden;aspect-ratio:16/9;background:var(--lv-surface-elevated)}
 .lv-service-card__media img,
 .lv-service-card__placeholder{
   position:absolute;
@@ -1344,6 +1344,21 @@ button{touch-action:manipulation}
 .lv-service-card__media img{display:block;object-fit:cover}
 .lv-service-card:hover .lv-service-card__media img,
 .lv-service-card:hover .lv-service-card__placeholder{transform:scale(1.04)}
+.lv-service-card__media.has-official-logo{
+  background:linear-gradient(145deg,#fff 0%,#f6faf8 68%,#edf6f1 100%);
+}
+.lv-service-card__media.has-official-logo img{
+  inset:50% auto auto 50%;
+  width:68%;
+  height:48%;
+  object-fit:contain;
+  transform:translate(-50%,-50%);
+}
+.lv-service-card:hover .lv-service-card__media.has-official-logo img{transform:translate(-50%,-50%) scale(1.04)}
+.lv-service-card__media.has-official-logo .lv-service-card__shade{
+  background:linear-gradient(to top,rgba(16,57,37,.07),transparent 55%);
+}
+.lv-service-card__media.has-official-logo .lv-service-card__code{display:none}
 .lv-service-card__placeholder{
   display:grid;
   place-items:center;
@@ -1400,7 +1415,7 @@ button{touch-action:manipulation}
 .lv-service-card__status i::before,
 .lv-service-card__status b{position:absolute;inset:0;border-radius:999px;background:currentColor}
 .lv-service-card--active .lv-service-card__status i::before{content:"";animation:lv-status-ping 1s cubic-bezier(0,0,.2,1) infinite;opacity:.75}
-.lv-service-card__body{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:12px 16px 14px}
+.lv-service-card__body{min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px}
 .lv-service-card__body>div{min-width:0;flex:1}
 .lv-service-card__body h3{
   margin:0;
@@ -1410,8 +1425,11 @@ button{touch-action:manipulation}
   font-weight:600;
   letter-spacing:-.025em;
   line-height:1.25;
+  display:-webkit-box;
   text-overflow:ellipsis;
-  white-space:nowrap;
+  white-space:normal;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
 }
 .lv-service-card__body p{
   display:flex;
@@ -1444,8 +1462,8 @@ button{touch-action:manipulation}
 }
 .lv-service-card__delete{
   position:absolute;
-  left:8px;
-  bottom:8px;
+  right:50px;
+  bottom:12px;
   z-index:3;
   width:28px;
   height:28px;
