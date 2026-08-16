@@ -215,3 +215,22 @@ body .jc.jc-app :is(.jc-btn:not(.jc-btn--ghost):not(.jc-btn--danger):not(.jc-btn
 body .jc.jc-app :is(.jc-btn:not(.jc-btn--ghost):not(.jc-btn--danger):not(.jc-btn--danger-outline),.jc-client-add,.jc-new-order):hover{border-color:#067b4a!important;background:#067f4c!important;box-shadow:0 10px 24px rgba(7,127,76,.24)!important}
 body .jc.jc-app :is(.lvd-card,.lvd-metric,.lvd-panel,.jc-clients-stat,.jc-client,.lv-service-card){border-color:#cfdfd7!important;box-shadow:0 10px 28px rgba(24,67,44,.075)!important}
 body .jc.jc-app :is(.lvd-card,.lvd-metric,.jc-clients-stat):hover{border-color:#9fd4b9!important;box-shadow:0 14px 32px rgba(24,67,44,.11)!important}
+
+/* Sidebar — official icon set and recognizable module colors */
+body .jc.jc-app .lv-shell-nav .jc-tab>:is(.material-symbols-outlined,.jc-nav-brand-icon){
+  width:30px!important;height:30px!important;flex:0 0 30px!important;display:grid!important;place-items:center!important;
+  border:1px solid transparent!important;border-radius:9px!important;background:#eef4f1!important;filter:none!important;
+}
+body .jc.jc-app .lv-shell-nav .jc-tab>.material-symbols-outlined{font-size:18px!important;line-height:1!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(1)>.material-symbols-outlined{color:#078953!important;background:#e4f8ee!important;border-color:#c5ead7!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(2)>.material-symbols-outlined{color:#316fd3!important;background:#edf3ff!important;border-color:#d3e0fa!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(3)>.material-symbols-outlined{color:#7256c9!important;background:#f2efff!important;border-color:#dfd7fb!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(4)>.material-symbols-outlined{color:#d24b5a!important;background:#fff0f2!important;border-color:#f4d4d9!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(5)>.material-symbols-outlined{color:#d17a18!important;background:#fff5e8!important;border-color:#f2dec2!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(6)>.material-symbols-outlined{color:#078b86!important;background:#e8f8f7!important;border-color:#c8e9e7!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(9)>.material-symbols-outlined{color:#526bd0!important;background:#eef1ff!important;border-color:#d7dcf8!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(10)>.material-symbols-outlined{color:#b97708!important;background:#fff6df!important;border-color:#f1dfaf!important}
+body .jc.jc-app .lv-shell-nav .jc-nav-brand-icon img{display:block!important;width:19px!important;height:19px!important;max-width:none!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(7)>.jc-nav-brand-icon{border-color:#cceaf6!important;background:#eaf8fd!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(8)>.jc-nav-brand-icon{border-color:#ccebd8!important;background:#eaf9f0!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:hover>:is(.material-symbols-outlined,.jc-nav-brand-icon),body .jc.jc-app .lv-shell-nav .jc-tab.is-active>:is(.material-symbols-outlined,.jc-nav-brand-icon){transform:scale(1.04)!important;box-shadow:0 5px 12px rgba(24,67,44,.1)!important}

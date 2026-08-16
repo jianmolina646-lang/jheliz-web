@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="{% static 'css/add-emails-dialog.css' %}?v=lovable-add-emails-v1-20260730">
   <link rel="stylesheet" href="{% static 'css/add-service-dialog.css' %}?v=lovable-add-service-v1-20260730">
   <style>body{margin:0;background:#f4f7f6;font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif}</style>
-  <link rel="stylesheet" href="{% static 'css/jheliz-light-modern.css' %}?v=tenant-light-v3-20260816">
+  <link rel="stylesheet" href="{% static 'css/jheliz-light-modern.css' %}?v=tenant-light-v4-20260816">
   {% include "jheliztv/partials/analytics_head.html" %}
 </head>
 <body>
@@ -48,8 +48,8 @@
       <a href="{% url 'jheliztv_emails' %}" class="jc-tab {% if jc_active == 'emails' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">mail</span><b>Correos</b></a>
       <a href="{% url 'jheliztv_support' %}" class="jc-tab {% if jc_active == 'support' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">support_agent</span><b>Soporte</b></a>
       <a href="{% url 'jheliztv_renewals' %}" class="jc-tab {% if jc_active == 'renewals' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">autorenew</span><b>Renovaciones</b></a>
-      <a href="{% url 'jheliztv_telegram' %}" class="jc-tab {% if jc_active == 'telegram' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">send</span><b>Telegram</b></a>
-      <a href="{% url 'jheliztv_whatsapp' %}" class="jc-tab {% if jc_active == 'whatsapp' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">chat</span><b>WhatsApp</b></a>
+      <a href="{% url 'jheliztv_telegram' %}" class="jc-tab {% if jc_active == 'telegram' %}is-active{% endif %}"><i></i><span class="jc-nav-brand-icon"><img src="{% static 'img/brands/telegram.svg' %}" alt="" aria-hidden="true"></span><b>Telegram</b></a>
+      <a href="{% url 'jheliztv_whatsapp' %}" class="jc-tab {% if jc_active == 'whatsapp' %}is-active{% endif %}"><i></i><span class="jc-nav-brand-icon"><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true"></span><b>WhatsApp</b></a>
       <a href="{% url 'jheliztv_billing' %}" class="jc-tab {% if jc_active == 'billing' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">credit_card</span><b>Mi suscripción</b></a>
       <a href="{% url 'jheliztv_money_settings' %}" class="jc-tab {% if jc_active == 'money' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">paid</span><b>País y monedas</b></a>
 
