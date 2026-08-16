@@ -179,3 +179,39 @@ html.jc-theme-light,html.jc-theme-light body{color-scheme:light;background:#f4f7
 .jc.jc-app :is(.jc-support-link,.jc-logout-old,.jc-menu-toggle){color:#52685c!important}.jc.jc-app .jc-support-link:hover{color:#087a49!important}
 .jc.jc-app :is(.lv-sidebar-light,.lv-sidebar-topline,.lv-sidebar-edge,.lv-topbar-topline,.lv-topbar-bottomline){opacity:.28!important}
 @media(max-width:900px){.jc.jc-app .jc-sidebar{background:#fff!important}.jc.jc-app .jc-topbar{background:rgba(255,255,255,.96)!important}}
+
+/* Tenant shell — balanced contrast on light backgrounds */
+body .jc.jc-app.lv-shell{
+  --lvs-bg:#f3f7f5;--lvs-fg:#14271d;--lvs-surface:#fff;--lvs-elevated:#f1f6f3;--lvs-muted:#5e7167;
+  --lvs-brand:#08a662;--lvs-brand-fg:#fff;--lvs-danger:#d43f4f;
+}
+body .jc.jc-app .lv-shell-sidebar{
+  border-right:1px solid #d5e3dc!important;
+  background:linear-gradient(180deg,#ffffff 0%,#f5faf7 58%,#edf6f1 100%)!important;
+  box-shadow:14px 0 38px rgba(24,67,44,.09)!important;
+}
+body .jc.jc-app .lv-sidebar-light{opacity:.55!important;background:radial-gradient(110% 48% at -10% -5%,rgba(11,191,115,.15),transparent 62%)!important}
+body .jc.jc-app .lv-shell-brand .jc-brand__txt strong{color:#14271d!important;text-shadow:none!important}
+body .jc.jc-app .lv-shell-brand .jc-brand__txt small{color:#63766b!important}
+body .jc.jc-app .lv-brand-mark{color:#087a49!important;border-color:#afe2ca!important;background:linear-gradient(145deg,#dff8ec,#eefbf4)!important;box-shadow:0 8px 22px rgba(8,166,98,.15)!important}
+body .jc.jc-app .lv-shell-nav .jc-tab{color:#52675b!important}
+body .jc.jc-app .lv-shell-nav .jc-tab>.material-symbols-outlined{color:#71847a!important}
+body .jc.jc-app .lv-shell-nav .jc-tab:hover{color:#075f39!important;border-color:#cce5d8!important;background:#edf8f2!important;box-shadow:none!important}
+body .jc.jc-app .lv-shell-nav .jc-tab.is-active{color:#075f39!important;border-color:#8ed7b4!important;background:linear-gradient(100deg,#d9f7e8,#ebfaf3)!important;box-shadow:inset 3px 0 #08a662,0 7px 18px rgba(8,166,98,.1)!important}
+body .jc.jc-app .lv-shell-nav .jc-tab.is-active>.material-symbols-outlined{color:#078953!important;filter:none!important}
+body .jc.jc-app .lv-shell-sidebar .jc-admin-card{color:#244336!important;border-color:#c9dfd3!important;background:#eaf5ef!important;box-shadow:0 8px 22px rgba(24,67,44,.08)!important}
+body .jc.jc-app .lv-shell-sidebar .jc-admin-card strong{color:#18372a!important}
+body .jc.jc-app .lv-shell-sidebar .jc-admin-card small{color:#61776b!important}
+body .jc.jc-app .lv-shell-topbar{border-bottom-color:#d8e5de!important;background:rgba(255,255,255,.96)!important;box-shadow:0 8px 28px rgba(24,67,44,.07)!important}
+body .jc.jc-app .lv-shell-topbar .jc-desktop-title{color:#28483a!important;text-shadow:none!important}
+body .jc.jc-app .lv-shell-topbar .jc-search{border-color:#cadbd2!important;background:#f1f6f3!important;box-shadow:inset 0 1px 2px rgba(24,67,44,.04)!important}
+body .jc.jc-app .lv-shell-topbar .jc-search:hover{border-color:#9fcab4!important;background:#fff!important}
+body .jc.jc-app .lv-shell-topbar .jc-search:focus-within{border-color:#48b983!important;background:#fff!important;box-shadow:0 0 0 4px rgba(11,191,115,.12)!important}
+body .jc.jc-app .lv-shell-topbar .jc-search input{color:#18372a!important}
+body .jc.jc-app .lv-shell-topbar .jc-search input::placeholder{color:#71847a!important}
+body .jc.jc-app .lv-shell-topbar :is(.jc-bell,.jc-support-link,.jc-logout-old){color:#3f5a4c!important;border-color:#d1e0d8!important;background:#fff!important;box-shadow:0 5px 14px rgba(24,67,44,.05)!important}
+body .jc.jc-app .lv-shell-topbar .jc-upgrade-link{color:#087246!important;border-color:#91d9b6!important;background:#e2f8ed!important;box-shadow:0 7px 18px rgba(8,166,98,.1)!important}
+body .jc.jc-app :is(.jc-btn:not(.jc-btn--ghost):not(.jc-btn--danger):not(.jc-btn--danger-outline),.jc-client-add,.jc-new-order){color:#fff!important;border-color:#07975a!important;background:linear-gradient(180deg,#12bd73,#07975a)!important;box-shadow:0 8px 20px rgba(7,151,90,.2)!important}
+body .jc.jc-app :is(.jc-btn:not(.jc-btn--ghost):not(.jc-btn--danger):not(.jc-btn--danger-outline),.jc-client-add,.jc-new-order):hover{border-color:#067b4a!important;background:#067f4c!important;box-shadow:0 10px 24px rgba(7,127,76,.24)!important}
+body .jc.jc-app :is(.lvd-card,.lvd-metric,.lvd-panel,.jc-clients-stat,.jc-client,.lv-service-card){border-color:#cfdfd7!important;box-shadow:0 10px 28px rgba(24,67,44,.075)!important}
+body .jc.jc-app :is(.lvd-card,.lvd-metric,.jc-clients-stat):hover{border-color:#9fd4b9!important;box-shadow:0 14px 32px rgba(24,67,44,.11)!important}
