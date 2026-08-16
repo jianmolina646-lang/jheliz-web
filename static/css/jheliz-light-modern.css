@@ -234,3 +234,29 @@ body .jc.jc-app .lv-shell-nav .jc-nav-brand-icon img{display:block!important;wid
 body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(7)>.jc-nav-brand-icon{border-color:#cceaf6!important;background:#eaf8fd!important}
 body .jc.jc-app .lv-shell-nav .jc-tab:nth-child(8)>.jc-nav-brand-icon{border-color:#ccebd8!important;background:#eaf9f0!important}
 body .jc.jc-app .lv-shell-nav .jc-tab:hover>:is(.material-symbols-outlined,.jc-nav-brand-icon),body .jc.jc-app .lv-shell-nav .jc-tab.is-active>:is(.material-symbols-outlined,.jc-nav-brand-icon){transform:scale(1.04)!important;box-shadow:0 5px 12px rgba(24,67,44,.1)!important}
+
+/* Service detail — complete light surface and official action icons */
+body .jc.jc-app .lvsd-page{
+  --lvsd-background:#f3f7f5;--lvsd-foreground:#14271d;--lvsd-card:#fff;--lvsd-surface:#fff;
+  --lvsd-surface-elevated:#eef5f1;--lvsd-muted-foreground:#62766b;--lvsd-border:#d2e1d9;
+  --lvsd-brand:#08a662;--lvsd-brand-foreground:#fff;--lvsd-success:#078953;--lvsd-danger:#d43f4f;--lvsd-warning:#b97908;
+  color:#14271d!important;background:#f3f7f5!important;
+}
+body .jc.jc-app .jc-main:has(> .lvsd-page){background:#f3f7f5!important;background-image:none!important}
+body .jc.jc-app .lvsd-grid-bg{opacity:.45!important;background-image:radial-gradient(circle at 1px 1px,rgba(8,137,83,.08) 1px,transparent 0)!important}
+body .jc.jc-app :is(.lvsd-service-card,.lvsd-subscriptions){border-color:#d2e1d9!important;background:#fff!important;box-shadow:0 14px 38px rgba(24,67,44,.075)!important}
+body .jc.jc-app .lvsd-stat{border-color:#d9e6df!important;background:#f7faf8!important}
+body .jc.jc-app .lvsd-button--secondary{color:#294639!important;border-color:#cbdcd3!important;background:#fff!important;box-shadow:0 5px 14px rgba(24,67,44,.05)!important}
+body .jc.jc-app .lvsd-button--secondary:hover{color:#087246!important;border-color:#93cdb0!important;background:#edf8f2!important}
+body .jc.jc-app .lvsd-button--primary{color:#fff!important;border-color:#07975a!important;background:linear-gradient(180deg,#12bd73,#07975a)!important;box-shadow:0 8px 20px rgba(7,151,90,.2)!important}
+body .jc.jc-app .lvsd-page .lvsd-search input{color:#18372a!important;border-color:#cadbd2!important;background:#f7faf8!important}
+body .jc.jc-app .lvsd-table th{color:#52685c!important;border-bottom-color:#d8e5de!important;background:#f1f6f3!important}
+body .jc.jc-app .lvsd-table td{color:#243d31!important;border-bottom-color:#e2ebe6!important;background:#fff!important}
+body .jc.jc-app .lvsd-table tbody tr:hover td{background:#f4faf7!important}
+body .jc.jc-app .lvsd-icon-button{color:#466054!important;border-color:#cdded5!important;background:#fff!important;box-shadow:0 4px 10px rgba(24,67,44,.06)!important}
+body .jc.jc-app .lvsd-icon-button:hover{color:#087246!important;border-color:#91ceb0!important;background:#edf8f2!important}
+body .jc.jc-app .lvsd-icon-button--danger{color:#c73d4c!important;border-color:#f0c9ce!important;background:#fff5f6!important}
+body .jc.jc-app :is(.lvsd-icon-button,.jc-usr__ic) img{display:block!important;width:16px!important;height:16px!important;max-width:none!important}
+body .jc.jc-app .lvsd-icon-button--wa{border-color:#bde5cd!important;background:#effbf4!important}
+body .jc.jc-app .lvsd-no-whatsapp{color:#9a6508!important;background:#fff7e7!important;box-shadow:0 0 0 1px #eed8a9!important}
+body .jc.jc-app .lvsd-mobile-card{color:#14271d!important;border-color:#d2e1d9!important;background:#fff!important}
