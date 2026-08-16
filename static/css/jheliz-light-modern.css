@@ -91,18 +91,27 @@ body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif!important}
 .lvsu-page,.lvd-page,.lvc-page,.lvr-page{color:var(--jcl-text)!important;background:transparent!important}.lvsu-grid-bg{opacity:.18!important}.lvsu-days,.lvsu-amount,.lvsu-dropzone,.lvsu-review-state{color:var(--jcl-text)!important;border-color:var(--jcl-border)!important;background:#f8fbf9!important}
 
 /* Owner control */
-.jc:not(.jc-app){--jc-bg:var(--jcl-bg);--jc-card:#fff;--jc-ink:var(--jcl-text);--jc-muted:var(--jcl-muted);--jc-line:rgba(24,67,44,.12);color:var(--jcl-text)!important}
+.jc:not(.jc-app){
+  --jc-bg:var(--jcl-bg);--jc-card:#fff;--jc-ink:var(--jcl-text);--jc-muted:var(--jcl-muted);--jc-line:rgba(24,67,44,.12);
+  --joc-surface:#fff;--joc-surface-2:#f7faf8;--joc-border:var(--jcl-border);--joc-muted:#60736a;--joc-green:#08a662;--joc-blue:#2878d0;--joc-red:#dc3f4e;
+  color:var(--jcl-text)!important;background:radial-gradient(circle at 88% 0,rgba(16,185,129,.08),transparent 28%),var(--jcl-bg)!important;
+  font-size:15px!important;
+}
 .jc:not(.jc-app) .jc-topbar{border-color:var(--jcl-border)!important;background:#fff!important;box-shadow:var(--jcl-shadow)!important}
 .jc:not(.jc-app) .jc-brand__txt strong{color:var(--jcl-text)!important}
-.joc-nav a{color:#60736a!important}.joc-nav a:hover{color:var(--jcl-text)!important;background:#edf8f2!important}.joc-nav a.is-active{color:#087a49!important;border-color:#b7e5ce!important;background:#e6f8ef!important}
-.joc-page-head h1{color:var(--jcl-text)!important}.joc-page-head p,.joc-total{color:var(--jcl-muted)!important}.joc-total{border-color:var(--jcl-border)!important;background:#fff!important}
+.jc:not(.jc-app) .jc-brand__txt strong{font-size:15px!important}.jc:not(.jc-app) .jc-brand__txt small{font-size:12px!important;color:var(--jcl-muted)!important}
+.jc:not(.jc-app) .jc-btn--sm{font-size:14px!important}.jc:not(.jc-app) .jc-main{min-height:calc(100vh - 180px);color:var(--jcl-text)!important;background:transparent!important}
+.joc-nav{margin-top:18px!important;padding-block:8px!important}.joc-nav a{padding:11px 16px!important;color:#60736a!important;font-size:14px!important}.joc-nav a:hover{color:var(--jcl-text)!important;background:#edf8f2!important}.joc-nav a.is-active{color:#087a49!important;border-color:#b7e5ce!important;background:#e6f8ef!important}
+.joc-page-head{margin-top:34px!important}.joc-page-head h1{color:var(--jcl-text)!important;font-size:clamp(32px,4vw,42px)!important}.joc-page-head p{color:var(--jcl-muted)!important;font-size:15px!important}.joc-eyebrow{font-size:12px!important}.joc-total{color:#455d50!important;border-color:var(--jcl-border)!important;background:#fff!important;font-size:13px!important}
 .joc-card,.joc-kpi,.joc-demo-card,.joc-detail-hero,.joc-detail-kpis article,.joc-filters,.joc-table-card{border-color:var(--jcl-border)!important;background:#fff!important;box-shadow:var(--jcl-shadow)!important}
 .joc-kpi strong,.joc-card h2,.joc-list strong,.joc-user-link,.joc-detail-person h1,.joc-detail-kpis strong,.joc-facts dd,.joc-channel-list strong,.joc-compact-list strong,.joc-demo-top strong,.joc-demo-stats strong{color:var(--jcl-text)!important}
 .joc-list article,.joc-facts div,.joc-channel-list article,.joc-compact-list article{border-color:var(--jcl-border)!important}
-.joc-filters input,.joc-filters select,.joc-filters>select{color:var(--jcl-text)!important;border-color:var(--jcl-border)!important;background:#f7faf8!important}.joc-filters option{background:#fff!important;color:var(--jcl-text)!important}
+.joc-filters{padding:11px!important}.joc-filters input,.joc-filters select,.joc-filters>select{min-height:44px;color:var(--jcl-text)!important;border-color:var(--jcl-border)!important;background:#f7faf8!important;font-size:15px!important}.joc-filters option{background:#fff!important;color:var(--jcl-text)!important}
 .joc-icon-btn{color:#597064!important;border-color:var(--jcl-border)!important;background:#fff!important}.joc-icon-btn:hover{color:var(--jcl-green-dark)!important;background:#eff9f4!important}
 .joc-table-card .jc-table-wrap{box-shadow:none!important}.joc-table-card tbody tr:hover{background:#f6fbf8!important}
 .joc-demo-stats div{background:#f5f9f7!important}.joc-detail-avatar,.joc-avatar{box-shadow:0 8px 22px rgba(11,137,83,.18)}
+.jc:not(.jc-app) .jc-table{font-size:14px!important}.jc:not(.jc-app) .jc-table th{padding:14px 15px!important;font-size:11px!important;letter-spacing:.08em!important}.jc:not(.jc-app) .jc-table td{padding:16px 15px!important;font-size:14px!important;line-height:1.45!important}
+.joc-user-link strong{font-size:14px!important}.joc-cell-sub,.joc-list small,.joc-detail-person p,.joc-facts dt,.joc-channel-list small,.joc-compact-list small,.joc-demo-top small,.joc-demo-stats small{font-size:12px!important;line-height:1.45!important}.joc-status{font-size:11px!important}.joc-client-count strong{font-size:16px!important}
 
 /* Public renewal */
 .jc-renewal-body{background:var(--jcl-bg)!important;color:var(--jcl-text)!important}.jc-renewal-hero,.jc-renewal-choice,.jc-renewal-pay,.jc-renewal-result{color:var(--jcl-text)!important;border-color:var(--jcl-border)!important;background:#fff!important;box-shadow:var(--jcl-shadow)!important}.jc-renewal-hero h1,.jc-renewal-choice h2,.jc-renewal-pay h2{color:var(--jcl-text)!important}.jc-renewal-choice button{color:var(--jcl-text)!important;border-color:var(--jcl-border)!important;background:#f7faf8!important}
