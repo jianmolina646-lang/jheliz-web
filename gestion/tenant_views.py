@@ -115,7 +115,9 @@ class TenantPasswordResetForm(forms.Form):
         if not user:
             return
         if user.email:
-            PasswordResetForm({"email": user.email}).save(**kwargs)
+            email_form = PasswordResetForm({"email": user.email})
+            if email_form.is_valid():
+                email_form.save(**kwargs)
         connection = TelegramConnection.objects.filter(owner=user, is_enabled=True, chat_id__isnull=False).exclude(chat_id="").first()
         if connection:
             from django.contrib.auth.tokens import default_token_generator
