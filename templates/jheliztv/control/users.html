@@ -32,13 +32,13 @@
 </div>
 
 <section class="joc-card joc-table-card"><div class="jc-table-wrap"><table class="jc-table">
-  <thead><tr><th class="joc-select-cell"><input id="select-all-users" type="checkbox" aria-label="Seleccionar todos"></th><th>Usuario</th><th>Clientes</th><th>Actividad</th><th>Contacto</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead>
+  <thead><tr><th class="joc-select-cell"><label class="joc-checkbox"><input id="select-all-users" type="checkbox" aria-label="Seleccionar todos"><span aria-hidden="true"></span></label></th><th>Usuario</th><th>Clientes</th><th>Actividad</th><th>Contacto</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead>
   <tbody>{% for t in tenants %}<tr>
-    <td class="joc-select-cell"><input class="joc-user-check" type="checkbox" name="tenant_ids" value="{{ t.pk }}" form="bulk-user-form" aria-label="Seleccionar {{ t.user.username }}"></td>
-    <td><a class="joc-user-link" href="{% url 'jheliztv_control_user_detail' t.pk %}"><strong>{{ t.business_name|default:"Sin negocio" }}</strong><small class="joc-cell-sub">@{{ t.user.username }}</small></a></td>
+    <td class="joc-select-cell"><label class="joc-checkbox"><input class="joc-user-check" type="checkbox" name="tenant_ids" value="{{ t.pk }}" form="bulk-user-form" aria-label="Seleccionar {{ t.user.username }}"><span aria-hidden="true"></span></label></td>
+    <td><div class="joc-user-cell"><span class="joc-cell-icon"><span class="material-symbols-outlined">person</span></span><a class="joc-user-link" href="{% url 'jheliztv_control_user_detail' t.pk %}"><strong>{{ t.business_name|default:"Sin negocio" }}</strong><small class="joc-cell-sub">@{{ t.user.username }}</small></a></div></td>
     <td><span class="joc-client-count"><span class="material-symbols-outlined">group</span><strong>{{ t.client_count }}</strong></span><small class="joc-cell-sub">registrado{{ t.client_count|pluralize }}</small></td>
     <td>{% if t.is_online %}<span class="joc-status is-online">En línea</span>{% else %}<span class="joc-status">Desconectado</span>{% endif %}<small class="joc-cell-sub">{{ t.activity_section }} · {% if t.last_activity_at %}hace {{ t.last_activity_at|timesince }}{% else %}Nunca ingresó{% endif %}</small></td>
-    <td>{{ t.whatsapp|default:"Sin WhatsApp" }}<small class="joc-cell-sub">{% if t.telegram_connection.is_linked %}Telegram vinculado{% else %}Sin Telegram{% endif %}</small></td>
+    <td><div class="joc-contact-cell"><span><span class="material-symbols-outlined">call</span>{{ t.whatsapp|default:"Sin WhatsApp" }}</span><small><span class="material-symbols-outlined">send</span>{% if t.telegram_connection.is_linked %}Telegram vinculado{% else %}Sin Telegram{% endif %}</small></div></td>
     <td><span class="jc-chip jc-chip--{{ t.estado_color }}">{{ t.estado }}</span></td>
     <td><span class="joc-expiry {% if not t.subscription_active %}is-expired{% elif t.days_left <= 7 %}is-warning{% else %}is-safe{% endif %}">{{ t.days_left }} días</span><small class="joc-cell-sub">{% if t.plan_expires_at %}Vence {{ t.plan_expires_at|date:"d/m/Y" }}{% else %}Sin fecha{% endif %}</small></td>
     <td><details class="joc-actions-menu"><summary class="joc-icon-btn" title="Acciones" aria-label="Acciones"><span class="material-symbols-outlined">more_horiz</span></summary><div class="joc-actions-popover">
