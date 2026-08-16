@@ -319,6 +319,27 @@ class TenantSaasTests(TestCase):
         self.assertContains(r, "Maria Lopez")
         self.assertNotContains(r, "Juan Perez")
 
+    def test_clients_page_uses_official_platform_logos_by_service_name(self):
+        self._register("platform-logos")
+        tenant = self.Tenant.objects.get(user__username="platform-logos")
+        tenant.extend(30)
+        client = Client.objects.create(owner=tenant.user, name="Cliente Logos")
+        for index, service_name in enumerate(("Netflix Premium", "Prime Video", "HBO Max")):
+            service = Service.objects.create(owner=tenant.user, name=service_name)
+            Subscription.objects.create(
+                owner=tenant.user,
+                client=client,
+                service=service,
+                account_email=f"logo-{index}@x.com",
+                expires_at=timezone.now() + timedelta(days=30),
+            )
+
+        response = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
+
+        self.assertContains(response, "img/platforms/netflix.svg")
+        self.assertContains(response, "img/platforms/prime-video.svg")
+        self.assertContains(response, "img/platforms/max.svg")
+
     def test_panel_navigation_records_recent_activity_without_sensitive_data(self):
         self._register("active-user", business="Negocio activo")
         response = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)

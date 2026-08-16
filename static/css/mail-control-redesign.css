@@ -3311,6 +3311,18 @@ body{background:#0c0c0c!important;font-family:Inter,system-ui,sans-serif!importa
   font-size:10px;
   font-weight:700;
 }
+.jc-client-service__logo.has-official-logo{
+  overflow:hidden;
+  border:1px solid #dce5e0;
+  background:#fff!important;
+  box-shadow:0 2px 7px rgba(15,23,42,.08);
+}
+.jc-client-service__logo.has-official-logo img{
+  width:84%;
+  height:84%;
+  display:block;
+  object-fit:contain;
+}
 .jc-client-service__body{min-width:0;flex:1;line-height:1.25}
 .jc-client-service__body>div{display:flex;align-items:center;gap:8px}
 .jc-client-service__body strong{
