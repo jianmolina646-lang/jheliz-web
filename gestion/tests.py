@@ -15,6 +15,7 @@ from config.date_utils import add_service_duration
 from .models import (
     Client,
     ControlSettings,
+    RenewalRequest,
     Service,
     ServiceCategory,
     Subscription,
@@ -540,6 +541,32 @@ class TenantSaasTests(TestCase):
             "jc-subs-search", "Suscripciones registradas", "Registro",
         ):
             self.assertContains(r, token)
+
+    def test_service_detail_batches_renewal_requests_without_duplicates(self):
+        from .tenant_views import _renewal_requests_for
+
+        t, svc = self._new_service("seller_batch_renewals")
+        cli = Client.objects.create(owner=t.user, name="Batch")
+        subscriptions = [
+            Subscription.objects.create(
+                owner=t.user,
+                service=svc,
+                client=cli,
+                account_email=f"batch-{index}@x.com",
+                expires_at=timezone.now() + timedelta(days=30 + index),
+            )
+            for index in range(3)
+        ]
+
+        first = _renewal_requests_for(subscriptions, t.user)
+        second = _renewal_requests_for(subscriptions, t.user)
+
+        self.assertEqual(len(first), 3)
+        self.assertEqual(len(second), 3)
+        self.assertEqual(
+            RenewalRequest.objects.filter(subscription__in=subscriptions).count(),
+            3,
+        )
 
     def test_subscription_add_by_expiry_date(self):
         t, svc = self._new_service("seller_date")

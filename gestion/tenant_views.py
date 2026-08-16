@@ -673,8 +673,9 @@ def service_detail(request, tenant, pk):
     )
     control = ControlSettings.load(owner)
     business = tenant.business_name or owner.username
+    renewals = _renewal_requests_for(subs, owner)
     for sub in subs:
-        renewal = _renewal_request_for(sub)
+        renewal = renewals[(sub.pk, timezone.localtime(sub.expires_at).date())]
         public_url = request.build_absolute_uri(
             reverse("jheliztv_public_renewal", kwargs={"token": renewal.token})
         )
@@ -1113,6 +1114,52 @@ def _renewal_request_for(sub):
         subscription=sub,
         expiry_date=timezone.localtime(sub.expires_at).date(),
     )[0]
+
+
+def _renewal_requests_for(subs, owner):
+    """Obtiene o crea los enlaces de renovación de una lista en consultas agrupadas."""
+    cycles = {
+        (sub.pk, timezone.localtime(sub.expires_at).date())
+        for sub in subs
+    }
+    if not cycles:
+        return {}
+
+    subscription_ids = {subscription_id for subscription_id, _ in cycles}
+    expiry_dates = {expiry_date for _, expiry_date in cycles}
+    requests = RenewalRequest.objects.filter(
+        owner=owner,
+        subscription_id__in=subscription_ids,
+        expiry_date__in=expiry_dates,
+    )
+    result = {
+        (renewal.subscription_id, renewal.expiry_date): renewal
+        for renewal in requests
+        if (renewal.subscription_id, renewal.expiry_date) in cycles
+    }
+    missing = cycles - result.keys()
+    if missing:
+        RenewalRequest.objects.bulk_create(
+            [
+                RenewalRequest(
+                    owner=owner,
+                    subscription_id=subscription_id,
+                    expiry_date=expiry_date,
+                )
+                for subscription_id, expiry_date in missing
+            ],
+            ignore_conflicts=True,
+        )
+        result = {
+            (renewal.subscription_id, renewal.expiry_date): renewal
+            for renewal in RenewalRequest.objects.filter(
+                owner=owner,
+                subscription_id__in=subscription_ids,
+                expiry_date__in=expiry_dates,
+            )
+            if (renewal.subscription_id, renewal.expiry_date) in cycles
+        }
+    return result
 
 
 @tenant_required
