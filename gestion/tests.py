@@ -1018,6 +1018,39 @@ class StockEmailTests(TestCase):
         )
         self.assertEqual(StockEmail.objects.filter(owner=user).count(), 2)
 
+    def test_bulk_add_rejects_more_than_200_emails(self):
+        from .models import StockEmail
+
+        user = self._register("stock-limit")
+        svc = self._add_service()
+        response = self.client.post(
+            self.EMAIL_ADD,
+            {
+                "service": svc.pk,
+                "emails": "\n".join(f"account-{index}@x.com" for index in range(201)),
+            },
+            HTTP_HOST=self.HOST,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(StockEmail.objects.filter(owner=user).exists())
+
+    def test_edit_rejects_email_longer_than_160_characters(self):
+        from .models import StockEmail
+
+        user = self._register("stock-edit-limit")
+        svc = self._add_service()
+        item = StockEmail.objects.create(owner=user, service=svc, email="valid@x.com")
+        response = self.client.post(
+            f"/app/correos/{item.pk}/editar/",
+            {"email": f"{'a' * 155}@x.com"},
+            HTTP_HOST=self.HOST,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        item.refresh_from_db()
+        self.assertEqual(item.email, "valid@x.com")
+
     def test_toggle_status(self):
         from .models import StockEmail
 
