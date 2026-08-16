@@ -3312,16 +3312,33 @@ body{background:#0c0c0c!important;font-family:Inter,system-ui,sans-serif!importa
   font-weight:700;
 }
 .jc-client-service__logo.has-official-logo{
+  width:48px;
+  height:34px;
+  flex:0 0 48px;
   overflow:hidden;
-  border:1px solid #dce5e0;
+  border:1px solid #d7e2dc;
+  border-radius:9px;
   background:#fff!important;
   box-shadow:0 2px 7px rgba(15,23,42,.08);
 }
 .jc-client-service__logo.has-official-logo img{
-  width:84%;
-  height:84%;
+  width:88%;
+  height:76%;
   display:block;
   object-fit:contain;
+}
+.jc-client-service__logo.has-official-logo img[alt="Logo de Netflix"]{
+  width:18px;
+  height:26px;
+}
+.jc-client-service__logo.has-official-logo img[alt="Logo de Spotify"]{
+  width:26px;
+  height:26px;
+}
+@media(max-width:1023px){
+  body .jc.jc-app .jc-clients-page .jc-client-service:has(.jc-client-service__logo.has-official-logo){
+    grid-template-columns:48px minmax(0,1fr) auto!important;
+  }
 }
 .jc-client-service__body{min-width:0;flex:1;line-height:1.25}
 .jc-client-service__body>div{display:flex;align-items:center;gap:8px}
