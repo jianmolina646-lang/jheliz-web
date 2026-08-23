@@ -372,7 +372,11 @@ def _alert_admin(key: str, text: str, ttl: int = 3600) -> None:
 
 
 def _daily_limit() -> int:
-    return int(getattr(settings, "CODES_DAILY_LIMIT", 20) or 0)
+    configured = int(getattr(settings, "CODES_DAILY_LIMIT", 20) or 0)
+    state_limit = BotState.objects.filter(pk=1).values_list(
+        "daily_limit", flat=True
+    ).first()
+    return configured if state_limit is None else int(state_limit)
 
 
 def _security_block_key(client: CodeBotClient) -> str:
@@ -904,7 +908,8 @@ def _handle_message(update: dict) -> None:
 
     # Comandos de admin (solo para el chat del admin).
     if _is_admin(chat_id) and cmd in (
-        "/clientes", "/asignar", "/quitar", "/anuncio", "/activar", "/desactivar"
+        "/clientes", "/asignar", "/quitar", "/anuncio", "/activar",
+        "/desactivar", "/limite",
     ):
         _handle_admin_command(chat_id, cmd, rest)
         return
@@ -1193,6 +1198,7 @@ def _admin_help_text() -> str:
         "➕ <code>/asignar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — asigna y activa",
         "➖ <code>/quitar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — quita un correo",
         "📢 <code>/anuncio &lt;mensaje&gt;</code> — enviar un anuncio a todos los registrados",
+        "📊 <code>/limite [cantidad]</code> — ver o cambiar el límite diario de consultas",
         "",
         "— También tenés los comandos de cliente —",
         "🔑 /codigo · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📺 /tv · "
@@ -1340,6 +1346,34 @@ def _handle_admin_command(chat_id, cmd: str, rest: str) -> None:
         _admin_broadcast(chat_id, rest)
     elif cmd in ("/activar", "/desactivar"):
         _admin_set_active(chat_id, rest, active=(cmd == "/activar"))
+    elif cmd == "/limite":
+        _admin_set_daily_limit(chat_id, rest)
+
+
+def _admin_set_daily_limit(chat_id, raw_limit: str) -> None:
+    raw_limit = (raw_limit or "").strip()
+    if not raw_limit:
+        send_message(
+            chat_id,
+            f"📊 Límite diario actual: <b>{_daily_limit():,}</b> consultas por cliente.",
+        )
+        return
+    try:
+        limit = int(raw_limit)
+    except ValueError:
+        limit = 0
+    if limit < 1 or limit > 1_000_000:
+        send_message(
+            chat_id,
+            "Uso: <code>/limite &lt;cantidad&gt;</code> (entre 1 y 1,000,000).\n"
+            "Ejemplo: <code>/limite 5000</code>",
+        )
+        return
+    BotState.objects.update_or_create(pk=1, defaults={"daily_limit": limit})
+    send_message(
+        chat_id,
+        f"✅ Límite diario actualizado a <b>{limit:,}</b> consultas por cliente.",
+    )
 
 
 def _admin_set_active(chat_id, token: str, active: bool) -> None:
@@ -1534,6 +1568,7 @@ _ADMIN_MENU = _CLIENT_MENU + [
     {"command": "asignar", "description": "➕ Asignar correo a un cliente"},
     {"command": "quitar", "description": "➖ Quitar correo a un cliente"},
     {"command": "anuncio", "description": "📢 Enviar anuncio a todos"},
+    {"command": "limite", "description": "📊 Cambiar límite diario"},
 ]
 
 

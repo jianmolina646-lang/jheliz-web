@@ -314,6 +314,7 @@ class CmdsHelpTests(TestCase):
         text = msend.call_args[0][1]
         self.assertIn("/anuncio", text)
         self.assertIn("/clientes", text)
+        self.assertIn("/limite", text)
 
     @mock.patch("codes.bot.send_message")
     def test_cmds_active_client_shows_only_client_commands(self, msend):
@@ -382,6 +383,28 @@ class AdminCommandTests(TestCase):
         self.cliente = CodeBotClient.objects.create(
             telegram_chat_id="424242", telegram_username="pepe", display_name="Pepe"
         )
+
+    @mock.patch("codes.bot.send_message")
+    def test_admin_can_set_and_read_daily_limit(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/limite", "5000")
+            self.assertEqual(bot._daily_limit(), 5000)
+            bot._handle_admin_command("900", "/limite", "")
+        self.assertIn("5,000", msend.call_args_list[-1].args[1])
+
+    @mock.patch("codes.bot.send_message")
+    def test_non_admin_cannot_change_daily_limit(self, _msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot.process_update(
+                {
+                    "message": {
+                        "chat": {"id": 424242},
+                        "from": {"username": "pepe"},
+                        "text": "/limite 5000",
+                    }
+                }
+            )
+        self.assertFalse(BotState.objects.filter(pk=1).exists())
 
     @mock.patch("codes.bot.send_message")
     def test_asignar_crea_correo_y_activa(self, msend):
