@@ -410,6 +410,14 @@ class AdminCommandTests(TestCase):
         self.assertIn("5,000", msend.call_args_list[-1].args[1])
 
     @mock.patch("codes.bot.send_message")
+    def test_admin_can_disable_daily_limit(self, msend):
+        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
+            bot._handle_admin_command("900", "/limite", "0")
+            self.assertEqual(bot._daily_limit(), 0)
+            bot._handle_admin_command("900", "/limite", "")
+        self.assertIn("Sin límite", msend.call_args_list[-1].args[1])
+
+    @mock.patch("codes.bot.send_message")
     def test_non_admin_cannot_change_daily_limit(self, _msend):
         with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
             bot.process_update(
@@ -1218,6 +1226,21 @@ class SecurityFeatureTests(TestCase):
             CodeDelivery.objects.create(client=self.client_obj, email="mio@gmail.com", found=True)
             msg = bot._deliver_code(self.client_obj, "mio@gmail.com")
         self.assertIn("límite", msg)
+
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email")
+    def test_zero_daily_limit_never_blocks_assigned_email(self, mfetch, _mconf):
+        from codes.models import BotState, CodeDelivery
+        from codes.netflix import NetflixResult
+
+        BotState.objects.update_or_create(pk=1, defaults={"daily_limit": 0})
+        for _ in range(25):
+            CodeDelivery.objects.create(
+                client=self.client_obj, email="mio@gmail.com", found=True
+            )
+        mfetch.return_value = NetflixResult(kind="signin_code", code="4321")
+        msg = bot._deliver_code(self.client_obj, "mio@gmail.com", kind="signin_code")
+        self.assertIn("4321", msg)
 
 
     @mock.patch("codes.bot.send_message")

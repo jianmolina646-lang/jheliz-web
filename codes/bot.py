@@ -1348,23 +1348,37 @@ def _handle_admin_command(chat_id, cmd: str, rest: str) -> None:
 def _admin_set_daily_limit(chat_id, raw_limit: str) -> None:
     raw_limit = (raw_limit or "").strip()
     if not raw_limit:
+        current_limit = _daily_limit()
+        current_label = f"{current_limit:,}" if current_limit > 0 else "Sin límite"
         send_message(
             chat_id,
-            f"📊 Límite diario actual: <b>{_daily_limit():,}</b> consultas por cliente.",
+            f"📊 Límite diario actual: <b>{current_label}</b>.",
         )
         return
-    try:
-        limit = int(raw_limit)
-    except ValueError:
+    normalized_limit = raw_limit.lower().replace(" ", "")
+    if normalized_limit in {"0", "sinlimite", "ilimitado"}:
         limit = 0
-    if limit < 1 or limit > 1_000_000:
+    else:
+        try:
+            limit = int(raw_limit)
+        except ValueError:
+            limit = -1
+    if limit < 0 or limit > 1_000_000:
         send_message(
             chat_id,
-            "Uso: <code>/limite &lt;cantidad&gt;</code> (entre 1 y 1,000,000).\n"
+            "Uso: <code>/limite &lt;cantidad&gt;</code> (entre 1 y 1,000,000), "
+            "o <code>/limite 0</code> para dejarlo sin límite.\n"
             "Ejemplo: <code>/limite 5000</code>",
         )
         return
     BotState.objects.update_or_create(pk=1, defaults={"daily_limit": limit})
+    if limit == 0:
+        send_message(
+            chat_id,
+            "✅ Límite diario desactivado. Los clientes pueden hacer consultas "
+            "sin límite, únicamente sobre sus correos asignados.",
+        )
+        return
     send_message(
         chat_id,
         f"✅ Límite diario actualizado a <b>{limit:,}</b> consultas por cliente.",
