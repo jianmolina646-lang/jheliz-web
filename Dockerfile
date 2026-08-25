@@ -12,7 +12,10 @@ WORKDIR /app
 
 COPY requirements.txt ./
 RUN pip install --upgrade pip "setuptools>=78.1.1" \
- && pip install -r requirements.txt
+ && pip install -r requirements.txt \
+ && rm -rf /usr/local/lib/python3.12/site-packages/pip* \
+           /usr/local/lib/python3.12/site-packages/setuptools* \
+           /usr/local/bin/pip*
 
 COPY . .
 
