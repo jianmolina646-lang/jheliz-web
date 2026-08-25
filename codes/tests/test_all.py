@@ -191,6 +191,23 @@ class NetflixParserTests(TestCase):
 
 
 class ImapAccountsTests(TestCase):
+    def test_internaldate_is_preferred_over_spoofable_date_header(self):
+        from datetime import datetime, timezone
+        from email.message import EmailMessage
+
+        msg = EmailMessage()
+        msg["Date"] = "Mon, 01 Jan 2001 00:00:00 +0000"
+        metadata = b'1 (INTERNALDATE "25-Aug-2026 13:30:00 +0000" RFC822 {1})'
+        self.assertEqual(
+            imap_reader._msg_datetime(msg, metadata),
+            datetime(2026, 8, 25, 13, 30, tzinfo=timezone.utc),
+        )
+
+    def test_missing_date_is_not_treated_as_new(self):
+        from email.message import EmailMessage
+
+        self.assertIsNone(imap_reader._msg_datetime(EmailMessage()))
+
     @override_settings(
         CODES_IMAP_HOST="imap.gmail.com",
         CODES_IMAP_USER="codigosjheliz@gmail.com",
@@ -545,6 +562,22 @@ class CmdCodeTests(TestCase):
             self.client_obj, "solo@gmail.com", kind="household"
         )
 
+    @mock.patch("codes.bot.send_message")
+    @mock.patch("codes.bot._deliver_code", return_value="OK")
+    def test_direct_command_accepts_newline_and_escaped_at(self, mdeliver, _msend):
+        bot._handle_message(
+            {
+                "message": {
+                    "chat": {"id": 555},
+                    "from": {"username": "cliente"},
+                    "text": "/codigo\nsolo\\@gmail.com",
+                }
+            }
+        )
+        mdeliver.assert_called_once_with(
+            self.client_obj, "solo@gmail.com", kind="signin_code"
+        )
+
     @mock.patch("codes.bot._deliver_code", return_value="OK")
     @mock.patch("codes.bot.send_message")
     def test_multiple_emails_no_arg_shows_picker(self, msend, mdeliver):
@@ -565,14 +598,11 @@ class DeliverKindTests(TestCase):
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
-    def test_kind_is_forwarded_to_imap(self, mfetch, _cfg):
+    def test_kind_is_forwarded_without_fallback_to_another_type(self, mfetch, _cfg):
         bot._deliver_code(self.client_obj, "mine@gmail.com", kind="password_reset")
         self.assertEqual(
             mfetch.call_args_list,
-            [
-                mock.call("mine@gmail.com", kind="password_reset"),
-                mock.call("mine@gmail.com", kind=None),
-            ],
+            [mock.call("mine@gmail.com", kind="password_reset")],
         )
 
     def test_unassigned_email_says_no_corresponde(self):

@@ -696,7 +696,7 @@ def _on_cooldown(client: CodeBotClient) -> bool:
 
 
 def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) -> str:
-    email = (email or "").strip().lower()
+    email = _normalize_email_arg(email)
     if not _has_access(client):
         return _expired_message()
     if _is_security_blocked(client):
@@ -754,23 +754,6 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
                 continue
             return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
 
-    # Netflix no siempre envía el tipo que el cliente eligió en el bot. Por
-    # ejemplo, al intentar validar un viaje puede mandar un código normal de
-    # inicio de sesión. Si no apareció el tipo exacto, reutilizamos la misma
-    # ventana reciente para entregar cualquier mensaje válido de esa cuenta.
-    if kind and (result is None or not result.has_payload):
-        try:
-            fallback = imap_reader.fetch_latest_for_email(email, kind=None)
-        except Exception:
-            logger.exception("Fallo leyendo fallback IMAP para %s", email)
-        else:
-            if (
-                fallback is not None
-                and fallback.has_payload
-                and fallback.kind in DELIVERABLE_KINDS
-            ):
-                result = fallback
-
     if result is None or not result.has_payload:
         CodeDelivery.objects.create(
             client=client, email=email, kind=kind or "", found=False
@@ -796,7 +779,9 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
         client=client, email=email, kind=kind or "", found=True
     )
     msg = _format_result(email, result)
-    ttl = getattr(settings, "CODES_RESULT_CACHE_SECONDS", 45)
+    # Nunca reutilizamos un resultado por más de unos segundos: un correo
+    # nuevo puede invalidar inmediatamente el código o enlace anterior.
+    ttl = min(getattr(settings, "CODES_RESULT_CACHE_SECONDS", 5), 5)
     if ttl > 0:
         cache.set(cache_key, msg, timeout=ttl)
     return msg
@@ -820,7 +805,7 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
         )
         return
 
-    arg = (arg or "").strip().lower()
+    arg = _normalize_email_arg(arg)
     if not arg:
         # Sin correo: si tiene uno solo, lo usamos; si tiene varios, que elija.
         if len(emails) == 1:
@@ -868,7 +853,9 @@ def _handle_message(update: dict) -> None:
     if menu_cmd:
         text = menu_cmd
 
-    cmd, _, rest = text.partition(" ")
+    command_parts = text.split(maxsplit=1)
+    cmd = command_parts[0] if command_parts else ""
+    rest = command_parts[1] if len(command_parts) > 1 else ""
     cmd = cmd.lower().split("@", 1)[0]  # quita @botname si lo hubiera
     rest = rest.strip()
 
@@ -1320,6 +1307,14 @@ def _cmd_search(client: CodeBotClient, raw_query: str) -> None:
 
 # Validación simple de correo (suficiente para el panel del bot).
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _normalize_email_arg(value: str) -> str:
+    """Normaliza el correo recibido después de un comando de Telegram."""
+    value = (value or "").strip().lower().replace("\\@", "@")
+    if value.startswith("mailto:"):
+        value = value[7:]
+    return value.strip("<>.,;:()[]{}")
 
 
 def _resolve_client(token: str) -> CodeBotClient | None:

@@ -384,7 +384,7 @@ CODES_IMAP2_PORT = config("CODES_IMAP2_PORT", default=993, cast=int)
 CODES_IMAP2_USER = config("CODES_IMAP2_USER", default="")
 CODES_IMAP2_PASSWORD = secret_config("CODES_IMAP2_PASSWORD", allow_empty=True)
 # Ventana (minutos) hacia atrás para considerar un correo de Netflix vigente.
-CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=30, cast=int)
+CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=10, cast=int)
 # Máximo de pedidos de código por cliente por día (0 = sin límite).
 CODES_DAILY_LIMIT = config("CODES_DAILY_LIMIT", default=20, cast=int)
 # Los mensajes con códigos/enlaces se eliminan de Telegram tras este tiempo.
@@ -421,7 +421,7 @@ CODES_IMAP_TIMEOUT = config("CODES_IMAP_TIMEOUT", default=20, cast=int)
 # Anti-spam: segundos mínimos entre dos lecturas de Gmail del mismo cliente.
 CODES_COOLDOWN_SECONDS = config("CODES_COOLDOWN_SECONDS", default=6, cast=int)
 # Mini-caché: segundos que se reutiliza un código ya leído (toques repetidos).
-CODES_RESULT_CACHE_SECONDS = config("CODES_RESULT_CACHE_SECONDS", default=45, cast=int)
+CODES_RESULT_CACHE_SECONDS = config("CODES_RESULT_CACHE_SECONDS", default=5, cast=int)
 
 # Discord bot (opcional)
 # Bot que reemplaza a Telegram para el back-office: pedidos nuevos, Yape,
