@@ -647,7 +647,8 @@ class SearchAssignedEmailsTests(TestCase):
     @mock.patch("codes.bot.send_message")
     def test_search_without_query_shows_usage(self, msend):
         bot._cmd_search(self.client_obj, "")
-        self.assertIn("/buscar", msend.call_args.args[1])
+        self.assertIn("/codigo", msend.call_args.args[1])
+        self.assertNotIn("/buscar", msend.call_args.args[1])
 
     @mock.patch("codes.bot._offer_kinds_for_email")
     def test_single_match_opens_actions(self, moffer):
@@ -690,7 +691,8 @@ class SearchAssignedEmailsTests(TestCase):
                 client=self.client_obj, email=f"extra{idx:02d}@gmail.com"
             )
         bot._send_email_menu(self.client_obj)
-        self.assertIn("/buscar", msend.call_args.args[1])
+        self.assertIn("/codigo", msend.call_args.args[1])
+        self.assertNotIn("/buscar", msend.call_args.args[1])
         self.assertIsNone(msend.call_args.kwargs.get("buttons"))
 
     @mock.patch("codes.bot.send_message")
@@ -762,7 +764,8 @@ class CallbackNavigationTests(TestCase):
             }
         )
         self.assertEqual(medit.call_args.args[:2], (779, 56))
-        self.assertIn("/buscar", medit.call_args.args[2])
+        self.assertIn("/codigo", medit.call_args.args[2])
+        self.assertNotIn("/buscar", medit.call_args.args[2])
 
 
 class DeliverCodeTests(TestCase):

@@ -814,9 +814,9 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
             if len(emails) > MAX_EMAIL_BUTTONS:
                 send_message(
                     chat_id,
-                    f"Tenés <b>{len(emails)}</b> correos asignados. Buscá primero "
-                    "el que necesitás con:\n"
-                    "<code>/buscar nombre@correo.com</code>",
+                    f"Tenés <b>{len(emails)}</b> correos asignados. Pedí el código "
+                    "directamente con:\n"
+                    "<code>/codigo nombre@correo.com</code>",
                 )
                 return
             send_message(
@@ -986,13 +986,13 @@ def _handle_callback(update: dict) -> None:
         if recent:
             text = (
                 "📧 <b>Cuentas recientes</b>\n"
-                "Elegí una o buscá otra con <code>/buscar nombre</code>."
+                "Elegí una o enviá <code>/codigo correo@gmail.com</code>."
             )
             buttons = _email_buttons(recent, index_source=emails)
         else:
             text = (
-                "🔍 <b>Buscar una cuenta</b>\n"
-                "Escribí <code>/buscar nombre@correo.com</code>."
+                "🔑 <b>Pedir un código</b>\n"
+                "Escribí <code>/codigo correo@gmail.com</code>."
             )
             buttons = None
         if message_id is not None:
@@ -1113,7 +1113,7 @@ def _send_welcome(client: CodeBotClient) -> None:
         chat_id,
         f"✨ <b>{BRAND} · Códigos Netflix</b>\n\n"
         "Elegí una acción en el menú.\n"
-        "Para encontrar una cuenta usá <code>/buscar nombre</code>.\n\n"
+        "Para pedirlo directamente usá <code>/codigo correo@gmail.com</code>.\n\n"
         "❓ Ayuda completa: <code>/cmds</code>",
         menu=True,
     )
@@ -1151,7 +1151,6 @@ def _client_help_text(emails: list[str]) -> str:
         "📨 <code>/enlacetv correo</code> — buscar el enlace enviado por Netflix",
         "",
         "📋 <code>/miscorreos</code> — ver tus correos asignados",
-        "🔍 <code>/buscar nombre@gmail.com</code> — encontrar un correo asignado",
         "❓ <code>/cmds</code> — ver esta ayuda",
     ]
     if not emails:
@@ -1169,8 +1168,8 @@ def _client_help_text(emails: list[str]) -> str:
     else:
         lines.append("")
         lines.append(
-            f"💡 Tenés {len(emails)} correos. Encontrá rápidamente el que "
-            "necesitás con <code>/buscar nombre</code>."
+            f"💡 Tenés {len(emails)} correos. Pedí directamente el que "
+            "necesitás con <code>/codigo correo@gmail.com</code>."
         )
     return "\n".join(lines)
 
@@ -1189,7 +1188,7 @@ def _admin_help_text() -> str:
         "",
         "— También tenés los comandos de cliente —",
         "🔑 /codigo · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📺 /tv · "
-        "📋 /miscorreos · 🔍 /buscar",
+        "📋 /miscorreos",
     ]
     return "\n".join(lines)
 
@@ -1227,8 +1226,8 @@ def _send_email_menu(client: CodeBotClient) -> None:
         send_message(
             client.telegram_chat_id,
             f"📧 Tenés <b>{len(emails)}</b> correos asignados.\n\n"
-            "Para encontrar uno escribí parte del nombre o el correo completo:\n"
-            "<code>/buscar nombre@gmail.com</code>"
+            "Pedí el código indicando el correo completo:\n"
+            "<code>/codigo nombre@gmail.com</code>"
             + ("\n\nTus cuentas recientes:" if recent else ""),
             buttons=_email_buttons(recent, index_source=emails) if recent else None,
         )
@@ -1265,8 +1264,8 @@ def _cmd_search(client: CodeBotClient, raw_query: str) -> None:
     if not query:
         send_message(
             chat_id,
-            "🔍 Escribí una parte del correo que buscás.\n"
-            "Ejemplo: <code>/buscar nombre@gmail.com</code>",
+            "🔑 Pedí el código indicando el correo completo.\n"
+            "Ejemplo: <code>/codigo nombre@gmail.com</code>",
         )
         return
     if len(query) < 2:
@@ -1564,7 +1563,6 @@ _CLIENT_MENU = [
     {"command": "tv", "description": "📺 Activar Netflix en tu TV"},
     {"command": "enlacetv", "description": "📨 Buscar enlace de activación TV"},
     {"command": "miscorreos", "description": "📋 Ver mis correos asignados"},
-    {"command": "buscar", "description": "🔍 Buscar un correo asignado"},
     {"command": "cmds", "description": "❓ Ver los comandos"},
 ]
 
