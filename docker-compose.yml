@@ -14,6 +14,8 @@ services:
     # - --max-requests + jitter: recicla workers cada ~1k requests (evita memory leaks).
     command: ["bash", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 4 --worker-class gthread --preload --timeout 30 --graceful-timeout 10 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -"]
     env_file: .env
+    extra_hosts:
+      - "proton-bridge.internal:host-gateway"
     volumes:
       - ./media:/app/media
       - ./private_media:/app/private_media
@@ -41,7 +43,7 @@ services:
       start_period: 60s
 
   db:
-    image: postgres:16-alpine
+    image: jheliz/postgres:16-secure
     environment:
       POSTGRES_USER: jheliz
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
@@ -74,6 +76,8 @@ services:
     env_file: .env
     environment:
       DATABASE_URL_FILE: /run/secrets/database_url
+    extra_hosts:
+      - "proton-bridge.internal:host-gateway"
     volumes:
       - ./secrets/database_url.txt:/run/secrets/database_url:ro
     depends_on:

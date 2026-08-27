@@ -245,18 +245,28 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 8 * 1024 * 1024  # 8 MB
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Email
-EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="JhelizTV <no-reply@jheliztv.xyz>")
+# Identidades de correo separadas por función.
+SYSTEM_EMAIL_ACCOUNT = config(
+    "SYSTEM_EMAIL_ACCOUNT", default="codigosjheliz@protonmail.com"
+)
+OUTBOUND_FROM_EMAIL = config("OUTBOUND_FROM_EMAIL", default="corp@jhelizstore.xyz")
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND", default="config.corporate_email_backend.CorporateSMTPEmailBackend"
+)
+DEFAULT_FROM_EMAIL = config(
+    "DEFAULT_FROM_EMAIL", default=f"Jheliz <{OUTBOUND_FROM_EMAIL}>"
+)
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 SUPPORT_ADMIN_EMAIL = config("SUPPORT_ADMIN_EMAIL", default="")
 
 # SMTP (opcional, para enviar correos reales en prod).
 # Muchos VPS bloquean SMTP saliente; si es tu caso, usá BrevoEmailBackend (HTTP).
-EMAIL_HOST = config("EMAIL_HOST", default="")
-EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
-EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+EMAIL_HOST = config("EMAIL_HOST", default="proton-bridge.internal")
+EMAIL_PORT = config("EMAIL_PORT", default=1025, cast=int)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default=OUTBOUND_FROM_EMAIL)
+EMAIL_HOST_PASSWORD = secret_config("EMAIL_HOST_PASSWORD", allow_empty=True)
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
 
 # Brevo (ex-Sendinblue) — backend HTTP, ver orders.brevo_backend.
 # Activar con: EMAIL_BACKEND=orders.brevo_backend.BrevoEmailBackend
@@ -369,18 +379,20 @@ CODES_PREMIUM_EMOJI_SEARCH_ID = config("CODES_PREMIUM_EMOJI_SEARCH_ID", default=
 CODES_PREMIUM_EMOJI_TV_LINK_ID = config(
     "CODES_PREMIUM_EMOJI_TV_LINK_ID", default=""
 )
-# Casilla central que recibe (por reenvío) los correos de Netflix.
-CODES_IMAP_HOST = config("CODES_IMAP_HOST", default="imap.gmail.com")
-CODES_IMAP_PORT = config("CODES_IMAP_PORT", default=993, cast=int)
-CODES_IMAP_USER = config("CODES_IMAP_USER", default="")
-# Contraseña de aplicación (Gmail) — NO la contraseña normal de la cuenta.
+# Casilla corporativa que recibe los correos de Netflix mediante Proton Bridge.
+CODES_IMAP_HOST = config("CODES_IMAP_HOST", default="proton-bridge.internal")
+CODES_IMAP_PORT = config("CODES_IMAP_PORT", default=1143, cast=int)
+CODES_IMAP_USER = config("CODES_IMAP_USER", default=SYSTEM_EMAIL_ACCOUNT)
 CODES_IMAP_PASSWORD = secret_config("CODES_IMAP_PASSWORD")
-# Segunda casilla central (Hostinger) — el bot lee AMBAS y entrega el correo
-# más reciente que encuentre en cualquiera de las dos.
-CODES_IMAP2_HOST = config("CODES_IMAP2_HOST", default="imap.hostinger.com")
+CODES_IMAP_SECURITY = config("CODES_IMAP_SECURITY", default="STARTTLS")
+CODES_IMAP_TLS_VERIFY = config("CODES_IMAP_TLS_VERIFY", default=False, cast=bool)
+# Segunda casilla opcional; vacía en producción.
+CODES_IMAP2_HOST = config("CODES_IMAP2_HOST", default="")
 CODES_IMAP2_PORT = config("CODES_IMAP2_PORT", default=993, cast=int)
 CODES_IMAP2_USER = config("CODES_IMAP2_USER", default="")
 CODES_IMAP2_PASSWORD = secret_config("CODES_IMAP2_PASSWORD", allow_empty=True)
+CODES_IMAP2_SECURITY = config("CODES_IMAP2_SECURITY", default="SSL")
+CODES_IMAP2_TLS_VERIFY = config("CODES_IMAP2_TLS_VERIFY", default=True, cast=bool)
 # Ventana (minutos) hacia atrás para considerar un correo de Netflix vigente.
 CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=30, cast=int)
 # Máximo de pedidos de código por cliente por día (0 = sin límite).

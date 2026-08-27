@@ -1310,7 +1310,7 @@ def _send_reclamacion_emails(obj):
         html = body.replace("\n", "<br>")
     msg = EmailMultiAlternatives(
         subject, body,
-        getattr(dj_settings, "DEFAULT_FROM_EMAIL", "ventas@jheliztv.xyz"),
+        getattr(dj_settings, "DEFAULT_FROM_EMAIL", "corp@jhelizstore.xyz"),
         [obj.email],
     )
     msg.attach_alternative(html, "text/html")

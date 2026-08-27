@@ -7,7 +7,7 @@ incluso en hosts que filtran SMTP.
 Configuración (en .env):
     EMAIL_BACKEND=orders.brevo_backend.BrevoEmailBackend
     BREVO_API_KEY=xkeysib-...
-    DEFAULT_FROM_EMAIL=JhelizTV <ecomercejheliz@gmail.com>
+    DEFAULT_FROM_EMAIL=JhelizTV <corp@jhelizstore.xyz>
 
 El remitente (el email del FROM) tiene que estar verificado previamente
 en Brevo, sino la API responde 400.

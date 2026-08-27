@@ -28,6 +28,8 @@ import html as _html
 import re
 from dataclasses import dataclass, field
 
+from django.utils.html import strip_tags
+
 # Links de acción de netflix.com (los que llevan a confirmar/obtener código).
 _NETFLIX_LINK_RE = re.compile(
     r"https?://(?:[a-z0-9-]+\.)*netflix\.com/[^\s\"'<>)]+", re.IGNORECASE
@@ -226,7 +228,12 @@ def parse_netflix_email(subject: str, html: str = "", text: str = "") -> Netflix
 
     kind = _classify(subject, f"{html}\n{text}", uniq_links)
     action_url = _pick_action_url(kind, uniq_links)
-    code = _extract_code(kind, text or html)
+    # Netflix suele enviar solo HTML. Extraer sobre el HTML crudo confunde
+    # números de CSS y puede separar la palabra "código" del valor con tags.
+    # Convertimos primero a texto visible, manteniendo el texto plano cuando
+    # el mensaje sí lo incluye.
+    visible_body = text or _html.unescape(strip_tags(html or ""))
+    code = _extract_code(kind, visible_body)
     return NetflixResult(
         kind=kind,
         subject=subject.strip(),
