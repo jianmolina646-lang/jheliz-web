@@ -1,5 +1,4 @@
 {% extends "jheliztv/base.html" %}
-{% load static %}
 
 {% block jc_content %}
 <main class="lv-services">
@@ -52,24 +51,14 @@
                 <article class="lv-service-card{% if svc.active_subscriptions.count %} lv-service-card--active{% endif %}">
                   <a class="lv-service-card__link" href="{% url 'jheliztv_service_detail' svc.pk %}" aria-label="Abrir {{ svc.name }}">
                     <span class="lv-service-card__accent" aria-hidden="true"></span>
-                    {% with service_name=svc.name|lower %}
-                    <div class="lv-service-card__media{% if 'netflix' in service_name or 'prime' in service_name or 'hbo' in service_name or 'max' in service_name or 'disney' in service_name or 'crunchyroll' in service_name or 'paramount' in service_name or 'spotify' in service_name or 'apple tv' in service_name %} has-official-logo{% endif %}">
-                      {% if 'netflix' in service_name %}<img src="{% static 'img/platforms/netflix.svg' %}" alt="Logo de Netflix" loading="lazy" decoding="async">
-                      {% elif 'prime' in service_name %}<img src="{% static 'img/platforms/prime-video.svg' %}" alt="Logo de Prime Video" loading="lazy" decoding="async">
-                      {% elif 'hbo' in service_name or 'max' in service_name %}<img src="{% static 'img/platforms/max.svg' %}" alt="Logo de Max" loading="lazy" decoding="async">
-                      {% elif 'disney' in service_name %}<img src="{% static 'img/platforms/disney-plus.svg' %}" alt="Logo de Disney+" loading="lazy" decoding="async">
-                      {% elif 'crunchyroll' in service_name %}<img src="{% static 'img/platforms/crunchyroll.svg' %}" alt="Logo de Crunchyroll" loading="lazy" decoding="async">
-                      {% elif 'paramount' in service_name %}<img src="{% static 'img/platforms/paramount-plus.svg' %}" alt="Logo de Paramount+" loading="lazy" decoding="async">
-                      {% elif 'spotify' in service_name %}<img src="{% static 'img/platforms/spotify.svg' %}" alt="Logo de Spotify" loading="lazy" decoding="async">
-                      {% elif 'apple tv' in service_name %}<img src="{% static 'img/platforms/apple-tv-plus.svg' %}" alt="Logo de Apple TV+" loading="lazy" decoding="async">
-                      {% elif svc.image %}<img src="{{ svc.image.url }}" alt="Logo de {{ svc.name }}" loading="lazy" decoding="async">
+                    <div class="lv-service-card__media">
+                      {% if svc.image %}<img src="{{ svc.image.url }}" alt="Logo de {{ svc.name }}" loading="lazy" decoding="async">
                       {% elif svc.icon %}<div class="lv-service-card__placeholder"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
                       {% else %}<div class="lv-service-card__placeholder">{{ svc.name|first|upper }}</div>{% endif %}
                       <div class="lv-service-card__shade" aria-hidden="true"></div>
                       <span class="lv-service-card__code">{{ svc.name|slice:":3"|upper }}</span>
                       <span class="lv-service-card__status"><i><b></b></i>{% if svc.active_subscriptions.count %}Activo{% else %}Vacío{% endif %}</span>
                     </div>
-                    {% endwith %}
                     <div class="lv-service-card__body">
                       <div><h3>{{ svc.name }}</h3><p><span class="lv-service-card__count-label">{{ svc.active_subscriptions.count }} cuenta{{ svc.active_subscriptions.count|pluralize }}</span></p></div>
                       <span class="lv-service-card__arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>
@@ -101,24 +90,14 @@
               <article class="lv-service-card{% if svc.active_subscriptions.count %} lv-service-card--active{% endif %}">
                 <a class="lv-service-card__link" href="{% url 'jheliztv_service_detail' svc.pk %}" aria-label="Abrir {{ svc.name }}">
                   <span class="lv-service-card__accent" aria-hidden="true"></span>
-                  {% with service_name=svc.name|lower %}
-                  <div class="lv-service-card__media{% if 'netflix' in service_name or 'prime' in service_name or 'hbo' in service_name or 'max' in service_name or 'disney' in service_name or 'crunchyroll' in service_name or 'paramount' in service_name or 'spotify' in service_name or 'apple tv' in service_name %} has-official-logo{% endif %}">
-                    {% if 'netflix' in service_name %}<img src="{% static 'img/platforms/netflix.svg' %}" alt="Logo de Netflix" loading="lazy" decoding="async">
-                    {% elif 'prime' in service_name %}<img src="{% static 'img/platforms/prime-video.svg' %}" alt="Logo de Prime Video" loading="lazy" decoding="async">
-                    {% elif 'hbo' in service_name or 'max' in service_name %}<img src="{% static 'img/platforms/max.svg' %}" alt="Logo de Max" loading="lazy" decoding="async">
-                    {% elif 'disney' in service_name %}<img src="{% static 'img/platforms/disney-plus.svg' %}" alt="Logo de Disney+" loading="lazy" decoding="async">
-                    {% elif 'crunchyroll' in service_name %}<img src="{% static 'img/platforms/crunchyroll.svg' %}" alt="Logo de Crunchyroll" loading="lazy" decoding="async">
-                    {% elif 'paramount' in service_name %}<img src="{% static 'img/platforms/paramount-plus.svg' %}" alt="Logo de Paramount+" loading="lazy" decoding="async">
-                    {% elif 'spotify' in service_name %}<img src="{% static 'img/platforms/spotify.svg' %}" alt="Logo de Spotify" loading="lazy" decoding="async">
-                    {% elif 'apple tv' in service_name %}<img src="{% static 'img/platforms/apple-tv-plus.svg' %}" alt="Logo de Apple TV+" loading="lazy" decoding="async">
-                    {% elif svc.image %}<img src="{{ svc.image.url }}" alt="Logo de {{ svc.name }}" loading="lazy" decoding="async">
+                  <div class="lv-service-card__media">
+                    {% if svc.image %}<img src="{{ svc.image.url }}" alt="Logo de {{ svc.name }}" loading="lazy" decoding="async">
                     {% elif svc.icon %}<div class="lv-service-card__placeholder"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
                     {% else %}<div class="lv-service-card__placeholder">{{ svc.name|first|upper }}</div>{% endif %}
                     <div class="lv-service-card__shade" aria-hidden="true"></div>
                     <span class="lv-service-card__code">{{ svc.name|slice:":3"|upper }}</span>
                     <span class="lv-service-card__status"><i><b></b></i>{% if svc.active_subscriptions.count %}Activo{% else %}Vacío{% endif %}</span>
                   </div>
-                  {% endwith %}
                   <div class="lv-service-card__body">
                     <div><h3>{{ svc.name }}</h3><p><span class="lv-service-card__count-label">{{ svc.active_subscriptions.count }} cuenta{{ svc.active_subscriptions.count|pluralize }}</span></p></div>
                     <span class="lv-service-card__arrow material-symbols-outlined" aria-hidden="true">arrow_forward</span>

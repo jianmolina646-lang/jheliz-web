@@ -2,7 +2,7 @@
 
 from django.http import HttpResponse
 from django.shortcuts import render
-from django.views.decorators.http import require_GET, require_safe
+from django.views.decorators.http import require_GET
 
 
 CANONICAL_ORIGIN = "https://jheliztv.xyz"
@@ -37,27 +37,15 @@ def robots_txt(request):
     return response
 
 
-@require_safe
+@require_GET
 def sitemap_xml(request):
-    public_paths = (
-        "",
-        "funciones/",
-        "precios/",
-        "como-funciona/",
-        "preguntas-frecuentes/",
-        "contacto/",
-    )
-    urls = "\n".join(
-        f'''  <url>
-    <loc>{CANONICAL_ORIGIN}/{path}</loc>
-    <changefreq>weekly</changefreq>
-    <priority>{"1.0" if not path else "0.8"}</priority>
-  </url>'''
-        for path in public_paths
-    )
     content = f'''<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-{urls}
+  <url>
+    <loc>{CANONICAL_ORIGIN}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
 </urlset>
 '''
     response = HttpResponse(content, content_type="application/xml; charset=utf-8")

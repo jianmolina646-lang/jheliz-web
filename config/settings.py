@@ -34,7 +34,6 @@ JHELIZTV_HOSTS = config(
     default="jheliztv.xyz,www.jheliztv.xyz",
     cast=Csv(),
 )
-JHELIZTV_GA4_ID = config("JHELIZTV_GA4_ID", default="G-W27KX3BC5E").strip()
 ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, *JHELIZTV_HOSTS]))
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 
@@ -106,7 +105,6 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "gestion.activity.TenantActivityMiddleware",
     # Expone actor/IP/request-id a signals de auditoría durante este request.
     "config.request_context.SecurityRequestContextMiddleware",
     # django-otp debe ir DESPUÉS de AuthenticationMiddleware.
@@ -865,7 +863,6 @@ CONTENT_SECURITY_POLICY = {
             "'unsafe-eval'",
             "https://cdn.tailwindcss.com",
             "https://unpkg.com",
-            "https://www.googletagmanager.com",
         ),
         "style-src": (
             "'self'",
@@ -875,12 +872,7 @@ CONTENT_SECURITY_POLICY = {
         "font-src": ("'self'", "data:", "https://fonts.gstatic.com"),
         "img-src": ("'self'", "data:", "https:"),
         # Tailwind CDN hace fetch de su CSS dinámicamente; htmx hace requests al backend.
-        "connect-src": (
-            "'self'",
-            "https://cdn.tailwindcss.com",
-            "https://www.google-analytics.com",
-            "https://*.google-analytics.com",
-        ),
+        "connect-src": ("'self'", "https://cdn.tailwindcss.com"),
         "frame-ancestors": ("'none'",),
         "base-uri": ("'self'",),
         "form-action": ("'self'",),

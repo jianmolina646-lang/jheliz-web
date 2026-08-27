@@ -12,15 +12,6 @@ from django.http import HttpResponsePermanentRedirect
 
 
 class JheliztvHostMiddleware:
-    PUBLIC_INDEX_PATHS = {
-        "/",
-        "/funciones/",
-        "/precios/",
-        "/como-funciona/",
-        "/preguntas-frecuentes/",
-        "/contacto/",
-    }
-
     def __init__(self, get_response):
         self.get_response = get_response
         hosts = getattr(settings, "JHELIZTV_HOSTS", []) or []
@@ -37,7 +28,4 @@ class JheliztvHostMiddleware:
             request.is_jheliztv = True
         else:
             request.is_jheliztv = False
-        response = self.get_response(request)
-        if request.is_jheliztv and request.path not in self.PUBLIC_INDEX_PATHS:
-            response["X-Robots-Tag"] = "noindex, nofollow, noarchive"
-        return response
+        return self.get_response(request)

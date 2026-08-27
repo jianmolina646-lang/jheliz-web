@@ -1,5 +1,4 @@
 {% extends "jheliztv/base.html" %}
-{% load static %}
 
 {% block jc_content %}
 <script>
@@ -92,7 +91,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </dl>
         <footer>
           {% if s.renewal_whatsapp_link %}
-            <a class="lvsd-icon-button lvsd-icon-button--wa" href="{{ s.renewal_whatsapp_link }}" target="_blank" aria-label="Enviar renovación por WhatsApp"><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true"></a>
+            <a class="lvsd-icon-button lvsd-icon-button--wa" href="{{ s.renewal_whatsapp_link }}" target="_blank" aria-label="Enviar renovación por WhatsApp"><span class="material-symbols-outlined">chat</span></a>
           {% else %}
             <span class="lvsd-no-whatsapp"><span class="material-symbols-outlined">speaker_notes_off</span>Sin WhatsApp</span>
           {% endif %}
@@ -139,8 +138,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 <span class="lvsd-avatar">{{ s.client.name|slice:":2"|upper }}</span>
                 <div><strong>{{ s.client.name }}</strong>
                   <div class="jc-usr__icons">
-                    {% if s.wa_link %}<a class="jc-usr__ic jc-usr__ic--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true"></a>{% endif %}
-                    {% if s.tg_link %}<a class="jc-usr__ic jc-usr__ic--tg" href="{{ s.tg_link }}" target="_blank" title="Telegram"><img src="{% static 'img/brands/telegram.svg' %}" alt="" aria-hidden="true"></a>{% endif %}
+                    {% if s.wa_link %}<a class="jc-usr__ic jc-usr__ic--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><span class="material-symbols-outlined">chat</span></a>{% endif %}
+                    {% if s.tg_link %}<a class="jc-usr__ic jc-usr__ic--tg" href="{{ s.tg_link }}" target="_blank" title="Telegram"><span class="material-symbols-outlined">send</span></a>{% endif %}
                   </div>
                 </div>
               </div>
@@ -175,7 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
             </td>
             <td>
               <div class="lvsd-row-actions">
-                {% if s.renewal_whatsapp_link %}<a class="lvsd-icon-button lvsd-icon-button--wa" href="{{ s.renewal_whatsapp_link }}" target="_blank" title="Enviar renovación por WhatsApp a {{ s.renewal_phone }}" aria-label="Enviar renovación por WhatsApp a {{ s.renewal_phone }}"><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true"></a>{% else %}<span class="lvsd-no-whatsapp" title="Agrega el WhatsApp del cliente"><span class="material-symbols-outlined">speaker_notes_off</span>Sin WhatsApp</span>{% endif %}
+                {% if s.renewal_whatsapp_link %}<a class="lvsd-icon-button lvsd-icon-button--wa" href="{{ s.renewal_whatsapp_link }}" target="_blank" title="Enviar renovación por WhatsApp a {{ s.renewal_phone }}" aria-label="Enviar renovación por WhatsApp a {{ s.renewal_phone }}"><span class="material-symbols-outlined">chat</span></a>{% else %}<span class="lvsd-no-whatsapp" title="Agrega el WhatsApp del cliente"><span class="material-symbols-outlined">speaker_notes_off</span>Sin WhatsApp</span>{% endif %}
                 <button type="button" class="lvsd-icon-button" title="Renovar" aria-label="Renovar"
                         data-jc-open="modalRenew" data-action="{% url 'jheliztv_subscription_renew' s.pk %}"><span class="material-symbols-outlined">autorenew</span></button>
                 <button type="button" class="lvsd-icon-button" title="Editar" aria-label="Editar"

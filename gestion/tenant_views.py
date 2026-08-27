@@ -15,7 +15,6 @@ import html
 import json
 import re
 import secrets
-from hashlib import sha256
 from urllib.parse import quote
 from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
@@ -26,23 +25,13 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
-from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.contrib.auth.forms import PasswordResetForm
-from django.contrib.auth.views import (
-    PasswordResetCompleteView,
-    PasswordResetConfirmView,
-    PasswordResetDoneView,
-    PasswordResetView,
-)
-from django.core.cache import cache
+from django.contrib.auth.views import PasswordResetCompleteView, PasswordResetConfirmView, PasswordResetDoneView, PasswordResetView
 from django.db.models import Prefetch, Q, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.utils.encoding import force_bytes
-from django.utils.http import base36_to_int, urlsafe_base64_encode
-from django.views.generic import TemplateView
 
 from config.date_utils import add_service_duration
 from django.views.decorators.csrf import csrf_exempt
@@ -84,24 +73,6 @@ from .support_operations import add_message as add_support_message, set_status a
 User = get_user_model()
 
 
-class FifteenMinutePasswordResetTokenGenerator(PasswordResetTokenGenerator):
-    """Django-compatible one-use token with a tighter recovery lifetime."""
-
-    timeout_seconds = 15 * 60
-
-    def check_token(self, user, token):
-        if not super().check_token(user, token):
-            return False
-        try:
-            timestamp = base36_to_int(token.split("-", 1)[0])
-        except (TypeError, ValueError):
-            return False
-        return self._num_seconds(self._now()) - timestamp <= self.timeout_seconds
-
-
-password_recovery_token_generator = FifteenMinutePasswordResetTokenGenerator()
-
-
 class TenantPasswordResetForm(forms.Form):
     """Envía el enlace por canales vinculados sin enumerar cuentas."""
     identifier = forms.CharField(label="Usuario o correo", max_length=254)
@@ -115,9 +86,7 @@ class TenantPasswordResetForm(forms.Form):
         if not user:
             return
         if user.email:
-            email_form = PasswordResetForm({"email": user.email})
-            if email_form.is_valid():
-                email_form.save(**kwargs)
+            PasswordResetForm({"email": user.email}).save(**kwargs)
         connection = TelegramConnection.objects.filter(owner=user, is_enabled=True, chat_id__isnull=False).exclude(chat_id="").first()
         if connection:
             from django.contrib.auth.tokens import default_token_generator
@@ -141,11 +110,11 @@ class TenantPasswordResetView(PasswordResetView):
 class TenantPasswordResetDoneView(PasswordResetDoneView):
     template_name = "jheliztv/password_reset_done.html"
 
-class StandardTenantPasswordResetConfirmView(PasswordResetConfirmView):
+class TenantPasswordResetConfirmView(PasswordResetConfirmView):
     template_name = "jheliztv/password_reset_confirm.html"
     success_url = reverse_lazy("jheliztv_password_reset_complete")
 
-class StandardTenantPasswordResetCompleteView(PasswordResetCompleteView):
+class TenantPasswordResetCompleteView(PasswordResetCompleteView):
     template_name = "jheliztv/password_reset_complete.html"
 
 
@@ -172,25 +141,6 @@ def _get_tenant(user):
     return Tenant.objects.filter(user=user).first()
 
 
-def _record_tenant_activity(request, tenant):
-    path = (request.path or "")[:200]
-    if path.endswith("/notificaciones.json"):
-        return
-    now = timezone.now()
-    last_write = request.session.get("jc_activity_written_at", 0)
-    last_path = request.session.get("jc_activity_path", "")
-    if path == last_path and now.timestamp() - float(last_write or 0) < 60:
-        return
-    Tenant.objects.filter(pk=tenant.pk).update(
-        last_activity_at=now,
-        last_activity_path=path,
-    )
-    tenant.last_activity_at = now
-    tenant.last_activity_path = path
-    request.session["jc_activity_written_at"] = now.timestamp()
-    request.session["jc_activity_path"] = path
-
-
 def tenant_required(view):
     """Exige login + suscripción de alquiler vigente.
 
@@ -201,7 +151,6 @@ def tenant_required(view):
         tenant = _get_tenant(request.user)
         if tenant is None:
             return redirect("jheliztv_login")
-        _record_tenant_activity(request, tenant)
         if not tenant.subscription_active:
             messages.warning(
                 request,
@@ -321,10 +270,7 @@ def _marketing_page(request, template_name):
     return render(
         request,
         template_name,
-        {
-            "saas": SaasSettings.load(),
-            "trial_days": Tenant.TRIAL_DAYS,
-        },
+        {"saas": SaasSettings.load(), "trial_days": Tenant.TRIAL_DAYS},
     )
 
 
@@ -350,11 +296,7 @@ def contact_page(request):
 
 def register(request):
     if request.user.is_authenticated:
-        current_tenant = _get_tenant(request.user)
-        if current_tenant and current_tenant.is_demo:
-            logout(request)
-        else:
-            return redirect("jheliztv_dashboard")
+        return redirect("jheliztv_dashboard")
     if request.method == "POST":
         username = (request.POST.get("username") or "").strip()
         email = (request.POST.get("email") or "").strip()
@@ -393,7 +335,6 @@ def register(request):
             request,
             f"¡Cuenta creada! Tenés {Tenant.TRIAL_DAYS} días de prueba gratis. 🎉",
         )
-        request.session["jheliztv_registration_converted"] = True
         return redirect("jheliztv_dashboard")
 
     return render(request, "jheliztv/register.html", {})
@@ -419,66 +360,6 @@ def login_view(request):
     return render(request, "jheliztv/login.html", {})
 
 
-def password_recovery(request):
-    """Send a one-use reset link only through an already linked Telegram chat."""
-    submitted = False
-    if request.method == "POST":
-        submitted = True
-        username = (request.POST.get("username") or "").strip()
-        remote_ip = (request.META.get("REMOTE_ADDR") or "unknown").strip()
-        ip_key = "jc:password-recovery:ip:" + sha256(remote_ip.encode()).hexdigest()
-        user_key = "jc:password-recovery:user:" + sha256(username.casefold().encode()).hexdigest()
-        ip_attempts = int(cache.get(ip_key, 0) or 0)
-        user_attempts = int(cache.get(user_key, 0) or 0)
-        if username and ip_attempts < 5 and user_attempts < 3:
-            cache.set(ip_key, ip_attempts + 1, 15 * 60)
-            cache.set(user_key, user_attempts + 1, 15 * 60)
-            user = User.objects.filter(username__iexact=username, is_active=True).first()
-            connection = None
-            if user is not None:
-                connection = TelegramConnection.objects.filter(
-                    owner=user, is_enabled=True, chat_id__isnull=False,
-                ).exclude(chat_id="").first()
-            if connection is not None:
-                uid = urlsafe_base64_encode(force_bytes(user.pk))
-                token = password_recovery_token_generator.make_token(user)
-                path = reverse(
-                    "jheliztv_password_recovery_confirm",
-                    kwargs={"uidb64": uid, "token": token},
-                )
-                base_url = getattr(
-                    settings, "JHELIZ_CONTROL_BASE_URL", "https://jheliztv.xyz"
-                ).rstrip("/")
-                try:
-                    from .telegram_alerts import send_message
-                    send_message(
-                        connection.chat_id,
-                        "🔐 <b>Recuperación de contraseña</b>\n\n"
-                        "Se solicitó cambiar la contraseña de tu cuenta JHELIZCONTROLTV. "
-                        "El enlace es personal, temporal y de un solo uso.\n\n"
-                        f"👉 <a href=\"{base_url}{path}\">Crear nueva contraseña</a>\n\n"
-                        "Si tú no lo solicitaste, ignora este mensaje.",
-                    )
-                except Exception:
-                    # Never reveal delivery or account existence to the requester.
-                    pass
-    return render(
-        request,
-        "jheliztv/password_recovery.html",
-        {"submitted": submitted},
-    )
-
-
-class TenantPasswordResetConfirmView(PasswordResetConfirmView):
-    template_name = "jheliztv/password_recovery_confirm.html"
-    success_url = reverse_lazy("jheliztv_password_recovery_complete")
-    token_generator = password_recovery_token_generator
-
-
-class TenantPasswordResetCompleteView(TemplateView):
-    template_name = "jheliztv/password_recovery_complete.html"
-
-
 def logout_view(request):
     logout(request)
     return redirect("jheliztv_landing")
@@ -491,7 +372,6 @@ def billing(request):
     tenant = _get_tenant(request.user)
     if tenant is None:
         return redirect("jheliztv_login")
-    _record_tenant_activity(request, tenant)
     saas = SaasSettings.load()
     pending = tenant.payments.filter(status=TenantPayment.Status.PENDING).first()
     last_rejected = (
@@ -517,9 +397,6 @@ def billing_upload(request):
     tenant = _get_tenant(request.user)
     if tenant is None:
         return redirect("jheliztv_login")
-    if tenant.is_demo:
-        messages.warning(request, "La demo no permite enviar pagos.")
-        return redirect("jheliztv_dashboard")
     saas = SaasSettings.load()
     proof = request.FILES.get("proof")
     if not proof:
@@ -600,9 +477,6 @@ def dashboard(request, tenant):
         total_clients=total_clients, active_subs=active_subs,
         series=series, total_income=total_income, total_expense=total_expense,
         net=total_income - total_expense,
-        jheliztv_registration_converted=request.session.pop(
-            "jheliztv_registration_converted", False
-        ),
     )
     return render(request, "jheliztv/dashboard.html", ctx)
 
@@ -673,9 +547,8 @@ def service_detail(request, tenant, pk):
     )
     control = ControlSettings.load(owner)
     business = tenant.business_name or owner.username
-    renewals = _renewal_requests_for(subs, owner)
     for sub in subs:
-        renewal = renewals[(sub.pk, timezone.localtime(sub.expires_at).date())]
+        renewal = _renewal_request_for(sub)
         public_url = request.build_absolute_uri(
             reverse("jheliztv_public_renewal", kwargs={"token": renewal.token})
         )
@@ -1116,52 +989,6 @@ def _renewal_request_for(sub):
     )[0]
 
 
-def _renewal_requests_for(subs, owner):
-    """Obtiene o crea los enlaces de renovación de una lista en consultas agrupadas."""
-    cycles = {
-        (sub.pk, timezone.localtime(sub.expires_at).date())
-        for sub in subs
-    }
-    if not cycles:
-        return {}
-
-    subscription_ids = {subscription_id for subscription_id, _ in cycles}
-    expiry_dates = {expiry_date for _, expiry_date in cycles}
-    requests = RenewalRequest.objects.filter(
-        owner=owner,
-        subscription_id__in=subscription_ids,
-        expiry_date__in=expiry_dates,
-    )
-    result = {
-        (renewal.subscription_id, renewal.expiry_date): renewal
-        for renewal in requests
-        if (renewal.subscription_id, renewal.expiry_date) in cycles
-    }
-    missing = cycles - result.keys()
-    if missing:
-        RenewalRequest.objects.bulk_create(
-            [
-                RenewalRequest(
-                    owner=owner,
-                    subscription_id=subscription_id,
-                    expiry_date=expiry_date,
-                )
-                for subscription_id, expiry_date in missing
-            ],
-            ignore_conflicts=True,
-        )
-        result = {
-            (renewal.subscription_id, renewal.expiry_date): renewal
-            for renewal in RenewalRequest.objects.filter(
-                owner=owner,
-                subscription_id__in=subscription_ids,
-                expiry_date__in=expiry_dates,
-            )
-            if (renewal.subscription_id, renewal.expiry_date) in cycles
-        }
-    return result
-
-
 @tenant_required
 def stock_emails(request, tenant):
     owner = request.user
@@ -1244,12 +1071,9 @@ def stock_email_add(request, tenant):
     if not emails:
         messages.error(request, "Ingresá al menos un correo.")
         return redirect("jheliztv_emails")
-    if len(emails) > 200 or any(len(email) > 160 for email in emails):
-        messages.error(request, "Carga como máximo 200 correos de hasta 160 caracteres.")
-        return redirect("jheliztv_emails")
     password = (request.POST.get("password") or "").strip()
-    acquisition_method = (request.POST.get("acquisition_method") or "").strip()[:120]
-    customer_name = (request.POST.get("customer_name") or "").strip()[:160]
+    acquisition_method = (request.POST.get("acquisition_method") or "").strip()
+    customer_name = (request.POST.get("customer_name") or "").strip()
     status = (
         StockEmail.Status.SOLD
         if request.POST.get("status") == StockEmail.Status.SOLD
@@ -1313,8 +1137,8 @@ def stock_email_toggle(request, tenant, pk):
 def stock_email_edit(request, tenant, pk):
     item = get_object_or_404(StockEmail, pk=pk, owner=request.user)
     email = (request.POST.get("email") or "").strip().lower()
-    if not email or len(email) > 160:
-        messages.error(request, "El correo debe tener entre 1 y 160 caracteres.")
+    if not email:
+        messages.error(request, "El correo no puede quedar vacío.")
         return redirect("jheliztv_emails")
     clash = (
         StockEmail.objects.filter(
@@ -1328,8 +1152,8 @@ def stock_email_edit(request, tenant, pk):
         return redirect("jheliztv_emails")
     item.email = email
     item.password = (request.POST.get("password") or "").strip()
-    item.acquisition_method = (request.POST.get("acquisition_method") or "").strip()[:120]
-    item.customer_name = (request.POST.get("customer_name") or "").strip()[:160]
+    item.acquisition_method = (request.POST.get("acquisition_method") or "").strip()
+    item.customer_name = (request.POST.get("customer_name") or "").strip()
     if request.POST.get("status") in {StockEmail.Status.AVAILABLE, StockEmail.Status.SOLD}:
         item.status = request.POST["status"]
     if item.status == StockEmail.Status.SOLD and not item.customer_name:
@@ -1491,9 +1315,6 @@ def renewals_inbox(request, tenant):
 @tenant_required
 @require_POST
 def payment_method_add(request, tenant):
-    if tenant.is_demo:
-        messages.warning(request, "La demo no permite configurar métodos de pago reales.")
-        return redirect("jheliztv_dashboard")
     label = (request.POST.get("label") or "").strip()
     details = (request.POST.get("details") or "").strip()
     kind = request.POST.get("kind")
@@ -1512,9 +1333,6 @@ def payment_method_add(request, tenant):
 @tenant_required
 @require_POST
 def payment_method_delete(request, tenant, pk):
-    if tenant.is_demo:
-        messages.warning(request, "La demo no permite configurar métodos de pago reales.")
-        return redirect("jheliztv_dashboard")
     get_object_or_404(ResellerPaymentMethod, pk=pk, owner=request.user).delete()
     messages.success(request, "Método de pago eliminado.")
     return redirect("jheliztv_renewals")
@@ -1603,9 +1421,6 @@ def notifications_json(request, tenant):
 
 @tenant_required
 def telegram_settings(request, tenant):
-    if tenant.is_demo:
-        messages.warning(request, "La demo no permite conectar Telegram.")
-        return redirect("jheliztv_dashboard")
     connection, _ = TelegramConnection.objects.get_or_create(owner=request.user)
     link_url = ""
     if request.method == "POST":
@@ -1637,9 +1452,6 @@ def telegram_settings(request, tenant):
 @tenant_required
 @require_POST
 def telegram_unlink(request, tenant):
-    if tenant.is_demo:
-        messages.warning(request, "La demo no permite conectar Telegram.")
-        return redirect("jheliztv_dashboard")
     TelegramConnection.objects.filter(owner=request.user).update(
         chat_id=None,
         telegram_username="",
@@ -1654,9 +1466,6 @@ def telegram_unlink(request, tenant):
 
 @tenant_required
 def whatsapp_settings(request, tenant):
-    if tenant.is_demo:
-        messages.warning(request, "La demo no permite conectar WhatsApp.")
-        return redirect("jheliztv_dashboard")
     connection, _ = WhatsAppConnection.objects.get_or_create(owner=request.user)
     if request.method == "POST":
         connection.reminder_days = [
@@ -1693,8 +1502,6 @@ def whatsapp_settings(request, tenant):
 @tenant_required
 @require_POST
 def whatsapp_signup_complete(request, tenant):
-    if tenant.is_demo:
-        return JsonResponse({"ok": False, "error": "No disponible en la demo."}, status=403)
     try:
         payload = json.loads(request.body)
         required = ("code", "waba_id", "phone_number_id")
@@ -1717,9 +1524,6 @@ def whatsapp_signup_complete(request, tenant):
 @tenant_required
 @require_POST
 def whatsapp_unlink(request, tenant):
-    if tenant.is_demo:
-        messages.warning(request, "La demo no permite conectar WhatsApp.")
-        return redirect("jheliztv_dashboard")
     WhatsAppConnection.objects.filter(owner=request.user).update(
         access_token="", waba_id="", phone_number_id=None,
         display_phone_number="", verified_name="",

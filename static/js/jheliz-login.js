@@ -2,17 +2,6 @@
   const form = document.querySelector("[data-login-form]");
   if (!form) return;
 
-  const password = form.querySelector("#jcLoginPassword");
-  const toggle = form.querySelector("[data-password-toggle]");
-  if (password && toggle) {
-    toggle.addEventListener("click", () => {
-      const showing = password.type === "text";
-      password.type = showing ? "password" : "text";
-      toggle.setAttribute("aria-pressed", String(!showing));
-      toggle.setAttribute("aria-label", showing ? "Mostrar contraseña" : "Ocultar contraseña");
-    });
-  }
-
   const messages = document.querySelector("body > .pb-wrap");
   const identity = document.querySelector(".jli-identity");
   if (messages && identity) {

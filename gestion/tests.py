@@ -15,7 +15,6 @@ from config.date_utils import add_service_duration
 from .models import (
     Client,
     ControlSettings,
-    RenewalRequest,
     Service,
     ServiceCategory,
     Subscription,
@@ -215,18 +214,6 @@ class TenantSaasTests(TestCase):
         # En el dominio de la tienda NO se exponen las URLs del producto.
         self.assertEqual(self.client.get(self.REGISTER, HTTP_HOST="ecormecejhelizstore.com").status_code, 404)
 
-    def test_public_marketing_pages_render_on_jheliztv(self):
-        for path in (
-            "/funciones/",
-            "/precios/",
-            "/como-funciona/",
-            "/preguntas-frecuentes/",
-            "/contacto/",
-        ):
-            with self.subTest(path=path):
-                response = self.client.get(path, HTTP_HOST=self.HOST)
-                self.assertEqual(response.status_code, 200)
-
     def test_register_grants_free_trial(self):
         r = self._register("inq1")
         self.assertEqual(r.status_code, 302)
@@ -319,84 +306,6 @@ class TenantSaasTests(TestCase):
         self.assertContains(r, "Maria Lopez")
         self.assertNotContains(r, "Juan Perez")
 
-    def test_clients_page_uses_official_platform_logos_by_service_name(self):
-        self._register("platform-logos")
-        tenant = self.Tenant.objects.get(user__username="platform-logos")
-        tenant.extend(30)
-        client = Client.objects.create(owner=tenant.user, name="Cliente Logos")
-        for index, service_name in enumerate(("Netflix Premium", "Prime Video", "HBO Max")):
-            service = Service.objects.create(owner=tenant.user, name=service_name)
-            Subscription.objects.create(
-                owner=tenant.user,
-                client=client,
-                service=service,
-                account_email=f"logo-{index}@x.com",
-                expires_at=timezone.now() + timedelta(days=30),
-            )
-
-        response = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
-
-        self.assertContains(response, "img/platforms/netflix.svg")
-        self.assertContains(response, "img/platforms/prime-video.svg")
-        self.assertContains(response, "img/platforms/max.svg")
-
-    def test_dashboard_expirations_use_official_platform_logos_and_actions(self):
-        self._register("dashboard-expirations")
-        tenant = self.Tenant.objects.get(user__username="dashboard-expirations")
-        tenant.extend(30)
-        client = Client.objects.create(owner=tenant.user, name="Cliente próximo")
-        service = Service.objects.create(owner=tenant.user, name="Prime Video")
-        subscription = Subscription.objects.create(
-            owner=tenant.user,
-            client=client,
-            service=service,
-            account_email="upcoming@example.com",
-            expires_at=timezone.now() + timedelta(days=1),
-        )
-
-        response = self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST)
-
-        self.assertContains(response, "lv-dashboard-expiration")
-        self.assertContains(response, "img/platforms/prime-video.svg")
-        self.assertContains(response, "Cliente próximo")
-        self.assertContains(response, f'/app/servicios/{subscription.service_id}/')
-
-    def test_dashboard_chart_renders_real_monthly_transaction_values(self):
-        self._register("dashboard-chart")
-        tenant = self.Tenant.objects.get(user__username="dashboard-chart")
-        tenant.extend(30)
-        Transaction.objects.create(
-            owner=tenant.user,
-            kind=Transaction.Kind.INCOME,
-            amount=Decimal("125.50"),
-            base_amount=Decimal("125.50"),
-            occurred_at=timezone.now(),
-        )
-        Transaction.objects.create(
-            owner=tenant.user,
-            kind=Transaction.Kind.EXPENSE,
-            amount=Decimal("40.00"),
-            base_amount=Decimal("40.00"),
-            occurred_at=timezone.now(),
-        )
-
-        response = self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST)
-
-        self.assertContains(response, "lv-dashboard-chart__bars")
-        self.assertContains(response, 'data-income="125.5"')
-        self.assertContains(response, 'data-expense="40"')
-        self.assertContains(response, "data-income-bar")
-        self.assertContains(response, "data-expense-bar")
-
-    def test_panel_navigation_records_recent_activity_without_sensitive_data(self):
-        self._register("active-user", business="Negocio activo")
-        response = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
-        self.assertEqual(response.status_code, 200)
-        tenant = self.Tenant.objects.get(user__username="active-user")
-        self.assertIsNotNone(tenant.last_activity_at)
-        self.assertEqual(tenant.last_activity_path, self.CLIENTS)
-        self.assertNotIn("?", tenant.last_activity_path)
-
     def test_clients_sort_by_name(self):
         self._register("sorter")
         ts = self.Tenant.objects.get(user__username="sorter")
@@ -451,21 +360,6 @@ class TenantSaasTests(TestCase):
         self.assertEqual(svc.name, "Netflix Premium")
         self.assertEqual(svc.color, "#e50914")
         self.assertTrue(svc.image)
-
-    def test_services_catalog_uses_official_platform_logos(self):
-        self._register("service-platform-logos")
-        tenant = self.Tenant.objects.get(user__username="service-platform-logos")
-        tenant.extend(30)
-        for service_name in ("Netflix Premium", "Prime Video", "HBO Max"):
-            Service.objects.create(owner=tenant.user, name=service_name)
-
-        response = self.client.get("/app/servicios/", HTTP_HOST=self.HOST)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "img/platforms/netflix.svg")
-        self.assertContains(response, "img/platforms/prime-video.svg")
-        self.assertContains(response, "img/platforms/max.svg")
-        self.assertContains(response, "has-official-logo", count=3)
 
     def test_service_edit_blocked_for_other_owner(self):
         # Inquilino dueño crea el servicio.
@@ -626,32 +520,6 @@ class TenantSaasTests(TestCase):
         ):
             self.assertContains(r, token)
 
-    def test_service_detail_batches_renewal_requests_without_duplicates(self):
-        from .tenant_views import _renewal_requests_for
-
-        t, svc = self._new_service("seller_batch_renewals")
-        cli = Client.objects.create(owner=t.user, name="Batch")
-        subscriptions = [
-            Subscription.objects.create(
-                owner=t.user,
-                service=svc,
-                client=cli,
-                account_email=f"batch-{index}@x.com",
-                expires_at=timezone.now() + timedelta(days=30 + index),
-            )
-            for index in range(3)
-        ]
-
-        first = _renewal_requests_for(subscriptions, t.user)
-        second = _renewal_requests_for(subscriptions, t.user)
-
-        self.assertEqual(len(first), 3)
-        self.assertEqual(len(second), 3)
-        self.assertEqual(
-            RenewalRequest.objects.filter(subscription__in=subscriptions).count(),
-            3,
-        )
-
     def test_subscription_add_by_expiry_date(self):
         t, svc = self._new_service("seller_date")
         cli = Client.objects.create(owner=t.user, name="Lucas")
@@ -721,26 +589,6 @@ class TenantSaasTests(TestCase):
     ALLOWED_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz", "ecormecejhelizstore.com", "testserver"],
     JHELIZTV_HOSTS=["jheliztv.xyz", "www.jheliztv.xyz"],
 )
-class OwnerControlLegacyUrlTests(TestCase):
-    def test_old_panel_url_redirects_to_owner_control(self):
-        response = self.client.get(
-            "/panel-jheliz-control/",
-            HTTP_HOST="jheliztv.xyz",
-            secure=True,
-        )
-        self.assertRedirects(
-            response,
-            "/control/",
-            status_code=301,
-            fetch_redirect_response=False,
-        )
-
-
-@override_settings(
-    ALLOWED_HOSTS=["jheliztv.xyz", "ecormecejhelizstore.com", "testserver"],
-    JHELIZTV_HOSTS=["jheliztv.xyz"],
-    SECURE_SSL_REDIRECT=False,
-)
 class OwnerControlPanelTests(TestCase):
     """Panel del dueño en jheliztv.xyz/control/: solo staff, ve inquilinos,
     aprueba pagos Yape y suma días — separado de la web del inquilino."""
@@ -748,10 +596,6 @@ class OwnerControlPanelTests(TestCase):
     HOST = "jheliztv.xyz"
     CONTROL = "/control/"
     CONTROL_LOGIN = "/control/ingresar/"
-    CONTROL_USERS = "/control/usuarios/"
-    CONTROL_DEMOS = "/control/demos/"
-    CONTROL_PAYMENTS = "/control/pagos/"
-    CREATE_DEMO = "/control/demos/generar/"
 
     def setUp(self):
         from .models import SaasSettings, Tenant
@@ -800,145 +644,7 @@ class OwnerControlPanelTests(TestCase):
         r = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Negocio Inq")
-        self.assertContains(r, "Resumen general")
-        self.assertContains(r, "Usuarios")
-        self.assertContains(r, "Demos")
-        self.assertContains(r, "Pagos")
-
-    def test_control_separates_users_demos_and_payments(self):
-        demo_user = get_user_model().objects.create_user("demo-separada", password="pw")
-        self.Tenant.objects.create(
-            user=demo_user,
-            business_name="Demo separada",
-            is_demo=True,
-            plan_expires_at=timezone.now() + timedelta(days=3),
-        )
-        self.client.force_login(self.owner)
-
-        users = self.client.get(self.CONTROL_USERS, HTTP_HOST=self.HOST)
-        demos = self.client.get(self.CONTROL_DEMOS, HTTP_HOST=self.HOST)
-        payments = self.client.get(self.CONTROL_PAYMENTS, HTTP_HOST=self.HOST)
-
-        self.assertEqual(users.status_code, 200)
-        self.assertContains(users, "Negocio Inq")
-        self.assertNotContains(users, "Demo separada")
-        self.assertEqual(demos.status_code, 200)
-        self.assertContains(demos, "demo-separada")
-        self.assertNotContains(demos, "Negocio Inq")
-        self.assertEqual(payments.status_code, 200)
-        self.assertContains(payments, "Pagos pendientes")
-
-    def test_control_shows_online_activity_and_filters_users(self):
-        self.tenant.last_activity_at = timezone.now()
-        self.tenant.last_activity_path = "/app/clientes/"
-        self.tenant.save(update_fields=["last_activity_at", "last_activity_path"])
-        other_user = get_user_model().objects.create_user("offline", password="pw")
-        self.Tenant.objects.create(
-            user=other_user,
-            business_name="Negocio desconectado",
-            plan_expires_at=timezone.now() + timedelta(days=3),
-        )
-        self.client.force_login(self.owner)
-
-        response = self.client.get(
-            self.CONTROL_USERS, {"q": "Negocio Inq", "estado": "online"},
-            HTTP_HOST=self.HOST,
-        )
-        self.assertContains(response, "En línea")
-        self.assertContains(response, "Clientes")
-        self.assertContains(response, "Negocio Inq")
-        self.assertNotContains(response, "Negocio desconectado")
-
-    def test_control_shows_client_count_for_each_user_and_total(self):
-        Client.objects.create(owner=self.tenant_user, name="Cliente uno")
-        Client.objects.create(owner=self.tenant_user, name="Cliente dos")
-        self.client.force_login(self.owner)
-
-        users = self.client.get(self.CONTROL_USERS, HTTP_HOST=self.HOST)
-        dashboard = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
-
-        self.assertEqual(users.context["tenants"][0].client_count, 2)
-        self.assertContains(users, "Clientes")
-        self.assertEqual(dashboard.context["kpi"]["clients"], 2)
-        self.assertContains(dashboard, "Clientes registrados")
-
-    def test_owner_can_open_user_detail_with_isolated_data(self):
-        own_client = Client.objects.create(owner=self.tenant_user, name="Cliente propio")
-        other_user = get_user_model().objects.create_user("otro-negocio", password="pw")
-        other_tenant = self.Tenant.objects.create(
-            user=other_user, business_name="Otro negocio",
-            plan_expires_at=timezone.now() + timedelta(days=10),
-        )
-        Client.objects.create(owner=other_user, name="Cliente ajeno")
-        self.client.force_login(self.owner)
-
-        response = self.client.get(
-            f"/control/usuarios/{self.tenant.pk}/", HTTP_HOST=self.HOST,
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["tenant"], self.tenant)
-        self.assertEqual(list(response.context["clients"]), [own_client])
-        self.assertContains(response, "Cliente propio")
-        self.assertNotContains(response, "Cliente ajeno")
-        self.assertNotContains(response, other_tenant.business_name)
-
-    def test_user_detail_requires_owner_and_rejects_demo(self):
-        anonymous = self.client.get(
-            f"/control/usuarios/{self.tenant.pk}/", HTTP_HOST=self.HOST,
-        )
-        self.assertRedirects(anonymous, self.CONTROL_LOGIN, fetch_redirect_response=False)
-        demo_user = get_user_model().objects.create_user("demo-ficha", password="pw")
-        demo = self.Tenant.objects.create(user=demo_user, is_demo=True)
-        self.client.force_login(self.owner)
-        self.assertEqual(
-            self.client.get(f"/control/usuarios/{demo.pk}/", HTTP_HOST=self.HOST).status_code,
-            404,
-        )
-
-    def test_owner_generates_functional_three_day_demo_with_credentials(self):
-        from .models import TenantPayment
-
-        self.client.force_login(self.owner)
-        response = self.client.post(self.CREATE_DEMO, HTTP_HOST=self.HOST, secure=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Demo generada")
-        self.assertIn("no-store", response["Cache-Control"])
-
-        tenant = self.Tenant.objects.get(is_demo=True)
-        username = response.context["demo_username"]
-        password = response.context["demo_password"]
-        self.assertEqual(tenant.user.username, username)
-        self.assertTrue(tenant.user.check_password(password))
-        self.assertGreater(tenant.plan_expires_at, timezone.now() + timedelta(days=2, hours=23))
-        self.assertLessEqual(tenant.plan_expires_at, timezone.now() + timedelta(days=3, seconds=5))
-        self.assertEqual(Service.objects.filter(owner=tenant.user).count(), 2)
-        self.assertEqual(Client.objects.filter(owner=tenant.user).count(), 3)
-        self.assertEqual(Subscription.objects.filter(owner=tenant.user).count(), 3)
-
-        self.client.logout()
-        login_response = self.client.post(
-            "/ingresar/", {"username": username, "password": password}, HTTP_HOST=self.HOST,
-        )
-        self.assertRedirects(login_response, "/app/", fetch_redirect_response=False)
-        self.client.post(
-            "/app/clientes/agregar/", {"name": "Cliente creado en demo"}, HTTP_HOST=self.HOST,
-        )
-        self.assertTrue(Client.objects.filter(owner=tenant.user, name="Cliente creado en demo").exists())
-
-        self.client.post("/suscripcion/pagar/", HTTP_HOST=self.HOST)
-        self.assertFalse(TenantPayment.objects.filter(tenant=tenant).exists())
-        self.assertRedirects(
-            self.client.get("/app/telegram/", HTTP_HOST=self.HOST),
-            "/app/", fetch_redirect_response=False,
-        )
-
-    def test_demo_generator_requires_owner_and_public_route_is_removed(self):
-        self.assertRedirects(
-            self.client.post(self.CREATE_DEMO, HTTP_HOST=self.HOST),
-            self.CONTROL_LOGIN, fetch_redirect_response=False,
-        )
-        self.assertEqual(self.client.post("/demo/", HTTP_HOST=self.HOST).status_code, 404)
+        self.assertContains(r, "Clientes registrados")
 
     def test_approve_payment_activates_tenant(self):
         from datetime import timedelta
@@ -989,25 +695,6 @@ class OwnerControlPanelTests(TestCase):
         self.client.post(f"/control/inquilinos/{self.tenant.pk}/extender/", {"days": "30"}, HTTP_HOST=self.HOST)
         self.tenant.refresh_from_db()
         self.assertGreater(self.tenant.days_left, before)
-
-    def test_owner_can_generate_password_reset_link(self):
-        from urllib.parse import urlparse
-        self.client.force_login(self.owner)
-        response = self.client.post(f"/control/inquilinos/{self.tenant.pk}/recuperar-clave/", HTTP_HOST=self.HOST, secure=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Enlace para restablecer contraseña")
-        self.assertIn("no-store", response["Cache-Control"])
-        first = self.client.get(urlparse(response.context["reset_url"]).path, HTTP_HOST=self.HOST)
-        self.assertEqual(first.status_code, 302)
-        changed = self.client.post(first["Location"], {"new_password1": "nueva-clave-789", "new_password2": "nueva-clave-789"}, HTTP_HOST=self.HOST)
-        self.assertEqual(changed.status_code, 302)
-        self.tenant_user.refresh_from_db()
-        self.assertTrue(self.tenant_user.check_password("nueva-clave-789"))
-
-    def test_non_owner_cannot_generate_password_reset_link(self):
-        self.client.force_login(self.tenant_user)
-        response = self.client.post(f"/control/inquilinos/{self.tenant.pk}/recuperar-clave/", HTTP_HOST=self.HOST)
-        self.assertRedirects(response, self.CONTROL_LOGIN, fetch_redirect_response=False)
 
     def test_block_and_unblock_tenant(self):
         self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
@@ -1101,39 +788,6 @@ class StockEmailTests(TestCase):
             HTTP_HOST=self.HOST,
         )
         self.assertEqual(StockEmail.objects.filter(owner=user).count(), 2)
-
-    def test_bulk_add_rejects_more_than_200_emails(self):
-        from .models import StockEmail
-
-        user = self._register("stock-limit")
-        svc = self._add_service()
-        response = self.client.post(
-            self.EMAIL_ADD,
-            {
-                "service": svc.pk,
-                "emails": "\n".join(f"account-{index}@x.com" for index in range(201)),
-            },
-            HTTP_HOST=self.HOST,
-        )
-
-        self.assertEqual(response.status_code, 302)
-        self.assertFalse(StockEmail.objects.filter(owner=user).exists())
-
-    def test_edit_rejects_email_longer_than_160_characters(self):
-        from .models import StockEmail
-
-        user = self._register("stock-edit-limit")
-        svc = self._add_service()
-        item = StockEmail.objects.create(owner=user, service=svc, email="valid@x.com")
-        response = self.client.post(
-            f"/app/correos/{item.pk}/editar/",
-            {"email": f"{'a' * 155}@x.com"},
-            HTTP_HOST=self.HOST,
-        )
-
-        self.assertEqual(response.status_code, 302)
-        item.refresh_from_db()
-        self.assertEqual(item.email, "valid@x.com")
 
     def test_toggle_status(self):
         from .models import StockEmail
@@ -1261,31 +915,3 @@ class StockEmailTests(TestCase):
             ).status_code,
             404,
         )
-
-
-@override_settings(
-    ALLOWED_HOSTS=["jheliztv.xyz", "testserver"],
-    JHELIZTV_HOSTS=["jheliztv.xyz"],
-    SECURE_SSL_REDIRECT=False,
-)
-class OwnerControlTwoFactorTests(TestCase):
-    def setUp(self):
-        U = get_user_model()
-        self.owner = U.objects.create_user("owner2fa", password="pw", is_staff=True, is_superuser=True)
-        from django_otp.plugins.otp_totp.models import TOTPDevice
-        self.device = TOTPDevice.objects.create(user=self.owner, name="test", confirmed=True)
-
-    def test_password_requires_second_factor(self):
-        response = self.client.post(
-            "/control/ingresar/", {"username": "owner2fa", "password": "pw"}, HTTP_HOST="jheliztv.xyz"
-        )
-        self.assertRedirects(response, "/control/2fa/verificar/", fetch_redirect_response=False)
-        self.assertNotIn("_auth_user_id", self.client.session)
-
-    def test_valid_totp_completes_login(self):
-        self.client.post("/control/ingresar/", {"username": "owner2fa", "password": "pw"}, HTTP_HOST="jheliztv.xyz")
-        from django_otp.oath import totp
-        token = totp(self.device.bin_key, step=self.device.step, t0=self.device.t0, digits=self.device.digits, drift=self.device.drift)
-        response = self.client.post("/control/2fa/verificar/", {"token": str(token)}, HTTP_HOST="jheliztv.xyz")
-        self.assertRedirects(response, "/control/", fetch_redirect_response=False)
-        self.assertEqual(str(self.client.session.get("_auth_user_id")), str(self.owner.pk))

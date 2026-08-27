@@ -200,7 +200,6 @@ def site_context(request):
         "META_PIXEL_ID": meta_pixel,
         "GOOGLE_ADS_ID": google_ads,
         "TIKTOK_PIXEL_ID": tiktok_pixel,
-        "JHELIZTV_GA4_ID": getattr(settings, "JHELIZTV_GA4_ID", ""),
         "TELEGRAM_CUSTOMER_CHANNEL_URL": tg_customer,
         "TELEGRAM_DISTRIBUTOR_CHANNEL_URL": tg_distrib,
     }

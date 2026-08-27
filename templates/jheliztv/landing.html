@@ -55,9 +55,8 @@
 
         <div class="jl-navbar__links">
           <a href="#inicio">Inicio</a>
-          <a href="{% url 'jheliztv_features' %}">Funciones</a>
-          <a href="{% url 'jheliztv_pricing' %}">Precios</a>
-          <a href="{% url 'jheliztv_faq' %}">Preguntas frecuentes</a>
+          <a href="#funciones">Funciones</a>
+          <a href="#suscripciones">Suscripciones</a>
         </div>
 
         <a class="jl-button jl-button--primary jl-navbar__cta" href="{% url 'jheliztv_register' %}">
@@ -73,9 +72,8 @@
 
       <div class="jl-navbar__mobile" id="jlMobileMenu" hidden>
         <a href="#inicio">Inicio</a>
-        <a href="{% url 'jheliztv_features' %}">Funciones</a>
-        <a href="{% url 'jheliztv_pricing' %}">Precios</a>
-        <a href="{% url 'jheliztv_faq' %}">Preguntas frecuentes</a>
+        <a href="#funciones">Funciones</a>
+        <a href="#suscripciones">Suscripciones</a>
         <a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">Probar ahora</a>
       </div>
     </div>
@@ -92,7 +90,7 @@
             Probar ahora
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
           </a>
-          <a class="jl-button jl-button--ghost" href="{% url 'jheliztv_login' %}">Ingresar a una demo</a>
+          <a class="jl-button jl-button--ghost" href="{% url 'jheliztv_login' %}">Ver demo</a>
         </div>
 
         <div class="jl-surface jl-dashboard-preview">
@@ -212,18 +210,11 @@
   </main>
 
   <footer class="jl-footer">
-    <div class="jl-container jl-marketing-footer">
+    <div class="jl-container jl-footer__inner">
       <a href="#inicio" class="jl-logo" aria-label="JHELIZ CONTROL TV">
         <span class="jl-logo__mark"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg></span>
         <span>JHELIZ<strong>CONTROLTV</strong></span>
       </a>
-      <nav aria-label="Enlaces del pie">
-        <a href="{% url 'jheliztv_features' %}">Funciones</a>
-        <a href="{% url 'jheliztv_pricing' %}">Precios</a>
-        <a href="{% url 'jheliztv_how_it_works' %}">Cómo funciona</a>
-        <a href="{% url 'jheliztv_faq' %}">Preguntas frecuentes</a>
-        <a href="{% url 'jheliztv_contact' %}">Contacto</a>
-      </nav>
       <p>© 2026 JHELIZ CONTROL TV</p>
     </div>
   </footer>
