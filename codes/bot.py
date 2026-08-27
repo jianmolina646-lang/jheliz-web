@@ -34,8 +34,10 @@ from .premium_emoji import without_custom_emoji
 
 logger = logging.getLogger(__name__)
 
-# Pausa antes del único reintento cuando Gmail falla/responde lento.
-_RETRY_SLEEP = 1.0
+# Pausa corta antes del único reintento cuando IMAP falla. La conexión ya
+# tiene su propio timeout; esperar un segundo adicional hacía sentir lento el
+# bot sin mejorar la recuperación.
+_RETRY_SLEEP = 0.25
 MAX_EMAIL_BUTTONS = 10
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
@@ -647,25 +649,44 @@ def _cmd_tv_email(client: CodeBotClient, arg: str) -> None:
 
 def _format_result(email: str, result) -> str:
     parts = [
-        f"✨ <b>{html.escape(result.human_kind)}</b>",
-        f"📧 <code>{html.escape(_mask_email(email))}</code>",
-        "──────────────────",
+        "✅ <b>SOLICITUD COMPLETADA</b>",
+        "━━━━━━━━━━━━━━━━━━",
+        f"🎬 <b>{html.escape(result.human_kind)}</b>",
+        f"📩 Cuenta: <code>{html.escape(_mask_email(email))}</code>",
+        "",
     ]
     if result.code:
-        parts.append(f"🔢 Código: <code>{html.escape(result.code)}</code>")
+        parts.append(f"🔑 <b>Tu código</b>\n<code>{html.escape(result.code)}</code>")
     if result.action_url:
         parts.append(
-            f'🔗 <a href="{html.escape(result.action_url)}">Abrir en Netflix</a>'
+            f'🔗 <a href="{html.escape(result.action_url)}"><b>Abrir en Netflix · enlace seguro</b></a>'
         )
     if result.kind == "tv_signin":
         parts.append(
             f'📺 <a href="{NETFLIX_TV_ACTIVATION_URL}">Página para activar la TV</a>'
             " — iniciá sesión con la cuenta y poné el código que muestra la TV."
         )
-    parts.append("──────────────────")
-    parts.append("⏱ Suele vencer en ~15 min. Si no funciona, generá uno nuevo y volvé a pedirlo.")
-    parts.append(f"👑 <b>{BRAND}</b> · gracias por tu compra")
+    parts.append("")
+    parts.append("⏱ <i>Usalo pronto: puede vencer en aproximadamente 15 minutos.</i>")
+    parts.append("🔐 <i>Este resultado corresponde solo a tu cuenta asignada.</i>")
+    parts.append("━━━━━━━━━━━━━━━━━━")
+    parts.append(f"👑 <b>{BRAND}</b> · Códigos Netflix")
     return "\n".join(parts)
+
+
+def _searching_message(email: str, kind: str) -> str:
+    """Tarjeta de progreso uniforme para comandos y botones."""
+    return "\n".join(
+        [
+            "🔎 <b>Buscando en Netflix…</b>",
+            "━━━━━━━━━━━━━━━━━━",
+            f"{html.escape(KIND_LABELS[kind])}",
+            f"📩 <code>{html.escape(_mask_email(email))}</code>",
+            "",
+            "⚡ Revisando el correo más reciente…",
+            "🔐 <i>Consulta segura de tu cuenta asignada.</i>",
+        ]
+    )
 
 
 def _result_cache_key(email: str, kind: str | None) -> str:
@@ -766,8 +787,13 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
                 " (iniciá sesión con la cuenta y poné el código de la TV)."
             )
         return (
-            f"No encontré {que} para <b>{html.escape(_mask_email(email))}</b>.\n"
-            "Generá el correo desde Netflix y volvé a pedirlo en un minuto."
+            "⚠️ <b>AÚN NO LLEGÓ EL CÓDIGO</b>\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            f"No encontré {que} para:\n"
+            f"📩 <code>{html.escape(_mask_email(email))}</code>\n\n"
+            "1️⃣ Generá una nueva solicitud desde Netflix.\n"
+            "2️⃣ Dale unos segundos para llegar.\n"
+            "3️⃣ Volvé a tocar la misma opción."
             + extra
         )
     client.touch()
@@ -825,8 +851,7 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
     # Después editamos ese mensaje para evitar dejar un “Buscando…” huérfano.
     progress = send_message(
         chat_id,
-        f"⏳ <b>Buscando {html.escape(KIND_LABELS[kind].lower())}…</b>\n"
-        f"Cuenta: <code>{html.escape(_mask_email(arg))}</code>",
+        _searching_message(arg, kind),
     )
     progress_id = None
     if isinstance(progress, dict):
@@ -1119,10 +1144,15 @@ def _send_welcome(client: CodeBotClient) -> None:
         return
     send_message(
         chat_id,
-        f"✨ <b>{BRAND} · Códigos Netflix</b>\n\n"
-        "Elegí una acción en el menú.\n"
-        "Para encontrar una cuenta usá <code>/buscar nombre</code>.\n\n"
-        "❓ Ayuda completa: <code>/cmds</code>",
+        f"🎬 <b>{BRAND} · CÓDIGOS NETFLIX</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "✅ Acceso activo\n"
+        f"📩 <b>{len(emails)}</b> correo(s) asignado(s)\n\n"
+        "Elegí lo que necesitás en el menú inferior.\n"
+        "También podés enviar directamente:\n"
+        "<code>/codigo tucorreo@gmail.com</code>\n\n"
+        "🛡 Solo consultaremos tus cuentas asignadas.\n"
+        "❓ Ayuda: <code>/cmds</code>",
         menu=True,
     )
 
@@ -1219,7 +1249,10 @@ def _offer_kinds_for_email(client: CodeBotClient, raw_email: str) -> None:
     idx = emails.index(email)
     send_message(
         chat_id,
-        f"📧 <b>{html.escape(_mask_email(email))}</b>\n¿Qué necesitás?",
+        "🎯 <b>SELECCIONA UNA ACCIÓN</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"📩 <code>{html.escape(_mask_email(email))}</code>\n\n"
+        "¿Qué necesitás recibir?",
         buttons=_kind_buttons(idx),
     )
 

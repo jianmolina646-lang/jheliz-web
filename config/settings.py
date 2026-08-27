@@ -425,9 +425,9 @@ TELEGRAM_DISNEY_ADMIN_CHAT_ID = config(
 )
 # Cuántos correos recientes (más nuevos primero) escanea como máximo el lector
 # IMAP. Evita recorrer toda la bandeja cuando hay muchos correos.
-CODES_IMAP_MAX_SCAN = config("CODES_IMAP_MAX_SCAN", default=25, cast=int)
+CODES_IMAP_MAX_SCAN = config("CODES_IMAP_MAX_SCAN", default=12, cast=int)
 # Timeout (segundos) de la conexión IMAP para que nunca quede colgada.
-CODES_IMAP_TIMEOUT = config("CODES_IMAP_TIMEOUT", default=20, cast=int)
+CODES_IMAP_TIMEOUT = config("CODES_IMAP_TIMEOUT", default=8, cast=int)
 # Anti-spam: segundos mínimos entre dos lecturas de Gmail del mismo cliente.
 CODES_COOLDOWN_SECONDS = config("CODES_COOLDOWN_SECONDS", default=6, cast=int)
 # Mini-caché: segundos que se reutiliza un código ya leído (toques repetidos).

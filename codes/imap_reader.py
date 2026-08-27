@@ -243,10 +243,30 @@ def _search_account(
         # TEXT busca en todo el mensaje: agarra tanto los reenvíos automáticos
         # (From: el servicio) como los reenviados a mano (From: la cuenta
         # origen, con el correo del servicio dentro del cuerpo).
-        typ, data = conn.search(None, "SINCE", since_imap, "TEXT", search_term)
+        # Filtrar también por la cuenta solicitada en el servidor IMAP evita
+        # descargar y parsear hasta 25 mensajes de otros clientes. En una
+        # bandeja central con muchos reenvíos esta es la mejora de velocidad
+        # más importante.
+        typ, data = conn.search(
+            None,
+            "SINCE",
+            since_imap,
+            "TEXT",
+            search_term,
+            "TEXT",
+            account_email,
+        )
         if typ != "OK":
             return []
         ids = data[0].split()
+        # Algunos reenvíos antiguos codifican el destinatario original de
+        # una forma que el índice IMAP no reconoce. Conservamos una búsqueda
+        # amplia solo cuando el filtro rápido no devolvió ningún mensaje.
+        if not ids:
+            typ, data = conn.search(None, "SINCE", since_imap, "TEXT", search_term)
+            if typ != "OK":
+                return []
+            ids = data[0].split()
         # Recorremos de más nuevo a más viejo y solo los N más recientes:
         # no tiene sentido bajar correos viejos que ya cayeron fuera de la
         # ventana de minutos.

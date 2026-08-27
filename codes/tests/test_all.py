@@ -292,6 +292,82 @@ class ImapAccountsTests(TestCase):
         self.assertEqual(r.code, "3333")
 
 
+class ImapFastSearchTests(TestCase):
+    def _connection(self, *, first_ids: bytes):
+        from datetime import datetime, timezone
+        from email.message import EmailMessage
+
+        message = EmailMessage()
+        message["To"] = "cliente@gmail.com"
+        message["Subject"] = "Netflix: Tu código de inicio de sesión"
+        message.set_content("Tu código es 4821 y vence pronto.")
+        received = datetime.now(timezone.utc).strftime("%d-%b-%Y %H:%M:%S +0000")
+        metadata = f'7 (INTERNALDATE "{received}" BODY[] {{1}}'.encode()
+
+        conn = mock.MagicMock()
+        conn.search.side_effect = [
+            ("OK", [first_ids]),
+            ("OK", [b"7"]),
+        ]
+        conn.fetch.return_value = ("OK", [(metadata, message.as_bytes())])
+        return conn
+
+    @mock.patch("codes.imap_reader.imaplib.IMAP4_SSL")
+    def test_search_filters_by_service_and_assigned_email(self, mimap):
+        conn = self._connection(first_ids=b"7")
+        mimap.return_value = conn
+        account = {
+            "host": "imap.example",
+            "port": 993,
+            "user": "system@example.com",
+            "password": "secret",
+            "security": "SSL",
+            "tls_verify": True,
+        }
+
+        rows = imap_reader._search_account(
+            account,
+            "cliente@gmail.com",
+            "netflix",
+            parse_netflix_email,
+            "signin_code",
+            imap_reader.datetime.now(imap_reader.timezone.utc)
+            - imap_reader.timedelta(minutes=30),
+        )
+
+        self.assertEqual(rows[0][1].code, "4821")
+        self.assertEqual(conn.search.call_count, 1)
+        args = conn.search.call_args.args
+        self.assertIn("netflix", args)
+        self.assertIn("cliente@gmail.com", args)
+
+    @mock.patch("codes.imap_reader.imaplib.IMAP4_SSL")
+    def test_empty_targeted_search_uses_compatibility_fallback(self, mimap):
+        conn = self._connection(first_ids=b"")
+        mimap.return_value = conn
+        account = {
+            "host": "imap.example",
+            "port": 993,
+            "user": "system@example.com",
+            "password": "secret",
+            "security": "SSL",
+            "tls_verify": True,
+        }
+
+        rows = imap_reader._search_account(
+            account,
+            "cliente@gmail.com",
+            "netflix",
+            parse_netflix_email,
+            "signin_code",
+            imap_reader.datetime.now(imap_reader.timezone.utc)
+            - imap_reader.timedelta(minutes=30),
+        )
+
+        self.assertEqual(rows[0][1].code, "4821")
+        self.assertEqual(conn.search.call_count, 2)
+
+
 class CommandMappingTests(TestCase):
     def test_commands_mapped_to_kinds(self):
         self.assertEqual(
@@ -830,8 +906,8 @@ class EfficiencyTests(TestCase):
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
     def test_travel_not_found_explains_how_to_generate_email(self, _fetch, _cfg):
         msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="temp_code")
-        self.assertIn("Generá el correo desde Netflix", msg)
-        self.assertIn("volvé a pedirlo en un minuto", msg)
+        self.assertIn("Generá una nueva solicitud desde Netflix", msg)
+        self.assertIn("Volvé a tocar la misma opción", msg)
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
@@ -845,8 +921,8 @@ class EfficiencyTests(TestCase):
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
     def test_household_not_found_explains_how_to_generate_email(self, _fetch, _cfg):
         msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="household")
-        self.assertIn("Generá el correo desde Netflix", msg)
-        self.assertIn("volvé a pedirlo en un minuto", msg)
+        self.assertIn("Generá una nueva solicitud desde Netflix", msg)
+        self.assertIn("Volvé a tocar la misma opción", msg)
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     def test_imap_retried_once_on_error(self, _cfg):
