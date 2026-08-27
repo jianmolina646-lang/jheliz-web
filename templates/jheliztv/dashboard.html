@@ -1,4 +1,5 @@
 {% extends "jheliztv/base.html" %}
+{% load static l10n %}
 
 {% block jc_content %}
 <main class="lv-dashboard">
@@ -56,38 +57,20 @@
       </header>
       <div class="lv-dashboard-chart__body">
         <div class="lv-dashboard-chart__plot" data-dashboard-chart>
-          <svg viewBox="0 0 1000 260" preserveAspectRatio="none" role="img" aria-label="Ingresos y egresos de los últimos seis meses">
-            <defs>
-              <linearGradient id="lvIncomeFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="oklch(0.86 0.22 155)" stop-opacity=".45"/>
-                <stop offset="100%" stop-color="oklch(0.86 0.22 155)" stop-opacity="0"/>
-              </linearGradient>
-              <linearGradient id="lvExpenseFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="oklch(0.68 0.2 25)" stop-opacity=".28"/>
-                <stop offset="100%" stop-color="oklch(0.68 0.2 25)" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <g class="lv-dashboard-chart__grid" aria-hidden="true">
-              <line x1="0" y1="20" x2="1000" y2="20"/><line x1="0" y1="75" x2="1000" y2="75"/>
-              <line x1="0" y1="130" x2="1000" y2="130"/><line x1="0" y1="185" x2="1000" y2="185"/>
-              <line x1="0" y1="240" x2="1000" y2="240"/>
-            </g>
-            <path data-income-area fill="url(#lvIncomeFill)"></path>
-            <path data-expense-area fill="url(#lvExpenseFill)"></path>
-            <path data-income-line class="lv-dashboard-chart__income"></path>
-            <path data-expense-line class="lv-dashboard-chart__expense"></path>
-            <g data-chart-points></g>
-          </svg>
           <div class="lv-dashboard-chart__tooltip" data-chart-tooltip hidden></div>
-          <div class="lv-dashboard-chart__axis">
+          <div class="lv-dashboard-chart__bars" role="img" aria-label="Ingresos y egresos reales de los últimos seis meses">
             {% for row in series %}
-              <button type="button"
-                      data-chart-point
-                      data-index="{{ forloop.counter0 }}"
-                      data-income="{{ row.income }}"
-                      data-expense="{{ row.expense }}"
-                      data-income-pct="{{ row.income_pct }}"
-                      data-expense-pct="{{ row.expense_pct }}">{{ row.label }}</button>
+              <button class="lv-dashboard-chart__month" type="button"
+                      data-chart-point data-index="{{ forloop.counter0 }}"
+                      data-income="{{ row.income|unlocalize }}" data-expense="{{ row.expense|unlocalize }}"
+                      data-income-pct="{{ row.income_pct }}" data-expense-pct="{{ row.expense_pct }}"
+                      aria-label="{{ row.label }}: ingresos {{ jc_currency_symbol }} {{ row.income }}, egresos {{ jc_currency_symbol }} {{ row.expense }}">
+                <span class="lv-dashboard-chart__columns" aria-hidden="true">
+                  <i class="lv-dashboard-chart__bar is-income" data-income-bar></i>
+                  <i class="lv-dashboard-chart__bar is-expense" data-expense-bar></i>
+                </span>
+                <b>{{ row.label }}</b>
+              </button>
             {% endfor %}
           </div>
         </div>
@@ -132,13 +115,29 @@
         </header>
         <div class="lv-dashboard-expirations__list">
           {% for sub in jc_alerts %}
-            <article>
-              <div>
-                <h3>{{ sub.client.name }}</h3>
-                <p><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>{{ sub.service.name }}</p>
-                <a href="{% url 'jheliztv_service_detail' sub.service.pk %}">Revisar<span class="material-symbols-outlined">chevron_right</span></a>
+            <article class="lv-dashboard-expiration">
+              <div class="lv-dashboard-expiration__platform" aria-hidden="true">
+                {% with service_name=sub.service.name|lower %}
+                  {% if "netflix" in service_name %}<img src="{% static 'img/platforms/netflix.svg' %}" alt="">
+                  {% elif "prime" in service_name %}<img src="{% static 'img/platforms/prime-video.svg' %}" alt="">
+                  {% elif "hbo" in service_name or "max" in service_name %}<img src="{% static 'img/platforms/max.svg' %}" alt="">
+                  {% elif "disney" in service_name %}<img src="{% static 'img/platforms/disney-plus.svg' %}" alt="">
+                  {% elif "crunchy" in service_name %}<img src="{% static 'img/platforms/crunchyroll.svg' %}" alt="">
+                  {% elif "paramount" in service_name %}<img src="{% static 'img/platforms/paramount-plus.svg' %}" alt="">
+                  {% elif "spotify" in service_name %}<img src="{% static 'img/platforms/spotify.svg' %}" alt="">
+                  {% elif "apple" in service_name %}<img src="{% static 'img/platforms/apple-tv-plus.svg' %}" alt="">
+                  {% else %}<span class="material-symbols-outlined">play_circle</span>
+                  {% endif %}
+                {% endwith %}
               </div>
-              <time>{{ sub.expires_at|date:"d/m" }}</time>
+              <div class="lv-dashboard-expiration__details">
+                <h3>{{ sub.client.name }}</h3>
+                <p>{{ sub.service.name }}</p>
+              </div>
+              <div class="lv-dashboard-expiration__actions">
+                <time datetime="{{ sub.expires_at|date:'c' }}"><span>Vence</span>{{ sub.expires_at|date:"d/m" }}</time>
+                <a href="{% url 'jheliztv_service_detail' sub.service.pk %}">Revisar<span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>
+              </div>
             </article>
           {% empty %}
             <div class="lv-dashboard-expirations__empty">
@@ -210,33 +209,15 @@ document.addEventListener("DOMContentLoaded", function () {
   if (!chart) return;
   const points = Array.from(chart.querySelectorAll("[data-chart-point]"));
   if (!points.length) return;
-  const xFor = (index) => points.length === 1 ? 500 : index * (1000 / (points.length - 1));
-  const yFor = (value) => 240 - (Math.max(0, Math.min(100, value)) * 2.2);
-  const coords = (key) => points.map((point, index) => [xFor(index), yFor(Number(point.dataset[key] || 0))]);
-  const curve = (rows) => {
-    if (!rows.length) return "";
-    if (rows.length === 1) return `M ${rows[0][0]} ${rows[0][1]}`;
-    let d = `M ${rows[0][0]} ${rows[0][1]}`;
-    for (let i = 1; i < rows.length; i++) {
-      const prev = rows[i - 1], current = rows[i], mid = (prev[0] + current[0]) / 2;
-      d += ` C ${mid} ${prev[1]}, ${mid} ${current[1]}, ${current[0]} ${current[1]}`;
-    }
-    return d;
-  };
-  const income = coords("incomePct");
-  const expense = coords("expensePct");
-  const incomeLine = curve(income);
-  const expenseLine = curve(expense);
-  chart.querySelector("[data-income-line]").setAttribute("d", incomeLine);
-  chart.querySelector("[data-expense-line]").setAttribute("d", expenseLine);
-  chart.querySelector("[data-income-area]").setAttribute("d", `${incomeLine} L 1000 260 L 0 260 Z`);
-  chart.querySelector("[data-expense-area]").setAttribute("d", `${expenseLine} L 1000 260 L 0 260 Z`);
-
   const tooltip = chart.querySelector("[data-chart-tooltip]");
   points.forEach((point, index) => {
+    const incomePct = Math.max(0, Math.min(100, Number(point.dataset.incomePct || 0)));
+    const expensePct = Math.max(0, Math.min(100, Number(point.dataset.expensePct || 0)));
+    point.querySelector("[data-income-bar]").style.height = `${incomePct}%`;
+    point.querySelector("[data-expense-bar]").style.height = `${expensePct}%`;
     point.addEventListener("mouseenter", () => {
-      tooltip.innerHTML = `<b>${point.textContent}</b><span>Ingresos: {{ jc_currency_symbol|escapejs }} ${point.dataset.income}</span><span>Egresos: {{ jc_currency_symbol|escapejs }} ${point.dataset.expense}</span>`;
-      tooltip.style.left = `${income[index][0] / 10}%`;
+      tooltip.innerHTML = `<b>${point.querySelector("b").textContent}</b><span>Ingresos: {{ jc_currency_symbol|escapejs }} ${point.dataset.income}</span><span>Egresos: {{ jc_currency_symbol|escapejs }} ${point.dataset.expense}</span>`;
+      tooltip.style.left = `${((index + .5) / points.length) * 100}%`;
       tooltip.hidden = false;
     });
     point.addEventListener("mouseleave", () => { tooltip.hidden = true; });

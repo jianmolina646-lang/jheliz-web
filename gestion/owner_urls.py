@@ -7,6 +7,8 @@ from . import owner_views as v
 urlpatterns = [
     path("", v.control_dashboard, name="jheliztv_control_dashboard"),
     path("usuarios/", v.control_users, name="jheliztv_control_users"),
+    path("usuarios/exportar/", v.control_users_export, name="jheliztv_control_users_export"),
+    path("usuarios/accion-masiva/", v.control_users_bulk_action, name="jheliztv_control_users_bulk_action"),
     path("usuarios/<int:pk>/", v.control_user_detail, name="jheliztv_control_user_detail"),
     path("demos/", v.control_demos, name="jheliztv_control_demos"),
     path("pagos/", v.control_payments, name="jheliztv_control_payments"),

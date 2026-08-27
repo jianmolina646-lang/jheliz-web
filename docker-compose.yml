@@ -16,10 +16,14 @@ services:
     env_file: .env
     environment:
       JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN_FILE: /run/secrets/jheliz_control_telegram_bot_token
+      EMAIL_HOST_PASSWORD_FILE: /run/secrets/corporate_mail_bridge_password
+    extra_hosts:
+      - "proton-bridge.internal:host-gateway"
     volumes:
       - ./media:/app/media
       - ./private_media:/app/private_media
       - ./secrets/jheliz_control_telegram_bot_token.txt:/run/secrets/jheliz_control_telegram_bot_token:ro
+      - ./secrets/codes_imap_password.txt:/run/secrets/corporate_mail_bridge_password:ro
       # En producción Nginx sirve /srv/jheliz/staticfiles. La variable evita
       # que collectstatic escriba en un directorio distinto al publicado.
       - /srv/jheliz/staticfiles:/app/staticfiles
@@ -44,7 +48,7 @@ services:
       start_period: 60s
 
   db:
-    image: postgres:16-alpine
+    image: jheliz/postgres:16-secure
     environment:
       POSTGRES_USER: jheliz
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
@@ -77,8 +81,12 @@ services:
     env_file: .env
     environment:
       DATABASE_URL_FILE: /run/secrets/database_url
+      CODES_IMAP_PASSWORD_FILE: /run/secrets/codes_imap_password
+    extra_hosts:
+      - "proton-bridge.internal:host-gateway"
     volumes:
       - ./secrets/database_url.txt:/run/secrets/database_url:ro
+      - ./secrets/codes_imap_password.txt:/run/secrets/codes_imap_password:ro
     depends_on:
       - web
     restart: unless-stopped
@@ -96,6 +104,12 @@ services:
     user: "1000:1000"
     command: python manage.py run_disney_bot
     env_file: .env
+    environment:
+      CODES_IMAP_PASSWORD_FILE: /run/secrets/codes_imap_password
+    extra_hosts:
+      - "proton-bridge.internal:host-gateway"
+    volumes:
+      - ./secrets/codes_imap_password.txt:/run/secrets/codes_imap_password:ro
     depends_on:
       - web
     restart: unless-stopped

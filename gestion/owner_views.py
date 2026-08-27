@@ -13,13 +13,15 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal
 from functools import wraps
+import csv
 import secrets
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.tokens import default_token_generator
-from django.http import FileResponse
+from django.core.paginator import Paginator
+from django.http import FileResponse, HttpResponse
 from django.db import transaction
 from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
@@ -177,6 +179,8 @@ def _filter_control_tenants(request, tenants):
         tenants = [t for t in tenants if (
             (status_filter == "online" and t.is_online)
             or (status_filter == "active" and t.subscription_active)
+            or (status_filter == "expiring" and t.subscription_active and t.days_left <= 7)
+            or (status_filter == "inactive" and not t.last_activity_at)
             or (status_filter == "expired" and not t.subscription_active and not t.is_blocked)
             or (status_filter == "blocked" and t.is_blocked)
         )]
@@ -185,16 +189,82 @@ def _filter_control_tenants(request, tenants):
     return tenants, {"q": q, "estado": status_filter, "tipo": type_filter}
 
 
+def _sort_control_tenants(request, tenants):
+    sort_key = (request.GET.get("orden") or "newest").strip()
+    sorters = {
+        "user": (lambda t: (t.business_name or t.user.username).lower(), False),
+        "clients": (lambda t: t.client_count, True),
+        "activity": (lambda t: t.last_activity_at or t.created_at, True),
+        "expiry": (lambda t: t.plan_expires_at or t.created_at, False),
+        "newest": (lambda t: t.created_at, True),
+    }
+    key, reverse = sorters.get(sort_key, sorters["newest"])
+    return sorted(tenants, key=key, reverse=reverse), sort_key
+
+
 @owner_required
 def control_users(request):
     all_users = _control_tenant_rows(
         Tenant.objects.filter(is_demo=False).select_related("user")
     )
     users, filters = _filter_control_tenants(request, all_users)
+    users, filters["orden"] = _sort_control_tenants(request, users)
+    try:
+        page_size = int(request.GET.get("por_pagina") or 25)
+    except (TypeError, ValueError):
+        page_size = 25
+    page_size = page_size if page_size in (25, 50) else 25
+    page_obj = Paginator(users, page_size).get_page(request.GET.get("pagina"))
+    filters["por_pagina"] = page_size
     return render(request, "jheliztv/control/users.html", {
         "title": "Usuarios", "jc_control_active": "users",
-        "tenants": users, "filters": filters, "kpi": _control_kpi(all_users),
+        "tenants": page_obj.object_list, "page_obj": page_obj,
+        "result_count": len(users), "filters": filters, "kpi": _control_kpi(all_users),
     })
+
+
+@owner_required
+def control_users_export(request):
+    users = _control_tenant_rows(Tenant.objects.filter(is_demo=False).select_related("user"))
+    users, _filters = _filter_control_tenants(request, users)
+    users, _sort = _sort_control_tenants(request, users)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="usuarios-jheliztv.csv"'
+    response["Cache-Control"] = "no-store, private"
+    response.write("\ufeff")
+    writer = csv.writer(response)
+    writer.writerow(["Usuario", "Negocio", "Clientes", "Actividad", "Estado", "Días restantes", "Vencimiento"])
+    for tenant in users:
+        writer.writerow([
+            tenant.user.username, tenant.business_name or "", tenant.client_count,
+            tenant.last_activity_at.isoformat() if tenant.last_activity_at else "Sin actividad",
+            tenant.estado, tenant.days_left,
+            tenant.plan_expires_at.isoformat() if tenant.plan_expires_at else "",
+        ])
+    return response
+
+
+@owner_required
+@require_POST
+def control_users_bulk_action(request):
+    tenant_ids = request.POST.getlist("tenant_ids")
+    action = (request.POST.get("bulk_action") or "").strip()
+    tenants = list(Tenant.objects.filter(pk__in=tenant_ids, is_demo=False))
+    if not tenants:
+        messages.warning(request, "Selecciona al menos un usuario.")
+        return redirect("jheliztv_control_users")
+    if action == "extend":
+        for tenant in tenants:
+            tenant.extend(30)
+        messages.success(request, f"Se añadieron 30 días a {len(tenants)} usuario(s).")
+    elif action in {"block", "unblock"}:
+        is_blocked = action == "block"
+        Tenant.objects.filter(pk__in=[tenant.pk for tenant in tenants]).update(is_blocked=is_blocked)
+        label = "bloqueados" if is_blocked else "desbloqueados"
+        messages.success(request, f"{len(tenants)} usuario(s) {label}.")
+    else:
+        messages.error(request, "Selecciona una acción válida.")
+    return redirect("jheliztv_control_users")
 
 
 @owner_required

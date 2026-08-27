@@ -750,23 +750,6 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
                 continue
             return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
 
-    # Netflix no siempre envía el tipo que el cliente eligió en el bot. Por
-    # ejemplo, al intentar validar un viaje puede mandar un código normal de
-    # inicio de sesión. Si no apareció el tipo exacto, reutilizamos la misma
-    # ventana reciente para entregar cualquier mensaje válido de esa cuenta.
-    if kind and (result is None or not result.has_payload):
-        try:
-            fallback = imap_reader.fetch_latest_for_email(email, kind=None)
-        except Exception:
-            logger.exception("Fallo leyendo fallback IMAP para %s", email)
-        else:
-            if (
-                fallback is not None
-                and fallback.has_payload
-                and fallback.kind in DELIVERABLE_KINDS
-            ):
-                result = fallback
-
     if result is None or not result.has_payload:
         CodeDelivery.objects.create(
             client=client, email=email, kind=kind or "", found=False
@@ -838,8 +821,25 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
             )
             return
 
-    result = send_message(chat_id, _deliver_code(client, arg, kind=kind))
-    _schedule_sensitive_deletion(chat_id, send_result=result)
+    # Los comandos directos muestran el mismo estado visual que los botones.
+    # Después editamos ese mensaje para evitar dejar un “Buscando…” huérfano.
+    progress = send_message(
+        chat_id,
+        f"⏳ <b>Buscando {html.escape(KIND_LABELS[kind].lower())}…</b>\n"
+        f"Cuenta: <code>{html.escape(_mask_email(arg))}</code>",
+    )
+    progress_id = None
+    if isinstance(progress, dict):
+        progress_id = (progress.get("result") or {}).get("message_id")
+    result_text = _deliver_code(client, arg, kind=kind)
+    if progress_id is not None:
+        result = edit_message(chat_id, int(progress_id), result_text)
+        _schedule_sensitive_deletion(
+            chat_id, send_result=result, message_id=int(progress_id)
+        )
+    else:
+        result = send_message(chat_id, result_text)
+        _schedule_sensitive_deletion(chat_id, send_result=result)
 
 
 # ---------- Handlers ----------

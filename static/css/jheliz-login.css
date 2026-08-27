@@ -77,8 +77,18 @@
 .jli-input__icon{display:flex;flex:0 0 auto;color:rgba(245,251,247,.5)}
 .jli-input:focus-within .jli-input__icon{color:var(--jli-primary)}
 .jli-input svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:2}
-.jli-input input{width:100%;min-width:0;border:0;outline:0;padding:0;color:var(--jli-fg);background:transparent;font:500 14px/1.5 "Manrope",sans-serif}
+.jli-input input{width:100%;min-width:0;border:0;outline:0;padding:0;color:var(--jli-fg);background:transparent;color-scheme:dark;font:500 14px/1.5 "Manrope",sans-serif}
 .jli-input input::placeholder{color:rgba(245,251,247,.45);font-weight:400}
+.jli-input input:-webkit-autofill,
+.jli-input input:-webkit-autofill:hover,
+.jli-input input:-webkit-autofill:focus,
+.jli-input input:-webkit-autofill:active{
+  -webkit-text-fill-color:var(--jli-fg);
+  caret-color:var(--jli-fg);
+  -webkit-box-shadow:0 0 0 1000px #1a2922 inset;
+  box-shadow:0 0 0 1000px #1a2922 inset;
+  transition:background-color 9999s ease-out 0s;
+}
 .jli-password-toggle{display:flex;flex:0 0 auto;border:0;border-radius:8px;padding:4px;color:rgba(245,251,247,.5);background:transparent;cursor:pointer}
 .jli-password-toggle:hover{color:var(--jli-primary)}
 .jli-eye-off,.jli-password-toggle[aria-pressed="true"] .jli-eye{display:none}

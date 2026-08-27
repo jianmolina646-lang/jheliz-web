@@ -1,6 +1,6 @@
 """Lectura de las casillas centrales por IMAP.
 
-A estas casillas (Gmail y/o Hostinger) se reenvían los correos de Netflix de
+A la casilla corporativa se reenvían los correos de Netflix de
 todas las cuentas. Cuando un cliente pide el código de ``cuenta@gmail.com``,
 buscamos el último correo de Netflix dirigido a ESE correo en TODAS las
 casillas configuradas y devolvemos el más reciente.
@@ -16,6 +16,8 @@ from __future__ import annotations
 import email
 import imaplib
 import logging
+import re
+import ssl
 from datetime import datetime, timedelta, timezone
 from email.header import decode_header, make_header
 from email.message import Message
@@ -51,8 +53,8 @@ _RECIPIENT_HEADERS = (
 def _accounts() -> list[dict]:
     """Casillas centrales configuradas (principal + secundaria).
 
-    La principal usa ``CODES_IMAP_*`` (Gmail) y la secundaria
-    ``CODES_IMAP2_*`` (Hostinger). Solo se incluyen las completas.
+    La principal usa ``CODES_IMAP_*`` y la secundaria ``CODES_IMAP2_*``.
+    Solo se incluyen las completas.
     """
     accounts: list[dict] = []
     for prefix in ("CODES_IMAP", "CODES_IMAP2"):
@@ -65,6 +67,8 @@ def _accounts() -> list[dict]:
                 "port": getattr(settings, f"{prefix}_PORT", 993),
                 "user": user,
                 "password": password,
+                "security": getattr(settings, f"{prefix}_SECURITY", "SSL").upper(),
+                "tls_verify": getattr(settings, f"{prefix}_TLS_VERIFY", True),
             })
     return accounts
 
@@ -128,14 +132,28 @@ def _bodies(msg: Message) -> tuple[str, str]:
     return html, text
 
 
-def _msg_datetime(msg: Message) -> datetime:
+_INTERNALDATE_RE = re.compile(
+    rb'INTERNALDATE "(?P<value>\d{1,2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} [+-]\d{4})"'
+)
+
+
+def _msg_datetime(msg: Message, fetch_metadata: bytes = b"") -> datetime | None:
+    """Fecha real de recepción; nunca convierte un correo inválido en nuevo."""
+    match = _INTERNALDATE_RE.search(fetch_metadata or b"")
+    if match:
+        try:
+            return datetime.strptime(
+                match.group("value").decode("ascii"), "%d-%b-%Y %H:%M:%S %z"
+            ).astimezone(timezone.utc)
+        except (UnicodeDecodeError, ValueError):
+            pass
     try:
         dt = parsedate_to_datetime(msg.get("Date"))
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
-        return dt
-    except Exception:
-        return datetime.now(timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 def fetch_latest_for_email(
@@ -202,11 +220,22 @@ def _search_account(
     # IMAP SINCE tiene granularidad de día; afinamos por hora en Python.
     since_imap = (since_dt - timedelta(days=1)).strftime("%d-%b-%Y")
 
-    conn = imaplib.IMAP4_SSL(
-        account["host"],
-        account["port"],
-        timeout=getattr(settings, "CODES_IMAP_TIMEOUT", 20),
-    )
+    timeout = getattr(settings, "CODES_IMAP_TIMEOUT", 20)
+    security = account.get("security", "SSL")
+    tls_context = ssl.create_default_context()
+    if not account.get("tls_verify", True):
+        # Solo para un proxy local de confianza (por ejemplo Proton Bridge).
+        tls_context.check_hostname = False
+        tls_context.verify_mode = ssl.CERT_NONE
+    if security == "STARTTLS":
+        conn = imaplib.IMAP4(account["host"], account["port"], timeout=timeout)
+        conn.starttls(ssl_context=tls_context)
+    elif security == "SSL":
+        conn = imaplib.IMAP4_SSL(
+            account["host"], account["port"], timeout=timeout, ssl_context=tls_context
+        )
+    else:
+        raise ValueError(f"Seguridad IMAP no soportada: {security}")
     try:
         conn.login(account["user"], account["password"])
         # El bot solo consulta mensajes: nunca debe marcar, mover ni eliminar.
@@ -225,14 +254,15 @@ def _search_account(
         ids = list(reversed(ids))[:max_scan]
         candidates: list[tuple[datetime, NetflixResult | DisneyResult]] = []
         for msg_id in ids:
-            # BODY.PEEK[] baja el correo SIN marcarlo como leído.
-            typ, msg_data = conn.fetch(msg_id, "(BODY.PEEK[])")
+            # INTERNALDATE es la fecha fiable del servidor; BODY.PEEK[] no
+            # marca el correo como leído.
+            typ, msg_data = conn.fetch(msg_id, "(INTERNALDATE BODY.PEEK[])")
             if typ != "OK" or not msg_data or not msg_data[0]:
                 continue
-            raw = msg_data[0][1]
+            metadata, raw = msg_data[0]
             msg = email.message_from_bytes(raw)
-            dt = _msg_datetime(msg)
-            if dt < since_dt:
+            dt = _msg_datetime(msg, metadata)
+            if dt is None or dt < since_dt:
                 continue
             recipients = _recipients(msg)
             html, text = _bodies(msg)

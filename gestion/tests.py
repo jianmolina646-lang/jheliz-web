@@ -15,6 +15,7 @@ from config.date_utils import add_service_duration
 from .models import (
     Client,
     ControlSettings,
+    RenewalRequest,
     Service,
     ServiceCategory,
     Subscription,
@@ -318,6 +319,75 @@ class TenantSaasTests(TestCase):
         self.assertContains(r, "Maria Lopez")
         self.assertNotContains(r, "Juan Perez")
 
+    def test_clients_page_uses_official_platform_logos_by_service_name(self):
+        self._register("platform-logos")
+        tenant = self.Tenant.objects.get(user__username="platform-logos")
+        tenant.extend(30)
+        client = Client.objects.create(owner=tenant.user, name="Cliente Logos")
+        for index, service_name in enumerate(("Netflix Premium", "Prime Video", "HBO Max")):
+            service = Service.objects.create(owner=tenant.user, name=service_name)
+            Subscription.objects.create(
+                owner=tenant.user,
+                client=client,
+                service=service,
+                account_email=f"logo-{index}@x.com",
+                expires_at=timezone.now() + timedelta(days=30),
+            )
+
+        response = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
+
+        self.assertContains(response, "img/platforms/netflix.svg")
+        self.assertContains(response, "img/platforms/prime-video.svg")
+        self.assertContains(response, "img/platforms/max.svg")
+
+    def test_dashboard_expirations_use_official_platform_logos_and_actions(self):
+        self._register("dashboard-expirations")
+        tenant = self.Tenant.objects.get(user__username="dashboard-expirations")
+        tenant.extend(30)
+        client = Client.objects.create(owner=tenant.user, name="Cliente próximo")
+        service = Service.objects.create(owner=tenant.user, name="Prime Video")
+        subscription = Subscription.objects.create(
+            owner=tenant.user,
+            client=client,
+            service=service,
+            account_email="upcoming@example.com",
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+
+        response = self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST)
+
+        self.assertContains(response, "lv-dashboard-expiration")
+        self.assertContains(response, "img/platforms/prime-video.svg")
+        self.assertContains(response, "Cliente próximo")
+        self.assertContains(response, f'/app/servicios/{subscription.service_id}/')
+
+    def test_dashboard_chart_renders_real_monthly_transaction_values(self):
+        self._register("dashboard-chart")
+        tenant = self.Tenant.objects.get(user__username="dashboard-chart")
+        tenant.extend(30)
+        Transaction.objects.create(
+            owner=tenant.user,
+            kind=Transaction.Kind.INCOME,
+            amount=Decimal("125.50"),
+            base_amount=Decimal("125.50"),
+            occurred_at=timezone.now(),
+        )
+        Transaction.objects.create(
+            owner=tenant.user,
+            kind=Transaction.Kind.EXPENSE,
+            amount=Decimal("40.00"),
+            base_amount=Decimal("40.00"),
+            occurred_at=timezone.now(),
+        )
+
+        response = self.client.get(self.DASHBOARD, HTTP_HOST=self.HOST)
+
+        self.assertContains(response, "lv-dashboard-chart__bars")
+        self.assertContains(response, 'data-income="125.5"')
+        self.assertContains(response, 'data-expense="40"')
+        self.assertContains(response, "data-income-bar")
+        self.assertContains(response, "data-expense-bar")
+
     def test_panel_navigation_records_recent_activity_without_sensitive_data(self):
         self._register("active-user", business="Negocio activo")
         response = self.client.get(self.CLIENTS, HTTP_HOST=self.HOST)
@@ -381,6 +451,21 @@ class TenantSaasTests(TestCase):
         self.assertEqual(svc.name, "Netflix Premium")
         self.assertEqual(svc.color, "#e50914")
         self.assertTrue(svc.image)
+
+    def test_services_catalog_uses_official_platform_logos(self):
+        self._register("service-platform-logos")
+        tenant = self.Tenant.objects.get(user__username="service-platform-logos")
+        tenant.extend(30)
+        for service_name in ("Netflix Premium", "Prime Video", "HBO Max"):
+            Service.objects.create(owner=tenant.user, name=service_name)
+
+        response = self.client.get("/app/servicios/", HTTP_HOST=self.HOST)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "img/platforms/netflix.svg")
+        self.assertContains(response, "img/platforms/prime-video.svg")
+        self.assertContains(response, "img/platforms/max.svg")
+        self.assertContains(response, "has-official-logo", count=3)
 
     def test_service_edit_blocked_for_other_owner(self):
         # Inquilino dueño crea el servicio.
@@ -540,6 +625,32 @@ class TenantSaasTests(TestCase):
             "jc-subs-search", "Suscripciones registradas", "Registro",
         ):
             self.assertContains(r, token)
+
+    def test_service_detail_batches_renewal_requests_without_duplicates(self):
+        from .tenant_views import _renewal_requests_for
+
+        t, svc = self._new_service("seller_batch_renewals")
+        cli = Client.objects.create(owner=t.user, name="Batch")
+        subscriptions = [
+            Subscription.objects.create(
+                owner=t.user,
+                service=svc,
+                client=cli,
+                account_email=f"batch-{index}@x.com",
+                expires_at=timezone.now() + timedelta(days=30 + index),
+            )
+            for index in range(3)
+        ]
+
+        first = _renewal_requests_for(subscriptions, t.user)
+        second = _renewal_requests_for(subscriptions, t.user)
+
+        self.assertEqual(len(first), 3)
+        self.assertEqual(len(second), 3)
+        self.assertEqual(
+            RenewalRequest.objects.filter(subscription__in=subscriptions).count(),
+            3,
+        )
 
     def test_subscription_add_by_expiry_date(self):
         t, svc = self._new_service("seller_date")
@@ -990,6 +1101,39 @@ class StockEmailTests(TestCase):
             HTTP_HOST=self.HOST,
         )
         self.assertEqual(StockEmail.objects.filter(owner=user).count(), 2)
+
+    def test_bulk_add_rejects_more_than_200_emails(self):
+        from .models import StockEmail
+
+        user = self._register("stock-limit")
+        svc = self._add_service()
+        response = self.client.post(
+            self.EMAIL_ADD,
+            {
+                "service": svc.pk,
+                "emails": "\n".join(f"account-{index}@x.com" for index in range(201)),
+            },
+            HTTP_HOST=self.HOST,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(StockEmail.objects.filter(owner=user).exists())
+
+    def test_edit_rejects_email_longer_than_160_characters(self):
+        from .models import StockEmail
+
+        user = self._register("stock-edit-limit")
+        svc = self._add_service()
+        item = StockEmail.objects.create(owner=user, service=svc, email="valid@x.com")
+        response = self.client.post(
+            f"/app/correos/{item.pk}/editar/",
+            {"email": f"{'a' * 155}@x.com"},
+            HTTP_HOST=self.HOST,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        item.refresh_from_db()
+        self.assertEqual(item.email, "valid@x.com")
 
     def test_toggle_status(self):
         from .models import StockEmail

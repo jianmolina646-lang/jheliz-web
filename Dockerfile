@@ -1,4 +1,5 @@
 FROM python:3.12-slim
+RUN apt-get update && apt-get dist-upgrade -y && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -12,6 +13,8 @@ WORKDIR /app
 
 COPY requirements.txt ./
 RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "msgpack>=1.2.1"
+RUN rm -rf /root/.cache/pip /tmp/*
 
 COPY . .
 
