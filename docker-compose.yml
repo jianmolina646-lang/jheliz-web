@@ -43,7 +43,7 @@ services:
       start_period: 60s
 
   db:
-    image: postgres:16-alpine
+    image: jheliz/postgres:16-secure
     environment:
       POSTGRES_USER: jheliz
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
