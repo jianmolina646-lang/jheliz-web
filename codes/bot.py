@@ -64,11 +64,6 @@ KIND_LABELS: dict[str, str] = {
     "tv_signin": "📺 Activar Netflix en tu TV",
 }
 
-# Lista cerrada de mensajes que el bot puede entregar. Cualquier correo de
-# Netflix no reconocido (incluido un cambio de correo) queda bloqueado aunque
-# contenga enlaces válidos de netflix.com.
-DELIVERABLE_KINDS = frozenset(KIND_LABELS)
-
 # Botones del menú fijo (teclado abajo del chat) -> comando equivalente.
 MENU_BUTTONS: dict[str, str] = {
     "🔑 código": "/codigo",
@@ -142,10 +137,6 @@ def _call(method: str, **payload) -> dict:
             time.sleep(retry_after)
     if not data.get("ok"):
         logger.warning("Telegram(codes) %s falló: %s", method, data)
-    elif method == "sendMessage":
-        from gestion.telegram_messages import record_sent_message
-
-        record_sent_message("codes", payload, data)
     return data
 
 
@@ -749,24 +740,6 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
                 time.sleep(_RETRY_SLEEP)
                 continue
             return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
-
-    # Netflix no siempre envía el tipo que el cliente eligió en el bot. Por
-    # ejemplo, al intentar validar un viaje puede mandar un código normal de
-    # inicio de sesión. Si no apareció el tipo exacto, reutilizamos la misma
-    # ventana reciente para entregar cualquier mensaje válido de esa cuenta.
-    if kind and (result is None or not result.has_payload):
-        try:
-            fallback = imap_reader.fetch_latest_for_email(email, kind=None)
-        except Exception:
-            logger.exception("Fallo leyendo fallback IMAP para %s", email)
-        else:
-            if (
-                fallback is not None
-                and fallback.has_payload
-                and fallback.kind in DELIVERABLE_KINDS
-            ):
-                result = fallback
-
     if result is None or not result.has_payload:
         CodeDelivery.objects.create(
             client=client, email=email, kind=kind or "", found=False
@@ -1575,7 +1548,6 @@ def run_polling(poll_interval: float = 1.0) -> None:
     except Exception:
         logger.exception("No pude leer el offset guardado; arranco de 0")
         offset = 0
-    retry_delay = max(1.0, poll_interval)
     logger.info("Bot de códigos iniciado (long polling), offset=%s", offset)
     while True:
         # Este proceso vive indefinidamente y no pasa por el ciclo request/response
@@ -1590,8 +1562,6 @@ def run_polling(poll_interval: float = 1.0) -> None:
                 timeout=25,
                 allowed_updates=["message", "callback_query"],
             )
-            # Una respuesta correcta restablece inmediatamente el ritmo normal.
-            retry_delay = max(1.0, poll_interval)
             updates = data.get("result", [])
             for upd in updates:
                 offset = upd["update_id"] + 1
@@ -1607,14 +1577,6 @@ def run_polling(poll_interval: float = 1.0) -> None:
                     BotState.set_offset(offset)
                 except Exception:
                     logger.exception("No pude guardar el offset del bot")
-        except requests.RequestException as error:
-            logger.warning(
-                "getUpdates (codes) falló (%s); reintento en %.0fs",
-                type(error).__name__,
-                retry_delay,
-            )
-            close_old_connections()
-            time.sleep(retry_delay)
-            retry_delay = min(30.0, retry_delay * 2)
-            continue
+        except requests.RequestException:
+            logger.warning("getUpdates (codes) falló, reintentando…")
         time.sleep(poll_interval)

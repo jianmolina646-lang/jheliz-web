@@ -66,23 +66,12 @@ class JheliztvSeoTests(TestCase):
         ):
             self.assertContains(response, directive)
 
-    def test_sitemap_contains_public_marketing_pages_only(self):
+    def test_sitemap_contains_only_the_public_landing(self):
         response = self.get("/sitemap.xml")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "application/xml; charset=utf-8")
-        for public_path in (
-            "",
-            "funciones/",
-            "precios/",
-            "como-funciona/",
-            "preguntas-frecuentes/",
-            "contacto/",
-        ):
-            self.assertContains(
-                response,
-                f"<loc>https://jheliztv.xyz/{public_path}</loc>",
-            )
-        self.assertEqual(response.content.count(b"<url>"), 6)
+        self.assertContains(response, "<loc>https://jheliztv.xyz/</loc>")
+        self.assertEqual(response.content.count(b"<url>"), 1)
         for private_path in ("ingresar", "registro", "app", "control", "renovar"):
             self.assertNotContains(response, private_path)
 

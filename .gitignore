@@ -32,4 +32,12 @@ tailwind.css.tmp
 htmlcov/
 .coverage
 .pytest_cache/
+private_backups/
+backups/
+.deploy-backups/
+telegram-change-backups/
+.env.*
+*.bak*
+*.backup*
+*.pre-*
 \n# test artifacts\ntest-plan-*.md\ntest-report-*.md

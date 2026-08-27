@@ -544,13 +544,7 @@ class DeliverKindTests(TestCase):
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
     def test_kind_is_forwarded_to_imap(self, mfetch, _cfg):
         bot._deliver_code(self.client_obj, "mine@gmail.com", kind="password_reset")
-        self.assertEqual(
-            mfetch.call_args_list,
-            [
-                mock.call("mine@gmail.com", kind="password_reset"),
-                mock.call("mine@gmail.com", kind=None),
-            ],
-        )
+        mfetch.assert_called_once_with("mine@gmail.com", kind="password_reset")
 
     def test_unassigned_email_says_no_corresponde(self):
         msg = bot._deliver_code(self.client_obj, "ajeno@gmail.com", kind="signin_code")
@@ -786,20 +780,6 @@ class EfficiencyTests(TestCase):
         bot._deliver_code(admin, "mine@gmail.com", kind="signin_code")
         msg = bot._deliver_code(admin, "mine@gmail.com", kind="household")
         self.assertNotIn("Esperá unos segundos", msg)
-
-    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
-    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
-    def test_travel_not_found_explains_how_to_generate_email(self, _fetch, _cfg):
-        msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="temp_code")
-        self.assertIn("Generá el correo desde Netflix", msg)
-        self.assertIn("volvé a pedirlo en un minuto", msg)
-
-    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
-    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
-    def test_household_not_found_explains_how_to_generate_email(self, _fetch, _cfg):
-        msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="household")
-        self.assertIn("Generá el correo desde Netflix", msg)
-        self.assertIn("volvé a pedirlo en un minuto", msg)
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     def test_imap_retried_once_on_error(self, _cfg):

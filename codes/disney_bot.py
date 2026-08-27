@@ -82,10 +82,6 @@ def _call(method: str, **payload) -> dict:
         data = {"ok": False, "description": resp.text}
     if not data.get("ok"):
         logger.warning("Telegram(disney) %s falló: %s", method, data)
-    elif method == "sendMessage":
-        from gestion.telegram_messages import record_sent_message
-
-        record_sent_message("disney", payload, data)
     return data
 
 

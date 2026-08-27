@@ -16,11 +16,9 @@ from functools import wraps
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
-from django.contrib.auth.tokens import default_token_generator
 from django.db.models import Count, Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils import timezone
@@ -49,9 +47,7 @@ def owner_required(view):
         ):
             return redirect("jheliztv_control_login")
         from django_otp.plugins.otp_totp.models import TOTPDevice
-        if TOTPDevice.objects.filter(
-            user=request.user, confirmed=True
-        ).exists() and not request.session.get("jheliz_control_otp_verified"):
+        if TOTPDevice.objects.filter(user=request.user, name="Jheliz Control", confirmed=True).exists() and not request.session.get("jheliz_control_otp_verified"):
             request.session["jheliz_control_otp_pending_user"] = request.user.pk
             return redirect("jheliztv_control_2fa_verify")
         return view(request, *args, **kwargs)
@@ -70,7 +66,7 @@ def control_login(request):
             messages.error(request, "Acceso solo para el administrador.")
             return render(request, "jheliztv/control/login.html", {"username": username})
         from django_otp.plugins.otp_totp.models import TOTPDevice
-        if TOTPDevice.objects.filter(user=user, confirmed=True).exists():
+        if TOTPDevice.objects.filter(user=user, name="Jheliz Control", confirmed=True).exists():
             request.session["jheliz_control_otp_pending_user"] = user.pk
             request.session["jheliz_control_otp_backend"] = "django.contrib.auth.backends.ModelBackend"
             return redirect("jheliztv_control_2fa_verify")
@@ -269,27 +265,6 @@ def control_password_recovery(request):
     )
 
 
-@owner_required
-@require_POST
-def control_tenant_password_reset_link(request, pk):
-    """Genera un enlace temporal para que el dueño se lo envíe al inquilino."""
-    tenant = get_object_or_404(Tenant.objects.select_related("user"), pk=pk)
-    uid = urlsafe_base64_encode(force_bytes(tenant.user.pk))
-    token = default_token_generator.make_token(tenant.user)
-    path = reverse(
-        "jheliztv_password_reset_confirm",
-        kwargs={"uidb64": uid, "token": token},
-    )
-    response = render(
-        request,
-        "jheliztv/control/password_reset_link.html",
-        {"tenant": tenant, "reset_url": request.build_absolute_uri(path)},
-    )
-    response["Cache-Control"] = "no-store, private"
-    response["Pragma"] = "no-cache"
-    return response
-
-
 def control_2fa_verify(request):
     uid = request.session.get("jheliz_control_otp_pending_user")
     if not uid:
@@ -301,10 +276,7 @@ def control_2fa_verify(request):
         token = (request.POST.get("token") or "").strip()
         from django_otp.plugins.otp_totp.models import TOTPDevice
         from django_otp.plugins.otp_static.models import StaticDevice
-        valid = any(
-            device.verify_token(token)
-            for device in TOTPDevice.objects.filter(user=user, confirmed=True)
-        )
+        valid = any(d.verify_token(token) for d in TOTPDevice.objects.filter(user=user, name="Jheliz Control", confirmed=True))
         if not valid:
             valid = any(d.verify_token(token) for d in StaticDevice.objects.filter(user=user, confirmed=True))
         if valid:

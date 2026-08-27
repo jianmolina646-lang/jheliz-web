@@ -43,9 +43,7 @@ class TenantActivityMiddleware:
             return response
         now = timezone.now()
         key = f"jc:activity:{tenant.pk}"
-        cache_claimed = cache.add(key, 1, timeout=60)
-        activity_exists = TenantActivity.objects.filter(tenant=tenant).exists()
-        if cache_claimed or not activity_exists:
+        if cache.add(key, 1, timeout=60):
             activity, created = TenantActivity.objects.get_or_create(
                 tenant=tenant,
                 defaults={

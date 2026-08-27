@@ -155,9 +155,6 @@
             <td><span class="jc-chip jc-chip--{{ t.estado_color }}">{{ t.estado }}</span><br><small>{{ t.days_left }} días restantes</small></td>
             <td>
               <div class="jc-acts">
-                <form method="post" action="{% url 'jheliztv_control_tenant_password_reset_link' t.pk %}" style="display:inline">{% csrf_token %}
-                  <button type="submit" class="jc-btn jc-btn--sm" title="Generar enlace para cambiar contraseña"><span class="material-symbols-outlined">key</span> Recuperar clave</button>
-                </form>
                 <form method="post" action="{% url 'jheliztv_control_tenant_extend' t.pk %}" style="display:inline">{% csrf_token %}
                   <button type="submit" class="jc-btn jc-btn--sm"><span class="material-symbols-outlined">add</span> 30 días</button>
                 </form>

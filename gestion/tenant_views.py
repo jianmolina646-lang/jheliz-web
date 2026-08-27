@@ -21,19 +21,12 @@ from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 
-from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
-from django.contrib.auth.forms import PasswordResetForm
-from django.contrib.auth.views import (
-    PasswordResetCompleteView,
-    PasswordResetConfirmView,
-    PasswordResetDoneView,
-    PasswordResetView,
-)
+from django.contrib.auth.views import PasswordResetConfirmView
 from django.core.cache import cache
 from django.db.models import Prefetch, Q, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
@@ -80,6 +73,7 @@ from .models import (
 from .whatsapp import MetaAPIError, finish_signup, process_webhook, verify_signature
 from .views import _decorate_subs  # reuso de helpers
 from .support_operations import add_message as add_support_message, set_status as set_support_status
+from accounts.security_events import record_security_event
 
 User = get_user_model()
 
@@ -100,51 +94,6 @@ class FifteenMinutePasswordResetTokenGenerator(PasswordResetTokenGenerator):
 
 
 password_recovery_token_generator = FifteenMinutePasswordResetTokenGenerator()
-
-
-class TenantPasswordResetForm(forms.Form):
-    """Envía el enlace por canales vinculados sin enumerar cuentas."""
-    identifier = forms.CharField(label="Usuario o correo", max_length=254)
-
-    def save(self, **kwargs):
-        request = kwargs["request"]
-        identifier = self.cleaned_data["identifier"].strip()
-        user = (User._default_manager.filter(is_active=True, jc_tenant__isnull=False)
-                .filter(Q(username__iexact=identifier) | Q(email__iexact=identifier))
-                .distinct().first())
-        if not user:
-            return
-        if user.email:
-            PasswordResetForm({"email": user.email}).save(**kwargs)
-        connection = TelegramConnection.objects.filter(owner=user, is_enabled=True, chat_id__isnull=False).exclude(chat_id="").first()
-        if connection:
-            from django.contrib.auth.tokens import default_token_generator
-            from django.utils.encoding import force_bytes
-            from django.utils.http import urlsafe_base64_encode
-            from .telegram_alerts import send_message
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
-            path = reverse("jheliztv_password_reset_confirm", kwargs={"uidb64": uid, "token": token})
-            send_message(connection.chat_id, "🔑 <b>RECUPERAR CONTRASEÑA</b>\n\nSolicitaste cambiar la contraseña de JHELIZCONTROLTV. El enlace vence en 24 horas y solo puede utilizarse una vez.", {"inline_keyboard": [[{"text": "Crear contraseña nueva", "url": request.build_absolute_uri(path)}]]})
-
-
-class TenantPasswordResetView(PasswordResetView):
-    form_class = TenantPasswordResetForm
-    template_name = "jheliztv/password_reset_form.html"
-    email_template_name = "jheliztv/password_reset_email.txt"
-    html_email_template_name = "jheliztv/password_reset_email.html"
-    subject_template_name = "jheliztv/password_reset_subject.txt"
-    success_url = reverse_lazy("jheliztv_password_reset_done")
-
-class TenantPasswordResetDoneView(PasswordResetDoneView):
-    template_name = "jheliztv/password_reset_done.html"
-
-class StandardTenantPasswordResetConfirmView(PasswordResetConfirmView):
-    template_name = "jheliztv/password_reset_confirm.html"
-    success_url = reverse_lazy("jheliztv_password_reset_complete")
-
-class StandardTenantPasswordResetCompleteView(PasswordResetCompleteView):
-    template_name = "jheliztv/password_reset_complete.html"
 
 
 def _valid_proof_image(upload) -> bool:
@@ -1642,9 +1591,11 @@ def whatsapp_webhook(request):
     if request.method != "POST":
         return HttpResponse(status=405)
     if not verify_signature(request.body, request.headers.get("X-Hub-Signature-256", "")):
+        record_security_event("webhook.meta_invalid_signature", request=request, severity="critical", alert=True)
         return HttpResponse("Firma invalida", status=403)
     try:
         process_webhook(json.loads(request.body))
     except (ValueError, TypeError):
+        record_security_event("webhook.meta_bad_payload", request=request, severity="warning")
         return HttpResponse("JSON invalido", status=400)
     return HttpResponse("EVENT_RECEIVED")
