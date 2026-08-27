@@ -1,6 +1,68 @@
 {% extends "jheliztv/control/base.html" %}
+{% load static %}
 {% block jc_content %}
-<section class="joc-page-head"><div><span class="joc-eyebrow">Cuentas reales</span><h1>Usuarios</h1><p>Actividad, suscripción y canales vinculados de tus clientes.</p></div><span class="joc-total">{{ tenants|length }} resultados</span></section>
-<form method="get" class="joc-filters"><label><span class="material-symbols-outlined">search</span><input type="search" name="q" value="{{ filters.q }}" placeholder="Buscar usuario o negocio"></label><select name="estado"><option value="">Todos los estados</option><option value="online" {% if filters.estado == 'online' %}selected{% endif %}>En línea</option><option value="active" {% if filters.estado == 'active' %}selected{% endif %}>Activos</option><option value="expired" {% if filters.estado == 'expired' %}selected{% endif %}>Vencidos</option><option value="blocked" {% if filters.estado == 'blocked' %}selected{% endif %}>Bloqueados</option></select><button class="jc-btn" type="submit">Filtrar</button></form>
-<section class="joc-card joc-table-card"><div class="jc-table-wrap"><table class="jc-table"><thead><tr><th>Usuario</th><th>Clientes</th><th>Actividad</th><th>Contacto</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead><tbody>{% for t in tenants %}<tr><td><a class="joc-user-link" href="{% url 'jheliztv_control_user_detail' t.pk %}"><strong>{{ t.business_name|default:"Sin negocio" }}</strong><small class="joc-cell-sub">@{{ t.user.username }}</small></a></td><td><span class="joc-client-count"><span class="material-symbols-outlined">contacts</span><strong>{{ t.client_count }}</strong></span><small class="joc-cell-sub">registrado{{ t.client_count|pluralize }}</small></td><td>{% if t.is_online %}<span class="joc-status is-online">En línea</span>{% else %}<span class="joc-status">Desconectado</span>{% endif %}<small class="joc-cell-sub">{{ t.activity_section }} · {% if t.last_activity_at %}{{ t.last_activity_at|date:"d/m/Y H:i" }}{% else %}Nunca ingresó{% endif %}</small></td><td>{{ t.whatsapp|default:"Sin WhatsApp" }}<small class="joc-cell-sub">{% if t.telegram_connection.is_linked %}Telegram vinculado{% else %}Sin Telegram{% endif %}</small></td><td><span class="jc-chip jc-chip--{{ t.estado_color }}">{{ t.estado }}</span></td><td>{{ t.days_left }} días<small class="joc-cell-sub">Desde {{ t.created_at|date:"d/m/Y" }}</small></td><td><div class="jc-acts"><a class="joc-icon-btn" href="{% url 'jheliztv_control_user_detail' t.pk %}" title="Ver ficha"><span class="material-symbols-outlined">visibility</span></a><form method="post" action="{% url 'jheliztv_control_tenant_password_reset_link' t.pk %}">{% csrf_token %}<button class="joc-icon-btn" title="Recuperar clave"><span class="material-symbols-outlined">key</span></button></form><form method="post" action="{% url 'jheliztv_control_tenant_extend' t.pk %}">{% csrf_token %}<button class="joc-icon-btn" title="Añadir 30 días"><span class="material-symbols-outlined">more_time</span></button></form><form method="post" action="{% url 'jheliztv_control_tenant_block' t.pk %}">{% csrf_token %}<button class="joc-icon-btn is-danger" title="{% if t.is_blocked %}Desbloquear{% else %}Bloquear{% endif %}"><span class="material-symbols-outlined">{% if t.is_blocked %}lock_open{% else %}block{% endif %}</span></button></form></div></td></tr>{% empty %}<tr><td colspan="7"><p class="joc-empty">No hay usuarios con esos filtros.</p></td></tr>{% endfor %}</tbody></table></div></section>
+<section class="joc-page-head">
+  <div><span class="joc-eyebrow">Cuentas reales</span><h1>Usuarios</h1><p>Actividad, suscripción y canales vinculados de tus clientes.</p></div>
+  <span class="joc-total">{{ result_count }} resultados</span>
+</section>
+
+<nav class="joc-quick-filters" aria-label="Filtros rápidos">
+  <a href="?orden={{ filters.orden }}&por_pagina={{ filters.por_pagina }}" class="{% if not filters.estado %}is-active{% endif %}">Todos</a>
+  <a href="?estado=active&orden={{ filters.orden }}&por_pagina={{ filters.por_pagina }}" class="{% if filters.estado == 'active' %}is-active{% endif %}">Activos</a>
+  <a href="?estado=expiring&orden={{ filters.orden }}&por_pagina={{ filters.por_pagina }}" class="{% if filters.estado == 'expiring' %}is-active{% endif %}">Por vencer</a>
+  <a href="?estado=expired&orden={{ filters.orden }}&por_pagina={{ filters.por_pagina }}" class="{% if filters.estado == 'expired' %}is-active{% endif %}">Vencidos</a>
+  <a href="?estado=online&orden={{ filters.orden }}&por_pagina={{ filters.por_pagina }}" class="{% if filters.estado == 'online' %}is-active{% endif %}">En línea</a>
+  <a href="?estado=inactive&orden={{ filters.orden }}&por_pagina={{ filters.por_pagina }}" class="{% if filters.estado == 'inactive' %}is-active{% endif %}">Sin actividad</a>
+</nav>
+
+<form method="get" class="joc-filters">
+  <label><span class="material-symbols-outlined">search</span><input type="search" name="q" value="{{ filters.q }}" placeholder="Buscar usuario o negocio"></label>
+  <select name="estado" aria-label="Estado"><option value="">Todos los estados</option><option value="online" {% if filters.estado == 'online' %}selected{% endif %}>En línea</option><option value="active" {% if filters.estado == 'active' %}selected{% endif %}>Activos</option><option value="expiring" {% if filters.estado == 'expiring' %}selected{% endif %}>Por vencer</option><option value="inactive" {% if filters.estado == 'inactive' %}selected{% endif %}>Sin actividad</option><option value="expired" {% if filters.estado == 'expired' %}selected{% endif %}>Vencidos</option><option value="blocked" {% if filters.estado == 'blocked' %}selected{% endif %}>Bloqueados</option></select>
+  <select name="orden" aria-label="Ordenar"><option value="newest" {% if filters.orden == 'newest' %}selected{% endif %}>Más recientes</option><option value="user" {% if filters.orden == 'user' %}selected{% endif %}>Usuario A–Z</option><option value="clients" {% if filters.orden == 'clients' %}selected{% endif %}>Más clientes</option><option value="activity" {% if filters.orden == 'activity' %}selected{% endif %}>Última actividad</option><option value="expiry" {% if filters.orden == 'expiry' %}selected{% endif %}>Próximos a vencer</option></select>
+  <select name="por_pagina" aria-label="Resultados por página"><option value="25" {% if filters.por_pagina == 25 %}selected{% endif %}>25 por página</option><option value="50" {% if filters.por_pagina == 50 %}selected{% endif %}>50 por página</option></select>
+  <button class="jc-btn" type="submit">Filtrar</button>
+</form>
+
+<div class="joc-table-tools">
+  <form id="bulk-user-form" method="post" action="{% url 'jheliztv_control_users_bulk_action' %}" onsubmit="return confirm('¿Confirmas aplicar esta acción a los usuarios seleccionados?')">
+    {% csrf_token %}
+    <select name="bulk_action" required aria-label="Acción masiva"><option value="">Acción masiva</option><option value="extend">Añadir 30 días</option><option value="block">Bloquear</option><option value="unblock">Desbloquear</option></select>
+    <button class="jc-btn jc-btn--ghost" type="submit">Aplicar</button>
+  </form>
+  <a class="jc-btn jc-btn--ghost joc-export" href="{% url 'jheliztv_control_users_export' %}?q={{ filters.q|urlencode }}&estado={{ filters.estado|urlencode }}&orden={{ filters.orden|urlencode }}"><span class="material-symbols-outlined">download</span>Exportar CSV</a>
+</div>
+
+<section class="joc-card joc-table-card"><div class="jc-table-wrap"><table class="jc-table">
+  <thead><tr><th class="joc-select-cell"><label class="joc-checkbox"><input id="select-all-users" type="checkbox" aria-label="Seleccionar todos"><span aria-hidden="true"></span></label></th><th>Usuario</th><th>Clientes</th><th>Actividad</th><th>Contacto</th><th>Estado</th><th>Vigencia</th><th>Acciones</th></tr></thead>
+  <tbody>{% for t in tenants %}<tr>
+    <td class="joc-select-cell"><label class="joc-checkbox"><input class="joc-user-check" type="checkbox" name="tenant_ids" value="{{ t.pk }}" form="bulk-user-form" aria-label="Seleccionar {{ t.user.username }}"><span aria-hidden="true"></span></label></td>
+    <td><div class="joc-user-cell"><span class="joc-cell-icon"><span class="material-symbols-outlined">person</span></span><a class="joc-user-link" href="{% url 'jheliztv_control_user_detail' t.pk %}"><strong>{{ t.business_name|default:"Sin negocio" }}</strong><small class="joc-cell-sub">@{{ t.user.username }}</small></a></div></td>
+    <td><span class="joc-client-count"><span class="material-symbols-outlined">group</span><strong>{{ t.client_count }}</strong></span><small class="joc-cell-sub">registrado{{ t.client_count|pluralize }}</small></td>
+    <td>{% if t.is_online %}<span class="joc-status is-online">En línea</span>{% else %}<span class="joc-status">Desconectado</span>{% endif %}<small class="joc-cell-sub">{{ t.activity_section }} · {% if t.last_activity_at %}hace {{ t.last_activity_at|timesince }}{% else %}Nunca ingresó{% endif %}</small></td>
+    <td><div class="joc-contact-cell"><span><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true">{{ t.whatsapp|default:"Sin WhatsApp" }}</span><small><img src="{% static 'img/brands/telegram.svg' %}" alt="" aria-hidden="true">{% if t.telegram_connection.is_linked %}Telegram vinculado{% else %}Sin Telegram{% endif %}</small></div></td>
+    <td><span class="jc-chip jc-chip--{{ t.estado_color }}">{{ t.estado }}</span></td>
+    <td><span class="joc-expiry {% if not t.subscription_active %}is-expired{% elif t.days_left <= 7 %}is-warning{% else %}is-safe{% endif %}">{{ t.days_left }} días</span><small class="joc-cell-sub">{% if t.plan_expires_at %}Vence {{ t.plan_expires_at|date:"d/m/Y" }}{% else %}Sin fecha{% endif %}</small></td>
+    <td><details class="joc-actions-menu"><summary class="joc-icon-btn" title="Acciones" aria-label="Acciones"><span class="material-symbols-outlined">more_horiz</span></summary><div class="joc-actions-popover">
+      <a href="{% url 'jheliztv_control_user_detail' t.pk %}"><span class="material-symbols-outlined">visibility</span>Ver ficha</a>
+      <form method="post" action="{% url 'jheliztv_control_tenant_password_reset_link' t.pk %}" onsubmit="return confirm('¿Generar enlace para recuperar la clave?')">{% csrf_token %}<button><span class="material-symbols-outlined">key</span>Recuperar clave</button></form>
+      <form method="post" action="{% url 'jheliztv_control_tenant_extend' t.pk %}" onsubmit="return confirm('¿Añadir 30 días de vigencia?')">{% csrf_token %}<button><span class="material-symbols-outlined">calendar_add_on</span>Añadir 30 días</button></form>
+      <form method="post" action="{% url 'jheliztv_control_tenant_block' t.pk %}" onsubmit="return confirm('¿Confirmas {% if t.is_blocked %}desbloquear{% else %}bloquear{% endif %} este usuario?')">{% csrf_token %}<button class="is-danger"><span class="material-symbols-outlined">{% if t.is_blocked %}lock_open{% else %}block{% endif %}</span>{% if t.is_blocked %}Desbloquear{% else %}Bloquear{% endif %}</button></form>
+    </div></details></td>
+  </tr>{% empty %}<tr><td colspan="8"><p class="joc-empty">No hay usuarios con esos filtros.</p></td></tr>{% endfor %}</tbody>
+</table></div></section>
+
+{% if page_obj.paginator.num_pages > 1 %}<nav class="joc-pagination" aria-label="Paginación">
+  {% if page_obj.has_previous %}<a href="?q={{ filters.q|urlencode }}&estado={{ filters.estado|urlencode }}&orden={{ filters.orden }}&por_pagina={{ filters.por_pagina }}&pagina={{ page_obj.previous_page_number }}"><span class="material-symbols-outlined">chevron_left</span>Anterior</a>{% endif %}
+  <span>Página <strong>{{ page_obj.number }}</strong> de {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a href="?q={{ filters.q|urlencode }}&estado={{ filters.estado|urlencode }}&orden={{ filters.orden }}&por_pagina={{ filters.por_pagina }}&pagina={{ page_obj.next_page_number }}">Siguiente<span class="material-symbols-outlined">chevron_right</span></a>{% endif %}
+</nav>{% endif %}
+
+<script>
+  (() => {
+    const all = document.getElementById('select-all-users');
+    if (!all) return;
+    const checks = [...document.querySelectorAll('.joc-user-check')];
+    all.addEventListener('change', () => checks.forEach((item) => { item.checked = all.checked; }));
+  })();
+</script>
 {% endblock %}

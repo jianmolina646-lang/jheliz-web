@@ -16,7 +16,6 @@ from __future__ import annotations
 import email
 import imaplib
 import logging
-import re
 from datetime import datetime, timedelta, timezone
 from email.header import decode_header, make_header
 from email.message import Message
@@ -129,30 +128,14 @@ def _bodies(msg: Message) -> tuple[str, str]:
     return html, text
 
 
-_INTERNALDATE_RE = re.compile(
-    rb'INTERNALDATE "(?P<value>\d{1,2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} [+-]\d{4})"'
-)
-
-
-def _msg_datetime(msg: Message, fetch_metadata: bytes = b"") -> datetime | None:
-    """Fecha fiable del mensaje, prefiriendo recepción IMAP a Date."""
-    match = _INTERNALDATE_RE.search(fetch_metadata or b"")
-    if match:
-        try:
-            return datetime.strptime(
-                match.group("value").decode("ascii"), "%d-%b-%Y %H:%M:%S %z"
-            ).astimezone(timezone.utc)
-        except (UnicodeDecodeError, ValueError):
-            pass
+def _msg_datetime(msg: Message) -> datetime:
     try:
         dt = parsedate_to_datetime(msg.get("Date"))
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=timezone.utc)
-        return dt.astimezone(timezone.utc)
-    except (TypeError, ValueError, OverflowError):
-        # Una fecha ausente o inválida nunca debe convertir un correo viejo en
-        # uno recién recibido.
-        return None
+        return dt
+    except Exception:
+        return datetime.now(timezone.utc)
 
 
 def fetch_latest_for_email(
@@ -184,8 +167,7 @@ def fetch_latest_for_email(
     if not account_email:
         return None
 
-    configured_lookback = getattr(settings, "CODES_LOOKBACK_MINUTES", 10)
-    lookback = lookback_minutes or min(configured_lookback, 10)
+    lookback = lookback_minutes or getattr(settings, "CODES_LOOKBACK_MINUTES", 30)
     since_dt = datetime.now(timezone.utc) - timedelta(minutes=lookback)
 
     candidates: list[tuple[datetime, NetflixResult | DisneyResult]] = []
@@ -244,14 +226,13 @@ def _search_account(
         candidates: list[tuple[datetime, NetflixResult | DisneyResult]] = []
         for msg_id in ids:
             # BODY.PEEK[] baja el correo SIN marcarlo como leído.
-            typ, msg_data = conn.fetch(msg_id, "(BODY.PEEK[] INTERNALDATE)")
+            typ, msg_data = conn.fetch(msg_id, "(BODY.PEEK[])")
             if typ != "OK" or not msg_data or not msg_data[0]:
                 continue
             raw = msg_data[0][1]
             msg = email.message_from_bytes(raw)
-            fetch_metadata = msg_data[0][0] if isinstance(msg_data[0][0], bytes) else b""
-            dt = _msg_datetime(msg, fetch_metadata)
-            if dt is None or dt < since_dt:
+            dt = _msg_datetime(msg)
+            if dt < since_dt:
                 continue
             recipients = _recipients(msg)
             html, text = _bodies(msg)

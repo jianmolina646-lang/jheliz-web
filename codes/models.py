@@ -142,12 +142,6 @@ class BotState(models.Model):
     """
 
     telegram_offset = models.BigIntegerField("Último update de Telegram", default=0)
-    daily_limit = models.PositiveIntegerField(
-        "Límite diario de consultas",
-        null=True,
-        blank=True,
-        help_text="Vacío = usar CODES_DAILY_LIMIT de la configuración.",
-    )
     updated_at = models.DateTimeField("Actualizado", auto_now=True)
 
     class Meta:

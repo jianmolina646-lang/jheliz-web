@@ -372,11 +372,7 @@ def _alert_admin(key: str, text: str, ttl: int = 3600) -> None:
 
 
 def _daily_limit() -> int:
-    configured = int(getattr(settings, "CODES_DAILY_LIMIT", 20) or 0)
-    state_limit = BotState.objects.filter(pk=1).values_list(
-        "daily_limit", flat=True
-    ).first()
-    return configured if state_limit is None else int(state_limit)
+    return int(getattr(settings, "CODES_DAILY_LIMIT", 20) or 0)
 
 
 def _security_block_key(client: CodeBotClient) -> str:
@@ -696,7 +692,7 @@ def _on_cooldown(client: CodeBotClient) -> bool:
 
 
 def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) -> str:
-    email = _normalize_email_arg(email)
+    email = (email or "").strip().lower()
     if not _has_access(client):
         return _expired_message()
     if _is_security_blocked(client):
@@ -754,6 +750,23 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
                 continue
             return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
 
+    # Netflix no siempre envía el tipo que el cliente eligió en el bot. Por
+    # ejemplo, al intentar validar un viaje puede mandar un código normal de
+    # inicio de sesión. Si no apareció el tipo exacto, reutilizamos la misma
+    # ventana reciente para entregar cualquier mensaje válido de esa cuenta.
+    if kind and (result is None or not result.has_payload):
+        try:
+            fallback = imap_reader.fetch_latest_for_email(email, kind=None)
+        except Exception:
+            logger.exception("Fallo leyendo fallback IMAP para %s", email)
+        else:
+            if (
+                fallback is not None
+                and fallback.has_payload
+                and fallback.kind in DELIVERABLE_KINDS
+            ):
+                result = fallback
+
     if result is None or not result.has_payload:
         CodeDelivery.objects.create(
             client=client, email=email, kind=kind or "", found=False
@@ -779,9 +792,7 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
         client=client, email=email, kind=kind or "", found=True
     )
     msg = _format_result(email, result)
-    # Nunca reutilizamos un resultado por más de unos segundos: un correo
-    # nuevo puede invalidar inmediatamente el código o enlace anterior.
-    ttl = min(getattr(settings, "CODES_RESULT_CACHE_SECONDS", 5), 5)
+    ttl = getattr(settings, "CODES_RESULT_CACHE_SECONDS", 45)
     if ttl > 0:
         cache.set(cache_key, msg, timeout=ttl)
     return msg
@@ -805,7 +816,7 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
         )
         return
 
-    arg = _normalize_email_arg(arg)
+    arg = (arg or "").strip().lower()
     if not arg:
         # Sin correo: si tiene uno solo, lo usamos; si tiene varios, que elija.
         if len(emails) == 1:
@@ -814,9 +825,9 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
             if len(emails) > MAX_EMAIL_BUTTONS:
                 send_message(
                     chat_id,
-                    f"Tenés <b>{len(emails)}</b> correos asignados. Pedí el código "
-                    "directamente con:\n"
-                    "<code>/codigo nombre@correo.com</code>",
+                    f"Tenés <b>{len(emails)}</b> correos asignados. Buscá primero "
+                    "el que necesitás con:\n"
+                    "<code>/buscar nombre@correo.com</code>",
                 )
                 return
             send_message(
@@ -853,9 +864,7 @@ def _handle_message(update: dict) -> None:
     if menu_cmd:
         text = menu_cmd
 
-    command_parts = text.split(maxsplit=1)
-    cmd = command_parts[0] if command_parts else ""
-    rest = command_parts[1] if len(command_parts) > 1 else ""
+    cmd, _, rest = text.partition(" ")
     cmd = cmd.lower().split("@", 1)[0]  # quita @botname si lo hubiera
     rest = rest.strip()
 
@@ -895,8 +904,7 @@ def _handle_message(update: dict) -> None:
 
     # Comandos de admin (solo para el chat del admin).
     if _is_admin(chat_id) and cmd in (
-        "/clientes", "/asignar", "/quitar", "/anuncio", "/activar",
-        "/desactivar", "/limite",
+        "/clientes", "/asignar", "/quitar", "/anuncio", "/activar", "/desactivar"
     ):
         _handle_admin_command(chat_id, cmd, rest)
         return
@@ -986,13 +994,13 @@ def _handle_callback(update: dict) -> None:
         if recent:
             text = (
                 "📧 <b>Cuentas recientes</b>\n"
-                "Elegí una o enviá <code>/codigo correo@gmail.com</code>."
+                "Elegí una o buscá otra con <code>/buscar nombre</code>."
             )
             buttons = _email_buttons(recent, index_source=emails)
         else:
             text = (
-                "🔑 <b>Pedir un código</b>\n"
-                "Escribí <code>/codigo correo@gmail.com</code>."
+                "🔍 <b>Buscar una cuenta</b>\n"
+                "Escribí <code>/buscar nombre@correo.com</code>."
             )
             buttons = None
         if message_id is not None:
@@ -1113,7 +1121,7 @@ def _send_welcome(client: CodeBotClient) -> None:
         chat_id,
         f"✨ <b>{BRAND} · Códigos Netflix</b>\n\n"
         "Elegí una acción en el menú.\n"
-        "Para pedirlo directamente usá <code>/codigo correo@gmail.com</code>.\n\n"
+        "Para encontrar una cuenta usá <code>/buscar nombre</code>.\n\n"
         "❓ Ayuda completa: <code>/cmds</code>",
         menu=True,
     )
@@ -1151,6 +1159,7 @@ def _client_help_text(emails: list[str]) -> str:
         "📨 <code>/enlacetv correo</code> — buscar el enlace enviado por Netflix",
         "",
         "📋 <code>/miscorreos</code> — ver tus correos asignados",
+        "🔍 <code>/buscar nombre@gmail.com</code> — encontrar un correo asignado",
         "❓ <code>/cmds</code> — ver esta ayuda",
     ]
     if not emails:
@@ -1168,8 +1177,8 @@ def _client_help_text(emails: list[str]) -> str:
     else:
         lines.append("")
         lines.append(
-            f"💡 Tenés {len(emails)} correos. Pedí directamente el que "
-            "necesitás con <code>/codigo correo@gmail.com</code>."
+            f"💡 Tenés {len(emails)} correos. Encontrá rápidamente el que "
+            "necesitás con <code>/buscar nombre</code>."
         )
     return "\n".join(lines)
 
@@ -1184,11 +1193,10 @@ def _admin_help_text() -> str:
         "➕ <code>/asignar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — asigna y activa",
         "➖ <code>/quitar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — quita un correo",
         "📢 <code>/anuncio &lt;mensaje&gt;</code> — enviar un anuncio a todos los registrados",
-        "📊 <code>/limite [cantidad]</code> — ver o cambiar el límite diario de consultas",
         "",
         "— También tenés los comandos de cliente —",
         "🔑 /codigo · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📺 /tv · "
-        "📋 /miscorreos",
+        "📋 /miscorreos · 🔍 /buscar",
     ]
     return "\n".join(lines)
 
@@ -1226,8 +1234,8 @@ def _send_email_menu(client: CodeBotClient) -> None:
         send_message(
             client.telegram_chat_id,
             f"📧 Tenés <b>{len(emails)}</b> correos asignados.\n\n"
-            "Pedí el código indicando el correo completo:\n"
-            "<code>/codigo nombre@gmail.com</code>"
+            "Para encontrar uno escribí parte del nombre o el correo completo:\n"
+            "<code>/buscar nombre@gmail.com</code>"
             + ("\n\nTus cuentas recientes:" if recent else ""),
             buttons=_email_buttons(recent, index_source=emails) if recent else None,
         )
@@ -1264,8 +1272,8 @@ def _cmd_search(client: CodeBotClient, raw_query: str) -> None:
     if not query:
         send_message(
             chat_id,
-            "🔑 Pedí el código indicando el correo completo.\n"
-            "Ejemplo: <code>/codigo nombre@gmail.com</code>",
+            "🔍 Escribí una parte del correo que buscás.\n"
+            "Ejemplo: <code>/buscar nombre@gmail.com</code>",
         )
         return
     if len(query) < 2:
@@ -1308,14 +1316,6 @@ def _cmd_search(client: CodeBotClient, raw_query: str) -> None:
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
-def _normalize_email_arg(value: str) -> str:
-    """Normaliza el correo recibido después de un comando de Telegram."""
-    value = (value or "").strip().lower().replace("\\@", "@")
-    if value.startswith("mailto:"):
-        value = value[7:]
-    return value.strip("<>.,;:()[]{}")
-
-
 def _resolve_client(token: str) -> CodeBotClient | None:
     """Encuentra un cliente por chat_id numérico o por @usuario."""
     token = (token or "").strip()
@@ -1340,48 +1340,6 @@ def _handle_admin_command(chat_id, cmd: str, rest: str) -> None:
         _admin_broadcast(chat_id, rest)
     elif cmd in ("/activar", "/desactivar"):
         _admin_set_active(chat_id, rest, active=(cmd == "/activar"))
-    elif cmd == "/limite":
-        _admin_set_daily_limit(chat_id, rest)
-
-
-def _admin_set_daily_limit(chat_id, raw_limit: str) -> None:
-    raw_limit = (raw_limit or "").strip()
-    if not raw_limit:
-        current_limit = _daily_limit()
-        current_label = f"{current_limit:,}" if current_limit > 0 else "Sin límite"
-        send_message(
-            chat_id,
-            f"📊 Límite diario actual: <b>{current_label}</b>.",
-        )
-        return
-    normalized_limit = raw_limit.lower().replace(" ", "")
-    if normalized_limit in {"0", "sinlimite", "ilimitado"}:
-        limit = 0
-    else:
-        try:
-            limit = int(raw_limit)
-        except ValueError:
-            limit = -1
-    if limit < 0 or limit > 1_000_000:
-        send_message(
-            chat_id,
-            "Uso: <code>/limite &lt;cantidad&gt;</code> (entre 1 y 1,000,000), "
-            "o <code>/limite 0</code> para dejarlo sin límite.\n"
-            "Ejemplo: <code>/limite 5000</code>",
-        )
-        return
-    BotState.objects.update_or_create(pk=1, defaults={"daily_limit": limit})
-    if limit == 0:
-        send_message(
-            chat_id,
-            "✅ Límite diario desactivado. Los clientes pueden hacer consultas "
-            "sin límite, únicamente sobre sus correos asignados.",
-        )
-        return
-    send_message(
-        chat_id,
-        f"✅ Límite diario actualizado a <b>{limit:,}</b> consultas por cliente.",
-    )
 
 
 def _admin_set_active(chat_id, token: str, active: bool) -> None:
@@ -1563,6 +1521,7 @@ _CLIENT_MENU = [
     {"command": "tv", "description": "📺 Activar Netflix en tu TV"},
     {"command": "enlacetv", "description": "📨 Buscar enlace de activación TV"},
     {"command": "miscorreos", "description": "📋 Ver mis correos asignados"},
+    {"command": "buscar", "description": "🔍 Buscar un correo asignado"},
     {"command": "cmds", "description": "❓ Ver los comandos"},
 ]
 
@@ -1575,7 +1534,6 @@ _ADMIN_MENU = _CLIENT_MENU + [
     {"command": "asignar", "description": "➕ Asignar correo a un cliente"},
     {"command": "quitar", "description": "➖ Quitar correo a un cliente"},
     {"command": "anuncio", "description": "📢 Enviar anuncio a todos"},
-    {"command": "limite", "description": "📊 Cambiar límite diario"},
 ]
 
 

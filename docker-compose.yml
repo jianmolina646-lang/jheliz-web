@@ -1,6 +1,7 @@
 services:
   web:
     build: .
+    user: "1000:1000"
     # Gunicorn:
     # - 3 workers + 4 threads (gthread): 12 reqs concurrentes; con --preload los
     #   workers comparten memoria del master, así que 3 workers caben en 2GB RAM
@@ -43,7 +44,7 @@ services:
       start_period: 60s
 
   db:
-    image: postgres:16-alpine
+    image: jheliz/postgres:16-secure
     environment:
       POSTGRES_USER: jheliz
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
@@ -60,6 +61,7 @@ services:
 
   telegram_bot:
     build: .
+    user: "1000:1000"
     command: python manage.py run_telegram_bot
     env_file: .env
     depends_on:
@@ -70,6 +72,7 @@ services:
 
   codes_bot:
     build: .
+    user: "1000:1000"
     command: python manage.py run_codes_bot
     env_file: .env
     environment:
@@ -90,6 +93,7 @@ services:
 
   disney_bot:
     build: .
+    user: "1000:1000"
     command: python manage.py run_disney_bot
     env_file: .env
     depends_on:
@@ -100,6 +104,7 @@ services:
 
   control_alerts_bot:
     build: .
+    user: "1000:1000"
     command: python manage.py run_control_telegram_bot
     env_file: .env
     environment:
@@ -120,6 +125,7 @@ services:
 
   whatsapp_scheduler:
     build: .
+    user: "1000:1000"
     command: python manage.py run_control_whatsapp_scheduler
     env_file: .env
     depends_on:

@@ -11,7 +11,7 @@
 {% block pb_twitter_title %}JHELIZCONTROLTV | Gestión de suscripciones{% endblock %}
 {% block pb_twitter_description %}Administra clientes, vencimientos, renovaciones y ganancias desde un solo panel.{% endblock %}
 {% block pb_extra_head %}
-  <link rel="stylesheet" href="{% static 'css/jheliz-landing.css' %}?v=performance-20260812-1">
+  <link rel="stylesheet" href="{% static 'css/jheliz-landing.css' %}?v=chartjs-v1-20260816">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -100,7 +100,7 @@
             <div class="jl-dashboard-preview__head">
               <div>
                 <strong>Resumen del negocio</strong>
-                <small>Últimos 12 meses</small>
+                <small>Ejemplo de los últimos 12 meses</small>
               </div>
               <span>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"></path><path d="m19 9-5 5-4-4-3 3"></path></svg>
@@ -114,11 +114,8 @@
               <article><small>Renovaciones</small><strong>92%</strong></article>
             </div>
 
-            <div class="jl-dashboard-preview__chart" aria-label="Vista previa de crecimiento anual">
-              <i style="--bar:38%"></i><i style="--bar:52%"></i><i style="--bar:44%"></i>
-              <i style="--bar:68%"></i><i style="--bar:59%"></i><i style="--bar:81%"></i>
-              <i style="--bar:72%"></i><i style="--bar:94%"></i><i style="--bar:86%"></i>
-              <i style="--bar:100%"></i><i style="--bar:78%"></i><i style="--bar:92%"></i>
+            <div class="jl-dashboard-preview__chart" role="img" aria-label="Gráfico demostrativo de crecimiento mensual creado con Chart.js">
+              <canvas id="jlBusinessPreviewChart"></canvas>
             </div>
           </div>
         </div>
@@ -234,5 +231,6 @@
 {% endblock %}
 
 {% block pb_scripts %}
-  <script src="{% static 'js/jheliz-landing.js' %}?v=performance-20260812-1" defer></script>
+  <script src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
+  <script src="{% static 'js/jheliz-landing.js' %}?v=chartjs-v1-20260816" defer></script>
 {% endblock %}

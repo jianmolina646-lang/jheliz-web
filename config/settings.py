@@ -384,7 +384,7 @@ CODES_IMAP2_PORT = config("CODES_IMAP2_PORT", default=993, cast=int)
 CODES_IMAP2_USER = config("CODES_IMAP2_USER", default="")
 CODES_IMAP2_PASSWORD = secret_config("CODES_IMAP2_PASSWORD", allow_empty=True)
 # Ventana (minutos) hacia atrás para considerar un correo de Netflix vigente.
-CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=10, cast=int)
+CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=30, cast=int)
 # Máximo de pedidos de código por cliente por día (0 = sin límite).
 CODES_DAILY_LIMIT = config("CODES_DAILY_LIMIT", default=20, cast=int)
 # Los mensajes con códigos/enlaces se eliminan de Telegram tras este tiempo.
@@ -421,7 +421,7 @@ CODES_IMAP_TIMEOUT = config("CODES_IMAP_TIMEOUT", default=20, cast=int)
 # Anti-spam: segundos mínimos entre dos lecturas de Gmail del mismo cliente.
 CODES_COOLDOWN_SECONDS = config("CODES_COOLDOWN_SECONDS", default=6, cast=int)
 # Mini-caché: segundos que se reutiliza un código ya leído (toques repetidos).
-CODES_RESULT_CACHE_SECONDS = config("CODES_RESULT_CACHE_SECONDS", default=5, cast=int)
+CODES_RESULT_CACHE_SECONDS = config("CODES_RESULT_CACHE_SECONDS", default=45, cast=int)
 
 # Discord bot (opcional)
 # Bot que reemplaza a Telegram para el back-office: pedidos nuevos, Yape,
@@ -907,13 +907,9 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
-# Sesión persistente: por default Django deja la cookie de sesión SIN Max-Age,
-# así que muchos navegadores/webviews de celular (los que abren el link desde
-# WhatsApp/Telegram) la borran al cambiar de página o al cerrar, y al usuario
-# "se le cierra la sesión al toque". Le damos 30 días de vida y la renovamos
-# en cada request (expiración deslizante), de modo que mientras usen la app no
-# los saca.
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 días
+# Expiración por inactividad. Cada request autenticado renueva la sesión, pero
+# una cuenta inactiva durante 30 minutos debe volver a autenticarse.
+SESSION_COOKIE_AGE = 60 * 30  # 30 minutos
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
 

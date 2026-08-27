@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Inventory and recoverable backup
-        uses: appleboy/ssh-action@v1.2.5
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}

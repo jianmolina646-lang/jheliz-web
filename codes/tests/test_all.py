@@ -191,23 +191,6 @@ class NetflixParserTests(TestCase):
 
 
 class ImapAccountsTests(TestCase):
-    def test_internaldate_is_preferred_over_spoofable_date_header(self):
-        from datetime import datetime, timezone
-        from email.message import EmailMessage
-
-        msg = EmailMessage()
-        msg["Date"] = "Mon, 01 Jan 2001 00:00:00 +0000"
-        metadata = b'1 (INTERNALDATE "25-Aug-2026 13:30:00 +0000" RFC822 {1})'
-        self.assertEqual(
-            imap_reader._msg_datetime(msg, metadata),
-            datetime(2026, 8, 25, 13, 30, tzinfo=timezone.utc),
-        )
-
-    def test_missing_date_is_not_treated_as_new(self):
-        from email.message import EmailMessage
-
-        self.assertIsNone(imap_reader._msg_datetime(EmailMessage()))
-
     @override_settings(
         CODES_IMAP_HOST="imap.gmail.com",
         CODES_IMAP_USER="codigosjheliz@gmail.com",
@@ -331,7 +314,6 @@ class CmdsHelpTests(TestCase):
         text = msend.call_args[0][1]
         self.assertIn("/anuncio", text)
         self.assertIn("/clientes", text)
-        self.assertIn("/limite", text)
 
     @mock.patch("codes.bot.send_message")
     def test_cmds_active_client_shows_only_client_commands(self, msend):
@@ -400,36 +382,6 @@ class AdminCommandTests(TestCase):
         self.cliente = CodeBotClient.objects.create(
             telegram_chat_id="424242", telegram_username="pepe", display_name="Pepe"
         )
-
-    @mock.patch("codes.bot.send_message")
-    def test_admin_can_set_and_read_daily_limit(self, msend):
-        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
-            bot._handle_admin_command("900", "/limite", "5000")
-            self.assertEqual(bot._daily_limit(), 5000)
-            bot._handle_admin_command("900", "/limite", "")
-        self.assertIn("5,000", msend.call_args_list[-1].args[1])
-
-    @mock.patch("codes.bot.send_message")
-    def test_admin_can_disable_daily_limit(self, msend):
-        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
-            bot._handle_admin_command("900", "/limite", "0")
-            self.assertEqual(bot._daily_limit(), 0)
-            bot._handle_admin_command("900", "/limite", "")
-        self.assertIn("Sin límite", msend.call_args_list[-1].args[1])
-
-    @mock.patch("codes.bot.send_message")
-    def test_non_admin_cannot_change_daily_limit(self, _msend):
-        with self.settings(TELEGRAM_CODES_ADMIN_CHAT_ID="900"):
-            bot.process_update(
-                {
-                    "message": {
-                        "chat": {"id": 424242},
-                        "from": {"username": "pepe"},
-                        "text": "/limite 5000",
-                    }
-                }
-            )
-        self.assertFalse(BotState.objects.filter(pk=1).exists())
 
     @mock.patch("codes.bot.send_message")
     def test_asignar_crea_correo_y_activa(self, msend):
@@ -570,22 +522,6 @@ class CmdCodeTests(TestCase):
             self.client_obj, "solo@gmail.com", kind="household"
         )
 
-    @mock.patch("codes.bot.send_message")
-    @mock.patch("codes.bot._deliver_code", return_value="OK")
-    def test_direct_command_accepts_newline_and_escaped_at(self, mdeliver, _msend):
-        bot._handle_message(
-            {
-                "message": {
-                    "chat": {"id": 555},
-                    "from": {"username": "cliente"},
-                    "text": "/codigo\nsolo\\@gmail.com",
-                }
-            }
-        )
-        mdeliver.assert_called_once_with(
-            self.client_obj, "solo@gmail.com", kind="signin_code"
-        )
-
     @mock.patch("codes.bot._deliver_code", return_value="OK")
     @mock.patch("codes.bot.send_message")
     def test_multiple_emails_no_arg_shows_picker(self, msend, mdeliver):
@@ -606,11 +542,14 @@ class DeliverKindTests(TestCase):
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
-    def test_kind_is_forwarded_without_fallback_to_another_type(self, mfetch, _cfg):
+    def test_kind_is_forwarded_to_imap(self, mfetch, _cfg):
         bot._deliver_code(self.client_obj, "mine@gmail.com", kind="password_reset")
         self.assertEqual(
             mfetch.call_args_list,
-            [mock.call("mine@gmail.com", kind="password_reset")],
+            [
+                mock.call("mine@gmail.com", kind="password_reset"),
+                mock.call("mine@gmail.com", kind=None),
+            ],
         )
 
     def test_unassigned_email_says_no_corresponde(self):
@@ -647,8 +586,7 @@ class SearchAssignedEmailsTests(TestCase):
     @mock.patch("codes.bot.send_message")
     def test_search_without_query_shows_usage(self, msend):
         bot._cmd_search(self.client_obj, "")
-        self.assertIn("/codigo", msend.call_args.args[1])
-        self.assertNotIn("/buscar", msend.call_args.args[1])
+        self.assertIn("/buscar", msend.call_args.args[1])
 
     @mock.patch("codes.bot._offer_kinds_for_email")
     def test_single_match_opens_actions(self, moffer):
@@ -691,8 +629,7 @@ class SearchAssignedEmailsTests(TestCase):
                 client=self.client_obj, email=f"extra{idx:02d}@gmail.com"
             )
         bot._send_email_menu(self.client_obj)
-        self.assertIn("/codigo", msend.call_args.args[1])
-        self.assertNotIn("/buscar", msend.call_args.args[1])
+        self.assertIn("/buscar", msend.call_args.args[1])
         self.assertIsNone(msend.call_args.kwargs.get("buttons"))
 
     @mock.patch("codes.bot.send_message")
@@ -764,8 +701,7 @@ class CallbackNavigationTests(TestCase):
             }
         )
         self.assertEqual(medit.call_args.args[:2], (779, 56))
-        self.assertIn("/codigo", medit.call_args.args[2])
-        self.assertNotIn("/buscar", medit.call_args.args[2])
+        self.assertIn("/buscar", medit.call_args.args[2])
 
 
 class DeliverCodeTests(TestCase):
@@ -1229,21 +1165,6 @@ class SecurityFeatureTests(TestCase):
             CodeDelivery.objects.create(client=self.client_obj, email="mio@gmail.com", found=True)
             msg = bot._deliver_code(self.client_obj, "mio@gmail.com")
         self.assertIn("límite", msg)
-
-    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
-    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email")
-    def test_zero_daily_limit_never_blocks_assigned_email(self, mfetch, _mconf):
-        from codes.models import BotState, CodeDelivery
-        from codes.netflix import NetflixResult
-
-        BotState.objects.update_or_create(pk=1, defaults={"daily_limit": 0})
-        for _ in range(25):
-            CodeDelivery.objects.create(
-                client=self.client_obj, email="mio@gmail.com", found=True
-            )
-        mfetch.return_value = NetflixResult(kind="signin_code", code="4321")
-        msg = bot._deliver_code(self.client_obj, "mio@gmail.com", kind="signin_code")
-        self.assertIn("4321", msg)
 
 
     @mock.patch("codes.bot.send_message")

@@ -1,4 +1,5 @@
 FROM python:3.12-slim
+RUN apt-get update && apt-get dist-upgrade -y && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,11 +12,9 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY requirements.txt ./
-RUN pip install --upgrade pip "setuptools>=78.1.1" \
- && pip install -r requirements.txt \
- && rm -rf /usr/local/lib/python3.12/site-packages/pip* \
-           /usr/local/lib/python3.12/site-packages/setuptools* \
-           /usr/local/bin/pip*
+RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "msgpack>=1.2.1"
+RUN rm -rf /root/.cache/pip /tmp/*
 
 COPY . .
 
@@ -26,6 +25,11 @@ RUN DJANGO_SECRET_KEY=build SECRET_KEY=build DEBUG=False \
 # Compilar traducciones (.po → .mo) si gettext está disponible.
 RUN DJANGO_SECRET_KEY=build SECRET_KEY=build DEBUG=False \
     python manage.py compilemessages || true
+
+# El proceso de producción usa el UID/GID sin privilegios definido en Compose.
+RUN groupadd --gid 1000 app \
+ && useradd --uid 1000 --gid 1000 --create-home app \
+ && chown -R app:app /app
 
 EXPOSE 8000
 
