@@ -689,6 +689,105 @@ def _searching_message(email: str, kind: str) -> str:
     )
 
 
+def _premium_button(
+    text: str,
+    *,
+    callback_data: str | None = None,
+    url: str | None = None,
+    style: str = "primary",
+    icon: str | None = None,
+) -> dict:
+    button: dict[str, str] = {"text": text, "style": style}
+    if callback_data:
+        button["callback_data"] = callback_data
+    if url:
+        button["url"] = url
+    if icon:
+        custom_id = emoji_id(icon)
+        if custom_id:
+            button["icon_custom_emoji_id"] = custom_id
+    return button
+
+
+def _result_buttons(
+    client: CodeBotClient,
+    email: str,
+    kind: str,
+    result_text: str,
+    *,
+    tv_confirmation: bool = False,
+) -> list[list[dict]]:
+    """Acciones posteriores sin obligar al cliente a escribir comandos."""
+    emails = _assigned_emails(client)
+    try:
+        idx = emails.index(email)
+    except ValueError:
+        return [[_premium_button("🏠 Menú principal", callback_data="home")]]
+
+    rows: list[list[dict]] = []
+    match = re.search(r'href="(https://[^"<>]+)"', result_text)
+    if match:
+        rows.append(
+            [
+                _premium_button(
+                    "Abrir en Netflix",
+                    url=html.unescape(match.group(1)),
+                    style="success",
+                    icon="🔗",
+                )
+            ]
+        )
+    retry_data = f"tvconfirm:{idx}" if tv_confirmation else f"c:{kind}:{idx}"
+    rows.append(
+        [
+            _premium_button(
+                "Buscar otra vez",
+                callback_data=retry_data,
+                style="primary",
+                icon="🔍",
+            ),
+            _premium_button(
+                "Menú principal",
+                callback_data="home",
+                style="success",
+                icon="🏠",
+            ),
+        ]
+    )
+    return rows
+
+
+def _home_card(client: CodeBotClient) -> tuple[str, list[list[dict]]]:
+    emails = _assigned_emails(client)
+    text = (
+        f"🎬 <b>{BRAND} · CENTRO DE CÓDIGOS</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "✅ Servicio disponible\n"
+        f"📩 <b>{len(emails)}</b> correo(s) asignado(s)\n\n"
+        "Elegí un correo y después la acción que necesitás."
+    )
+    choose_data = "pick:0" if len(emails) == 1 else "back:emails"
+    buttons = [
+        [
+            _premium_button(
+                "Elegir correo",
+                callback_data=choose_data,
+                style="primary",
+                icon="📨",
+            )
+        ],
+        [
+            _premium_button(
+                "Ayuda y comandos",
+                callback_data="help",
+                style="primary",
+                icon="❓",
+            )
+        ],
+    ]
+    return text, buttons
+
+
 def _result_cache_key(email: str, kind: str | None) -> str:
     return f"codesbot:res:{email}:{kind or 'any'}"
 
@@ -857,13 +956,16 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
     if isinstance(progress, dict):
         progress_id = (progress.get("result") or {}).get("message_id")
     result_text = _deliver_code(client, arg, kind=kind)
+    result_buttons = _result_buttons(client, arg, kind, result_text)
     if progress_id is not None:
-        result = edit_message(chat_id, int(progress_id), result_text)
+        result = edit_message(
+            chat_id, int(progress_id), result_text, buttons=result_buttons
+        )
         _schedule_sensitive_deletion(
             chat_id, send_result=result, message_id=int(progress_id)
         )
     else:
-        result = send_message(chat_id, result_text)
+        result = send_message(chat_id, result_text, buttons=result_buttons)
         _schedule_sensitive_deletion(chat_id, send_result=result)
 
 
@@ -967,6 +1069,25 @@ def _handle_callback(update: dict) -> None:
         chat_id, from_user.get("username") or "", from_user.get("first_name") or ""
     )
     emails = _assigned_emails(client)
+    if data == "home":
+        if cq_id:
+            answer_callback_query(cq_id)
+        text, buttons = _home_card(client)
+        if message_id is not None:
+            edit_message(chat_id, message_id, text, buttons=buttons)
+        else:
+            send_message(chat_id, text, buttons=buttons, menu=True)
+        return
+    if data == "help":
+        if cq_id:
+            answer_callback_query(cq_id)
+        text = _client_help_text(emails)
+        buttons = [[_premium_button("Menú principal", callback_data="home", icon="🏠")]]
+        if message_id is not None:
+            edit_message(chat_id, message_id, text, buttons=buttons)
+        else:
+            send_message(chat_id, text, buttons=buttons)
+        return
     if data.startswith("c:"):
         # c:<kind>:<idx> -> entregar ese tipo para el correo elegido.
         _, _, payload = data.partition(":")
@@ -993,11 +1114,16 @@ def _handle_callback(update: dict) -> None:
                 edit_message(
                     chat_id,
                     message_id,
-                    "⏳ <b>Buscando el correo más reciente…</b>",
+                    _searching_message(emails[idx], kind),
                 )
             result_text = _deliver_code(client, emails[idx], kind=kind)
+            result_buttons = _result_buttons(
+                client, emails[idx], kind, result_text
+            )
             if message_id is not None:
-                edit_result = edit_message(chat_id, message_id, result_text)
+                edit_result = edit_message(
+                    chat_id, message_id, result_text, buttons=result_buttons
+                )
                 _schedule_sensitive_deletion(
                     chat_id,
                     send_result=edit_result,
@@ -1009,7 +1135,9 @@ def _handle_callback(update: dict) -> None:
                     ),
                 )
             else:
-                result = send_message(chat_id, result_text)
+                result = send_message(
+                    chat_id, result_text, buttons=result_buttons
+                )
                 _schedule_sensitive_deletion(chat_id, send_result=result)
         return
     if data == "back:emails":
@@ -1065,8 +1193,17 @@ def _handle_callback(update: dict) -> None:
                 emails[idx],
                 kind="passwordless_signin",
             )
+            result_buttons = _result_buttons(
+                client,
+                emails[idx],
+                "passwordless_signin",
+                result_text,
+                tv_confirmation=True,
+            )
             if message_id is not None:
-                edit_result = edit_message(chat_id, message_id, result_text)
+                edit_result = edit_message(
+                    chat_id, message_id, result_text, buttons=result_buttons
+                )
                 _schedule_sensitive_deletion(
                     chat_id,
                     send_result=edit_result,
@@ -1078,7 +1215,9 @@ def _handle_callback(update: dict) -> None:
                     ),
                 )
             else:
-                result = send_message(chat_id, result_text)
+                result = send_message(
+                    chat_id, result_text, buttons=result_buttons
+                )
                 _schedule_sensitive_deletion(chat_id, send_result=result)
         return
     if data.startswith("pick:"):

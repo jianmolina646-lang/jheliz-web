@@ -637,7 +637,10 @@ class CmdCodeTests(TestCase):
     ):
         bot._cmd_code(self.client_obj, "signin_code", "solo@gmail.com")
         self.assertIn("Buscando", msend.call_args.args[1])
-        medit.assert_called_once_with("555", 321, "RESULTADO")
+        self.assertEqual(medit.call_args.args, ("555", 321, "RESULTADO"))
+        buttons = medit.call_args.kwargs["buttons"]
+        self.assertEqual(buttons[-1][0]["callback_data"], "c:signin_code:0")
+        self.assertEqual(buttons[-1][1]["callback_data"], "home")
         mschedule.assert_called_once()
 
     @mock.patch("codes.bot._deliver_code", return_value="OK")
@@ -817,6 +820,39 @@ class CallbackNavigationTests(TestCase):
         )
         self.assertEqual(medit.call_args.args[:2], (779, 56))
         self.assertIn("/buscar", medit.call_args.args[2])
+
+    @mock.patch("codes.bot.edit_message")
+    @mock.patch("codes.bot.answer_callback_query")
+    def test_home_shows_modern_dashboard(self, _answer, medit):
+        bot._handle_callback(
+            {
+                "callback_query": {
+                    "id": "cq-home",
+                    "from": {"id": 779},
+                    "data": "home",
+                    "message": {"message_id": 57, "chat": {"id": 779}},
+                }
+            }
+        )
+        self.assertIn("CENTRO DE CÓDIGOS", medit.call_args.args[2])
+        buttons = medit.call_args.kwargs["buttons"]
+        self.assertEqual(buttons[0][0]["callback_data"], "pick:0")
+        self.assertEqual(buttons[1][0]["callback_data"], "help")
+
+    def test_result_buttons_include_netflix_link_retry_and_home(self):
+        text = (
+            '✅ Listo\n<a href="https://www.netflix.com/accountaccess?x=1&amp;y=2">'
+            "Abrir</a>"
+        )
+        buttons = bot._result_buttons(
+            self.client_obj,
+            "cliente@gmail.com",
+            "signin_code",
+            text,
+        )
+        self.assertEqual(buttons[0][0]["url"], "https://www.netflix.com/accountaccess?x=1&y=2")
+        self.assertEqual(buttons[1][0]["callback_data"], "c:signin_code:0")
+        self.assertEqual(buttons[1][1]["callback_data"], "home")
 
 
 class DeliverCodeTests(TestCase):
