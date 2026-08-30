@@ -98,6 +98,10 @@ services:
       - "proton-bridge.internal:host-gateway"
     volumes:
       - ./secrets/database_url.txt:/run/secrets/database_url:ro
+    networks:
+      default: {}
+      netflix_imap:
+        gw_priority: 1
     depends_on:
       - web
     restart: unless-stopped
@@ -183,3 +187,8 @@ volumes:
   postgres_data:
   jheliz_backup_data:
   jheliz_mega_session:
+
+networks:
+  netflix_imap:
+    external: true
+    name: jheliz-web_default
