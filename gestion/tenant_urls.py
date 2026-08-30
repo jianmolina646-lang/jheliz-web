@@ -13,37 +13,10 @@ urlpatterns = [
     path("contacto/", v.contact_page, name="jheliztv_contact"),
     path("registro/", v.register, name="jheliztv_register"),
     path("ingresar/", v.login_view, name="jheliztv_login"),
-    path("recuperar/", v.password_recovery, name="jheliztv_password_recovery"),
-    path(
-        "recuperar/correo/",
-        v.TenantPasswordResetView.as_view(),
-        name="jheliztv_password_reset",
-    ),
-    path(
-        "recuperar/correo/enviado/",
-        v.TenantPasswordResetDoneView.as_view(),
-        name="jheliztv_password_reset_done",
-    ),
-    path(
-        "recuperar/correo/<uidb64>/<token>/",
-        v.StandardTenantPasswordResetConfirmView.as_view(),
-        name="jheliztv_password_reset_confirm",
-    ),
-    path(
-        "recuperar/correo/listo/",
-        v.StandardTenantPasswordResetCompleteView.as_view(),
-        name="jheliztv_password_reset_complete",
-    ),
-    path(
-        "recuperar/<uidb64>/<token>/",
-        v.TenantPasswordResetConfirmView.as_view(),
-        name="jheliztv_password_recovery_confirm",
-    ),
-    path(
-        "recuperar/listo/",
-        v.TenantPasswordResetCompleteView.as_view(),
-        name="jheliztv_password_recovery_complete",
-    ),
+    path("recuperar/", v.TenantPasswordResetView.as_view(), name="jheliztv_password_reset"),
+    path("recuperar/enviado/", v.TenantPasswordResetDoneView.as_view(), name="jheliztv_password_reset_done"),
+    path("recuperar/<uidb64>/<token>/", v.TenantPasswordResetConfirmView.as_view(), name="jheliztv_password_reset_confirm"),
+    path("recuperar/listo/", v.TenantPasswordResetCompleteView.as_view(), name="jheliztv_password_reset_complete"),
     path("salir/", v.logout_view, name="jheliztv_logout"),
     path("renovar/<uuid:token>/", v.public_renewal, name="jheliztv_public_renewal"),
 
@@ -72,6 +45,7 @@ urlpatterns = [
     # Suscripciones
     path("app/suscripciones/agregar/", v.subscription_add, name="jheliztv_subscription_add"),
     path("app/suscripciones/<int:pk>/editar/", v.subscription_edit, name="jheliztv_subscription_edit"),
+    path("app/suscripciones/<int:pk>/credenciales.json", v.subscription_secret, name="jheliztv_subscription_secret"),
     path("app/suscripciones/<int:pk>/renovar/", v.subscription_renew, name="jheliztv_subscription_renew"),
     path("app/suscripciones/<int:pk>/eliminar/", v.subscription_delete, name="jheliztv_subscription_delete"),
 

@@ -1,5 +1,4 @@
 {% extends "jheliztv/base.html" %}
-{% load static %}
 
 {% block jc_content %}
 <div class="jc-clients-page">
@@ -61,7 +60,7 @@
   {% if clients %}
     <section class="jc-clients" aria-label="Listado de clientes">
       {% for c in clients %}
-        <article class="jc-client" data-search="{{ c.name }} {{ c.telegram }} {{ c.whatsapp }} {{ c.email }}{% for s in c.active_subs %} {{ s.account_email }} {{ s.service.name }}{% endfor %}">
+        <article class="jc-client" style="--client-index:{{ forloop.counter0 }}" data-search="{{ c.name }} {{ c.telegram }} {{ c.whatsapp }} {{ c.email }}{% for s in c.active_subs %} {{ s.account_email }} {{ s.service.name }}{% endfor %}">
           <aside class="jc-client-info">
             <span class="jc-client-accent" aria-hidden="true"></span>
             <div class="jc-client-identity">
@@ -74,7 +73,7 @@
 
             <div class="jc-client-contacts">
               {% if c.telegram %}<p><span class="material-symbols-outlined">send</span><b>{{ c.telegram }}</b></p>{% endif %}
-              {% if c.whatsapp %}<p><span class="material-symbols-outlined">call</span><b>{{ c.whatsapp }}</b></p>{% endif %}
+              {% if c.whatsapp %}<p><span class="material-symbols-outlined">call</span><a href="https://wa.me/{{ c.whatsapp_digits }}?text={% filter urlencode %}Hola {{ c.name }}, te escribo de {{ jc_tenant.business_name|default:'JHELIZ' }}.{% endfilter %}" target="_blank" rel="noopener" title="Escribir por WhatsApp"><b>{{ c.whatsapp }}</b></a></p>{% endif %}
               {% if c.email %}<p><span class="material-symbols-outlined">mail</span><b>{{ c.email }}</b></p>{% endif %}
             </div>
 
@@ -120,21 +119,11 @@
           <div class="jc-client-services-wrap">
             <div class="jc-client-services jc-csubs">
               {% for s in c.active_subs %}
-              <div class="jc-client-service jc-csub2{% if forloop.counter0 >= 3 %} jc-csub--extra{% endif %}">
-                {% with service_name=s.service.name|lower %}
-                <span class="jc-client-service__logo{% if 'netflix' in service_name or 'prime' in service_name or 'hbo' in service_name or 'max' in service_name or 'disney' in service_name or 'crunchyroll' in service_name or 'paramount' in service_name or 'spotify' in service_name or 'apple tv' in service_name %} has-official-logo{% endif %}"
-                      {% if 'netflix' not in service_name and 'prime' not in service_name and 'hbo' not in service_name and 'max' not in service_name and 'disney' not in service_name and 'crunchyroll' not in service_name and 'paramount' not in service_name and 'spotify' not in service_name and 'apple tv' not in service_name %}{% if s.service.image %}style="background-image:url('{{ s.service.image.url }}')"{% else %}style="background:{{ s.service.color|default:'#20df7f' }}"{% endif %}{% endif %}>
-                  {% if 'netflix' in service_name %}<img src="{% static 'img/platforms/netflix.svg' %}" alt="Logo de Netflix" loading="lazy" decoding="async">
-                  {% elif 'prime' in service_name %}<img src="{% static 'img/platforms/prime-video.svg' %}" alt="Logo de Prime Video" loading="lazy" decoding="async">
-                  {% elif 'hbo' in service_name or 'max' in service_name %}<img src="{% static 'img/platforms/max.svg' %}" alt="Logo de Max" loading="lazy" decoding="async">
-                  {% elif 'disney' in service_name %}<img src="{% static 'img/platforms/disney-plus.svg' %}" alt="Logo de Disney+" loading="lazy" decoding="async">
-                  {% elif 'crunchyroll' in service_name %}<img src="{% static 'img/platforms/crunchyroll.svg' %}" alt="Logo de Crunchyroll" loading="lazy" decoding="async">
-                  {% elif 'paramount' in service_name %}<img src="{% static 'img/platforms/paramount-plus.svg' %}" alt="Logo de Paramount+" loading="lazy" decoding="async">
-                  {% elif 'spotify' in service_name %}<img src="{% static 'img/platforms/spotify.svg' %}" alt="Logo de Spotify" loading="lazy" decoding="async">
-                  {% elif 'apple tv' in service_name %}<img src="{% static 'img/platforms/apple-tv-plus.svg' %}" alt="Logo de Apple TV+" loading="lazy" decoding="async">
-                  {% elif not s.service.image %}{{ s.service.name|first|upper }}{% endif %}
+              <div class="jc-client-service jc-csub2{% if forloop.counter0 >= 3 %} jc-csub--extra{% endif %}" style="--service-index:{{ forloop.counter0 }};--service-accent:{{ s.service.color|default:'#10b981' }}">
+                <span class="jc-client-service__logo"
+                      {% if s.service.official_logo_url %}style="background-image:url('{{ s.service.official_logo_url }}')"{% elif s.service.image %}style="background-image:url('{{ s.service.image.url }}')"{% else %}style="background:{{ s.service.color|default:'#20df7f' }}"{% endif %}>
+                  {% if not s.service.official_logo_url and not s.service.image %}{{ s.service.name|first|upper }}{% endif %}
                 </span>
-                {% endwith %}
                 <div class="jc-client-service__body">
                   <div><i class="jc-client-status-dot is-{{ s.status_color }}"></i><strong>{{ s.service.name }}</strong></div>
                   <p><span>{{ s.account_email }}</span><i>•</i><span>{{ s.profile_name|default:s.get_plan_display }}</span></p>

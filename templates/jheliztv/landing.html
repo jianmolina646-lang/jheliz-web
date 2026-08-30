@@ -11,7 +11,7 @@
 {% block pb_twitter_title %}JHELIZCONTROLTV | Gestión de suscripciones{% endblock %}
 {% block pb_twitter_description %}Administra clientes, vencimientos, renovaciones y ganancias desde un solo panel.{% endblock %}
 {% block pb_extra_head %}
-  <link rel="stylesheet" href="{% static 'css/jheliz-landing.css' %}?v=chartjs-v1-20260816">
+  <link rel="stylesheet" href="{% static 'css/jheliz-landing.css' %}?v=hero-alive-motion-v6-20260828">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -47,17 +47,14 @@
     <div class="jl-container">
       <nav class="jl-navbar__inner" aria-label="Navegación principal">
         <a href="#inicio" class="jl-logo" aria-label="JHELIZ CONTROL TV">
-          <span class="jl-logo__mark">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
-          </span>
+          <span class="jl-logo__mark"><img src="{% static 'img/jhelizcontroltv-official.png' %}" alt="" aria-hidden="true"></span>
           <span>JHELIZ<strong>CONTROLTV</strong></span>
         </a>
 
         <div class="jl-navbar__links">
           <a href="#inicio">Inicio</a>
-          <a href="{% url 'jheliztv_features' %}">Funciones</a>
-          <a href="{% url 'jheliztv_pricing' %}">Precios</a>
-          <a href="{% url 'jheliztv_faq' %}">Preguntas frecuentes</a>
+          <a href="#funciones">Funciones</a>
+          <a href="#suscripciones">Suscripciones</a>
         </div>
 
         <a class="jl-button jl-button--primary jl-navbar__cta" href="{% url 'jheliztv_register' %}">
@@ -73,9 +70,8 @@
 
       <div class="jl-navbar__mobile" id="jlMobileMenu" hidden>
         <a href="#inicio">Inicio</a>
-        <a href="{% url 'jheliztv_features' %}">Funciones</a>
-        <a href="{% url 'jheliztv_pricing' %}">Precios</a>
-        <a href="{% url 'jheliztv_faq' %}">Preguntas frecuentes</a>
+        <a href="#funciones">Funciones</a>
+        <a href="#suscripciones">Suscripciones</a>
         <a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">Probar ahora</a>
       </div>
     </div>
@@ -92,7 +88,7 @@
             Probar ahora
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
           </a>
-          <a class="jl-button jl-button--ghost" href="{% url 'jheliztv_login' %}">Ingresar a una demo</a>
+          <a class="jl-button jl-button--ghost" href="{% url 'jheliztv_login' %}">Ver demo</a>
         </div>
 
         <div class="jl-surface jl-dashboard-preview">
@@ -151,6 +147,10 @@
             </span>
             <h3>Recordatorios automáticos</h3>
             <p>Avisos por WhatsApp y Telegram antes de cada vencimiento, sin escribir uno por uno.</p>
+            <div class="jl-feature-card__brands" aria-label="Integraciones con WhatsApp y Telegram">
+              <span><img src="{% static 'img/brands/whatsapp-official.svg' %}" alt="WhatsApp">WhatsApp</span>
+              <span><img src="{% static 'img/brands/telegram-official.svg' %}" alt="Telegram">Telegram</span>
+            </div>
           </article>
           <article class="jl-surface jl-feature-card">
             <span class="jl-feature-card__icon">
@@ -188,16 +188,16 @@
           <table>
             <thead><tr><th>Servicio</th><th>Cliente</th><th>Precio</th><th>Vence</th><th>Estado</th></tr></thead>
             <tbody>
-              <tr><td>Netflix Premium</td><td>Ana</td><td>S/ —</td><td>22 días restantes</td><td><span class="jl-status jl-status--active"><i></i>Activa</span></td></tr>
-              <tr><td>Disney+ Estándar</td><td>Luis</td><td>S/ —</td><td>2 días restantes</td><td><span class="jl-status jl-status--warning"><i></i>Por vencer</span></td></tr>
-              <tr><td>Spotify Familiar</td><td>Mariana</td><td>S/ —</td><td>Periodo finalizado</td><td><span class="jl-status jl-status--danger"><i></i>Vencida</span></td></tr>
+              <tr><td><img class="jl-service-logo jl-service-logo--netflix" src="{% static 'img/brands/netflix-symbol-official.png' %}" alt="Netflix">Netflix Premium</td><td>Ana</td><td>S/ —</td><td>22 días restantes</td><td><span class="jl-status jl-status--active"><i></i>Activa</span></td></tr>
+              <tr><td><img class="jl-service-logo jl-service-logo--disney" src="{% static 'img/brands/disney-plus-official.jpg' %}" alt="Disney+">Disney+ Estándar</td><td>Luis</td><td>S/ —</td><td>2 días restantes</td><td><span class="jl-status jl-status--warning"><i></i>Por vencer</span></td></tr>
+              <tr><td><img class="jl-service-logo jl-service-logo--spotify" src="{% static 'img/brands/spotify-official.png' %}" alt="Spotify">Spotify Familiar</td><td>Mariana</td><td>S/ —</td><td>Periodo finalizado</td><td><span class="jl-status jl-status--danger"><i></i>Vencida</span></td></tr>
             </tbody>
           </table>
 
           <div class="jl-subscriptions__mobile">
-            <article><div><strong>Netflix Premium</strong><span class="jl-status jl-status--active"><i></i>Activa</span></div><p><span>Ana</span><b>S/ —</b><span>22 días restantes</span></p></article>
-            <article><div><strong>Disney+ Estándar</strong><span class="jl-status jl-status--warning"><i></i>Por vencer</span></div><p><span>Luis</span><b>S/ —</b><span>2 días restantes</span></p></article>
-            <article><div><strong>Spotify Familiar</strong><span class="jl-status jl-status--danger"><i></i>Vencida</span></div><p><span>Mariana</span><b>S/ —</b><span>Periodo finalizado</span></p></article>
+            <article><div><strong><img class="jl-service-logo jl-service-logo--netflix" src="{% static 'img/brands/netflix-symbol-official.png' %}" alt="Netflix">Netflix Premium</strong><span class="jl-status jl-status--active"><i></i>Activa</span></div><p><span>Ana</span><b>S/ —</b><span>22 días restantes</span></p></article>
+            <article><div><strong><img class="jl-service-logo jl-service-logo--disney" src="{% static 'img/brands/disney-plus-official.jpg' %}" alt="Disney+">Disney+ Estándar</strong><span class="jl-status jl-status--warning"><i></i>Por vencer</span></div><p><span>Luis</span><b>S/ —</b><span>2 días restantes</span></p></article>
+            <article><div><strong><img class="jl-service-logo jl-service-logo--spotify" src="{% static 'img/brands/spotify-official.png' %}" alt="Spotify">Spotify Familiar</strong><span class="jl-status jl-status--danger"><i></i>Vencida</span></div><p><span>Mariana</span><b>S/ —</b><span>Periodo finalizado</span></p></article>
           </div>
         </div>
 
@@ -212,18 +212,11 @@
   </main>
 
   <footer class="jl-footer">
-    <div class="jl-container jl-marketing-footer">
+    <div class="jl-container jl-footer__inner">
       <a href="#inicio" class="jl-logo" aria-label="JHELIZ CONTROL TV">
-        <span class="jl-logo__mark"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg></span>
+        <span class="jl-logo__mark"><img src="{% static 'img/jhelizcontroltv-official.png' %}" alt="" aria-hidden="true"></span>
         <span>JHELIZ<strong>CONTROLTV</strong></span>
       </a>
-      <nav aria-label="Enlaces del pie">
-        <a href="{% url 'jheliztv_features' %}">Funciones</a>
-        <a href="{% url 'jheliztv_pricing' %}">Precios</a>
-        <a href="{% url 'jheliztv_how_it_works' %}">Cómo funciona</a>
-        <a href="{% url 'jheliztv_faq' %}">Preguntas frecuentes</a>
-        <a href="{% url 'jheliztv_contact' %}">Contacto</a>
-      </nav>
       <p>© 2026 JHELIZ CONTROL TV</p>
     </div>
   </footer>
@@ -232,5 +225,5 @@
 
 {% block pb_scripts %}
   <script src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
-  <script src="{% static 'js/jheliz-landing.js' %}?v=chartjs-v1-20260816" defer></script>
+  <script src="{% static 'js/jheliz-landing.js' %}?v=chart-motion-v2-20260828" defer></script>
 {% endblock %}

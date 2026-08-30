@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 from decimal import Decimal
+import re
+import unicodedata
 import uuid
 
 from django.conf import settings
@@ -123,6 +125,27 @@ class Service(models.Model):
     @property
     def active_subscriptions(self):
         return self.subscriptions.filter(is_archived=False)
+
+    @property
+    def official_logo_url(self) -> str:
+        """Brand logo fallback for known platforms when no custom image exists."""
+        normalized = unicodedata.normalize("NFKD", self.name or "")
+        normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+        normalized = re.sub(r"[^a-z0-9]+", " ", normalized.lower()).strip()
+        brands = (
+            (("netflix",), "/static/img/brands/netflix.svg"),
+            (("prime video", "amazon prime"), "/static/img/brands/prime-video.svg"),
+            (("disney",), "/static/img/brands/disney-plus.svg"),
+            (("hbo max", "hbomax", "max"), "/static/img/brands/max.svg"),
+            (("crunchyroll",), "/static/img/brands/crunchyroll.svg"),
+            (("paramount",), "/static/img/brands/paramount-plus.svg"),
+            (("youtube",), "/static/img/brands/youtube.svg"),
+            (("spotify",), "/static/img/brands/spotify.svg"),
+        )
+        for aliases, icon in brands:
+            if any(alias in normalized for alias in aliases):
+                return icon
+        return ""
 
 
 class Client(models.Model):

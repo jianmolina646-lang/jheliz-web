@@ -1,5 +1,4 @@
 {% extends "jheliztv/base.html" %}
-{% load static %}
 
 {% block jc_content %}
 <script>
@@ -23,14 +22,14 @@ document.addEventListener("DOMContentLoaded", function () {
   }); sync();
 });
 </script>
-<div class="lvsd-page">
+<div class="lvsd-page" style="--service-accent:{{ service.color|default:'#10b981' }}">
   <div class="lvsd-grid-bg" aria-hidden="true"></div>
   <div class="lvsd-container">
   <section class="lvsd-service-card">
     <div class="lvsd-service-row">
       <div class="lvsd-service-identity">
-        <span class="lvsd-service-logo"{% if service.image %} style="background-image:url('{{ service.image.url }}')"{% else %} style="background:{{ service.color|default:'#10b981' }}"{% endif %}>
-          {% if not service.image %}{% if service.icon %}<span class="material-symbols-outlined">{{ service.icon }}</span>{% else %}<b>{{ service.name|slice:":2"|upper }}</b>{% endif %}{% endif %}
+        <span class="lvsd-service-logo"{% if service.official_logo_url %} style="background-image:url('{{ service.official_logo_url }}')"{% elif service.image %} style="background-image:url('{{ service.image.url }}')"{% else %} style="background:{{ service.color|default:'#10b981' }}"{% endif %}>
+          {% if not service.official_logo_url and not service.image %}{% if service.icon %}<span class="material-symbols-outlined">{{ service.icon }}</span>{% else %}<b>{{ service.name|slice:":2"|upper }}</b>{% endif %}{% endif %}
         </span>
         <div class="lvsd-service-copy">
           <div class="lvsd-eyebrow"><i></i>Servicio</div>
@@ -55,7 +54,7 @@ document.addEventListener("DOMContentLoaded", function () {
   <section class="lvsd-subscriptions">
     {% if subs %}
     <header class="lvsd-panel-head">
-      <div class="lvsd-panel-title"><span class="lvsd-panel-icon"><span class="material-symbols-outlined">receipt_long</span></span><h2>Suscripciones registradas</h2></div>
+      <div class="lvsd-panel-title"><span class="lvsd-panel-icon"><span class="material-symbols-outlined">receipt_long</span></span><div><h2>Suscripciones registradas</h2><span class="lvsd-panel-live"><i></i> Control en vivo <b><em></em><em></em><em></em></b></span></div></div>
       <label class="lvsd-search">
         <span class="material-symbols-outlined">search</span>
         <input type="search" class="jc-subs-search" placeholder="Buscar suscripción (usuario o cuenta)" autocomplete="off" aria-label="Buscar suscripción">
@@ -83,16 +82,16 @@ document.addEventListener("DOMContentLoaded", function () {
             <dt>Cuenta</dt>
             <dd>
               <button type="button" class="lvsd-view-account" data-jc-ver><span class="material-symbols-outlined">visibility</span><span data-jc-verlbl>Ver</span></button>
-              <span class="jc-acct" data-jc-acctbox hidden>
+              <span class="jc-acct" data-jc-acctbox data-jc-secret-url="{% url 'jheliztv_subscription_secret' s.pk %}" hidden>
                 <span class="jc-acct__mail">{{ s.account_email }}</span>
-                {% if s.account_password %}<span class="jc-acct__pass"><code>{{ s.account_password }}</code></span>{% endif %}
+                {% if s.account_password %}<span class="jc-acct__pass"><code data-jc-sub-secret>••••••••</code></span>{% endif %}
               </span>
             </dd>
           </div>
         </dl>
         <footer>
           {% if s.renewal_whatsapp_link %}
-            <a class="lvsd-icon-button lvsd-icon-button--wa" href="{{ s.renewal_whatsapp_link }}" target="_blank" aria-label="Enviar renovación por WhatsApp"><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true"></a>
+            <a class="lvsd-icon-button lvsd-icon-button--wa" href="{{ s.renewal_whatsapp_link }}" target="_blank" aria-label="Enviar renovación por WhatsApp"><span class="material-symbols-outlined">chat</span></a>
           {% else %}
             <span class="lvsd-no-whatsapp"><span class="material-symbols-outlined">speaker_notes_off</span>Sin WhatsApp</span>
           {% endif %}
@@ -100,10 +99,10 @@ document.addEventListener("DOMContentLoaded", function () {
             <button type="button" class="lvsd-icon-button" aria-label="Renovar" data-jc-open="modalRenew" data-action="{% url 'jheliztv_subscription_renew' s.pk %}"><span class="material-symbols-outlined">autorenew</span></button>
             <button type="button" class="lvsd-icon-button" aria-label="Editar"
                     data-jc-open="modalEdit" data-action="{% url 'jheliztv_subscription_edit' s.pk %}"
-                    data-fill-account_email="{{ s.account_email }}" data-fill-account_password="{{ s.account_password }}"
+                    data-fill-account_email="{{ s.account_email }}" data-secret-url="{% url 'jheliztv_subscription_secret' s.pk %}"
                     data-fill-plan="{{ s.plan }}" data-fill-plan_label="{{ s.plan_label }}"
                     data-fill-profiles="{{ s.profiles }}" data-fill-profile_name="{{ s.profile_name }}"
-                    data-fill-profile_pin="{{ s.profile_pin }}" data-fill-cost="{{ s.cost }}"
+                    data-fill-cost="{{ s.cost }}"
                     data-fill-investment="{{ s.investment }}" data-fill-client="{{ s.client_id }}"
                     data-fill-service="{{ s.service_id }}"><span class="material-symbols-outlined">edit</span></button>
             <button type="button" class="lvsd-icon-button lvsd-icon-button--danger" aria-label="Eliminar"
@@ -133,14 +132,14 @@ document.addEventListener("DOMContentLoaded", function () {
         </thead>
         <tbody>
           {% for s in subs %}
-          <tr data-search="{{ s.client.name|lower }} {{ s.account_email|lower }} {{ s.plan_label|lower }} {{ s.client.telegram|lower }} {{ s.client.whatsapp }}">
+          <tr style="--row-index:{{ forloop.counter0 }}" data-search="{{ s.client.name|lower }} {{ s.account_email|lower }} {{ s.plan_label|lower }} {{ s.client.telegram|lower }} {{ s.client.whatsapp }}">
             <td>
               <div class="lvsd-user">
                 <span class="lvsd-avatar">{{ s.client.name|slice:":2"|upper }}</span>
                 <div><strong>{{ s.client.name }}</strong>
                   <div class="jc-usr__icons">
-                    {% if s.wa_link %}<a class="jc-usr__ic jc-usr__ic--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true"></a>{% endif %}
-                    {% if s.tg_link %}<a class="jc-usr__ic jc-usr__ic--tg" href="{{ s.tg_link }}" target="_blank" title="Telegram"><img src="{% static 'img/brands/telegram.svg' %}" alt="" aria-hidden="true"></a>{% endif %}
+                    {% if s.wa_link %}<a class="jc-usr__ic jc-usr__ic--wa" href="{{ s.wa_link }}" target="_blank" title="WhatsApp"><span class="material-symbols-outlined">chat</span></a>{% endif %}
+                    {% if s.tg_link %}<a class="jc-usr__ic jc-usr__ic--tg" href="{{ s.tg_link }}" target="_blank" title="Telegram"><span class="material-symbols-outlined">send</span></a>{% endif %}
                   </div>
                 </div>
               </div>
@@ -149,10 +148,10 @@ document.addEventListener("DOMContentLoaded", function () {
               <button type="button" class="lvsd-view-account" data-jc-ver title="Ver cuenta">
                 <span class="material-symbols-outlined">visibility</span><span data-jc-verlbl>Ver</span>
               </button>
-              <div class="jc-acct" data-jc-acctbox hidden>
+              <div class="jc-acct" data-jc-acctbox data-jc-secret-url="{% url 'jheliztv_subscription_secret' s.pk %}" hidden>
                 <span class="jc-acct__mail"><span class="material-symbols-outlined">mail</span>{{ s.account_email }}</span>
                 {% if s.account_password %}
-                  <span class="jc-acct__pass"><span class="material-symbols-outlined">key</span><code>{{ s.account_password }}</code></span>
+                  <span class="jc-acct__pass"><span class="material-symbols-outlined">key</span><code data-jc-sub-secret>••••••••</code></span>
                 {% endif %}
               </div>
             </td>
@@ -175,19 +174,18 @@ document.addEventListener("DOMContentLoaded", function () {
             </td>
             <td>
               <div class="lvsd-row-actions">
-                {% if s.renewal_whatsapp_link %}<a class="lvsd-icon-button lvsd-icon-button--wa" href="{{ s.renewal_whatsapp_link }}" target="_blank" title="Enviar renovación por WhatsApp a {{ s.renewal_phone }}" aria-label="Enviar renovación por WhatsApp a {{ s.renewal_phone }}"><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true"></a>{% else %}<span class="lvsd-no-whatsapp" title="Agrega el WhatsApp del cliente"><span class="material-symbols-outlined">speaker_notes_off</span>Sin WhatsApp</span>{% endif %}
+                {% if s.renewal_whatsapp_link %}<a class="lvsd-icon-button lvsd-icon-button--wa" href="{{ s.renewal_whatsapp_link }}" target="_blank" title="Enviar renovación por WhatsApp a {{ s.renewal_phone }}" aria-label="Enviar renovación por WhatsApp a {{ s.renewal_phone }}"><span class="material-symbols-outlined">chat</span></a>{% else %}<span class="lvsd-no-whatsapp" title="Agrega el WhatsApp del cliente"><span class="material-symbols-outlined">speaker_notes_off</span>Sin WhatsApp</span>{% endif %}
                 <button type="button" class="lvsd-icon-button" title="Renovar" aria-label="Renovar"
                         data-jc-open="modalRenew" data-action="{% url 'jheliztv_subscription_renew' s.pk %}"><span class="material-symbols-outlined">autorenew</span></button>
                 <button type="button" class="lvsd-icon-button" title="Editar" aria-label="Editar"
                         data-jc-open="modalEdit"
                         data-action="{% url 'jheliztv_subscription_edit' s.pk %}"
                         data-fill-account_email="{{ s.account_email }}"
-                        data-fill-account_password="{{ s.account_password }}"
+                        data-secret-url="{% url 'jheliztv_subscription_secret' s.pk %}"
                         data-fill-plan="{{ s.plan }}"
                         data-fill-plan_label="{{ s.plan_label }}"
                         data-fill-profiles="{{ s.profiles }}"
                         data-fill-profile_name="{{ s.profile_name }}"
-                        data-fill-profile_pin="{{ s.profile_pin }}"
                         data-fill-cost="{{ s.cost }}"
                         data-fill-investment="{{ s.investment }}"
                         data-fill-client="{{ s.client_id }}"

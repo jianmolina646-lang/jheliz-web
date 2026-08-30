@@ -1712,6 +1712,7 @@ def process_update(update):
 
 def run_polling():
     offset = 0
+    digest_attempt_date = None
     try:
         _call(
             "setMyCommands",
@@ -1727,6 +1728,11 @@ def run_polling():
     while True:
         try:
             close_old_connections()
+            local_now = timezone.localtime()
+            digest_hour = max(0, min(23, int(getattr(settings, "JHELIZ_CONTROL_DIGEST_HOUR", 8))))
+            if local_now.hour >= digest_hour and digest_attempt_date != local_now.date():
+                send_expiry_digests(local_now.date())
+                digest_attempt_date = local_now.date()
             data = _call(
                 "getUpdates",
                 offset=offset,
@@ -1759,6 +1765,24 @@ def send_expiry_digests(today=None):
             continue
         groups = []
         total_due = 0
+        overdue = (
+            subscriptions_for_owner(connection.owner_id)
+            .filter(expires_at__date__lt=today)
+            .select_related("client", "service")
+            .order_by("-expires_at")
+        )
+        overdue_count = overdue.count()
+        if overdue_count:
+            overdue_items = [
+                f"• <b>{html.escape(sub.client.name)}</b>\n"
+                f"  {html.escape(sub.service.name)} · venció "
+                f"{timezone.localtime(sub.expires_at):%d/%m/%Y}"
+                for sub in overdue[:15]
+            ]
+            if overdue_count > 15:
+                overdue_items.append(f"• <i>Y {overdue_count - 15} vencida(s) más en el panel</i>")
+            total_due += overdue_count
+            groups.append("🔴 <b>Ya vencidas</b>\n" + "\n".join(overdue_items))
         for window in connection.windows():
             target = today + timedelta(days=window)
             subscriptions = (
@@ -1771,10 +1795,13 @@ def send_expiry_digests(today=None):
                 f"• <b>{html.escape(sub.client.name)}</b>\n"
                 f"  {html.escape(sub.service.name)} · vence "
                 f"{timezone.localtime(sub.expires_at):%d/%m/%Y}"
-                for sub in subscriptions
+                for sub in subscriptions[:15]
             ]
+            window_count = subscriptions.count()
+            if window_count > 15:
+                items.append(f"• <i>Y {window_count - 15} más en el panel</i>")
             if items:
-                total_due += len(items)
+                total_due += window_count
                 heading = (
                     "🚨 <b>Vencen hoy</b>"
                     if window == 0

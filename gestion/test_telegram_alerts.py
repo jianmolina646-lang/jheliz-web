@@ -388,6 +388,41 @@ class TelegramAlertTests(TestCase):
         self.assertEqual(send_expiry_digests(today), 0)
 
     @patch("gestion.telegram_alerts.send_message")
+    def test_digest_includes_overdue_and_upcoming_subscriptions(self, send):
+        today = timezone.localdate()
+        service = Service.objects.create(owner=self.owner, name="Netflix Premium")
+        overdue_client = Client.objects.create(owner=self.owner, name="Cliente vencido")
+        upcoming_client = Client.objects.create(owner=self.owner, name="Cliente próximo")
+        Subscription.objects.create(
+            owner=self.owner,
+            client=overdue_client,
+            service=service,
+            account_email="vencido@example.com",
+            starts_at=timezone.now() - timedelta(days=35),
+            expires_at=timezone.now() - timedelta(days=2),
+        )
+        Subscription.objects.create(
+            owner=self.owner,
+            client=upcoming_client,
+            service=service,
+            account_email="proximo@example.com",
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=1),
+        )
+        TelegramConnection.objects.create(
+            owner=self.owner,
+            chat_id="123",
+            notify_windows=[1],
+        )
+
+        self.assertEqual(send_expiry_digests(today), 1)
+        message = send.call_args.args[1]
+        self.assertIn("Ya vencidas", message)
+        self.assertIn("Cliente vencido", message)
+        self.assertIn("Vencen en 1 día", message)
+        self.assertIn("Cliente próximo", message)
+
+    @patch("gestion.telegram_alerts.send_message")
     def test_digest_rejects_cross_owner_relations_even_if_row_is_corrupt(self, send):
         own_service = Service.objects.create(owner=self.owner, name="Netflix propio")
         foreign_service = Service.objects.create(owner=self.other, name="Netflix ajeno")

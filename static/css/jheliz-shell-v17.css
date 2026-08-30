@@ -474,3 +474,4 @@ body:has(.lv-shell){overflow-x:hidden;-webkit-text-size-adjust:100%}
   .lvsd-mobile-list{display:none!important}
   .lvsd-table-wrap{display:block!important}
 }
+.jc-search-shortcut{margin-left:auto;border:1px solid rgba(148,163,184,.35);border-radius:6px;padding:2px 6px;color:#94a3b8;background:rgba(15,23,42,.22);font:600 10px/1.4 Inter,sans-serif;white-space:nowrap}.jc-client-contacts a{color:inherit;text-decoration:none}.jc-client-contacts a:hover{text-decoration:underline}.lv-dashboard-expirations__list article>div>a+[href*="wa.me"]{margin-left:8px;color:#16a36a}@media(max-width:720px){.jc-search-shortcut{display:none}}

@@ -34,7 +34,6 @@ JHELIZTV_HOSTS = config(
     default="jheliztv.xyz,www.jheliztv.xyz",
     cast=Csv(),
 )
-JHELIZTV_GA4_ID = config("JHELIZTV_GA4_ID", default="G-W27KX3BC5E").strip()
 ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, *JHELIZTV_HOSTS]))
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 
@@ -106,7 +105,6 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "gestion.activity.TenantActivityMiddleware",
     # Expone actor/IP/request-id a signals de auditoría durante este request.
     "config.request_context.SecurityRequestContextMiddleware",
     # django-otp debe ir DESPUÉS de AuthenticationMiddleware.
@@ -381,7 +379,7 @@ CODES_PREMIUM_EMOJI_SEARCH_ID = config("CODES_PREMIUM_EMOJI_SEARCH_ID", default=
 CODES_PREMIUM_EMOJI_TV_LINK_ID = config(
     "CODES_PREMIUM_EMOJI_TV_LINK_ID", default=""
 )
-# Casilla administrativa que recibe los correos mediante Proton Bridge.
+# Casilla corporativa que recibe los correos de Netflix mediante Proton Bridge.
 CODES_IMAP_HOST = config("CODES_IMAP_HOST", default="proton-bridge.internal")
 CODES_IMAP_PORT = config("CODES_IMAP_PORT", default=1143, cast=int)
 CODES_IMAP_USER = config("CODES_IMAP_USER", default=SYSTEM_EMAIL_ACCOUNT)
@@ -427,9 +425,9 @@ TELEGRAM_DISNEY_ADMIN_CHAT_ID = config(
 )
 # Cuántos correos recientes (más nuevos primero) escanea como máximo el lector
 # IMAP. Evita recorrer toda la bandeja cuando hay muchos correos.
-CODES_IMAP_MAX_SCAN = config("CODES_IMAP_MAX_SCAN", default=25, cast=int)
+CODES_IMAP_MAX_SCAN = config("CODES_IMAP_MAX_SCAN", default=12, cast=int)
 # Timeout (segundos) de la conexión IMAP para que nunca quede colgada.
-CODES_IMAP_TIMEOUT = config("CODES_IMAP_TIMEOUT", default=20, cast=int)
+CODES_IMAP_TIMEOUT = config("CODES_IMAP_TIMEOUT", default=8, cast=int)
 # Anti-spam: segundos mínimos entre dos lecturas de Gmail del mismo cliente.
 CODES_COOLDOWN_SECONDS = config("CODES_COOLDOWN_SECONDS", default=6, cast=int)
 # Mini-caché: segundos que se reutiliza un código ya leído (toques repetidos).
@@ -877,7 +875,6 @@ CONTENT_SECURITY_POLICY = {
             "'unsafe-eval'",
             "https://cdn.tailwindcss.com",
             "https://unpkg.com",
-            "https://www.googletagmanager.com",
         ),
         "style-src": (
             "'self'",
@@ -887,12 +884,7 @@ CONTENT_SECURITY_POLICY = {
         "font-src": ("'self'", "data:", "https://fonts.gstatic.com"),
         "img-src": ("'self'", "data:", "https:"),
         # Tailwind CDN hace fetch de su CSS dinámicamente; htmx hace requests al backend.
-        "connect-src": (
-            "'self'",
-            "https://cdn.tailwindcss.com",
-            "https://www.google-analytics.com",
-            "https://*.google-analytics.com",
-        ),
+        "connect-src": ("'self'", "https://cdn.tailwindcss.com"),
         "frame-ancestors": ("'none'",),
         "base-uri": ("'self'",),
         "form-action": ("'self'",),
@@ -919,9 +911,13 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
-# Expiración por inactividad. Cada request autenticado renueva la sesión, pero
-# una cuenta inactiva durante 30 minutos debe volver a autenticarse.
-SESSION_COOKIE_AGE = 60 * 30  # 30 minutos
+# Sesión persistente: por default Django deja la cookie de sesión SIN Max-Age,
+# así que muchos navegadores/webviews de celular (los que abren el link desde
+# WhatsApp/Telegram) la borran al cambiar de página o al cerrar, y al usuario
+# "se le cierra la sesión al toque". Le damos 30 días de vida y la renovamos
+# en cada request (expiración deslizante), de modo que mientras usen la app no
+# los saca.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 30  # 30 días
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = True
 

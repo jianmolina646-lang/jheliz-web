@@ -58,6 +58,16 @@ class NetflixParserTests(TestCase):
         self.assertEqual(r.kind, "signin_code")
         self.assertEqual(r.code, "4821")
 
+    def test_numeric_code_extracted_from_visible_html_with_css_noise(self):
+        html = """
+            <style>.box { width: 600px; color: #123456; }</style>
+            <p>Tu código de inicio de sesión es</p>
+            <table><tr><td><strong>739184</strong></td></tr></table>
+        """
+        r = parse_netflix_email("Tu código de inicio de sesión", html=html)
+        self.assertEqual(r.kind, "signin_code")
+        self.assertEqual(r.code, "739184")
+
     def test_links_have_html_entities_decoded(self):
         html = (
             "<p>Tu código de inicio de sesión</p>"
@@ -191,39 +201,56 @@ class NetflixParserTests(TestCase):
 
 
 class ImapAccountsTests(TestCase):
+    def test_internaldate_has_priority_over_message_date(self):
+        from email.message import EmailMessage
+        from datetime import datetime, timezone
+
+        msg = EmailMessage()
+        msg["Date"] = "Tue, 01 Jan 2019 00:00:00 +0000"
+        metadata = b'1 (INTERNALDATE "27-Aug-2026 18:03:15 +0000" BODY[] {1}'
+        self.assertEqual(
+            imap_reader._msg_datetime(msg, metadata),
+            datetime(2026, 8, 27, 18, 3, 15, tzinfo=timezone.utc),
+        )
+
+    def test_missing_date_is_not_treated_as_new(self):
+        from email.message import EmailMessage
+
+        self.assertIsNone(imap_reader._msg_datetime(EmailMessage()))
+
     @override_settings(
-        CODES_IMAP_HOST="imap.gmail.com",
-        CODES_IMAP_USER="codigosjheliz@gmail.com",
+        CODES_IMAP_HOST="proton-bridge.internal",
+        CODES_IMAP_USER="codigosjheliz@protonmail.com",
         CODES_IMAP_PASSWORD="x",
-        CODES_IMAP2_HOST="imap.hostinger.com",
-        CODES_IMAP2_USER="codigosjheliz@ecormecejhelizstore.com",
+        CODES_IMAP2_HOST="imap.backup.example",
+        CODES_IMAP2_USER="backup@example.com",
         CODES_IMAP2_PASSWORD="y",
     )
     def test_two_accounts_configured(self):
         accounts = imap_reader._accounts()
         self.assertEqual(len(accounts), 2)
-        self.assertEqual(accounts[0]["host"], "imap.gmail.com")
-        self.assertEqual(accounts[1]["host"], "imap.hostinger.com")
+        self.assertEqual(accounts[0]["host"], "proton-bridge.internal")
+        self.assertEqual(accounts[1]["host"], "imap.backup.example")
         self.assertTrue(imap_reader.is_configured())
 
     @override_settings(
-        CODES_IMAP_HOST="imap.gmail.com",
-        CODES_IMAP_USER="codigosjheliz@gmail.com",
+        CODES_IMAP_HOST="proton-bridge.internal",
+        CODES_IMAP_USER="codigosjheliz@protonmail.com",
         CODES_IMAP_PASSWORD="x",
-        CODES_IMAP2_HOST="imap.hostinger.com",
+        CODES_IMAP2_HOST="imap.backup.example",
         CODES_IMAP2_USER="",
         CODES_IMAP2_PASSWORD="",
     )
     def test_secondary_without_credentials_is_skipped(self):
         accounts = imap_reader._accounts()
         self.assertEqual(len(accounts), 1)
-        self.assertEqual(accounts[0]["user"], "codigosjheliz@gmail.com")
+        self.assertEqual(accounts[0]["user"], "codigosjheliz@protonmail.com")
 
     @override_settings(
-        CODES_IMAP_HOST="imap.gmail.com",
+        CODES_IMAP_HOST="proton-bridge.internal",
         CODES_IMAP_USER="g@gmail.com",
         CODES_IMAP_PASSWORD="x",
-        CODES_IMAP2_HOST="imap.hostinger.com",
+        CODES_IMAP2_HOST="imap.backup.example",
         CODES_IMAP2_USER="h@host.com",
         CODES_IMAP2_PASSWORD="y",
     )
@@ -234,7 +261,7 @@ class ImapAccountsTests(TestCase):
         new = NetflixResult(kind="signin_code", code="2222")
 
         def fake_search(account, *args, **kwargs):
-            if account["host"] == "imap.gmail.com":
+            if account["host"] == "proton-bridge.internal":
                 return [(datetime(2026, 1, 1, tzinfo=timezone.utc), old)]
             return [(datetime(2026, 1, 2, tzinfo=timezone.utc), new)]
 
@@ -243,10 +270,10 @@ class ImapAccountsTests(TestCase):
         self.assertEqual(r.code, "2222")
 
     @override_settings(
-        CODES_IMAP_HOST="imap.gmail.com",
+        CODES_IMAP_HOST="proton-bridge.internal",
         CODES_IMAP_USER="g@gmail.com",
         CODES_IMAP_PASSWORD="x",
-        CODES_IMAP2_HOST="imap.hostinger.com",
+        CODES_IMAP2_HOST="imap.backup.example",
         CODES_IMAP2_USER="h@host.com",
         CODES_IMAP2_PASSWORD="y",
     )
@@ -256,13 +283,89 @@ class ImapAccountsTests(TestCase):
         res = NetflixResult(kind="signin_code", code="3333")
 
         def fake_search(account, *args, **kwargs):
-            if account["host"] == "imap.gmail.com":
+            if account["host"] == "proton-bridge.internal":
                 raise OSError("gmail caído")
             return [(datetime(2026, 1, 2, tzinfo=timezone.utc), res)]
 
         with mock.patch("codes.imap_reader._search_account", side_effect=fake_search):
             r = imap_reader.fetch_latest_for_email("cliente@gmail.com", kind="signin_code")
         self.assertEqual(r.code, "3333")
+
+
+class ImapFastSearchTests(TestCase):
+    def _connection(self, *, first_ids: bytes):
+        from datetime import datetime, timezone
+        from email.message import EmailMessage
+
+        message = EmailMessage()
+        message["To"] = "cliente@gmail.com"
+        message["Subject"] = "Netflix: Tu código de inicio de sesión"
+        message.set_content("Tu código es 4821 y vence pronto.")
+        received = datetime.now(timezone.utc).strftime("%d-%b-%Y %H:%M:%S +0000")
+        metadata = f'7 (INTERNALDATE "{received}" BODY[] {{1}}'.encode()
+
+        conn = mock.MagicMock()
+        conn.search.side_effect = [
+            ("OK", [first_ids]),
+            ("OK", [b"7"]),
+        ]
+        conn.fetch.return_value = ("OK", [(metadata, message.as_bytes())])
+        return conn
+
+    @mock.patch("codes.imap_reader.imaplib.IMAP4_SSL")
+    def test_search_filters_by_service_and_assigned_email(self, mimap):
+        conn = self._connection(first_ids=b"7")
+        mimap.return_value = conn
+        account = {
+            "host": "imap.example",
+            "port": 993,
+            "user": "system@example.com",
+            "password": "secret",
+            "security": "SSL",
+            "tls_verify": True,
+        }
+
+        rows = imap_reader._search_account(
+            account,
+            "cliente@gmail.com",
+            "netflix",
+            parse_netflix_email,
+            "signin_code",
+            imap_reader.datetime.now(imap_reader.timezone.utc)
+            - imap_reader.timedelta(minutes=30),
+        )
+
+        self.assertEqual(rows[0][1].code, "4821")
+        self.assertEqual(conn.search.call_count, 1)
+        args = conn.search.call_args.args
+        self.assertIn("netflix", args)
+        self.assertIn("cliente@gmail.com", args)
+
+    @mock.patch("codes.imap_reader.imaplib.IMAP4_SSL")
+    def test_empty_targeted_search_uses_compatibility_fallback(self, mimap):
+        conn = self._connection(first_ids=b"")
+        mimap.return_value = conn
+        account = {
+            "host": "imap.example",
+            "port": 993,
+            "user": "system@example.com",
+            "password": "secret",
+            "security": "SSL",
+            "tls_verify": True,
+        }
+
+        rows = imap_reader._search_account(
+            account,
+            "cliente@gmail.com",
+            "netflix",
+            parse_netflix_email,
+            "signin_code",
+            imap_reader.datetime.now(imap_reader.timezone.utc)
+            - imap_reader.timedelta(minutes=30),
+        )
+
+        self.assertEqual(rows[0][1].code, "4821")
+        self.assertEqual(conn.search.call_count, 2)
 
 
 class CommandMappingTests(TestCase):
@@ -522,6 +625,24 @@ class CmdCodeTests(TestCase):
             self.client_obj, "solo@gmail.com", kind="household"
         )
 
+    @mock.patch("codes.bot._schedule_sensitive_deletion")
+    @mock.patch("codes.bot.edit_message", return_value={"ok": True})
+    @mock.patch(
+        "codes.bot.send_message",
+        return_value={"ok": True, "result": {"message_id": 321}},
+    )
+    @mock.patch("codes.bot._deliver_code", return_value="RESULTADO")
+    def test_direct_command_shows_searching_then_edits_result(
+        self, mdeliver, msend, medit, mschedule
+    ):
+        bot._cmd_code(self.client_obj, "signin_code", "solo@gmail.com")
+        self.assertIn("Buscando", msend.call_args.args[1])
+        self.assertEqual(medit.call_args.args, ("555", 321, "RESULTADO"))
+        buttons = medit.call_args.kwargs["buttons"]
+        self.assertEqual(buttons[-1][0]["callback_data"], "c:signin_code:0")
+        self.assertEqual(buttons[-1][1]["callback_data"], "home")
+        mschedule.assert_called_once()
+
     @mock.patch("codes.bot._deliver_code", return_value="OK")
     @mock.patch("codes.bot.send_message")
     def test_multiple_emails_no_arg_shows_picker(self, msend, mdeliver):
@@ -546,10 +667,7 @@ class DeliverKindTests(TestCase):
         bot._deliver_code(self.client_obj, "mine@gmail.com", kind="password_reset")
         self.assertEqual(
             mfetch.call_args_list,
-            [
-                mock.call("mine@gmail.com", kind="password_reset"),
-                mock.call("mine@gmail.com", kind=None),
-            ],
+            [mock.call("mine@gmail.com", kind="password_reset")],
         )
 
     def test_unassigned_email_says_no_corresponde(self):
@@ -703,6 +821,39 @@ class CallbackNavigationTests(TestCase):
         self.assertEqual(medit.call_args.args[:2], (779, 56))
         self.assertIn("/buscar", medit.call_args.args[2])
 
+    @mock.patch("codes.bot.edit_message")
+    @mock.patch("codes.bot.answer_callback_query")
+    def test_home_shows_modern_dashboard(self, _answer, medit):
+        bot._handle_callback(
+            {
+                "callback_query": {
+                    "id": "cq-home",
+                    "from": {"id": 779},
+                    "data": "home",
+                    "message": {"message_id": 57, "chat": {"id": 779}},
+                }
+            }
+        )
+        self.assertIn("CENTRO DE CÓDIGOS", medit.call_args.args[2])
+        buttons = medit.call_args.kwargs["buttons"]
+        self.assertEqual(buttons[0][0]["callback_data"], "pick:0")
+        self.assertEqual(buttons[1][0]["callback_data"], "help")
+
+    def test_result_buttons_include_netflix_link_retry_and_home(self):
+        text = (
+            '✅ Listo\n<a href="https://www.netflix.com/accountaccess?x=1&amp;y=2">'
+            "Abrir</a>"
+        )
+        buttons = bot._result_buttons(
+            self.client_obj,
+            "cliente@gmail.com",
+            "signin_code",
+            text,
+        )
+        self.assertEqual(buttons[0][0]["url"], "https://www.netflix.com/accountaccess?x=1&y=2")
+        self.assertEqual(buttons[1][0]["callback_data"], "c:signin_code:0")
+        self.assertEqual(buttons[1][1]["callback_data"], "home")
+
 
 class DeliverCodeTests(TestCase):
     def setUp(self):
@@ -791,15 +942,23 @@ class EfficiencyTests(TestCase):
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
     def test_travel_not_found_explains_how_to_generate_email(self, _fetch, _cfg):
         msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="temp_code")
-        self.assertIn("Generá el correo desde Netflix", msg)
-        self.assertIn("volvé a pedirlo en un minuto", msg)
+        self.assertIn("Generá una nueva solicitud desde Netflix", msg)
+        self.assertIn("Volvé a tocar la misma opción", msg)
+
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
+    def test_requested_kind_never_falls_back_to_another_kind(self, mfetch, _cfg):
+        msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="temp_code")
+        mfetch.assert_called_once_with("mine@gmail.com", kind="temp_code")
+        self.assertIn("No encontré", msg)
+        self.assertIn("acceso temporal", msg)
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
     def test_household_not_found_explains_how_to_generate_email(self, _fetch, _cfg):
         msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="household")
-        self.assertIn("Generá el correo desde Netflix", msg)
-        self.assertIn("volvé a pedirlo en un minuto", msg)
+        self.assertIn("Generá una nueva solicitud desde Netflix", msg)
+        self.assertIn("Volvé a tocar la misma opción", msg)
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     def test_imap_retried_once_on_error(self, _cfg):
