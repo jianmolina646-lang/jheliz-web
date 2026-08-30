@@ -1,6 +1,6 @@
 """Lectura de las casillas centrales por IMAP.
 
-A estas casillas (Gmail y/o Hostinger) se reenvían los correos de Netflix de
+A la casilla corporativa se reenvían los correos de Netflix de
 todas las cuentas. Cuando un cliente pide el código de ``cuenta@gmail.com``,
 buscamos el último correo de Netflix dirigido a ESE correo en TODAS las
 casillas configuradas y devolvemos el más reciente.
@@ -17,6 +17,8 @@ import email
 import imaplib
 import logging
 import re
+import ssl
+from collections.abc import Collection
 from datetime import datetime, timedelta, timezone
 from email.header import decode_header, make_header
 from email.message import Message
@@ -52,8 +54,8 @@ _RECIPIENT_HEADERS = (
 def _accounts() -> list[dict]:
     """Casillas centrales configuradas (principal + secundaria).
 
-    La principal usa ``CODES_IMAP_*`` (Gmail) y la secundaria
-    ``CODES_IMAP2_*`` (Hostinger). Solo se incluyen las completas.
+    La principal usa ``CODES_IMAP_*`` y la secundaria ``CODES_IMAP2_*``.
+    Solo se incluyen las completas.
     """
     accounts: list[dict] = []
     for prefix in ("CODES_IMAP", "CODES_IMAP2"):
@@ -66,12 +68,37 @@ def _accounts() -> list[dict]:
                 "port": getattr(settings, f"{prefix}_PORT", 993),
                 "user": user,
                 "password": password,
+                "security": getattr(settings, f"{prefix}_SECURITY", "SSL").upper(),
+                "tls_verify": getattr(settings, f"{prefix}_TLS_VERIFY", True),
             })
     return accounts
 
 
 def is_configured() -> bool:
     return bool(_accounts())
+
+
+def health_check() -> list[dict]:
+    """Comprueba conexión, autenticación e INBOX sin exponer credenciales."""
+    results = []
+    for account in _accounts():
+        item = {"host": account["host"], "user": account["user"], "ok": False}
+        try:
+            conn = _connect(account)
+            try:
+                conn.login(account["user"], account["password"])
+                typ, data = conn.select("INBOX", readonly=True)
+                item["ok"] = typ == "OK"
+                item["messages"] = int(data[0]) if typ == "OK" and data else 0
+            finally:
+                try:
+                    conn.logout()
+                except Exception:
+                    pass
+        except Exception as exc:
+            item["error"] = type(exc).__name__
+        results.append(item)
+    return results
 
 
 def _decode(value: str | None) -> str:
@@ -157,7 +184,7 @@ def _msg_datetime(msg: Message, fetch_metadata: bytes = b"") -> datetime | None:
 
 def fetch_latest_for_email(
     account_email: str,
-    kind: str | None = None,
+    kind: str | Collection[str] | None = None,
     lookback_minutes: int | None = None,
     service: str = "netflix",
 ) -> NetflixResult | DisneyResult | None:
@@ -184,8 +211,11 @@ def fetch_latest_for_email(
     if not account_email:
         return None
 
-    configured_lookback = getattr(settings, "CODES_LOOKBACK_MINUTES", 10)
-    lookback = lookback_minutes or min(configured_lookback, 10)
+    configured_lookback = getattr(settings, "CODES_LOOKBACK_MINUTES", 15)
+    requested_lookback = lookback_minutes or configured_lookback
+    # Los enlaces y códigos de Netflix vencen a los 15 minutos. No devolver
+    # resultados más viejos aunque producción tenga un valor accidentalmente mayor.
+    lookback = min(requested_lookback, 15)
     since_dt = datetime.now(timezone.utc) - timedelta(minutes=lookback)
 
     candidates: list[tuple[datetime, NetflixResult | DisneyResult]] = []
@@ -213,18 +243,14 @@ def _search_account(
     account_email: str,
     search_term: str,
     parser,
-    kind: str | None,
+    kind: str | Collection[str] | None,
     since_dt: datetime,
 ) -> list[tuple[datetime, NetflixResult | DisneyResult]]:
     """Busca en UNA casilla y devuelve los candidatos (fecha, resultado)."""
     # IMAP SINCE tiene granularidad de día; afinamos por hora en Python.
     since_imap = (since_dt - timedelta(days=1)).strftime("%d-%b-%Y")
 
-    conn = imaplib.IMAP4_SSL(
-        account["host"],
-        account["port"],
-        timeout=getattr(settings, "CODES_IMAP_TIMEOUT", 20),
-    )
+    conn = _connect(account)
     try:
         conn.login(account["user"], account["password"])
         # El bot solo consulta mensajes: nunca debe marcar, mover ni eliminar.
@@ -239,7 +265,7 @@ def _search_account(
         # Recorremos de más nuevo a más viejo y solo los N más recientes:
         # no tiene sentido bajar correos viejos que ya cayeron fuera de la
         # ventana de minutos.
-        max_scan = getattr(settings, "CODES_IMAP_MAX_SCAN", 25)
+        max_scan = getattr(settings, "CODES_IMAP_MAX_SCAN", 100)
         ids = list(reversed(ids))[:max_scan]
         candidates: list[tuple[datetime, NetflixResult | DisneyResult]] = []
         for msg_id in ids:
@@ -262,20 +288,13 @@ def _search_account(
                 continue
             subject = _decode(msg.get("Subject"))
             result = parser(subject, html=html, text=text)
-            # Sin tipo puntual solo se consideran mensajes reconocidos por el
-            # parser. Avisos comerciales, cambios de correo y cualquier otro
-            # mensaje de Netflix clasificado como ``other`` nunca se entrega.
             if kind is None and result.kind == "other":
                 continue
-            # Cuando se pide un tipo puntual, solo entregamos ese tipo;
-            # cualquier otro correo del servicio se ignora.
-            if kind is not None and result.kind != kind:
+            expected_kinds = {kind} if isinstance(kind, str) else set(kind or ())
+            if expected_kinds and result.kind not in expected_kinds:
                 continue
-            # Con tipo puntual, el primer match (ya vamos de más nuevo a más
-            # viejo) es el más reciente de ESTA casilla: cortamos acá y la
-            # comparación entre casillas se hace por fecha más arriba.
             candidates.append((dt, result))
-            if kind is not None:
+            if expected_kinds:
                 return candidates
         return candidates
     finally:
@@ -287,3 +306,23 @@ def _search_account(
             conn.logout()
         except Exception:
             pass
+
+
+def _connect(account: dict):
+    timeout = getattr(settings, "CODES_IMAP_TIMEOUT", 20)
+    security = account.get("security", "SSL")
+    tls_context = ssl.create_default_context()
+    if not account.get("tls_verify", True):
+        # Solo para un proxy local de confianza (por ejemplo Proton Bridge).
+        tls_context.check_hostname = False
+        tls_context.verify_mode = ssl.CERT_NONE
+    if security == "STARTTLS":
+        conn = imaplib.IMAP4(account["host"], account["port"], timeout=timeout)
+        conn.starttls(ssl_context=tls_context)
+    elif security == "SSL":
+        conn = imaplib.IMAP4_SSL(
+            account["host"], account["port"], timeout=timeout, ssl_context=tls_context
+        )
+    else:
+        raise ValueError(f"Seguridad IMAP no soportada: {security}")
+    return conn

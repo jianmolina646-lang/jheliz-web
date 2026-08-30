@@ -117,6 +117,10 @@ class CodeDelivery(models.Model):
     email = models.EmailField("Correo de la cuenta")
     kind = models.CharField("Tipo pedido", max_length=32, blank=True)
     found = models.BooleanField("Entregado", default=False)
+    payload_fingerprint = models.CharField(
+        "Huella del resultado", max_length=64, blank=True, db_index=True
+    )
+    duplicate = models.BooleanField("Resultado repetido", default=False)
     created_at = models.DateTimeField("Fecha", auto_now_add=True)
 
     class Meta:

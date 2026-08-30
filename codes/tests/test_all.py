@@ -1,11 +1,13 @@
 from unittest import mock
+import json
+from pathlib import Path
 
 from django.core.cache import cache
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
 
 from codes import bot, imap_reader
-from codes.models import AssignedEmail, BotState, CodeBotClient
+from codes.models import AssignedEmail, BotState, CodeBotClient, CodeDelivery
 from codes.netflix import NetflixResult, parse_netflix_email
 
 
@@ -30,6 +32,15 @@ class ModelTests(TestCase):
 
 
 class NetflixParserTests(TestCase):
+    def test_anonymized_real_format_samples(self):
+        fixture = Path(__file__).parent / "fixtures" / "netflix_samples.json"
+        for sample in json.loads(fixture.read_text(encoding="utf-8")):
+            with self.subTest(sample=sample["name"]):
+                result = parse_netflix_email(
+                    sample["subject"], html=sample["html"], text=sample["text"]
+                )
+                self.assertEqual(result.kind, sample["kind"])
+                self.assertEqual(result.code, sample["code"])
     def test_temp_code_classification_and_link(self):
         html = (
             '<p>Tu código de acceso temporal</p>'
@@ -58,6 +69,15 @@ class NetflixParserTests(TestCase):
         self.assertEqual(r.kind, "signin_code")
         self.assertEqual(r.code, "4821")
 
+    def test_numeric_code_uses_html_when_plain_text_is_only_preheader(self):
+        r = parse_netflix_email(
+            "Tu código de inicio de sesión",
+            html="<p>Tu código de inicio de sesión</p><h1>7391</h1>",
+            text="Solicitaste iniciar sesión en Netflix.",
+        )
+        self.assertEqual(r.kind, "signin_code")
+        self.assertEqual(r.code, "7391")
+
     def test_links_have_html_entities_decoded(self):
         html = (
             "<p>Tu código de inicio de sesión</p>"
@@ -72,6 +92,17 @@ class NetflixParserTests(TestCase):
         r = parse_netflix_email("Novedades de Netflix", html="<p>Mira lo nuevo</p>")
         self.assertEqual(r.kind, "other")
         self.assertFalse(r.has_payload)
+
+    def test_new_signin_request_security_alert_is_not_delivered_as_code(self):
+        r = parse_netflix_email(
+            "Netflix: Nueva solicitud de inicio de sesión",
+            html=(
+                "<p>Si no fuiste tú, rechaza esta solicitud.</p>"
+                '<a href="https://www.netflix.com/denysignin?nftoken=abc">'
+                "Rechazar inicio de sesión</a>"
+            ),
+        )
+        self.assertEqual(r.kind, "other")
 
     def test_password_reset_classification_and_link(self):
         html = (
@@ -209,38 +240,38 @@ class ImapAccountsTests(TestCase):
         self.assertIsNone(imap_reader._msg_datetime(EmailMessage()))
 
     @override_settings(
-        CODES_IMAP_HOST="imap.gmail.com",
-        CODES_IMAP_USER="codigosjheliz@gmail.com",
+        CODES_IMAP_HOST="proton-bridge.internal",
+        CODES_IMAP_USER="corp@jhelizstore.xyz",
         CODES_IMAP_PASSWORD="x",
-        CODES_IMAP2_HOST="imap.hostinger.com",
-        CODES_IMAP2_USER="codigosjheliz@ecormecejhelizstore.com",
+        CODES_IMAP2_HOST="imap.backup.example",
+        CODES_IMAP2_USER="backup@example.com",
         CODES_IMAP2_PASSWORD="y",
     )
     def test_two_accounts_configured(self):
         accounts = imap_reader._accounts()
         self.assertEqual(len(accounts), 2)
-        self.assertEqual(accounts[0]["host"], "imap.gmail.com")
-        self.assertEqual(accounts[1]["host"], "imap.hostinger.com")
+        self.assertEqual(accounts[0]["host"], "proton-bridge.internal")
+        self.assertEqual(accounts[1]["host"], "imap.backup.example")
         self.assertTrue(imap_reader.is_configured())
 
     @override_settings(
-        CODES_IMAP_HOST="imap.gmail.com",
-        CODES_IMAP_USER="codigosjheliz@gmail.com",
+        CODES_IMAP_HOST="proton-bridge.internal",
+        CODES_IMAP_USER="corp@jhelizstore.xyz",
         CODES_IMAP_PASSWORD="x",
-        CODES_IMAP2_HOST="imap.hostinger.com",
+        CODES_IMAP2_HOST="imap.backup.example",
         CODES_IMAP2_USER="",
         CODES_IMAP2_PASSWORD="",
     )
     def test_secondary_without_credentials_is_skipped(self):
         accounts = imap_reader._accounts()
         self.assertEqual(len(accounts), 1)
-        self.assertEqual(accounts[0]["user"], "codigosjheliz@gmail.com")
+        self.assertEqual(accounts[0]["user"], "corp@jhelizstore.xyz")
 
     @override_settings(
-        CODES_IMAP_HOST="imap.gmail.com",
+        CODES_IMAP_HOST="proton-bridge.internal",
         CODES_IMAP_USER="g@gmail.com",
         CODES_IMAP_PASSWORD="x",
-        CODES_IMAP2_HOST="imap.hostinger.com",
+        CODES_IMAP2_HOST="imap.backup.example",
         CODES_IMAP2_USER="h@host.com",
         CODES_IMAP2_PASSWORD="y",
     )
@@ -251,7 +282,7 @@ class ImapAccountsTests(TestCase):
         new = NetflixResult(kind="signin_code", code="2222")
 
         def fake_search(account, *args, **kwargs):
-            if account["host"] == "imap.gmail.com":
+            if account["host"] == "proton-bridge.internal":
                 return [(datetime(2026, 1, 1, tzinfo=timezone.utc), old)]
             return [(datetime(2026, 1, 2, tzinfo=timezone.utc), new)]
 
@@ -260,10 +291,10 @@ class ImapAccountsTests(TestCase):
         self.assertEqual(r.code, "2222")
 
     @override_settings(
-        CODES_IMAP_HOST="imap.gmail.com",
+        CODES_IMAP_HOST="proton-bridge.internal",
         CODES_IMAP_USER="g@gmail.com",
         CODES_IMAP_PASSWORD="x",
-        CODES_IMAP2_HOST="imap.hostinger.com",
+        CODES_IMAP2_HOST="imap.backup.example",
         CODES_IMAP2_USER="h@host.com",
         CODES_IMAP2_PASSWORD="y",
     )
@@ -273,7 +304,7 @@ class ImapAccountsTests(TestCase):
         res = NetflixResult(kind="signin_code", code="3333")
 
         def fake_search(account, *args, **kwargs):
-            if account["host"] == "imap.gmail.com":
+            if account["host"] == "proton-bridge.internal":
                 raise OSError("gmail caído")
             return [(datetime(2026, 1, 2, tzinfo=timezone.utc), res)]
 
@@ -1164,6 +1195,22 @@ class TvEmailLinkCommandTests(TestCase):
             message_id=77,
         )
 
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email")
+    def test_tv_email_accepts_tv_signin_email(self, mfetch, _configured):
+        mfetch.return_value = NetflixResult(
+            kind="tv_signin",
+            action_url="https://www.netflix.com/tv/out/es?nftoken=abc",
+        )
+        message = bot._deliver_code(
+            self.client_obj, "cliente@gmail.com", kind="passwordless_signin"
+        )
+        self.assertIn("nftoken=abc", message)
+        mfetch.assert_called_once_with(
+            "cliente@gmail.com",
+            kind=("passwordless_signin", "tv_signin"),
+        )
+
 
 class SecurityFeatureTests(TestCase):
     """Vencimiento, límite diario, auditoría y alertas al admin."""
@@ -1174,6 +1221,35 @@ class SecurityFeatureTests(TestCase):
             telegram_chat_id="888", is_active=True
         )
         AssignedEmail.objects.create(client=self.client_obj, email="mio@gmail.com")
+
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email")
+    def test_same_payload_is_not_delivered_twice(self, mfetch, _configured):
+        mfetch.return_value = NetflixResult(kind="signin_code", code="4321")
+        first = bot._deliver_code(self.client_obj, "mio@gmail.com", kind="signin_code")
+        cache.clear()
+        second = bot._deliver_code(self.client_obj, "mio@gmail.com", kind="signin_code")
+        self.assertIn("4321", first)
+        self.assertIn("ya fue entregado", second)
+        duplicate = CodeDelivery.objects.get(duplicate=True)
+        self.assertFalse(duplicate.found)
+        self.assertEqual(len(duplicate.payload_fingerprint), 64)
+
+    @mock.patch("codes.bot.imap_reader.health_check", return_value=[{"ok": True}])
+    @mock.patch("codes.bot.send_message")
+    def test_admin_diagnostic_contains_safe_status(self, msend, _health):
+        bot._admin_diagnostics("900")
+        message = msend.call_args.args[1]
+        self.assertIn("IMAP Proton: OK", message)
+        self.assertNotIn("password", message.lower())
+
+    @mock.patch("codes.bot.send_message")
+    def test_admin_metrics_reports_kinds(self, msend):
+        CodeDelivery.objects.create(
+            client=self.client_obj, email="mio@gmail.com", kind="signin_code", found=True
+        )
+        bot._admin_metrics("900")
+        self.assertIn("Código de inicio", msend.call_args.args[1])
 
     def test_expired_client_has_no_access(self):
         from django.utils import timezone

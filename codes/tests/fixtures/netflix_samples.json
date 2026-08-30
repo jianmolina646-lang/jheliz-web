@@ -1,0 +1,26 @@
+[
+  {
+    "name": "signin_code_html_only",
+    "subject": "Netflix: Tu código de inicio de sesión",
+    "text": "Solicitaste iniciar sesión en Netflix.",
+    "html": "<p>Tu código de inicio de sesión</p><h1>7391</h1>",
+    "kind": "signin_code",
+    "code": "7391"
+  },
+  {
+    "name": "tv_signin_link",
+    "subject": "Es hora de ver Netflix",
+    "text": "",
+    "html": "<p>Inicia sesión en tu TV</p><a href=\"https://www.netflix.com/tv/out/es?nftoken=ANONIMO\">Entrar</a>",
+    "kind": "tv_signin",
+    "code": ""
+  },
+  {
+    "name": "deny_signin_security_alert",
+    "subject": "Netflix: Nueva solicitud de inicio de sesión",
+    "text": "",
+    "html": "<a href=\"https://www.netflix.com/denysignin?nftoken=ANONIMO\">Rechazar</a>",
+    "kind": "other",
+    "code": ""
+  }
+]
