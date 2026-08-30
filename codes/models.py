@@ -101,6 +101,70 @@ class AssignedEmail(models.Model):
         super().save(*args, **kwargs)
 
 
+class DisneyBotClient(models.Model):
+    """Cliente del bot Disney+, aislado del padrón del bot Netflix."""
+    telegram_chat_id = models.CharField("Chat ID de Telegram", max_length=32, unique=True)
+    telegram_username = models.CharField("Usuario de Telegram", max_length=64, blank=True)
+    display_name = models.CharField("Nombre", max_length=120, blank=True)
+    is_active = models.BooleanField("Activo", default=False)
+    note = models.CharField("Nota interna", max_length=200, blank=True)
+    created_at = models.DateTimeField("Alta", auto_now_add=True)
+    last_seen_at = models.DateTimeField("Último uso", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Cliente del bot Disney+"
+        verbose_name_plural = "Clientes del bot Disney+"
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        label = self.display_name or self.telegram_username or self.telegram_chat_id
+        return f"{label} ({self.telegram_chat_id})"
+
+    def touch(self):
+        self.last_seen_at = timezone.now()
+        self.save(update_fields=["last_seen_at"])
+
+
+class DisneyAssignedEmail(models.Model):
+    """Correo Disney+ asignado, independiente de las cuentas Netflix."""
+    client = models.ForeignKey(DisneyBotClient, related_name="emails", on_delete=models.CASCADE, verbose_name="Cliente")
+    email = models.EmailField("Correo de la cuenta")
+    note = models.CharField("Nota", max_length=120, blank=True)
+    created_at = models.DateTimeField("Asignado", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Correo Disney+ asignado"
+        verbose_name_plural = "Correos Disney+ asignados"
+        ordering = ("email",)
+        constraints = [models.UniqueConstraint(fields=["client", "email"], name="uniq_disney_client_email")]
+
+    def __str__(self):
+        return f"{self.email} → {self.client_id}"
+
+    def save(self, *args, **kwargs):
+        self.email = (self.email or "").strip().lower()
+        super().save(*args, **kwargs)
+
+
+class DisneyCodeDelivery(models.Model):
+    """Auditoría y deduplicación de códigos del bot Disney+."""
+    client = models.ForeignKey(DisneyBotClient, related_name="deliveries", on_delete=models.CASCADE, verbose_name="Cliente")
+    email = models.EmailField("Correo de la cuenta")
+    found = models.BooleanField("Entregado", default=False)
+    payload_fingerprint = models.CharField("Huella del código", max_length=64, blank=True, db_index=True)
+    duplicate = models.BooleanField("Código repetido", default=False)
+    created_at = models.DateTimeField("Fecha", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Entrega de código Disney+"
+        verbose_name_plural = "Entregas de códigos Disney+"
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=["client", "created_at"])]
+
+    def __str__(self):
+        return f"{'✓' if self.found else '✗'} {self.email} [Disney+] → {self.client_id}"
+
+
 class CodeDelivery(models.Model):
     """Registro de auditoría: cada pedido de código que atendió el bot.
 

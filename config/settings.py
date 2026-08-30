@@ -422,7 +422,7 @@ CODES_BOT_BANNER = config(
 # propio token: los clientes piden SOLO el código de inicio de sesión de las
 # cuentas de Disney+ que el admin les asignó. Lee la MISMA casilla central
 # (CODES_IMAP_*) a la que se reenvían los correos de Disney+.
-TELEGRAM_DISNEY_BOT_TOKEN = config("TELEGRAM_DISNEY_BOT_TOKEN", default="")
+TELEGRAM_DISNEY_BOT_TOKEN = secret_config("TELEGRAM_DISNEY_BOT_TOKEN", allow_empty=True)
 # Chat ID del admin del bot de Disney+ (por defecto, el mismo del bot de Netflix).
 TELEGRAM_DISNEY_ADMIN_CHAT_ID = config(
     "TELEGRAM_DISNEY_ADMIN_CHAT_ID", default=TELEGRAM_CODES_ADMIN_CHAT_ID
