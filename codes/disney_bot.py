@@ -405,12 +405,12 @@ def _send_welcome(client: DisneyBotClient) -> None:
                 "━━━━━━━━━━━━━━━━━━\n\n"
                 "🔑 Entrega automática de códigos Disney+.\n\n"
                 "🔒 <b>Administración</b>\n"
-                "<code>/clientes</code> — lista tus clientes (ID, usuario, correos)\n"
-                "<code>/activar &lt;ID o @usuario&gt;</code> — activa el acceso (sin asignar correo)\n"
-                "<code>/desactivar &lt;ID o @usuario&gt;</code> — pausa el acceso\n"
-                "<code>/asignar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — asigna y activa\n"
-                "<code>/quitar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — quita un correo\n"
-                "<code>/anuncio &lt;mensaje&gt;</code> — avisa a todos tus clientes\n\n"
+                "👥 <code>/clientes</code> — lista tus clientes (ID, usuario, correos)\n"
+                "🔓 <code>/activar &lt;ID o @usuario&gt;</code> — activa el acceso (sin asignar correo)\n"
+                "⏸ <code>/desactivar &lt;ID o @usuario&gt;</code> — pausa el acceso\n"
+                "➕ <code>/asignar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — asigna y activa\n"
+                "➖ <code>/quitar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — quita un correo\n"
+                "📢 <code>/anuncio &lt;mensaje&gt;</code> — avisa a todos tus clientes\n\n"
                 "El cliente tiene que mandar <b>/start</b> una vez para aparecer "
                 "en <code>/clientes</code>. También podés asignar desde el panel web.",
             )
@@ -475,11 +475,12 @@ def _handle_admin_command(chat_id, cmd: str, rest: str) -> None:
 def _admin_set_active(chat_id, token: str, active: bool) -> None:
     """Activa o desactiva a un cliente sin tocar sus correos."""
     accion = "activar" if active else "desactivar"
+    icono = "🔓" if active else "⏸"
     token = (token or "").strip()
     if not token:
         send_message(
             chat_id,
-            f"Uso: <code>/{accion} &lt;ID o @usuario&gt;</code>\n"
+            f"{icono} Uso: <code>/{accion} &lt;ID o @usuario&gt;</code>\n"
             f"Ej: <code>/{accion} 8761148983</code>",
         )
         return
@@ -500,7 +501,7 @@ def _admin_set_active(chat_id, token: str, active: bool) -> None:
     client.is_active = active
     client.save(update_fields=["is_active"])
     if active:
-        send_message(chat_id, f"✅ Activé a {label}. (Aún sin correos: asignale con <code>/asignar</code>.)")
+        send_message(chat_id, f"🔓 Activé a {label}. (Aún sin correos: asignale con <code>/asignar</code>.)")
         send_message(
             client.telegram_chat_id,
             "✅ <b>El admin activó tu acceso al bot de Disney+.</b>\n"
@@ -516,7 +517,7 @@ def _admin_broadcast(chat_id, message: str) -> None:
     if not message:
         send_message(
             chat_id,
-            "Uso: <code>/anuncio &lt;mensaje&gt;</code>\n"
+            "📢 Uso: <code>/anuncio &lt;mensaje&gt;</code>\n"
             "Ej: <code>/anuncio Mañana renuevo las cuentas, aviso cuando esté listo.</code>",
         )
         return
@@ -574,11 +575,12 @@ def _admin_list_clients(chat_id) -> None:
 
 def _admin_assign(chat_id, rest: str, add: bool) -> None:
     accion = "asignar" if add else "quitar"
+    icono = "➕" if add else "➖"
     parts = rest.split()
     if len(parts) < 2:
         send_message(
             chat_id,
-            f"Uso: <code>/{accion} &lt;ID o @usuario&gt; &lt;correo&gt;</code>\n"
+            f"{icono} Uso: <code>/{accion} &lt;ID o @usuario&gt; &lt;correo&gt;</code>\n"
             f"Ej: <code>/{accion} 12345678 villalimalemon@gmail.com</code>",
         )
         return
@@ -602,7 +604,7 @@ def _admin_assign(chat_id, rest: str, add: bool) -> None:
             client.is_active = True
             client.save(update_fields=["is_active"])
         if created:
-            send_message(chat_id, f"✅ Asigné <b>{html.escape(email)}</b> a {label} y lo activé.")
+            send_message(chat_id, f"➕ Asigné <b>{html.escape(email)}</b> a {label} y lo activé.")
             send_message(
                 client.telegram_chat_id,
                 f"✅ El admin te asignó <b>{html.escape(email)}</b>. "
@@ -613,7 +615,7 @@ def _admin_assign(chat_id, rest: str, add: bool) -> None:
     else:
         deleted, _ = DisneyAssignedEmail.objects.filter(client=client, email=email).delete()
         if deleted:
-            send_message(chat_id, f"🗑 Le quité <b>{html.escape(email)}</b> a {label}.")
+            send_message(chat_id, f"➖ Le quité <b>{html.escape(email)}</b> a {label}.")
         else:
             send_message(chat_id, f"{label} no tenía <b>{html.escape(email)}</b> asignado.")
 
