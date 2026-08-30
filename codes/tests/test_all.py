@@ -997,6 +997,16 @@ class DisneyBotMappingTests(TestCase):
         self.assertEqual(disney_bot.SERVICE, "disney")
         self.assertEqual(disney_bot.BOT_STATE_PK, 2)
 
+    def test_disney_specific_premium_emoji_ids_are_rendered(self):
+        from codes import disney_bot
+
+        rendered = disney_bot._render_disney_emojis(
+            "{DISNEY_CONTROL} {DISNEY_EXPIRY} {DISNEY_TEAM}"
+        )
+        self.assertIn('emoji-id="5008435245893026844"', rendered)
+        self.assertIn('emoji-id="4956611513369494230"', rendered)
+        self.assertIn('emoji-id="5258362837411045098"', rendered)
+
     @mock.patch("codes.disney_bot.send_message")
     @mock.patch("codes.disney_bot._deliver_code", return_value="OK")
     def test_single_email_fallback_when_no_arg(self, mdeliver, _msend):

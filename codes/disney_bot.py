@@ -48,6 +48,15 @@ SERVICE = "disney"
 # Validación simple de correo (suficiente para el panel del bot).
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
+# IDs Premium elegidos específicamente para la identidad visual Disney+.
+# Los marcadores permiten usar emojis distintos aunque compartan el mismo
+# fallback Unicode; si Telegram rechaza un ID, send_message reintenta sin tags.
+_DISNEY_PREMIUM_EMOJIS = {
+    "{DISNEY_CONTROL}": ("5008435245893026844", "✨"),
+    "{DISNEY_EXPIRY}": ("4956611513369494230", "⏱"),
+    "{DISNEY_TEAM}": ("5258362837411045098", "✨"),
+}
+
 
 # ---------- Configuración ----------
 
@@ -115,12 +124,22 @@ def _without_button_styling(markup: dict) -> dict:
     }
 
 
+def _render_disney_emojis(text: str) -> str:
+    rendered = render_premium_emojis(text)
+    for marker, (custom_id, fallback) in _DISNEY_PREMIUM_EMOJIS.items():
+        rendered = rendered.replace(
+            marker,
+            f'<tg-emoji emoji-id="{custom_id}">{fallback}</tg-emoji>',
+        )
+    return rendered
+
+
 def send_message(
     chat_id: str | int,
     text: str,
     buttons: Iterable[Iterable[dict]] | None = None,
 ) -> dict:
-    rendered_text = render_premium_emojis(text)
+    rendered_text = _render_disney_emojis(text)
     payload: dict[str, Any] = {
         "chat_id": str(chat_id),
         "text": rendered_text,
@@ -207,8 +226,8 @@ def _format_result(email: str, result) -> str:
             f'\n🔗 <a href="{html.escape(result.action_url)}">Abrir en Disney+</a>'
         )
     parts.append(
-        "\n\n⚠️ <i>Vence en pocos minutos y solo puede usarse una vez.</i>\n"
-        "✨ <b>TEAM JHELIZ</b>"
+        "\n\n{DISNEY_EXPIRY} <i>Vence en pocos minutos y solo puede usarse una vez.</i>\n"
+        "{DISNEY_TEAM} <b>TEAM JHELIZ</b>"
     )
     return "".join(parts)
 
@@ -382,7 +401,7 @@ def _send_welcome(client: DisneyBotClient) -> None:
         if admin:
             send_message(
                 chat_id,
-                "✨ <b>DISNEY+ CONTROL CENTER</b>\n"
+                "{DISNEY_CONTROL} <b>DISNEY+ CONTROL CENTER</b>\n"
                 "━━━━━━━━━━━━━━━━━━\n\n"
                 "🔑 Entrega automática de códigos Disney+.\n\n"
                 "🔒 <b>Administración</b>\n"
