@@ -162,6 +162,11 @@ class NetflixResult:
 
 def _classify(subject: str, body: str, links: list[str] | None = None) -> str:
     haystack = f"{subject}\n{body}".lower()
+    # Nunca entregar como código una alerta cuyo botón rechaza el acceso.
+    if "nueva solicitud de inicio de sesión" in haystack or any(
+        "/denysignin" in link.lower() for link in links or []
+    ):
+        return "other"
     for kind, kws in _KEYWORDS.items():
         if any(kw in haystack for kw in kws):
             return kind
@@ -228,11 +233,10 @@ def parse_netflix_email(subject: str, html: str = "", text: str = "") -> Netflix
 
     kind = _classify(subject, f"{html}\n{text}", uniq_links)
     action_url = _pick_action_url(kind, uniq_links)
-    # Netflix suele enviar solo HTML. Extraer sobre el HTML crudo confunde
-    # números de CSS y puede separar la palabra "código" del valor con tags.
-    # Convertimos primero a texto visible, manteniendo el texto plano cuando
-    # el mensaje sí lo incluye.
-    visible_body = text or _html.unescape(strip_tags(html or ""))
+    # El text/plain puede ser solo un preheader mientras el código visible
+    # vive en el HTML. Analizamos ambos para no perder ese número.
+    visible_html = _html.unescape(strip_tags(html or ""))
+    visible_body = "\n".join(part for part in (text, visible_html) if part)
     code = _extract_code(kind, visible_body)
     return NetflixResult(
         kind=kind,

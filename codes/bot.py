@@ -14,16 +14,19 @@ Usa su propio token (``TELEGRAM_CODES_BOT_TOKEN``), separado del bot principal.
 from __future__ import annotations
 
 import html
+import hashlib
 import logging
 import re
 import threading
 import time
+from datetime import timedelta
 from typing import Any, Iterable
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
 from django.db import close_old_connections
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from . import imap_reader
@@ -34,8 +37,10 @@ from .premium_emoji import without_custom_emoji
 
 logger = logging.getLogger(__name__)
 
-# Pausa antes del único reintento cuando Gmail falla/responde lento.
-_RETRY_SLEEP = 1.0
+# Pausa corta antes del único reintento cuando IMAP falla. La conexión ya
+# tiene su propio timeout; esperar un segundo adicional hacía sentir lento el
+# bot sin mejorar la recuperación.
+_RETRY_SLEEP = 0.25
 MAX_EMAIL_BUTTONS = 10
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
@@ -647,29 +652,152 @@ def _cmd_tv_email(client: CodeBotClient, arg: str) -> None:
 
 def _format_result(email: str, result) -> str:
     parts = [
-        f"✨ <b>{html.escape(result.human_kind)}</b>",
-        f"📧 <code>{html.escape(_mask_email(email))}</code>",
-        "──────────────────",
+        "✅ <b>SOLICITUD COMPLETADA</b>",
+        "━━━━━━━━━━━━━━━━━━",
+        f"🎬 <b>{html.escape(result.human_kind)}</b>",
+        f"📩 Cuenta: <code>{html.escape(_mask_email(email))}</code>",
+        "",
     ]
     if result.code:
-        parts.append(f"🔢 Código: <code>{html.escape(result.code)}</code>")
+        parts.append(f"🔑 <b>Tu código</b>\n<code>{html.escape(result.code)}</code>")
     if result.action_url:
         parts.append(
-            f'🔗 <a href="{html.escape(result.action_url)}">Abrir en Netflix</a>'
+            f'🔗 <a href="{html.escape(result.action_url)}"><b>Abrir en Netflix · enlace seguro</b></a>'
         )
     if result.kind == "tv_signin":
         parts.append(
             f'📺 <a href="{NETFLIX_TV_ACTIVATION_URL}">Página para activar la TV</a>'
             " — iniciá sesión con la cuenta y poné el código que muestra la TV."
         )
-    parts.append("──────────────────")
-    parts.append("⏱ Suele vencer en ~15 min. Si no funciona, generá uno nuevo y volvé a pedirlo.")
-    parts.append(f"👑 <b>{BRAND}</b> · gracias por tu compra")
+    parts.append("")
+    parts.append("⏱ <i>Usalo pronto: puede vencer en aproximadamente 15 minutos.</i>")
+    parts.append("🔐 <i>Este resultado corresponde solo a tu cuenta asignada.</i>")
+    parts.append("━━━━━━━━━━━━━━━━━━")
+    parts.append(f"👑 <b>{BRAND}</b> · Códigos Netflix")
     return "\n".join(parts)
+
+
+def _searching_message(email: str, kind: str) -> str:
+    """Tarjeta de progreso uniforme para comandos y botones."""
+    return "\n".join(
+        [
+            "🔎 <b>Buscando en Netflix…</b>",
+            "━━━━━━━━━━━━━━━━━━",
+            f"{html.escape(KIND_LABELS[kind])}",
+            f"📩 <code>{html.escape(_mask_email(email))}</code>",
+            "",
+            "⚡ Revisando el correo más reciente…",
+            "🔐 <i>Consulta segura de tu cuenta asignada.</i>",
+        ]
+    )
+
+
+def _premium_button(
+    text: str,
+    *,
+    callback_data: str | None = None,
+    url: str | None = None,
+    style: str = "primary",
+    icon: str | None = None,
+) -> dict:
+    button: dict[str, str] = {"text": text, "style": style}
+    if callback_data:
+        button["callback_data"] = callback_data
+    if url:
+        button["url"] = url
+    if icon:
+        custom_id = emoji_id(icon)
+        if custom_id:
+            button["icon_custom_emoji_id"] = custom_id
+    return button
+
+
+def _result_buttons(
+    client: CodeBotClient,
+    email: str,
+    kind: str,
+    result_text: str,
+    *,
+    tv_confirmation: bool = False,
+) -> list[list[dict]]:
+    """Acciones posteriores sin obligar al cliente a escribir comandos."""
+    emails = _assigned_emails(client)
+    try:
+        idx = emails.index(email)
+    except ValueError:
+        return [[_premium_button("🏠 Menú principal", callback_data="home")]]
+
+    rows: list[list[dict]] = []
+    match = re.search(r'href="(https://[^"<>]+)"', result_text)
+    if match:
+        rows.append(
+            [
+                _premium_button(
+                    "Abrir en Netflix",
+                    url=html.unescape(match.group(1)),
+                    style="success",
+                    icon="🔗",
+                )
+            ]
+        )
+    retry_data = f"tvconfirm:{idx}" if tv_confirmation else f"c:{kind}:{idx}"
+    rows.append(
+        [
+            _premium_button(
+                "Buscar otra vez",
+                callback_data=retry_data,
+                style="primary",
+                icon="🔍",
+            ),
+            _premium_button(
+                "Menú principal",
+                callback_data="home",
+                style="success",
+                icon="🏠",
+            ),
+        ]
+    )
+    return rows
+
+
+def _home_card(client: CodeBotClient) -> tuple[str, list[list[dict]]]:
+    emails = _assigned_emails(client)
+    text = (
+        f"🎬 <b>{BRAND} · CENTRO DE CÓDIGOS</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "✅ Servicio disponible\n"
+        f"📩 <b>{len(emails)}</b> correo(s) asignado(s)\n\n"
+        "Elegí un correo y después la acción que necesitás."
+    )
+    choose_data = "pick:0" if len(emails) == 1 else "back:emails"
+    buttons = [
+        [
+            _premium_button(
+                "Elegir correo",
+                callback_data=choose_data,
+                style="primary",
+                icon="📨",
+            )
+        ],
+        [
+            _premium_button(
+                "Ayuda y comandos",
+                callback_data="help",
+                style="primary",
+                icon="❓",
+            )
+        ],
+    ]
+    return text, buttons
 
 
 def _result_cache_key(email: str, kind: str | None) -> str:
     return f"codesbot:res:{email}:{kind or 'any'}"
+
+
+def _payload_fingerprint(result) -> str:
+    value = "\0".join((result.kind, result.code or "", result.action_url or ""))
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _cooldown_key(chat_id: str) -> str:
@@ -741,7 +869,12 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
     result = None
     for attempt in range(2):
         try:
-            result = imap_reader.fetch_latest_for_email(email, kind=kind)
+            lookup_kind = (
+                ("passwordless_signin", "tv_signin")
+                if kind == "passwordless_signin"
+                else kind
+            )
+            result = imap_reader.fetch_latest_for_email(email, kind=lookup_kind)
             break
         except Exception:
             logger.exception("Fallo leyendo IMAP para %s (intento %d)", email, attempt + 1)
@@ -766,13 +899,32 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
                 " (iniciá sesión con la cuenta y poné el código de la TV)."
             )
         return (
-            f"No encontré {que} para <b>{html.escape(_mask_email(email))}</b>.\n"
-            "Generá el correo desde Netflix y volvé a pedirlo en un minuto."
+            "⚠️ <b>AÚN NO LLEGÓ EL CÓDIGO</b>\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            f"No encontré {que} para:\n"
+            f"📩 <code>{html.escape(_mask_email(email))}</code>\n\n"
+            "1️⃣ Generá una nueva solicitud desde Netflix.\n"
+            "2️⃣ Dale unos segundos para llegar.\n"
+            "3️⃣ Volvé a tocar la misma opción."
             + extra
+        )
+    fingerprint = _payload_fingerprint(result)
+    if CodeDelivery.objects.filter(
+        client=client, email=email, payload_fingerprint=fingerprint, found=True,
+        created_at__gte=timezone.now() - timedelta(hours=24),
+    ).exists():
+        CodeDelivery.objects.create(
+            client=client, email=email, kind=kind or "", found=False,
+            duplicate=True, payload_fingerprint=fingerprint,
+        )
+        return (
+            "♻️ Este código o enlace ya fue entregado anteriormente.\n"
+            "Generá uno nuevo en Netflix y volvé a solicitarlo."
         )
     client.touch()
     CodeDelivery.objects.create(
-        client=client, email=email, kind=kind or "", found=True
+        client=client, email=email, kind=kind or "", found=True,
+        payload_fingerprint=fingerprint,
     )
     msg = _format_result(email, result)
     ttl = getattr(settings, "CODES_RESULT_CACHE_SECONDS", 45)
@@ -825,20 +977,22 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
     # Después editamos ese mensaje para evitar dejar un “Buscando…” huérfano.
     progress = send_message(
         chat_id,
-        f"⏳ <b>Buscando {html.escape(KIND_LABELS[kind].lower())}…</b>\n"
-        f"Cuenta: <code>{html.escape(_mask_email(arg))}</code>",
+        _searching_message(arg, kind),
     )
     progress_id = None
     if isinstance(progress, dict):
         progress_id = (progress.get("result") or {}).get("message_id")
     result_text = _deliver_code(client, arg, kind=kind)
+    result_buttons = _result_buttons(client, arg, kind, result_text)
     if progress_id is not None:
-        result = edit_message(chat_id, int(progress_id), result_text)
+        result = edit_message(
+            chat_id, int(progress_id), result_text, buttons=result_buttons
+        )
         _schedule_sensitive_deletion(
             chat_id, send_result=result, message_id=int(progress_id)
         )
     else:
-        result = send_message(chat_id, result_text)
+        result = send_message(chat_id, result_text, buttons=result_buttons)
         _schedule_sensitive_deletion(chat_id, send_result=result)
 
 
@@ -901,10 +1055,17 @@ def _handle_message(update: dict) -> None:
     if cmd == "/enlacetv":
         _cmd_tv_email(client, rest)
         return
+    if cmd == "/diagnostico" and _is_admin(chat_id):
+        _admin_diagnostics(chat_id)
+        return
+    if cmd == "/metricas" and _is_admin(chat_id):
+        _admin_metrics(chat_id)
+        return
 
     # Comandos de admin (solo para el chat del admin).
     if _is_admin(chat_id) and cmd in (
-        "/clientes", "/asignar", "/quitar", "/anuncio", "/activar", "/desactivar"
+        "/clientes", "/asignar", "/quitar", "/anuncio", "/activar", "/desactivar",
+        "/diagnostico", "/metricas",
     ):
         _handle_admin_command(chat_id, cmd, rest)
         return
@@ -942,6 +1103,25 @@ def _handle_callback(update: dict) -> None:
         chat_id, from_user.get("username") or "", from_user.get("first_name") or ""
     )
     emails = _assigned_emails(client)
+    if data == "home":
+        if cq_id:
+            answer_callback_query(cq_id)
+        text, buttons = _home_card(client)
+        if message_id is not None:
+            edit_message(chat_id, message_id, text, buttons=buttons)
+        else:
+            send_message(chat_id, text, buttons=buttons, menu=True)
+        return
+    if data == "help":
+        if cq_id:
+            answer_callback_query(cq_id)
+        text = _client_help_text(emails)
+        buttons = [[_premium_button("Menú principal", callback_data="home", icon="🏠")]]
+        if message_id is not None:
+            edit_message(chat_id, message_id, text, buttons=buttons)
+        else:
+            send_message(chat_id, text, buttons=buttons)
+        return
     if data.startswith("c:"):
         # c:<kind>:<idx> -> entregar ese tipo para el correo elegido.
         _, _, payload = data.partition(":")
@@ -968,11 +1148,16 @@ def _handle_callback(update: dict) -> None:
                 edit_message(
                     chat_id,
                     message_id,
-                    "⏳ <b>Buscando el correo más reciente…</b>",
+                    _searching_message(emails[idx], kind),
                 )
             result_text = _deliver_code(client, emails[idx], kind=kind)
+            result_buttons = _result_buttons(
+                client, emails[idx], kind, result_text
+            )
             if message_id is not None:
-                edit_result = edit_message(chat_id, message_id, result_text)
+                edit_result = edit_message(
+                    chat_id, message_id, result_text, buttons=result_buttons
+                )
                 _schedule_sensitive_deletion(
                     chat_id,
                     send_result=edit_result,
@@ -984,7 +1169,9 @@ def _handle_callback(update: dict) -> None:
                     ),
                 )
             else:
-                result = send_message(chat_id, result_text)
+                result = send_message(
+                    chat_id, result_text, buttons=result_buttons
+                )
                 _schedule_sensitive_deletion(chat_id, send_result=result)
         return
     if data == "back:emails":
@@ -1040,8 +1227,17 @@ def _handle_callback(update: dict) -> None:
                 emails[idx],
                 kind="passwordless_signin",
             )
+            result_buttons = _result_buttons(
+                client,
+                emails[idx],
+                "passwordless_signin",
+                result_text,
+                tv_confirmation=True,
+            )
             if message_id is not None:
-                edit_result = edit_message(chat_id, message_id, result_text)
+                edit_result = edit_message(
+                    chat_id, message_id, result_text, buttons=result_buttons
+                )
                 _schedule_sensitive_deletion(
                     chat_id,
                     send_result=edit_result,
@@ -1053,7 +1249,9 @@ def _handle_callback(update: dict) -> None:
                     ),
                 )
             else:
-                result = send_message(chat_id, result_text)
+                result = send_message(
+                    chat_id, result_text, buttons=result_buttons
+                )
                 _schedule_sensitive_deletion(chat_id, send_result=result)
         return
     if data.startswith("pick:"):
@@ -1119,10 +1317,15 @@ def _send_welcome(client: CodeBotClient) -> None:
         return
     send_message(
         chat_id,
-        f"✨ <b>{BRAND} · Códigos Netflix</b>\n\n"
-        "Elegí una acción en el menú.\n"
-        "Para encontrar una cuenta usá <code>/buscar nombre</code>.\n\n"
-        "❓ Ayuda completa: <code>/cmds</code>",
+        f"🎬 <b>{BRAND} · CÓDIGOS NETFLIX</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "✅ Acceso activo\n"
+        f"📩 <b>{len(emails)}</b> correo(s) asignado(s)\n\n"
+        "Elegí lo que necesitás en el menú inferior.\n"
+        "También podés enviar directamente:\n"
+        "<code>/codigo tucorreo@gmail.com</code>\n\n"
+        "🛡 Solo consultaremos tus cuentas asignadas.\n"
+        "❓ Ayuda: <code>/cmds</code>",
         menu=True,
     )
 
@@ -1219,7 +1422,10 @@ def _offer_kinds_for_email(client: CodeBotClient, raw_email: str) -> None:
     idx = emails.index(email)
     send_message(
         chat_id,
-        f"📧 <b>{html.escape(_mask_email(email))}</b>\n¿Qué necesitás?",
+        "🎯 <b>SELECCIONA UNA ACCIÓN</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"📩 <code>{html.escape(_mask_email(email))}</code>\n\n"
+        "¿Qué necesitás recibir?",
         buttons=_kind_buttons(idx),
     )
 
@@ -1340,6 +1546,72 @@ def _handle_admin_command(chat_id, cmd: str, rest: str) -> None:
         _admin_broadcast(chat_id, rest)
     elif cmd in ("/activar", "/desactivar"):
         _admin_set_active(chat_id, rest, active=(cmd == "/activar"))
+
+
+def _delivery_metrics(hours: int = 24) -> list[dict]:
+    since = timezone.now() - timedelta(hours=hours)
+    return list(
+        CodeDelivery.objects.filter(created_at__gte=since)
+        .values("kind")
+        .annotate(
+            total=Count("id"),
+            found_count=Count("id", filter=Q(found=True)),
+            duplicate_count=Count("id", filter=Q(duplicate=True)),
+        )
+        .order_by("kind")
+    )
+
+
+def _admin_metrics(chat_id) -> None:
+    rows = _delivery_metrics()
+    lines = ["📊 <b>Métricas del bot · últimas 24 h</b>"]
+    for row in rows:
+        label = KIND_LABELS.get(row["kind"], row["kind"] or "general")
+        lines.append(
+            f"• {html.escape(label)}: {row['found_count']}/{row['total']} encontradas"
+            f" · {row['duplicate_count']} repetidas"
+        )
+    if not rows:
+        lines.append("Sin solicitudes registradas.")
+    send_message(chat_id, "\n".join(lines))
+
+
+def _diagnostic_text() -> str:
+    checks = imap_reader.health_check()
+    imap_ok = bool(checks) and all(item["ok"] for item in checks)
+    last_delivery = CodeDelivery.objects.order_by("-created_at").first()
+    last_label = (
+        timezone.localtime(last_delivery.created_at).strftime("%Y-%m-%d %H:%M")
+        if last_delivery else "sin entregas"
+    )
+    return (
+        "🩺 <b>Diagnóstico del bot Netflix</b>\n"
+        f"• Telegram: {'OK' if is_configured() else 'NO CONFIGURADO'}\n"
+        f"• IMAP Proton: {'OK' if imap_ok else 'ERROR'}\n"
+        f"• Casillas activas: {len(checks)}\n"
+        f"• Última solicitud: {last_label}\n"
+        f"• Ventana: {settings.CODES_LOOKBACK_MINUTES} min\n"
+        f"• Máximo escaneado: {settings.CODES_IMAP_MAX_SCAN} mensajes"
+    )
+
+
+def _admin_diagnostics(chat_id) -> None:
+    send_message(chat_id, _diagnostic_text())
+
+
+def _periodic_monitor() -> None:
+    checks = imap_reader.health_check()
+    if not checks or not all(item["ok"] for item in checks):
+        _alert_admin("imap-health", "🚨 <b>IMAP Proton no está respondiendo correctamente.</b>", ttl=900)
+    rows = _delivery_metrics(hours=1)
+    total = sum(row["total"] for row in rows)
+    found = sum(row["found_count"] for row in rows)
+    if total >= 5 and found * 2 < total:
+        _alert_admin(
+            "delivery-failure-rate",
+            f"⚠️ <b>Alta tasa de solicitudes sin resultado</b>\nÚltima hora: {found}/{total} encontradas.",
+            ttl=1800,
+        )
 
 
 def _admin_set_active(chat_id, token: str, active: bool) -> None:
@@ -1534,6 +1806,8 @@ _ADMIN_MENU = _CLIENT_MENU + [
     {"command": "asignar", "description": "➕ Asignar correo a un cliente"},
     {"command": "quitar", "description": "➖ Quitar correo a un cliente"},
     {"command": "anuncio", "description": "📢 Enviar anuncio a todos"},
+    {"command": "diagnostico", "description": "🩺 Estado de Telegram e IMAP"},
+    {"command": "metricas", "description": "📈 Resultados por comando"},
 ]
 
 
@@ -1577,12 +1851,21 @@ def run_polling(poll_interval: float = 1.0) -> None:
         offset = 0
     retry_delay = max(1.0, poll_interval)
     logger.info("Bot de códigos iniciado (long polling), offset=%s", offset)
+    next_monitor = 0.0
     while True:
         # Este proceso vive indefinidamente y no pasa por el ciclo request/response
         # de Django, por lo que Django no limpia por sí solo las conexiones viejas.
         # Si PostgreSQL reinicia o corta una conexión inactiva, la descartamos aquí
         # para que la siguiente operación abra una conexión nueva automáticamente.
         close_old_connections()
+        if time.monotonic() >= next_monitor:
+            try:
+                _periodic_monitor()
+            except Exception:
+                logger.exception("Falló el monitoreo periódico del bot")
+            next_monitor = time.monotonic() + int(
+                getattr(settings, "CODES_MONITOR_INTERVAL_SECONDS", 300)
+            )
         try:
             data = _call(
                 "getUpdates",

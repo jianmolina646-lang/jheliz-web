@@ -18,6 +18,7 @@ import imaplib
 import logging
 import re
 import ssl
+from collections.abc import Collection
 from datetime import datetime, timedelta, timezone
 from email.header import decode_header, make_header
 from email.message import Message
@@ -75,6 +76,41 @@ def _accounts() -> list[dict]:
 
 def is_configured() -> bool:
     return bool(_accounts())
+
+
+def health_check() -> list[dict]:
+    """Comprueba STARTTLS/SSL, autenticación e INBOX sin exponer secretos."""
+    results = []
+    for account in _accounts():
+        item = {"host": account["host"], "user": account["user"], "ok": False}
+        conn = None
+        try:
+            timeout = getattr(settings, "CODES_IMAP_TIMEOUT", 20)
+            context = ssl.create_default_context()
+            if not account.get("tls_verify", True):
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+            if account.get("security", "SSL") == "STARTTLS":
+                conn = imaplib.IMAP4(account["host"], account["port"], timeout=timeout)
+                conn.starttls(ssl_context=context)
+            else:
+                conn = imaplib.IMAP4_SSL(
+                    account["host"], account["port"], timeout=timeout, ssl_context=context
+                )
+            conn.login(account["user"], account["password"])
+            typ, data = conn.select("INBOX", readonly=True)
+            item["ok"] = typ == "OK"
+            item["messages"] = int(data[0]) if typ == "OK" and data else 0
+        except Exception as exc:
+            item["error"] = type(exc).__name__
+        finally:
+            if conn is not None:
+                try:
+                    conn.logout()
+                except Exception:
+                    pass
+        results.append(item)
+    return results
 
 
 def _decode(value: str | None) -> str:
@@ -158,7 +194,7 @@ def _msg_datetime(msg: Message, fetch_metadata: bytes = b"") -> datetime | None:
 
 def fetch_latest_for_email(
     account_email: str,
-    kind: str | None = None,
+    kind: str | Collection[str] | None = None,
     lookback_minutes: int | None = None,
     service: str = "netflix",
 ) -> NetflixResult | DisneyResult | None:
@@ -185,7 +221,9 @@ def fetch_latest_for_email(
     if not account_email:
         return None
 
-    lookback = lookback_minutes or getattr(settings, "CODES_LOOKBACK_MINUTES", 30)
+    configured_lookback = getattr(settings, "CODES_LOOKBACK_MINUTES", 15)
+    requested_lookback = lookback_minutes or configured_lookback
+    lookback = min(requested_lookback, 15)
     since_dt = datetime.now(timezone.utc) - timedelta(minutes=lookback)
 
     candidates: list[tuple[datetime, NetflixResult | DisneyResult]] = []
@@ -213,7 +251,7 @@ def _search_account(
     account_email: str,
     search_term: str,
     parser,
-    kind: str | None,
+    kind: str | Collection[str] | None,
     since_dt: datetime,
 ) -> list[tuple[datetime, NetflixResult | DisneyResult]]:
     """Busca en UNA casilla y devuelve los candidatos (fecha, resultado)."""
@@ -243,10 +281,30 @@ def _search_account(
         # TEXT busca en todo el mensaje: agarra tanto los reenvíos automáticos
         # (From: el servicio) como los reenviados a mano (From: la cuenta
         # origen, con el correo del servicio dentro del cuerpo).
-        typ, data = conn.search(None, "SINCE", since_imap, "TEXT", search_term)
+        # Filtrar también por la cuenta solicitada en el servidor IMAP evita
+        # descargar y parsear hasta 25 mensajes de otros clientes. En una
+        # bandeja central con muchos reenvíos esta es la mejora de velocidad
+        # más importante.
+        typ, data = conn.search(
+            None,
+            "SINCE",
+            since_imap,
+            "TEXT",
+            search_term,
+            "TEXT",
+            account_email,
+        )
         if typ != "OK":
             return []
         ids = data[0].split()
+        # Algunos reenvíos antiguos codifican el destinatario original de
+        # una forma que el índice IMAP no reconoce. Conservamos una búsqueda
+        # amplia solo cuando el filtro rápido no devolvió ningún mensaje.
+        if not ids:
+            typ, data = conn.search(None, "SINCE", since_imap, "TEXT", search_term)
+            if typ != "OK":
+                return []
+            ids = data[0].split()
         # Recorremos de más nuevo a más viejo y solo los N más recientes:
         # no tiene sentido bajar correos viejos que ya cayeron fuera de la
         # ventana de minutos.
@@ -280,13 +338,14 @@ def _search_account(
                 continue
             # Cuando se pide un tipo puntual, solo entregamos ese tipo;
             # cualquier otro correo del servicio se ignora.
-            if kind is not None and result.kind != kind:
+            expected_kinds = {kind} if isinstance(kind, str) else set(kind or ())
+            if expected_kinds and result.kind not in expected_kinds:
                 continue
             # Con tipo puntual, el primer match (ya vamos de más nuevo a más
             # viejo) es el más reciente de ESTA casilla: cortamos acá y la
             # comparación entre casillas se hace por fecha más arriba.
             candidates.append((dt, result))
-            if kind is not None:
+            if expected_kinds:
                 return candidates
         return candidates
     finally:

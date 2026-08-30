@@ -63,8 +63,8 @@ class AssignedEmailAdmin(ModelAdmin):
 class CodeDeliveryAdmin(ModelAdmin):
     """Auditoría de pedidos del bot: solo lectura."""
 
-    list_display = ("created_at", "client", "email", "kind", "found")
-    list_filter = ("found", "kind", "created_at")
+    list_display = ("created_at", "client", "email", "kind", "found", "duplicate")
+    list_filter = ("found", "duplicate", "kind", "created_at")
     search_fields = (
         "email",
         "client__display_name",
