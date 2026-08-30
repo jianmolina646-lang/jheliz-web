@@ -30,6 +30,9 @@ from django.db import close_old_connections
 
 from . import imap_reader
 from .models import BotState, DisneyAssignedEmail, DisneyBotClient, DisneyCodeDelivery
+from .premium_emoji import emoji_id
+from .premium_emoji import render as render_premium_emojis
+from .premium_emoji import without_custom_emoji
 
 # Fila de offset propia del bot de Disney+ (Netflix usa pk=1).
 BOT_STATE_PK = 2
@@ -96,21 +99,45 @@ def _build_reply_markup(buttons: Iterable[Iterable[dict]] | None) -> dict | None
     return {"inline_keyboard": [[dict(b) for b in row] for row in buttons]}
 
 
+def _without_button_styling(markup: dict) -> dict:
+    return {
+        "inline_keyboard": [
+            [
+                {
+                    key: value
+                    for key, value in button.items()
+                    if key not in {"style", "icon_custom_emoji_id"}
+                }
+                for button in row
+            ]
+            for row in markup.get("inline_keyboard", [])
+        ]
+    }
+
+
 def send_message(
     chat_id: str | int,
     text: str,
     buttons: Iterable[Iterable[dict]] | None = None,
 ) -> dict:
+    rendered_text = render_premium_emojis(text)
     payload: dict[str, Any] = {
         "chat_id": str(chat_id),
-        "text": text,
+        "text": rendered_text,
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }
     markup = _build_reply_markup(buttons)
     if markup:
         payload["reply_markup"] = markup
-    return _call("sendMessage", **payload)
+    result = _call("sendMessage", **payload)
+    if not result.get("ok") and rendered_text != text:
+        payload["text"] = without_custom_emoji(rendered_text)
+        result = _call("sendMessage", **payload)
+    if not result.get("ok") and payload.get("reply_markup"):
+        payload["reply_markup"] = _without_button_styling(payload["reply_markup"])
+        result = _call("sendMessage", **payload)
+    return result
 
 
 def answer_callback_query(callback_query_id: str, text: str = "") -> dict:
@@ -152,22 +179,36 @@ def _email_buttons(emails: list[str]) -> list[list[dict]]:
 
     Usa el índice (no el correo) para no pasarse del límite de 64 bytes.
     """
-    return [
-        [{"text": e, "callback_data": f"c:{idx}"}] for idx, e in enumerate(emails)
-    ]
+    custom_id = emoji_id("📧")
+    rows = []
+    for idx, email_address in enumerate(emails):
+        button = {
+            "text": email_address,
+            "callback_data": f"c:{idx}",
+            "style": "primary",
+        }
+        if custom_id:
+            button["icon_custom_emoji_id"] = custom_id
+        rows.append([button])
+    return rows
 
 
 def _format_result(email: str, result) -> str:
-    parts = [f"📧 <b>{html.escape(email)}</b>\n🔑 Código de inicio de sesión de Disney+"]
+    parts = [
+        "✨ <b>DISNEY+ ACCESS</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"📧 <b>{html.escape(email)}</b>\n"
+        "🔑 Código de acceso"
+    ]
     if result.code:
-        parts.append(f"\n🔢 Código: <code>{html.escape(result.code)}</code>")
+        parts.append(f"\n\n<code>{html.escape(result.code)}</code>")
     if result.action_url:
         parts.append(
             f'\n🔗 <a href="{html.escape(result.action_url)}">Abrir en Disney+</a>'
         )
     parts.append(
-        "\n\n⏱ Suele vencer en pocos minutos. Si no funciona, generá uno nuevo "
-        "y volvé a pedirlo."
+        "\n\n⚠️ <i>Vence en pocos minutos y solo puede usarse una vez.</i>\n"
+        "✨ <b>TEAM JHELIZ</b>"
     )
     return "".join(parts)
 
@@ -201,7 +242,11 @@ def _deliver_code(client: DisneyBotClient, email: str) -> str:
     duplicate = DisneyCodeDelivery.objects.filter(email=email, payload_fingerprint=fingerprint, found=True).exists()
     DisneyCodeDelivery.objects.create(client=client, email=email, found=not duplicate, duplicate=duplicate, payload_fingerprint=fingerprint)
     if duplicate:
-        return "Ese código de Disney+ ya fue entregado. Generá uno nuevo y volvé a pedirlo."
+        return (
+            "⚠️ <b>Código ya utilizado</b>\n\n"
+            "Este código ya fue entregado. "
+            "Generá uno nuevo en Disney+ y volvé a pedirlo."
+        )
     client.touch()
     return _format_result(email, result)
 
@@ -228,8 +273,9 @@ def _cmd_code(client: DisneyBotClient, arg: str) -> None:
         else:
             send_message(
                 chat_id,
-                "¿De qué correo querés el <b>código de inicio de sesión</b>?\n"
-                "Elegí uno (o repetí <code>/codigo</code> con el correo al lado):",
+                "✨ <b>DISNEY+ ACCESS</b>\n"
+                "━━━━━━━━━━━━━━━━━━\n"
+                "📧 Elegí la cuenta que querés consultar:",
                 buttons=_email_buttons(emails),
             )
             return
@@ -324,8 +370,9 @@ def _send_welcome(client: DisneyBotClient) -> None:
     if not client.is_active and not admin:
         send_message(
             chat_id,
-            "👋 ¡Hola! Tu acceso al bot de códigos de Disney+ todavía no está "
-            "activado.\n\n"
+            "✨ <b>DISNEY+ ACCESS</b>\n"
+            "━━━━━━━━━━━━━━━━━━\n\n"
+            "🔒 Tu acceso todavía no está activado.\n\n"
             f"Tu ID es <code>{html.escape(str(chat_id))}</code>. "
             "Pasáselo al admin para que te active y te asigne tus correos.",
         )
@@ -335,9 +382,10 @@ def _send_welcome(client: DisneyBotClient) -> None:
         if admin:
             send_message(
                 chat_id,
-                "👋 Hola admin. Este es el bot de <b>Disney+</b> (solo código de "
-                "inicio de sesión).\n\n"
-                "🔧 <b>Comandos de admin</b> (asignás sin tocar la web):\n"
+                "✨ <b>DISNEY+ CONTROL CENTER</b>\n"
+                "━━━━━━━━━━━━━━━━━━\n\n"
+                "🔑 Entrega automática de códigos Disney+.\n\n"
+                "🔒 <b>Administración</b>\n"
                 "<code>/clientes</code> — lista tus clientes (ID, usuario, correos)\n"
                 "<code>/activar &lt;ID o @usuario&gt;</code> — activa el acceso (sin asignar correo)\n"
                 "<code>/desactivar &lt;ID o @usuario&gt;</code> — pausa el acceso\n"
@@ -360,9 +408,12 @@ def _send_welcome(client: DisneyBotClient) -> None:
 def _help_text(emails: list[str]) -> str:
     ejemplo = emails[0] if emails else "correo@gmail.com"
     lines = [
-        "👋 Bot de <b>códigos Disney+</b>. Pedí el código de inicio de sesión:",
+        "✨ <b>DISNEY+ ACCESS</b>",
+        "━━━━━━━━━━━━━━━━━━",
         "",
-        f"🔑 <code>/codigo {ejemplo}</code> — código de inicio de sesión",
+        "🔑 <b>Obtén tu código de acceso</b>",
+        "",
+        f"📧 <code>/codigo {ejemplo}</code>",
     ]
     if len(emails) == 1:
         lines.append(
