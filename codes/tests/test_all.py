@@ -7,7 +7,7 @@ from django.db import IntegrityError
 from django.test import TestCase, override_settings
 
 from codes import bot, imap_reader
-from codes.models import AssignedEmail, BotState, CodeBotClient, CodeDelivery
+from codes.models import AssignedEmail, BotState, CodeBotClient, CodeDelivery, DisneyAssignedEmail, DisneyBotClient, DisneyCodeDelivery
 from codes.netflix import NetflixResult, parse_netflix_email
 
 
@@ -1002,8 +1002,8 @@ class DisneyBotMappingTests(TestCase):
     def test_single_email_fallback_when_no_arg(self, mdeliver, _msend):
         from codes import disney_bot
 
-        c = CodeBotClient.objects.create(telegram_chat_id="555", is_active=True)
-        AssignedEmail.objects.create(client=c, email="solo@gmail.com")
+        c = DisneyBotClient.objects.create(telegram_chat_id="555", is_active=True)
+        DisneyAssignedEmail.objects.create(client=c, email="solo@gmail.com")
         disney_bot._cmd_code(c, "")
         mdeliver.assert_called_once_with(c, "solo@gmail.com")
 
@@ -1012,9 +1012,9 @@ class DisneyBotMappingTests(TestCase):
     def test_multiple_emails_no_arg_shows_picker(self, mdeliver, msend):
         from codes import disney_bot
 
-        c = CodeBotClient.objects.create(telegram_chat_id="556", is_active=True)
-        AssignedEmail.objects.create(client=c, email="a@gmail.com")
-        AssignedEmail.objects.create(client=c, email="b@gmail.com")
+        c = DisneyBotClient.objects.create(telegram_chat_id="556", is_active=True)
+        DisneyAssignedEmail.objects.create(client=c, email="a@gmail.com")
+        DisneyAssignedEmail.objects.create(client=c, email="b@gmail.com")
         disney_bot._cmd_code(c, "")
         mdeliver.assert_not_called()
         _args, kwargs = msend.call_args
@@ -1023,8 +1023,8 @@ class DisneyBotMappingTests(TestCase):
     def test_deliver_blocks_unassigned_email(self):
         from codes import disney_bot
 
-        c = CodeBotClient.objects.create(telegram_chat_id="557", is_active=True)
-        AssignedEmail.objects.create(client=c, email="mine@gmail.com")
+        c = DisneyBotClient.objects.create(telegram_chat_id="557", is_active=True)
+        DisneyAssignedEmail.objects.create(client=c, email="mine@gmail.com")
         msg = disney_bot._deliver_code(c, "ajeno@gmail.com")
         self.assertIn("no te corresponde", msg)
 
@@ -1033,8 +1033,8 @@ class DisneyBotMappingTests(TestCase):
     def test_deliver_uses_disney_service_and_signin_kind(self, mfetch, _cfg):
         from codes import disney_bot
 
-        c = CodeBotClient.objects.create(telegram_chat_id="558", is_active=True)
-        AssignedEmail.objects.create(client=c, email="mine@gmail.com")
+        c = DisneyBotClient.objects.create(telegram_chat_id="558", is_active=True)
+        DisneyAssignedEmail.objects.create(client=c, email="mine@gmail.com")
         disney_bot._deliver_code(c, "mine@gmail.com")
         mfetch.assert_called_once_with(
             "mine@gmail.com", kind="signin_code", service="disney"
@@ -1044,7 +1044,7 @@ class DisneyBotMappingTests(TestCase):
     def test_admin_asignar_activates_and_assigns(self, msend):
         from codes import disney_bot
 
-        cliente = CodeBotClient.objects.create(
+        cliente = DisneyBotClient.objects.create(
             telegram_chat_id="424243", telegram_username="ana"
         )
         with self.settings(TELEGRAM_DISNEY_ADMIN_CHAT_ID="900"):
@@ -1054,6 +1054,18 @@ class DisneyBotMappingTests(TestCase):
         self.assertEqual(
             list(cliente.emails.values_list("email", flat=True)), ["nueva@gmail.com"]
         )
+
+    @mock.patch("codes.disney_bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.disney_bot.imap_reader.fetch_latest_for_email")
+    def test_same_code_is_not_delivered_twice(self, mfetch, _cfg):
+        from codes import disney_bot
+        from codes.disney import DisneyResult
+        mfetch.return_value = DisneyResult(kind="signin_code", code="123456")
+        client = DisneyBotClient.objects.create(telegram_chat_id="601", is_active=True)
+        DisneyAssignedEmail.objects.create(client=client, email="disney@example.com")
+        self.assertIn("123456", disney_bot._deliver_code(client, "disney@example.com"))
+        self.assertIn("ya fue entregado", disney_bot._deliver_code(client, "disney@example.com"))
+        self.assertEqual(DisneyCodeDelivery.objects.filter(found=True).count(), 1)
 
 
 class BotStatePerBotOffsetTests(TestCase):

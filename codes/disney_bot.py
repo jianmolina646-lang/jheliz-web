@@ -18,6 +18,7 @@ casilla central (IMAP) con el bot de Netflix. Usa su propio token
 from __future__ import annotations
 
 import html
+import hashlib
 import logging
 import re
 import time
@@ -28,7 +29,7 @@ from django.conf import settings
 from django.db import close_old_connections
 
 from . import imap_reader
-from .models import AssignedEmail, BotState, CodeBotClient
+from .models import BotState, DisneyAssignedEmail, DisneyBotClient, DisneyCodeDelivery
 
 # Fila de offset propia del bot de Disney+ (Netflix usa pk=1).
 BOT_STATE_PK = 2
@@ -121,8 +122,8 @@ def answer_callback_query(callback_query_id: str, text: str = "") -> dict:
 
 # ---------- Helpers de dominio ----------
 
-def _get_or_create_client(chat_id: str, username: str, name: str) -> tuple[CodeBotClient, bool]:
-    client, created = CodeBotClient.objects.get_or_create(
+def _get_or_create_client(chat_id: str, username: str, name: str) -> tuple[DisneyBotClient, bool]:
+    client, created = DisneyBotClient.objects.get_or_create(
         telegram_chat_id=str(chat_id),
         defaults={"telegram_username": username or "", "display_name": name or ""},
     )
@@ -142,7 +143,7 @@ def _get_or_create_client(chat_id: str, username: str, name: str) -> tuple[CodeB
     return client, created
 
 
-def _assigned_emails(client: CodeBotClient) -> list[str]:
+def _assigned_emails(client: DisneyBotClient) -> list[str]:
     return list(client.emails.values_list("email", flat=True))
 
 
@@ -171,7 +172,7 @@ def _format_result(email: str, result) -> str:
     return "".join(parts)
 
 
-def _deliver_code(client: CodeBotClient, email: str) -> str:
+def _deliver_code(client: DisneyBotClient, email: str) -> str:
     email = (email or "").strip().lower()
     assigned = set(_assigned_emails(client))
     if email not in assigned:
@@ -190,16 +191,22 @@ def _deliver_code(client: CodeBotClient, email: str) -> str:
         logger.exception("Fallo leyendo IMAP (disney) para %s", email)
         return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
     if result is None or not result.has_payload:
+        DisneyCodeDelivery.objects.create(client=client, email=email, found=False)
         return (
             f"No encontré un <b>código de inicio de sesión</b> de Disney+ para "
             f"<b>{html.escape(email)}</b>.\n"
             "Generá el correo desde Disney+ y volvé a pedirlo en un minuto."
         )
+    fingerprint = hashlib.sha256(f"{email}|{result.code}|{result.action_url}".encode()).hexdigest()
+    duplicate = DisneyCodeDelivery.objects.filter(email=email, payload_fingerprint=fingerprint, found=True).exists()
+    DisneyCodeDelivery.objects.create(client=client, email=email, found=not duplicate, duplicate=duplicate, payload_fingerprint=fingerprint)
+    if duplicate:
+        return "Ese código de Disney+ ya fue entregado. Generá uno nuevo y volvé a pedirlo."
     client.touch()
     return _format_result(email, result)
 
 
-def _cmd_code(client: CodeBotClient, arg: str) -> None:
+def _cmd_code(client: DisneyBotClient, arg: str) -> None:
     """Procesa /codigo [correo]."""
     chat_id = client.telegram_chat_id
     if not client.is_active:
@@ -311,7 +318,7 @@ def _handle_callback(update: dict) -> None:
         answer_callback_query(cq_id)
 
 
-def _send_welcome(client: CodeBotClient) -> None:
+def _send_welcome(client: DisneyBotClient) -> None:
     chat_id = client.telegram_chat_id
     admin = _is_admin(chat_id)
     if not client.is_active and not admin:
@@ -369,14 +376,14 @@ def _help_text(emails: list[str]) -> str:
 
 # ---------- Comandos de admin ----------
 
-def _resolve_client(token: str) -> CodeBotClient | None:
+def _resolve_client(token: str) -> DisneyBotClient | None:
     """Encuentra un cliente por chat_id numérico o por @usuario."""
     token = (token or "").strip()
     if not token:
         return None
     if token.startswith("@"):
         token = token[1:]
-    qs = CodeBotClient.objects.all()
+    qs = DisneyBotClient.objects.all()
     if token.isdigit():
         return qs.filter(telegram_chat_id=token).first()
     return qs.filter(telegram_username__iexact=token).first()
@@ -445,7 +452,7 @@ def _admin_broadcast(chat_id, message: str) -> None:
         return
     body = "📢 <b>Anuncio · Disney+ TEAM JHELIZ</b>\n\n" + html.escape(message)
     recipients = (
-        CodeBotClient.objects.exclude(telegram_chat_id=str(chat_id))
+        DisneyBotClient.objects.exclude(telegram_chat_id=str(chat_id))
         .exclude(telegram_chat_id="")
         .values_list("telegram_chat_id", flat=True)
     )
@@ -472,7 +479,7 @@ def _admin_broadcast(chat_id, message: str) -> None:
 
 
 def _admin_list_clients(chat_id) -> None:
-    clients = CodeBotClient.objects.prefetch_related("emails").order_by("-created_at")
+    clients = DisneyBotClient.objects.prefetch_related("emails").order_by("-created_at")
     if not clients:
         send_message(chat_id, "Todavía no hay clientes registrados en el bot.")
         return
@@ -520,7 +527,7 @@ def _admin_assign(chat_id, rest: str, add: bool) -> None:
         return
     label = f"{client.display_name or 'cliente'} (<code>{html.escape(str(client.telegram_chat_id))}</code>)"
     if add:
-        _obj, created = AssignedEmail.objects.get_or_create(client=client, email=email)
+        _obj, created = DisneyAssignedEmail.objects.get_or_create(client=client, email=email)
         if not client.is_active:
             client.is_active = True
             client.save(update_fields=["is_active"])
@@ -534,14 +541,14 @@ def _admin_assign(chat_id, rest: str, add: bool) -> None:
         else:
             send_message(chat_id, f"{label} ya tenía <b>{html.escape(email)}</b> asignado.")
     else:
-        deleted, _ = AssignedEmail.objects.filter(client=client, email=email).delete()
+        deleted, _ = DisneyAssignedEmail.objects.filter(client=client, email=email).delete()
         if deleted:
             send_message(chat_id, f"🗑 Le quité <b>{html.escape(email)}</b> a {label}.")
         else:
             send_message(chat_id, f"{label} no tenía <b>{html.escape(email)}</b> asignado.")
 
 
-def _notify_admin_new(client: CodeBotClient) -> None:
+def _notify_admin_new(client: DisneyBotClient) -> None:
     admin = _admin_chat_id()
     if not admin:
         return
