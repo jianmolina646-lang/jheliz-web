@@ -160,6 +160,12 @@ class NetflixResult:
 
 def _classify(subject: str, body: str, links: list[str] | None = None) -> str:
     haystack = f"{subject}\n{body}".lower()
+    # Aviso de seguridad: no contiene un código utilizable y su botón
+    # /denysignin rechaza el acceso. Nunca debe entregarse como signin_code.
+    if "nueva solicitud de inicio de sesión" in haystack or any(
+        "/denysignin" in link.lower() for link in links or []
+    ):
+        return "other"
     for kind, kws in _KEYWORDS.items():
         if any(kw in haystack for kw in kws):
             return kind
@@ -210,6 +216,14 @@ def _extract_code(kind: str, body_text: str) -> str:
     return m.group(1) if m else ""
 
 
+def _visible_html_text(value: str) -> str:
+    """Convierte el HTML del correo en texto conservando cortes de bloque."""
+    value = re.sub(
+        r"(?i)</?(?:br|p|div|h[1-6]|li|tr|td|table)[^>]*>", "\n", value or ""
+    )
+    return _html.unescape(re.sub(r"<[^>]+>", "", value))
+
+
 def parse_netflix_email(subject: str, html: str = "", text: str = "") -> NetflixResult:
     subject = subject or ""
     body_for_links = html or text or ""
@@ -226,7 +240,10 @@ def parse_netflix_email(subject: str, html: str = "", text: str = "") -> Netflix
 
     kind = _classify(subject, f"{html}\n{text}", uniq_links)
     action_url = _pick_action_url(kind, uniq_links)
-    code = _extract_code(kind, text or html)
+    # Algunos correos multipart traen un text/plain que es solo un preheader;
+    # el código visible vive en el HTML. Analizamos ambos siempre.
+    visible_body = "\n".join(part for part in (text, _visible_html_text(html)) if part)
+    code = _extract_code(kind, visible_body)
     return NetflixResult(
         kind=kind,
         subject=subject.strip(),

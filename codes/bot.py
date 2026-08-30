@@ -14,16 +14,19 @@ Usa su propio token (``TELEGRAM_CODES_BOT_TOKEN``), separado del bot principal.
 from __future__ import annotations
 
 import html
+import hashlib
 import logging
 import re
 import threading
 import time
+from datetime import timedelta
 from typing import Any, Iterable
 
 import requests
 from django.conf import settings
 from django.core.cache import cache
 from django.db import close_old_connections
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from . import imap_reader
@@ -676,6 +679,11 @@ def _result_cache_key(email: str, kind: str | None) -> str:
     return f"codesbot:res:{email}:{kind or 'any'}"
 
 
+def _payload_fingerprint(result) -> str:
+    value = "\0".join((result.kind, result.code or "", result.action_url or ""))
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
 def _cooldown_key(chat_id: str) -> str:
     return f"codesbot:cd:{chat_id}"
 
@@ -745,7 +753,12 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
     result = None
     for attempt in range(2):
         try:
-            result = imap_reader.fetch_latest_for_email(email, kind=kind)
+            lookup_kind = (
+                ("passwordless_signin", "tv_signin")
+                if kind == "passwordless_signin"
+                else kind
+            )
+            result = imap_reader.fetch_latest_for_email(email, kind=lookup_kind)
             break
         except Exception:
             logger.exception("Fallo leyendo IMAP para %s (intento %d)", email, attempt + 1)
@@ -774,9 +787,34 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
             "Generá el correo desde Netflix y volvé a pedirlo en un minuto."
             + extra
         )
+    fingerprint = _payload_fingerprint(result)
+    already_delivered = CodeDelivery.objects.filter(
+        client=client,
+        email=email,
+        payload_fingerprint=fingerprint,
+        found=True,
+        created_at__gte=timezone.now() - timedelta(hours=24),
+    ).exists()
+    if already_delivered:
+        CodeDelivery.objects.create(
+            client=client,
+            email=email,
+            kind=kind or "",
+            found=False,
+            duplicate=True,
+            payload_fingerprint=fingerprint,
+        )
+        return (
+            "♻️ Este código o enlace ya fue entregado anteriormente.\n"
+            "Generá uno nuevo en Netflix y volvé a solicitarlo."
+        )
     client.touch()
     CodeDelivery.objects.create(
-        client=client, email=email, kind=kind or "", found=True
+        client=client,
+        email=email,
+        kind=kind or "",
+        found=True,
+        payload_fingerprint=fingerprint,
     )
     msg = _format_result(email, result)
     # Nunca reutilizamos un resultado por más de unos segundos: un correo
@@ -892,11 +930,17 @@ def _handle_message(update: dict) -> None:
     if cmd == "/enlacetv":
         _cmd_tv_email(client, rest)
         return
+    if cmd == "/diagnostico" and _is_admin(chat_id):
+        _admin_diagnostics(chat_id)
+        return
+    if cmd == "/metricas" and _is_admin(chat_id):
+        _admin_metrics(chat_id)
+        return
 
     # Comandos de admin (solo para el chat del admin).
     if _is_admin(chat_id) and cmd in (
         "/clientes", "/asignar", "/quitar", "/anuncio", "/activar",
-        "/desactivar", "/limite",
+        "/desactivar", "/limite", "/diagnostico", "/metricas",
     ):
         _handle_admin_command(chat_id, cmd, rest)
         return
@@ -1344,6 +1388,72 @@ def _handle_admin_command(chat_id, cmd: str, rest: str) -> None:
         _admin_set_daily_limit(chat_id, rest)
 
 
+def _delivery_metrics(hours: int = 24) -> list[dict]:
+    since = timezone.now() - timedelta(hours=hours)
+    return list(
+        CodeDelivery.objects.filter(created_at__gte=since)
+        .values("kind")
+        .annotate(
+            total=Count("id"),
+            found_count=Count("id", filter=Q(found=True)),
+            duplicate_count=Count("id", filter=Q(duplicate=True)),
+        )
+        .order_by("kind")
+    )
+
+
+def _admin_metrics(chat_id) -> None:
+    rows = _delivery_metrics()
+    lines = ["📊 <b>Métricas del bot · últimas 24 h</b>"]
+    for row in rows:
+        label = KIND_LABELS.get(row["kind"], row["kind"] or "general")
+        lines.append(
+            f"• {html.escape(label)}: {row['found_count']}/{row['total']} encontradas"
+            f" · {row['duplicate_count']} repetidas"
+        )
+    if not rows:
+        lines.append("Sin solicitudes registradas.")
+    send_message(chat_id, "\n".join(lines))
+
+
+def _diagnostic_text() -> str:
+    checks = imap_reader.health_check()
+    imap_ok = bool(checks) and all(item["ok"] for item in checks)
+    last_delivery = CodeDelivery.objects.order_by("-created_at").first()
+    last_label = (
+        timezone.localtime(last_delivery.created_at).strftime("%Y-%m-%d %H:%M")
+        if last_delivery else "sin entregas"
+    )
+    return (
+        "🩺 <b>Diagnóstico del bot Netflix</b>\n"
+        f"• Telegram: {'OK' if is_configured() else 'NO CONFIGURADO'}\n"
+        f"• IMAP Proton: {'OK' if imap_ok else 'ERROR'}\n"
+        f"• Casillas activas: {len(checks)}\n"
+        f"• Última solicitud: {last_label}\n"
+        f"• Ventana: {settings.CODES_LOOKBACK_MINUTES} min\n"
+        f"• Máximo escaneado: {settings.CODES_IMAP_MAX_SCAN} mensajes"
+    )
+
+
+def _admin_diagnostics(chat_id) -> None:
+    send_message(chat_id, _diagnostic_text())
+
+
+def _periodic_monitor() -> None:
+    checks = imap_reader.health_check()
+    if not checks or not all(item["ok"] for item in checks):
+        _alert_admin("imap-health", "🚨 <b>IMAP Proton no está respondiendo correctamente.</b>", ttl=900)
+    rows = _delivery_metrics(hours=1)
+    total = sum(row["total"] for row in rows)
+    found = sum(row["found_count"] for row in rows)
+    if total >= 5 and found * 2 < total:
+        _alert_admin(
+            "delivery-failure-rate",
+            f"⚠️ <b>Alta tasa de solicitudes sin resultado</b>\nÚltima hora: {found}/{total} encontradas.",
+            ttl=1800,
+        )
+
+
 def _admin_set_daily_limit(chat_id, raw_limit: str) -> None:
     raw_limit = (raw_limit or "").strip()
     if not raw_limit:
@@ -1576,6 +1686,8 @@ _ADMIN_MENU = _CLIENT_MENU + [
     {"command": "quitar", "description": "➖ Quitar correo a un cliente"},
     {"command": "anuncio", "description": "📢 Enviar anuncio a todos"},
     {"command": "limite", "description": "📊 Cambiar límite diario"},
+    {"command": "diagnostico", "description": "🩺 Estado de Telegram e IMAP"},
+    {"command": "metricas", "description": "📈 Resultados por comando"},
 ]
 
 
@@ -1619,12 +1731,21 @@ def run_polling(poll_interval: float = 1.0) -> None:
         offset = 0
     retry_delay = max(1.0, poll_interval)
     logger.info("Bot de códigos iniciado (long polling), offset=%s", offset)
+    next_monitor = 0.0
     while True:
         # Este proceso vive indefinidamente y no pasa por el ciclo request/response
         # de Django, por lo que Django no limpia por sí solo las conexiones viejas.
         # Si PostgreSQL reinicia o corta una conexión inactiva, la descartamos aquí
         # para que la siguiente operación abra una conexión nueva automáticamente.
         close_old_connections()
+        if time.monotonic() >= next_monitor:
+            try:
+                _periodic_monitor()
+            except Exception:
+                logger.exception("Falló el monitoreo periódico del bot")
+            next_monitor = time.monotonic() + int(
+                getattr(settings, "CODES_MONITOR_INTERVAL_SECONDS", 300)
+            )
         try:
             data = _call(
                 "getUpdates",
