@@ -8,10 +8,16 @@
       <h1>Mis clientes</h1>
       <p>Administra clientes, accesos, servicios y vencimientos desde un solo lugar.</p>
     </div>
-    <button type="button" class="jc-clients-add" data-jc-open="modalClient">
-      <span class="material-symbols-outlined" aria-hidden="true">person_add</span>
-      Agregar cliente
-    </button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="{% url 'jheliztv_account_replace' %}" class="jc-clients-add" style="text-decoration:none;background:#202a25">
+        <span class="material-symbols-outlined" aria-hidden="true">sync_alt</span>
+        Reemplazar cuenta
+      </a>
+      <button type="button" class="jc-clients-add" data-jc-open="modalClient">
+        <span class="material-symbols-outlined" aria-hidden="true">person_add</span>
+        Agregar cliente
+      </button>
+    </div>
   </header>
 
   <section class="jc-clients-stats" aria-label="Resumen de clientes">

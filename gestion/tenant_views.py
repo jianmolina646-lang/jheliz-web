@@ -52,10 +52,13 @@ from PIL import Image, UnidentifiedImageError
 from .forms import ClientForm, ControlSettingsForm, ServiceForm, SubscriptionForm, TransactionForm
 from .currencies import CURRENCIES, currency_symbol, normalize_currency
 from .control_operations import (
+    account_replacement_items,
+    account_replacement_preview,
     create_client,
     create_subscription,
     delete_client as delete_client_operation,
     renew_subscription as renew_subscription_operation,
+    replace_account_credentials,
     update_client,
 )
 from .models import (
@@ -948,6 +951,73 @@ def clients(request, tenant):
         clients=clients, form=ClientForm(), q=q, sort=sort,
     )
     return render(request, "jheliztv/clients.html", ctx)
+
+
+@tenant_required
+def account_replace(request, tenant):
+    """Vista previa y confirmación del reemplazo masivo de credenciales."""
+    owner = request.user
+    old_account = (request.POST.get("old_account") or "").strip()
+    action = (request.POST.get("action") or "").strip()
+    affected = []
+    preview = None
+
+    if request.method == "POST" and action == "preview":
+        if not old_account:
+            messages.error(request, "Ingresá el correo o usuario anterior.")
+        else:
+            preview = account_replacement_preview(owner.id, old_account)
+            affected = list(account_replacement_items(owner.id, old_account))
+            if not affected:
+                messages.warning(request, "No encontramos suscripciones activas con esa cuenta.")
+            else:
+                nonce = secrets.token_hex(16)
+                request.session["jc_account_replace"] = {
+                    "nonce": nonce,
+                    "old_account": old_account,
+                }
+
+    if request.method == "POST" and action == "replace":
+        saved = request.session.get("jc_account_replace") or {}
+        nonce = request.POST.get("nonce") or ""
+        new_account = (request.POST.get("new_account") or "").strip()
+        new_password = (request.POST.get("new_password") or "").strip()
+        if (
+            not secrets.compare_digest(str(saved.get("nonce") or ""), nonce)
+            or (saved.get("old_account") or "").casefold() != old_account.casefold()
+        ):
+            messages.error(request, "La confirmación venció. Volvé a buscar la cuenta.")
+        elif len(new_account) > 160:
+            messages.error(request, "El correo o usuario nuevo es demasiado largo.")
+        else:
+            updated, error = replace_account_credentials(
+                owner,
+                old_account,
+                new_account,
+                new_password,
+                idempotency_key=f"web-replace:{owner.id}:{nonce}",
+            )
+            request.session.pop("jc_account_replace", None)
+            if error:
+                messages.error(request, "No se pudo completar el reemplazo. Ningún dato fue modificado.")
+            else:
+                messages.success(
+                    request,
+                    f"Cuenta reemplazada en {updated} suscripción(es). Solo cambiaron correo y contraseña.",
+                )
+                return redirect("jheliztv_account_replace")
+
+    ctx = _ctx(
+        request,
+        tenant,
+        title="Reemplazar cuenta",
+        jc_active="clients",
+        old_account=old_account,
+        affected=affected,
+        preview=preview,
+        replace_nonce=(request.session.get("jc_account_replace") or {}).get("nonce", ""),
+    )
+    return render(request, "jheliztv/account_replace.html", ctx)
 
 
 @tenant_required

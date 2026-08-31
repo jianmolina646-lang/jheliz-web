@@ -24,6 +24,7 @@ from config.date_utils import add_service_duration
 from codes.premium_emoji import emoji_id, without_custom_emoji
 
 from .control_operations import (
+    account_replacement_items,
     account_replacement_preview,
     client_for_owner,
     clients_for_owner,
@@ -1244,12 +1245,20 @@ def _handle_text_state(connection, text):
                 "⚠️ No encontré suscripciones activas con ese correo o usuario. "
                 "Escríbelo exactamente como aparece en Jheliz Control.",
             )
+        affected = list(account_replacement_items(connection.owner_id, old_account))
         session.data = {"old_account": old_account, "preview": preview}
         session.state = "replace_account:new"
         session.save()
         return send_message(
             connection.chat_id,
-            f"✅ Encontré <b>{preview['total']}</b> suscripción(es).\n\n"
+            f"✅ Encontré <b>{preview['total']}</b> suscripción(es):\n\n"
+            + "\n".join(
+                f"• <b>{html.escape(item.client.name)}</b> · "
+                f"{html.escape(item.service.name)} · {html.escape(item.get_plan_display())}"
+                for item in affected[:20]
+            )
+            + (f"\n• …y {len(affected) - 20} más" if len(affected) > 20 else "")
+            + "\n\n"
             "Ahora escribe el <b>correo o usuario nuevo</b>.",
             _markup([[_button("❌ Cancelar", "menu")]]),
         )

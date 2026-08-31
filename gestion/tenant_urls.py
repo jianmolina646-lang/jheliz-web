@@ -74,6 +74,7 @@ urlpatterns = [
     path("app/suscripciones/<int:pk>/editar/", v.subscription_edit, name="jheliztv_subscription_edit"),
     path("app/suscripciones/<int:pk>/renovar/", v.subscription_renew, name="jheliztv_subscription_renew"),
     path("app/suscripciones/<int:pk>/eliminar/", v.subscription_delete, name="jheliztv_subscription_delete"),
+    path("app/suscripciones/reemplazar-cuenta/", v.account_replace, name="jheliztv_account_replace"),
 
     # Clientes
     path("app/clientes/", v.clients, name="jheliztv_clients"),
