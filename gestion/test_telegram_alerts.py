@@ -7,10 +7,12 @@ from django.test import TestCase
 from django.utils import timezone
 
 from gestion.control_operations import (
+    account_replacement_preview,
     create_client,
     create_subscription,
     delete_client,
     renew_subscription,
+    replace_account_credentials,
     search_clients,
     update_client,
 )
@@ -344,6 +346,109 @@ class TelegramAlertTests(TestCase):
 
         self.assertIsNone(sub)
         self.assertEqual(error, "not_found")
+
+    def test_bulk_replacement_updates_only_credentials_for_both_plans(self):
+        service = Service.objects.create(owner=self.owner, name="Disney+")
+        old_email = "disney1@gmail.com"
+        subscriptions = []
+        for index, plan in enumerate(
+            (Subscription.Plan.PERFIL, Subscription.Plan.COMPLETA), start=1
+        ):
+            client = Client.objects.create(owner=self.owner, name=f"Cliente {index}")
+            subscriptions.append(
+                Subscription.objects.create(
+                    owner=self.owner,
+                    client=client,
+                    service=service,
+                    account_email=old_email,
+                    account_password="anterior",
+                    plan=plan,
+                    profiles=1,
+                    profile_name=f"Perfil {index}",
+                    profile_pin=f"10{index}",
+                    cost="12.50",
+                    investment="5.25",
+                    starts_at=timezone.now(),
+                    expires_at=timezone.now() + timedelta(days=23),
+                )
+            )
+        for sub in subscriptions:
+            sub.refresh_from_db()
+        snapshots = {
+            sub.pk: {
+                "client_id": sub.client_id,
+                "service_id": sub.service_id,
+                "plan": sub.plan,
+                "profiles": sub.profiles,
+                "profile_name": sub.profile_name,
+                "profile_pin": sub.profile_pin,
+                "cost": sub.cost,
+                "investment": sub.investment,
+                "starts_at": sub.starts_at,
+                "expires_at": sub.expires_at,
+                "is_archived": sub.is_archived,
+            }
+            for sub in subscriptions
+        }
+
+        preview = account_replacement_preview(self.owner.pk, old_email.upper())
+        updated, error = replace_account_credentials(
+            self.owner,
+            old_email.upper(),
+            "disney2@gmail.com",
+            "clave-nueva",
+            "replace-both-plans",
+        )
+
+        self.assertEqual(
+            preview, {"total": 2, "profiles": 1, "full_accounts": 1}
+        )
+        self.assertIsNone(error)
+        self.assertEqual(updated, 2)
+        for sub in subscriptions:
+            sub.refresh_from_db()
+            self.assertEqual(sub.account_email, "disney2@gmail.com")
+            self.assertEqual(sub.account_password, "clave-nueva")
+            for field, original in snapshots[sub.pk].items():
+                self.assertEqual(getattr(sub, field), original)
+
+    def test_bulk_replacement_never_changes_another_owner(self):
+        own_service = Service.objects.create(owner=self.owner, name="Disney propio")
+        foreign_service = Service.objects.create(owner=self.other, name="Disney ajeno")
+        own_client = Client.objects.create(owner=self.owner, name="Propio")
+        foreign_client = Client.objects.create(owner=self.other, name="Ajeno")
+        own = Subscription.objects.create(
+            owner=self.owner,
+            client=own_client,
+            service=own_service,
+            account_email="compartida@gmail.com",
+            account_password="own-old",
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        foreign = Subscription.objects.create(
+            owner=self.other,
+            client=foreign_client,
+            service=foreign_service,
+            account_email="compartida@gmail.com",
+            account_password="foreign-old",
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+
+        updated, error = replace_account_credentials(
+            self.owner,
+            "compartida@gmail.com",
+            "nueva@gmail.com",
+            "new-password",
+        )
+
+        self.assertIsNone(error)
+        self.assertEqual(updated, 1)
+        own.refresh_from_db()
+        foreign.refresh_from_db()
+        self.assertEqual(own.account_email, "nueva@gmail.com")
+        self.assertEqual(own.account_password, "new-password")
+        self.assertEqual(foreign.account_email, "compartida@gmail.com")
+        self.assertEqual(foreign.account_password, "foreign-old")
 
     @patch("gestion.telegram_alerts._render")
     @patch("gestion.telegram_alerts._ack")
