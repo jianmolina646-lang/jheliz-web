@@ -986,7 +986,10 @@ class TenantActivityEvent(models.Model):
 
 
 class TenantPayment(models.Model):
-    """Pago de alquiler por **Yape** de un inquilino, con aprobación manual."""
+    """Pago de alquiler de un inquilino, con aprobación manual."""
+
+    class Method(models.TextChoices):
+        BINANCE_PAY = "binance_pay", "Binance Pay"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"
@@ -997,12 +1000,16 @@ class TenantPayment(models.Model):
         Tenant, on_delete=models.CASCADE, related_name="payments",
         verbose_name="Inquilino",
     )
+    method = models.CharField(
+        "Método", max_length=24, choices=Method.choices,
+        default=Method.BINANCE_PAY,
+    )
     amount = models.DecimalField("Monto", max_digits=10, decimal_places=2, default=Decimal("0.00"))
     days = models.PositiveIntegerField("Días que otorga", default=30)
     proof = models.ImageField(
-        "Comprobante Yape", upload_to="jheliz_control/pagos/",
+        "Comprobante", upload_to="jheliz_control/pagos/",
         storage=private_media_storage, blank=True,
-        help_text="Captura del pago por Yape subida por el inquilino.",
+        help_text="Captura del pago subida por el inquilino.",
     )
     status = models.CharField(
         "Estado", max_length=10, choices=Status.choices, default=Status.PENDING,
@@ -1013,7 +1020,7 @@ class TenantPayment(models.Model):
 
     class Meta:
         verbose_name = "Pago de alquiler"
-        verbose_name_plural = "Pagos de alquiler (Yape)"
+        verbose_name_plural = "Pagos de alquiler"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:

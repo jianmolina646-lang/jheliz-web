@@ -140,9 +140,9 @@ class TenantAdmin(ModelAdmin):
 @admin.register(TenantPayment)
 class TenantPaymentAdmin(ModelAdmin):
     list_display = (
-        "tenant", "amount", "days", "status", "created_at", "reviewed_at",
+        "tenant", "method", "amount", "days", "status", "created_at", "reviewed_at",
     )
-    list_filter = ("status",)
+    list_filter = ("method", "status")
     search_fields = ("tenant__business_name", "tenant__user__username")
     autocomplete_fields = ("tenant",)
     actions = ("approve_payments", "reject_payments")
