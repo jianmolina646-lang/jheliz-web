@@ -9,7 +9,7 @@
       <p>Administra clientes, accesos, servicios y vencimientos desde un solo lugar.</p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <a href="{% url 'jheliztv_account_replace' %}" class="jc-clients-add" style="text-decoration:none;background:#202a25">
+      <a href="{% url 'jheliztv_account_replace' %}" class="jc-clients-add" style="text-decoration:none;background:#eef7f2;color:#087a45;border:1px solid #cce8d8;box-shadow:none">
         <span class="material-symbols-outlined" aria-hidden="true">sync_alt</span>
         Reemplazar cuenta
       </a>
@@ -66,7 +66,7 @@
   {% if clients %}
     <section class="jc-clients" aria-label="Listado de clientes">
       {% for c in clients %}
-        <article class="jc-client" data-search="{{ c.name }} {{ c.telegram }} {{ c.whatsapp }} {{ c.email }}{% for s in c.active_subs %} {{ s.account_email }} {{ s.service.name }}{% endfor %}">
+        <article class="jc-client" style="--client-index:{{ forloop.counter0 }}" data-search="{{ c.name }} {{ c.telegram }} {{ c.whatsapp }} {{ c.email }}{% for s in c.active_subs %} {{ s.account_email }} {{ s.service.name }}{% endfor %}">
           <aside class="jc-client-info">
             <span class="jc-client-accent" aria-hidden="true"></span>
             <div class="jc-client-identity">
@@ -79,7 +79,7 @@
 
             <div class="jc-client-contacts">
               {% if c.telegram %}<p><span class="material-symbols-outlined">send</span><b>{{ c.telegram }}</b></p>{% endif %}
-              {% if c.whatsapp %}<p><span class="material-symbols-outlined">call</span><b>{{ c.whatsapp }}</b></p>{% endif %}
+              {% if c.whatsapp %}<p><span class="material-symbols-outlined">call</span><a href="https://wa.me/{{ c.whatsapp_digits }}?text={% filter urlencode %}Hola {{ c.name }}, te escribo de {{ jc_tenant.business_name|default:'JHELIZ' }}.{% endfilter %}" target="_blank" rel="noopener" title="Escribir por WhatsApp"><b>{{ c.whatsapp }}</b></a></p>{% endif %}
               {% if c.email %}<p><span class="material-symbols-outlined">mail</span><b>{{ c.email }}</b></p>{% endif %}
             </div>
 
@@ -125,10 +125,10 @@
           <div class="jc-client-services-wrap">
             <div class="jc-client-services jc-csubs">
               {% for s in c.active_subs %}
-              <div class="jc-client-service jc-csub2{% if forloop.counter0 >= 3 %} jc-csub--extra{% endif %}">
+              <div class="jc-client-service jc-csub2{% if forloop.counter0 >= 3 %} jc-csub--extra{% endif %}" style="--service-index:{{ forloop.counter0 }};--service-accent:{{ s.service.color|default:'#10b981' }}">
                 <span class="jc-client-service__logo"
-                      {% if s.service.image %}style="background-image:url('{{ s.service.image.url }}')"{% else %}style="background:{{ s.service.color|default:'#20df7f' }}"{% endif %}>
-                  {% if not s.service.image %}{{ s.service.name|first|upper }}{% endif %}
+                      {% if s.service.official_logo_url %}style="background-image:url('{{ s.service.official_logo_url }}')"{% elif s.service.image %}style="background-image:url('{{ s.service.image.url }}')"{% else %}style="background:{{ s.service.color|default:'#20df7f' }}"{% endif %}>
+                  {% if not s.service.official_logo_url and not s.service.image %}{{ s.service.name|first|upper }}{% endif %}
                 </span>
                 <div class="jc-client-service__body">
                   <div><i class="jc-client-status-dot is-{{ s.status_color }}"></i><strong>{{ s.service.name }}</strong></div>

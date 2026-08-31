@@ -1,4 +1,5 @@
 {% extends "jheliztv/public_base.html" %}
+{% load static %}
 
 {% block pb_title %}Crear cuenta | JHELIZCONTROLTV{% endblock %}
 {% block pb_meta_description %}Crea tu acceso privado a JHELIZCONTROLTV y comienza a organizar clientes, suscripciones y vencimientos.{% endblock %}
@@ -7,16 +8,22 @@
 {% block pb_twitter_title %}Crear cuenta | JHELIZCONTROLTV{% endblock %}
 {% block pb_twitter_description %}Registro privado para comenzar a gestionar suscripciones con JHELIZCONTROLTV.{% endblock %}
 
+{% block pb_extra_head %}<link rel="stylesheet" href="{% static 'css/jheliz-register.css' %}?v=alive-light-v1-20260828">{% endblock %}
+
 {% block pb_nav_actions %}
   <a class="pb-btn pb-btn--ghost" href="{% url 'jheliztv_login' %}">Ingresar</a>
 {% endblock %}
 
 {% block pb_content %}
-<div class="pb-wrap" style="max-width:480px;margin:30px auto 60px;">
-  <div class="pb-card" style="padding:28px;">
-    <h1 style="margin:0 0 4px;font-size:22px;">Crear mi cuenta</h1>
-    <p style="margin:0 0 20px;color:#6b7280;font-size:14px;">Empezá a gestionar tus suscripciones hoy.</p>
-    <form method="post" action="{% url 'jheliztv_register' %}" data-jheliztv-registration-form>
+<div class="pb-wrap pb-register-page">
+  <div class="pb-register-glow" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="pb-card pb-register-card">
+    <div class="pb-register-heading">
+      <span class="material-symbols-outlined">rocket_launch</span>
+      <div><small>COMIENZA AHORA</small><h1>Crear mi cuenta</h1></div>
+    </div>
+    <p class="pb-register-lead">Empezá a gestionar tus suscripciones hoy.</p>
+    <form method="post" action="{% url 'jheliztv_register' %}" class="pb-register-form">
       {% csrf_token %}
       <div class="pb-field">
         <label>Nombre de tu negocio</label>
@@ -42,7 +49,7 @@
         <label>Repetir contraseña</label>
         <input type="password" name="password2" required autocomplete="new-password">
       </div>
-      <button type="submit" class="pb-btn pb-btn--primary" style="width:100%;justify-content:center;margin-top:4px;">
+      <button type="submit" class="pb-btn pb-btn--primary pb-register-submit">
         <span class="material-symbols-outlined">person_add</span> Crear cuenta
       </button>
     </form>

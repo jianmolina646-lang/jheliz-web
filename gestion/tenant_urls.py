@@ -72,6 +72,7 @@ urlpatterns = [
     # Suscripciones
     path("app/suscripciones/agregar/", v.subscription_add, name="jheliztv_subscription_add"),
     path("app/suscripciones/<int:pk>/editar/", v.subscription_edit, name="jheliztv_subscription_edit"),
+    path("app/suscripciones/<int:pk>/credenciales.json", v.subscription_secret, name="jheliztv_subscription_secret"),
     path("app/suscripciones/<int:pk>/renovar/", v.subscription_renew, name="jheliztv_subscription_renew"),
     path("app/suscripciones/<int:pk>/eliminar/", v.subscription_delete, name="jheliztv_subscription_delete"),
     path("app/suscripciones/reemplazar-cuenta/", v.account_replace, name="jheliztv_account_replace"),

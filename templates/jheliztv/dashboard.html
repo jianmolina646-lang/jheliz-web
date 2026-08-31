@@ -1,4 +1,5 @@
 {% extends "jheliztv/base.html" %}
+{% load static %}
 
 {% block jc_content %}
 <main class="lv-dashboard">
@@ -48,6 +49,7 @@
         <div>
           <span>Análisis de datos</span>
           <h2>Tendencia de rendimiento</h2>
+          <p class="lv-dashboard-chart__subtitle">Comparativa mensual de ingresos y egresos</p>
         </div>
         <div class="lv-dashboard-chart__period">
           <span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>
@@ -55,16 +57,22 @@
         </div>
       </header>
       <div class="lv-dashboard-chart__body">
+        <div class="lv-dashboard-chart__summary" aria-label="Resumen financiero del periodo">
+          <div><i class="is-income"></i><span>Ingresos acumulados</span><strong>{{ jc_currency_symbol }} {{ total_income }}</strong></div>
+          <div><i class="is-expense"></i><span>Egresos acumulados</span><strong>{{ jc_currency_symbol }} {{ total_expense }}</strong></div>
+          <div><span>Balance</span><strong class="is-balance">{{ jc_currency_symbol }} {{ net }}</strong></div>
+        </div>
         <div class="lv-dashboard-chart__plot" data-dashboard-chart>
           <svg viewBox="0 0 1000 260" preserveAspectRatio="none" role="img" aria-label="Ingresos y egresos de los últimos seis meses">
             <defs>
               <linearGradient id="lvIncomeFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="oklch(0.86 0.22 155)" stop-opacity=".45"/>
-                <stop offset="100%" stop-color="oklch(0.86 0.22 155)" stop-opacity="0"/>
+                <stop offset="0%" stop-color="#34d399" stop-opacity=".38"/>
+                <stop offset="60%" stop-color="#6ee7b7" stop-opacity=".13"/>
+                <stop offset="100%" stop-color="#d1fae5" stop-opacity=".02"/>
               </linearGradient>
               <linearGradient id="lvExpenseFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="oklch(0.68 0.2 25)" stop-opacity=".28"/>
-                <stop offset="100%" stop-color="oklch(0.68 0.2 25)" stop-opacity="0"/>
+                <stop offset="0%" stop-color="#fb7185" stop-opacity=".16"/>
+                <stop offset="100%" stop-color="#fff1f2" stop-opacity=".01"/>
               </linearGradient>
             </defs>
             <g class="lv-dashboard-chart__grid" aria-hidden="true">
@@ -72,8 +80,9 @@
               <line x1="0" y1="130" x2="1000" y2="130"/><line x1="0" y1="185" x2="1000" y2="185"/>
               <line x1="0" y1="240" x2="1000" y2="240"/>
             </g>
-            <path data-income-area fill="url(#lvIncomeFill)"></path>
-            <path data-expense-area fill="url(#lvExpenseFill)"></path>
+            <path data-income-area class="lv-dashboard-chart__income-area"></path>
+            <path data-expense-area class="lv-dashboard-chart__expense-area"></path>
+            <path data-income-glow class="lv-dashboard-chart__income-glow"></path>
             <path data-income-line class="lv-dashboard-chart__income"></path>
             <path data-expense-line class="lv-dashboard-chart__expense"></path>
             <g data-chart-points></g>
@@ -132,13 +141,20 @@
         </header>
         <div class="lv-dashboard-expirations__list">
           {% for sub in jc_alerts %}
-            <article>
-              <div>
-                <h3>{{ sub.client.name }}</h3>
-                <p><span class="material-symbols-outlined" aria-hidden="true">play_circle</span>{{ sub.service.name }}</p>
-                <a href="{% url 'jheliztv_service_detail' sub.service.pk %}">Revisar<span class="material-symbols-outlined">chevron_right</span></a>
+            <article class="lv-expiry-card">
+              <div class="lv-expiry-card__top">
+                <span class="lv-expiry-card__logo">
+                  {% if sub.service.image %}<img src="{{ sub.service.image.url }}" alt="" loading="lazy" decoding="async">
+                  {% elif sub.service.official_logo_url %}<img src="{{ sub.service.official_logo_url }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+                  {% else %}<span class="material-symbols-outlined" aria-hidden="true">play_circle</span>{% endif %}
+                </span>
+                <div><h3>{{ sub.client.name }}</h3><p>{{ sub.service.name }}</p></div>
+                <time><small>Vence</small>{{ sub.expires_at|date:"d/m" }}</time>
               </div>
-              <time>{{ sub.expires_at|date:"d/m" }}</time>
+              <div class="lv-expiry-card__actions">
+                <a class="lv-expiry-card__review" href="{% url 'jheliztv_service_detail' sub.service.pk %}"><span class="material-symbols-outlined">visibility</span>Revisar</a>
+                {% if sub.client.whatsapp_digits %}<a class="lv-expiry-card__whatsapp" href="https://wa.me/{{ sub.client.whatsapp_digits }}?text={% filter urlencode %}Hola {{ sub.client.name }}, tu servicio {{ sub.service.name }} vence el {{ sub.expires_at|date:'d/m/Y' }}. ¿Deseas renovarlo?{% endfilter %}" target="_blank" rel="noopener" title="Recordar por WhatsApp"><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true"> WhatsApp</a>{% endif %}
+              </div>
             </article>
           {% empty %}
             <div class="lv-dashboard-expirations__empty">
@@ -150,9 +166,10 @@
       </article>
 
       <article class="lv-dashboard-alerts">
-        <div>
-          <h2><span class="material-symbols-outlined" aria-hidden="true">notifications</span>Alertas automáticas</h2>
-          <p>Los avisos están activos para tus servicios.</p>
+        <span class="lv-dashboard-alerts__icon" aria-hidden="true"><span class="material-symbols-outlined">notifications_active</span></span>
+        <div class="lv-dashboard-alerts__copy">
+          <h2>Alertas automáticas <span><i></i> Activas</span></h2>
+          <p>Te avisaremos a tiempo sobre vencimientos y eventos importantes.</p>
         </div>
         <span class="lv-dashboard-alerts__switch" role="img" aria-label="Alertas activas"><i></i></span>
       </article>
@@ -227,10 +244,52 @@ document.addEventListener("DOMContentLoaded", function () {
   const expense = coords("expensePct");
   const incomeLine = curve(income);
   const expenseLine = curve(expense);
-  chart.querySelector("[data-income-line]").setAttribute("d", incomeLine);
-  chart.querySelector("[data-expense-line]").setAttribute("d", expenseLine);
+  const incomePath = chart.querySelector("[data-income-line]");
+  const expensePath = chart.querySelector("[data-expense-line]");
+  incomePath.setAttribute("d", incomeLine);
+  expensePath.setAttribute("d", expenseLine);
+  incomePath.setAttribute("pathLength", "1");
+  expensePath.setAttribute("pathLength", "1");
+  const incomeGlow = chart.querySelector("[data-income-glow]");
+  incomeGlow.setAttribute("d", incomeLine);
+  incomeGlow.setAttribute("pathLength", "1");
   chart.querySelector("[data-income-area]").setAttribute("d", `${incomeLine} L 1000 260 L 0 260 Z`);
   chart.querySelector("[data-expense-area]").setAttribute("d", `${expenseLine} L 1000 260 L 0 260 Z`);
+
+  const pointLayer = chart.querySelector("[data-chart-points]");
+  const svgNS = "http://www.w3.org/2000/svg";
+  income.forEach(([x, y], index) => {
+    const halo = document.createElementNS(svgNS, "circle");
+    halo.setAttribute("cx", x); halo.setAttribute("cy", y); halo.setAttribute("r", "8");
+    halo.setAttribute("class", "lv-dashboard-chart__point-halo");
+    const dot = document.createElementNS(svgNS, "circle");
+    dot.setAttribute("cx", x); dot.setAttribute("cy", y); dot.setAttribute("r", "4");
+    dot.setAttribute("class", "lv-dashboard-chart__point lv-dashboard-chart__point--income");
+    pointLayer.append(halo, dot);
+    const expenseDot = document.createElementNS(svgNS, "circle");
+    expenseDot.setAttribute("cx", expense[index][0]); expenseDot.setAttribute("cy", expense[index][1]); expenseDot.setAttribute("r", "3.5");
+    expenseDot.setAttribute("class", "lv-dashboard-chart__point lv-dashboard-chart__point--expense");
+    pointLayer.append(expenseDot);
+  });
+
+  const runner = document.createElementNS(svgNS, "circle");
+  runner.setAttribute("r", "5");
+  runner.setAttribute("class", "lv-dashboard-chart__runner");
+  const runnerGlow = document.createElementNS(svgNS, "circle");
+  runnerGlow.setAttribute("r", "13");
+  runnerGlow.setAttribute("class", "lv-dashboard-chart__runner-glow");
+  [runnerGlow, runner].forEach((node) => {
+    const motion = document.createElementNS(svgNS, "animateMotion");
+    motion.setAttribute("path", incomeLine);
+    motion.setAttribute("dur", "6s");
+    motion.setAttribute("repeatCount", "indefinite");
+    motion.setAttribute("calcMode", "spline");
+    motion.setAttribute("keyTimes", "0;1");
+    motion.setAttribute("keySplines", ".4 0 .2 1");
+    node.appendChild(motion);
+    pointLayer.appendChild(node);
+  });
+  requestAnimationFrame(() => chart.classList.add("is-animated"));
 
   const tooltip = chart.querySelector("[data-chart-tooltip]");
   points.forEach((point, index) => {

@@ -63,3 +63,55 @@
 @media(max-width:639px){#modalSub.lvas-modal{align-items:center!important;padding:10px!important}#modalSub .lvas-dialog{width:calc(100vw - 20px)!important;max-height:calc(100dvh - 20px)!important;border-radius:16px!important}#modalSub .lvas-stepper b{display:none}#modalSub .lvas-stepper button{padding-right:4px}#modalSub .lvas-fields,#modalSub .lvas-finance{grid-template-columns:1fr}#modalSub .lvas-field--wide{grid-column:auto}#modalSub .lvas-duration{flex-direction:column}#modalSub .lvas-duration>span{align-self:flex-start}#modalSub .lvas-footer>strong{display:none!important}#modalSub .lvas-button{padding-inline:12px}#modalSub .lvas-button--secondary b{display:none}}
 @media(max-width:374px){#modalSub .lvas-header{padding-inline:12px}#modalSub .lvas-content{padding:12px}#modalSub .lvas-footer{padding-inline:12px}#modalSub .lvas-card{padding:14px}#modalSub .lvas-button{font-size:12.5px}}
 @media(prefers-reduced-motion:reduce){#modalSub *{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+/* Jheliz light experience — subscription wizard */
+#modalSub.lvas-modal{
+  --lvas-bg:#f5faf8;--lvas-fg:#10231d;--lvas-surface:#fff;
+  --lvas-elevated:#eef8f4;--lvas-card:#fff;--lvas-muted:#627b72;
+  --lvas-border:#cfe2da;--lvas-brand:#00c98b;--lvas-brand-fg:#052a20;
+  --lvas-success:#00aa73;--lvas-danger:#ff496c;
+  background:rgba(19,38,32,.32)!important;backdrop-filter:blur(12px) saturate(120%)!important
+}
+#modalSub .lvas-dialog{position:relative;background:linear-gradient(145deg,#fff 0%,#f5fbf8 54%,#edf9f5 100%)!important;box-shadow:0 32px 90px -28px rgba(17,67,51,.42),0 0 0 1px rgba(255,255,255,.82)!important}
+#modalSub[aria-hidden="false"] .lvas-dialog{animation:lvasLightEnter .48s cubic-bezier(.16,1,.3,1) both}
+#modalSub .lvas-header{background:linear-gradient(110deg,#fff 0%,#f2fff9 70%,#e5fff4 100%)!important}
+#modalSub .lvas-header__icon{color:#008f64!important;background:linear-gradient(145deg,#d9fff0,#baffdf)!important;box-shadow:0 8px 22px rgba(0,201,139,.18),0 0 0 1px #8cebc9!important;animation:lvasIconFloat 3.2s ease-in-out infinite}
+#modalSub .lvas-close{color:#61756e!important;background:#fff!important;border-color:#d6e5df!important;box-shadow:0 5px 16px rgba(33,72,59,.08)}
+#modalSub .lvas-close:hover{color:#e52f56!important;background:#fff0f3!important;border-color:#ffc3cf!important;transform:rotate(8deg) scale(1.06)}
+#modalSub .lvas-stepper{background:rgba(255,255,255,.88)!important}
+#modalSub .lvas-stepper button{color:#71857d!important}
+#modalSub .lvas-stepper button>span{color:#698078!important;background:#eef5f2!important;box-shadow:0 0 0 1px #d5e4de!important}
+#modalSub .lvas-stepper li.is-active button{color:#086d50!important;background:linear-gradient(90deg,#dffbef,#edfff8)!important;box-shadow:0 6px 18px rgba(0,201,139,.1)}
+#modalSub .lvas-stepper li.is-active button>span{color:#fff!important;background:linear-gradient(135deg,#00df9a,#00ae79)!important;box-shadow:0 6px 16px rgba(0,190,131,.3)!important;animation:lvasStepPulse 2s ease-in-out infinite}
+#modalSub .lvas-stepper li.is-done button>span{color:#087657!important;background:#d7faec!important;box-shadow:0 0 0 1px #91e5c5!important}
+#modalSub .lvas-progress>span{background:linear-gradient(90deg,#20d9aa,#00bd85,#52d8ff)!important;background-size:200% 100%!important;animation:lvasProgressFlow 2.4s linear infinite}
+#modalSub .lvas-content{background:linear-gradient(180deg,rgba(239,249,245,.72),rgba(248,252,250,.96))!important}
+#modalSub .lvas-step:not([hidden]){animation:lvasStepIn .4s cubic-bezier(.16,1,.3,1) both}
+#modalSub .lvas-card{background:rgba(255,255,255,.96)!important;border-color:#d8e8e1!important;box-shadow:0 16px 40px -30px rgba(20,77,59,.38),0 1px 0 #fff!important}
+#modalSub .lvas-card:hover{border-color:#a9ddc9!important;box-shadow:0 20px 45px -28px rgba(0,155,106,.25)!important;transform:translateY(-1px)}
+#modalSub .lvas-card>header>.material-symbols-outlined{color:#008e63!important;background:linear-gradient(145deg,#e1fff3,#c9f9e6)!important;box-shadow:0 0 0 1px #a8e8d1!important}
+#modalSub .lvas-search input,#modalSub .lvas-field input,#modalSub .lvas-field select,#modalSub .lvas-field textarea{color-scheme:light!important;color:#142a22!important;background:#fff!important;border-color:#cddfd8!important;box-shadow:0 4px 16px rgba(33,72,59,.045)!important}
+#modalSub input::placeholder,#modalSub textarea::placeholder{color:#91a39c!important}
+#modalSub input:hover,#modalSub select:hover,#modalSub textarea:hover{background:#fff!important;border-color:#9dcfbc!important}
+#modalSub input:focus,#modalSub select:focus,#modalSub textarea:focus{background:#fff!important;border-color:#00bd83!important;box-shadow:0 0 0 4px rgba(0,201,139,.13),0 8px 22px rgba(0,132,91,.08)!important}
+#modalSub .lvas-client-list{background:linear-gradient(180deg,#f8fcfa,#f1f8f5)!important;border-color:#d5e5de!important}
+#modalSub .lvas-client{color:#273d35!important;background:#fff!important;margin-bottom:4px!important;box-shadow:0 3px 12px rgba(26,78,60,.045)!important;transition:transform .2s ease,box-shadow .2s ease,background .2s ease!important}
+#modalSub .lvas-client:hover{color:#0b4f3b!important;background:#e9fff6!important;transform:translateX(4px);box-shadow:0 8px 20px rgba(0,180,124,.12)!important}
+#modalSub .lvas-client.is-active{color:#087253!important;background:linear-gradient(90deg,#d9faeb,#edfff8)!important;box-shadow:inset 3px 0 #00c98b,0 8px 20px rgba(0,180,124,.12)!important}
+#modalSub .lvas-client>span{color:#057454!important;background:linear-gradient(145deg,#d8faec,#f0fff9)!important;box-shadow:0 0 0 1px #b7e7d5!important}
+#modalSub .lvas-duration>span,#modalSub .lvas-chips .jc-pchip{background:#f6fbf9!important;border-color:#cfe0d9!important;color:#526b62!important}
+#modalSub .lvas-duration>span button.is-active,#modalSub .lvas-chips .jc-pchip.is-active{color:#006e4d!important;background:#d8faec!important;border-color:#7eddbb!important}
+#modalSub .lvas-finance>div{background:#fff!important;border-color:#d5e5de!important;box-shadow:0 8px 22px rgba(27,73,58,.06)}
+#modalSub .lvas-footer{background:rgba(255,255,255,.92)!important;border-color:#d5e5de!important}
+#modalSub .lvas-button--secondary{color:#52675f!important;background:#fff!important;border-color:#d2e1db!important}
+#modalSub .lvas-button--secondary:hover{color:#17372c!important;background:#edf8f4!important}
+#modalSub .lvas-button--primary{position:relative;overflow:hidden;color:#032c20!important;background:linear-gradient(110deg,#1ce7a5,#00c98b,#5de2bc)!important;background-size:200% 100%!important;box-shadow:0 12px 28px -10px rgba(0,190,131,.48)!important;animation:lvasButtonFlow 3s linear infinite}
+#modalSub .lvas-button--primary:after{content:"";position:absolute;inset:-40% auto -40% -45%;width:34%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);transform:skewX(-18deg);animation:lvasButtonShine 2.8s ease-in-out infinite}
+@keyframes lvasLightEnter{from{opacity:0;transform:translateY(22px) scale(.965)}to{opacity:1;transform:none}}
+@keyframes lvasStepIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+@keyframes lvasStepPulse{50%{box-shadow:0 7px 22px rgba(0,190,131,.48),0 0 0 5px rgba(0,201,139,.09)}}
+@keyframes lvasProgressFlow{to{background-position:-200% 0}}
+@keyframes lvasIconFloat{50%{transform:translateY(-3px) rotate(3deg)}}
+@keyframes lvasButtonFlow{to{background-position:-200% 0}}
+@keyframes lvasButtonShine{0%,35%{left:-45%}70%,100%{left:125%}}
+@media(prefers-reduced-motion:reduce){#modalSub[aria-hidden="false"] .lvas-dialog,#modalSub .lvas-step:not([hidden]),#modalSub .lvas-header__icon,#modalSub .lvas-stepper li.is-active button>span,#modalSub .lvas-progress>span,#modalSub .lvas-button--primary,#modalSub .lvas-button--primary:after{animation:none!important}}
