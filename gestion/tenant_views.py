@@ -488,7 +488,7 @@ def logout_view(request):
 
 
 # ---------------------------------------------------------------------------
-# Cobro (Yape, aprobación manual)
+# Cobro (Binance Pay, aprobación manual)
 # ---------------------------------------------------------------------------
 def billing(request):
     tenant = _get_tenant(request.user)
@@ -526,7 +526,7 @@ def billing_upload(request):
     saas = SaasSettings.load()
     proof = request.FILES.get("proof")
     if not proof:
-        messages.error(request, "Adjuntá la captura del pago por Yape.")
+        messages.error(request, "Adjuntá la captura del pago por Binance Pay.")
         return redirect("jheliztv_billing")
     if not _valid_proof_image(proof):
         messages.error(request, "El comprobante debe ser JPG, PNG o WebP de máximo 8 MB.")
@@ -536,6 +536,7 @@ def billing_upload(request):
         return redirect("jheliztv_billing")
     TenantPayment.objects.create(
         tenant=tenant,
+        method=TenantPayment.Method.BINANCE_PAY,
         amount=saas.monthly_price,
         days=30,
         proof=proof,
