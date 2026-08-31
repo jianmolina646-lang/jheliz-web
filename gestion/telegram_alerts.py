@@ -24,6 +24,7 @@ from config.date_utils import add_service_duration
 from codes.premium_emoji import emoji_id, without_custom_emoji
 
 from .control_operations import (
+    account_replacement_preview,
     client_for_owner,
     clients_for_owner,
     create_client,
@@ -32,6 +33,7 @@ from .control_operations import (
     owner_finances,
     owner_summary,
     renew_subscription,
+    replace_account_credentials,
     search_clients,
     subscription_for_owner,
     subscriptions_for_owner,
@@ -584,6 +586,7 @@ def _main_menu(connection, message_id=None):
                 _button("⚙️ Mi cuenta", "account", style="primary"),
                 _button("🌐 Abrir Jheliz Control", url=f"{WEB_URL}/app/", style="success"),
             ],
+            [_button("🔁 Reemplazar cuenta", "replace_account", style="danger")],
             [_button("🎧 Soporte de clientes", "support:all", style="primary")],
         ]
     )
@@ -1232,6 +1235,63 @@ def _customer_text(message, session):
 
 def _handle_text_state(connection, text):
     session = _session(connection)
+    if session.state == "replace_account:old":
+        old_account = text.strip()
+        preview = account_replacement_preview(connection.owner_id, old_account)
+        if not preview["total"]:
+            return send_message(
+                connection.chat_id,
+                "⚠️ No encontré suscripciones activas con ese correo o usuario. "
+                "Escríbelo exactamente como aparece en Jheliz Control.",
+            )
+        session.data = {"old_account": old_account, "preview": preview}
+        session.state = "replace_account:new"
+        session.save()
+        return send_message(
+            connection.chat_id,
+            f"✅ Encontré <b>{preview['total']}</b> suscripción(es).\n\n"
+            "Ahora escribe el <b>correo o usuario nuevo</b>.",
+            _markup([[_button("❌ Cancelar", "menu")]]),
+        )
+    if session.state == "replace_account:new":
+        new_account = text.strip()
+        if not new_account:
+            return send_message(connection.chat_id, "El correo o usuario nuevo es obligatorio.")
+        session.data["new_account"] = new_account
+        session.state = "replace_account:password"
+        session.save()
+        return send_message(
+            connection.chat_id,
+            "🔐 Escribe la <b>contraseña nueva</b>.\n\n"
+            "Solo se cambiarán el correo/usuario y esta contraseña.",
+            _markup([[_button("❌ Cancelar", "menu")]]),
+        )
+    if session.state == "replace_account:password":
+        new_password = text.strip()
+        if not new_password:
+            return send_message(connection.chat_id, "La contraseña nueva es obligatoria.")
+        session.data["new_password"] = new_password
+        session.data["nonce"] = secrets.token_hex(8)
+        session.state = "replace_account:confirm"
+        session.save()
+        preview = session.data["preview"]
+        return send_message(
+            connection.chat_id,
+            "🔁 <b>CONFIRMAR REEMPLAZO MASIVO</b>\n\n"
+            f"Cuenta anterior: <code>{html.escape(session.data['old_account'])}</code>\n"
+            f"Cuenta nueva: <code>{html.escape(session.data['new_account'])}</code>\n"
+            "Contraseña nueva: <b>configurada</b>\n\n"
+            f"👤 Perfiles: <b>{preview['profiles']}</b>\n"
+            f"📦 Cuentas completas: <b>{preview['full_accounts']}</b>\n"
+            f"Total: <b>{preview['total']}</b>\n\n"
+            "No se modificarán perfiles, PIN, fechas, precios ni ningún otro dato.",
+            _markup(
+                [
+                    [_button("✅ Reemplazar en todos", f"replace_confirm:{session.data['nonce']}", style="danger")],
+                    [_button("❌ Cancelar", "menu")],
+                ]
+            ),
+        )
     if session.state.startswith("new:") and session.state != "new:confirm":
         return _new_text(connection, text)
     if session.state.startswith("subnew:") and session.state not in {"subnew:plan", "subnew:confirm"}:
@@ -1302,6 +1362,50 @@ def _handle_callback(connection, callback):
         return _main_menu(connection, message_id)
     if data == "password_reset":
         return _password_reset(connection, message_id)
+    if data == "replace_account":
+        session = _session(connection)
+        session.state = "replace_account:old"
+        session.data = {}
+        session.save()
+        return _render(
+            connection.chat_id,
+            "🔁 <b>REEMPLAZAR CUENTA</b>\n\n"
+            "Escribe el <b>correo o usuario anterior</b>. Se buscará en perfiles "
+            "y cuentas completas.",
+            _markup([[_button("❌ Cancelar", "menu")]]),
+            message_id,
+        )
+    if data.startswith("replace_confirm:"):
+        nonce = data.split(":", 1)[1]
+        session = _session(connection)
+        if session.state != "replace_account:confirm" or session.data.get("nonce") != nonce:
+            return _ack(callback_id, "Esta confirmación ya venció.")
+        payload = dict(session.data)
+        updated, error = replace_account_credentials(
+            connection.owner,
+            payload["old_account"],
+            payload["new_account"],
+            payload["new_password"],
+            idempotency_key=f"replace:{connection.owner_id}:{nonce}",
+        )
+        _reset_session(connection)
+        if error == "duplicate":
+            return _ack(callback_id, "Este reemplazo ya fue procesado.")
+        if error:
+            return _render(
+                connection.chat_id,
+                "⚠️ No se pudo completar el reemplazo. Ningún dato fue modificado.",
+                _markup([[_button("🏠 Menú", "menu")]]),
+                message_id,
+            )
+        return _render(
+            connection.chat_id,
+            "✅ <b>CUENTA REEMPLAZADA</b>\n\n"
+            f"Se actualizaron <b>{updated}</b> suscripciones.\n"
+            "Solo cambiaron el correo/usuario y la contraseña.",
+            _markup([[_button("🏠 Menú", "menu")]]),
+            message_id,
+        )
     if data.startswith("support_link:"):
         client = client_for_owner(connection.owner_id, data.split(":")[1])
         if not client:
@@ -1699,6 +1803,11 @@ def process_update(update):
         return _inactive_plan(chat["id"])
     if text in {"/start", "/menu", "/cancelar"}:
         return _main_menu(connection)
+    if text == "/reemplazarcuenta":
+        return _handle_callback(
+            connection,
+            {"id": "", "data": "replace_account", "message": message},
+        )
     if text == "/estado":
         return send_message(
             chat["id"],
@@ -1719,6 +1828,7 @@ def run_polling():
                 {"command": "menu", "description": "Abrir el panel principal"},
                 {"command": "estado", "description": "Comprobar la vinculación"},
                 {"command": "recuperar", "description": "Cambiar la contraseña del panel"},
+                {"command": "reemplazarcuenta", "description": "Reemplazar correo y contraseña"},
                 {"command": "cancelar", "description": "Cancelar la operación actual"},
             ],
         )

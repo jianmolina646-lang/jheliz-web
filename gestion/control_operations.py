@@ -44,6 +44,52 @@ def subscription_for_owner(owner_id, subscription_id):
     return subscriptions_for_owner(owner_id).filter(pk=subscription_id).first()
 
 
+def account_replacement_preview(owner_id, old_account):
+    """Resume suscripciones activas que usan exactamente una cuenta."""
+    old_account = (old_account or "").strip()
+    qs = subscriptions_for_owner(owner_id).filter(account_email__iexact=old_account)
+    return {
+        "total": qs.count(),
+        "profiles": qs.filter(plan=Subscription.Plan.PERFIL).count(),
+        "full_accounts": qs.filter(plan=Subscription.Plan.COMPLETA).count(),
+    }
+
+
+@transaction.atomic
+def replace_account_credentials(
+    owner,
+    old_account,
+    new_account,
+    new_password,
+    idempotency_key=None,
+):
+    """Reemplaza solo usuario/correo y contraseña en todas las coincidencias.
+
+    El filtro de tenant y relaciones evita modificar suscripciones de otro
+    revendedor. Se guardan las filas individualmente para que el campo cifrado
+    procese correctamente la contraseña.
+    """
+    old_account = (old_account or "").strip()
+    new_account = (new_account or "").strip()
+    new_password = (new_password or "").strip()
+    if not old_account or not new_account or not new_password:
+        return 0, "required"
+    if idempotency_key and not _claim(owner.id, idempotency_key, "account_replace"):
+        return 0, "duplicate"
+    rows = list(
+        subscriptions_for_owner(owner.id)
+        .select_for_update()
+        .filter(account_email__iexact=old_account)
+    )
+    if not rows:
+        return 0, "not_found"
+    for subscription in rows:
+        subscription.account_email = new_account
+        subscription.account_password = new_password
+        subscription.save(update_fields=["account_email", "account_password"])
+    return len(rows), None
+
+
 def search_clients(owner_id, query):
     query = (query or "").strip()
     qs = clients_for_owner(owner_id)
