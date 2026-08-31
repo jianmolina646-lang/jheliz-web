@@ -153,7 +153,7 @@
               </div>
               <div class="lv-expiry-card__actions">
                 <a class="lv-expiry-card__review" href="{% url 'jheliztv_service_detail' sub.service.pk %}"><span class="material-symbols-outlined">visibility</span>Revisar</a>
-                {% if sub.client.whatsapp_digits %}<a class="lv-expiry-card__whatsapp" href="https://wa.me/{{ sub.client.whatsapp_digits }}?text={% filter urlencode %}Hola {{ sub.client.name }}, tu servicio {{ sub.service.name }} vence el {{ sub.expires_at|date:'d/m/Y' }}. ¿Deseas renovarlo?{% endfilter %}" target="_blank" rel="noopener" title="Recordar por WhatsApp"><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true"> WhatsApp</a>{% endif %}
+                {% if sub.client.whatsapp_digits %}<a class="lv-expiry-card__whatsapp" href="https://wa.me/{{ sub.client.whatsapp_digits }}?text={% filter urlencode %}Hola {{ sub.client.name }}, tu servicio {{ sub.service.name }} vence el {{ sub.expires_at|date:'d/m/Y' }}. ¿Deseas renovarlo?{% endfilter %}" target="_blank" rel="noopener" title="Recordar por WhatsApp"><span class="material-symbols-outlined" aria-hidden="true">chat</span> WhatsApp</a>{% endif %}
               </div>
             </article>
           {% empty %}

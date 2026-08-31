@@ -33,7 +33,7 @@
     </button>
 
     <a class="jc-brand lv-shell-brand" href="{% url 'jheliztv_dashboard' %}">
-      <span class="lv-brand-mark" aria-hidden="true"><img src="{% static 'img/jhelizcontroltv-official.png' %}" alt=""></span>
+      <span class="lv-brand-mark" aria-hidden="true"><img src="{% static 'img/apple-touch-icon.png' %}" alt=""></span>
       <span class="jc-brand__txt">
         <strong>JHELIZ</strong>
         <small>{{ jc_tenant.business_name|default:"Ecomerceperu" }}</small>
@@ -49,8 +49,8 @@
       <a href="{% url 'jheliztv_support' %}" class="jc-tab lv-nav-support {% if jc_active == 'support' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">support_agent</span><b>Soporte</b></a>
       <a href="{% url 'jheliztv_renewals' %}" class="jc-tab lv-nav-renewals {% if jc_active == 'renewals' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">autorenew</span><b>Renovaciones</b></a>
       <span class="lv-nav-section">Canales y cuenta</span>
-      <a href="{% url 'jheliztv_telegram' %}" class="jc-tab lv-nav-telegram {% if jc_active == 'telegram' %}is-active{% endif %}"><i></i><span class="lv-nav-brand-icon"><img src="{% static 'img/brands/telegram.svg' %}" alt="" aria-hidden="true"></span><b>Telegram</b></a>
-      <a href="{% url 'jheliztv_whatsapp' %}" class="jc-tab lv-nav-whatsapp {% if jc_active == 'whatsapp' %}is-active{% endif %}"><i></i><span class="lv-nav-brand-icon"><img src="{% static 'img/brands/whatsapp.svg' %}" alt="" aria-hidden="true"></span><b>WhatsApp</b></a>
+      <a href="{% url 'jheliztv_telegram' %}" class="jc-tab lv-nav-telegram {% if jc_active == 'telegram' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">send</span><b>Telegram</b></a>
+      <a href="{% url 'jheliztv_whatsapp' %}" class="jc-tab lv-nav-whatsapp {% if jc_active == 'whatsapp' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">chat</span><b>WhatsApp</b></a>
       <a href="{% url 'jheliztv_billing' %}" class="jc-tab lv-nav-billing {% if jc_active == 'billing' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">credit_card</span><b>Mi suscripción</b></a>
       <a href="{% url 'jheliztv_money_settings' %}" class="jc-tab lv-nav-money {% if jc_active == 'money' %}is-active{% endif %}"><i></i><span class="material-symbols-outlined">paid</span><b>País y monedas</b></a>
 
@@ -78,7 +78,7 @@
         <span class="material-symbols-outlined" aria-hidden="true">menu</span>
       </button>
       <a class="jc-mobile-brand" href="{% url 'jheliztv_dashboard' %}" aria-label="JHELIZCONTROLTV">
-        <span class="jc-mobile-brand__mark"><img src="{% static 'img/jhelizcontroltv-official.png' %}" alt="" aria-hidden="true"></span>
+        <span class="jc-mobile-brand__mark"><img src="{% static 'img/apple-touch-icon.png' %}" alt="" aria-hidden="true"></span>
         <strong>JHELIZCONTROLTV</strong>
       </a>
       <strong class="jc-desktop-title">JHELIZCONTROLTV</strong>
