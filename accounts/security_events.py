@@ -62,13 +62,18 @@ def _send_alert(event) -> None:
         return
     recipient = getattr(settings, "SUPPORT_ADMIN_EMAIL", "")
     if recipient:
-        send_mail(
-            f"[Seguridad] {event.event_type}",
-            f"Evento: {event.event_type}\nSeveridad: {event.severity}\nUsuario: {event.username or '-'}\nIP: {event.ip_address or '-'}\nRuta: {event.path or '-'}\nID: {event.pk}",
-            getattr(settings, "DEFAULT_FROM_EMAIL", recipient),
-            [recipient],
-            fail_silently=True,
-        )
+        try:
+            send_mail(
+                f"[Seguridad] {event.event_type}",
+                f"Evento: {event.event_type}\nSeveridad: {event.severity}\nUsuario: {event.username or '-'}\nIP: {event.ip_address or '-'}\nRuta: {event.path or '-'}\nID: {event.pk}",
+                getattr(settings, "DEFAULT_FROM_EMAIL", recipient),
+                [recipient],
+                fail_silently=True,
+            )
+        except Exception:
+            # La alerta es secundaria: un backend mal configurado o una caída
+            # del proveedor nunca debe impedir un login, 2FA o webhook.
+            logger.exception("No se pudo enviar alerta de seguridad por correo")
     try:
         from orders.telegram import _admin_chat_id, is_configured, send_message
         if is_configured() and _admin_chat_id():
