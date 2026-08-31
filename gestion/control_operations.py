@@ -55,6 +55,16 @@ def account_replacement_preview(owner_id, old_account):
     }
 
 
+def account_replacement_items(owner_id, old_account):
+    """Filas visibles de la vista previa, limitadas al tenant propietario."""
+    return (
+        subscriptions_for_owner(owner_id)
+        .filter(account_email__iexact=(old_account or "").strip())
+        .select_related("client", "service")
+        .order_by("client__name", "service__name", "pk")
+    )
+
+
 @transaction.atomic
 def replace_account_credentials(
     owner,

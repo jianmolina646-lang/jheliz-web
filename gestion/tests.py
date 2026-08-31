@@ -191,6 +191,7 @@ class TenantSaasTests(TestCase):
     SERVICE_ADD = "/app/servicios/agregar/"
     CLIENT_ADD = "/app/clientes/agregar/"
     CLIENTS = "/app/clientes/"
+    ACCOUNT_REPLACE = "/app/suscripciones/reemplazar-cuenta/"
 
     def setUp(self):
         from .models import SaasSettings, Tenant
@@ -604,6 +605,66 @@ class TenantSaasTests(TestCase):
         cli = Client.objects.get(owner=t.user, name="Cliente Nuevo")
         self.assertEqual(cli.whatsapp, "+51987654321")
         self.assertTrue(Subscription.objects.filter(client=cli, account_email="n@x.com").exists())
+
+    def test_web_bulk_account_replacement_previews_clients_and_changes_only_credentials(self):
+        tenant, service = self._new_service("seller_replace", name="Disney+")
+        old_account = "disney1@gmail.com"
+        rows = []
+        for index, plan in enumerate(("perfil", "completa"), start=1):
+            client = Client.objects.create(owner=tenant.user, name=f"Cliente Visible {index}")
+            row = Subscription.objects.create(
+                owner=tenant.user,
+                client=client,
+                service=service,
+                account_email=old_account,
+                account_password="clave-anterior",
+                plan=plan,
+                profiles=1,
+                profile_name=f"Perfil {index}",
+                profile_pin=f"20{index}",
+                cost="14.00",
+                investment="6.00",
+                expires_at=timezone.now() + timedelta(days=19),
+            )
+            row.refresh_from_db()
+            rows.append(row)
+        snapshots = {
+            row.pk: (row.profile_name, row.profile_pin, row.cost, row.investment, row.expires_at, row.plan)
+            for row in rows
+        }
+
+        preview = self.client.post(
+            self.ACCOUNT_REPLACE,
+            {"action": "preview", "old_account": old_account.upper()},
+            HTTP_HOST=self.HOST,
+        )
+        self.assertEqual(preview.status_code, 200)
+        self.assertContains(preview, "Cliente Visible 1")
+        self.assertContains(preview, "Cliente Visible 2")
+        self.assertContains(preview, "1</b> perfiles", html=False)
+        self.assertContains(preview, "1</b> cuentas completas", html=False)
+        nonce = self.client.session["jc_account_replace"]["nonce"]
+
+        result = self.client.post(
+            self.ACCOUNT_REPLACE,
+            {
+                "action": "replace",
+                "old_account": old_account.upper(),
+                "new_account": "disney2@gmail.com",
+                "new_password": "clave-nueva",
+                "nonce": nonce,
+            },
+            HTTP_HOST=self.HOST,
+        )
+        self.assertRedirects(result, self.ACCOUNT_REPLACE, fetch_redirect_response=False)
+        for row in rows:
+            row.refresh_from_db()
+            self.assertEqual(row.account_email, "disney2@gmail.com")
+            self.assertEqual(row.account_password, "clave-nueva")
+            self.assertEqual(
+                (row.profile_name, row.profile_pin, row.cost, row.investment, row.expires_at, row.plan),
+                snapshots[row.pk],
+            )
 
 
 @override_settings(
