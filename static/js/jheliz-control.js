@@ -8,6 +8,23 @@
   var lastModalTrigger = null;
   var lastNavFocus = null;
 
+  function loadSubscriptionSecret(url) {
+    return fetch(url, { credentials: "same-origin", cache: "no-store", headers: { "Accept": "application/json" } })
+      .then(function (response) {
+        if (!response.ok) { throw new Error("secret_unavailable"); }
+        return response.json();
+      });
+  }
+
+  var globalSearch = document.querySelector("[data-jc-global-search]");
+  document.addEventListener("keydown", function (event) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k" && globalSearch) {
+      event.preventDefault();
+      globalSearch.focus();
+      globalSearch.select();
+    }
+  });
+
   // Navegación responsive: drawer predecible, cerrable con overlay o Escape.
   function setNav(open) {
     if (!app || !menuToggle) { return; }
@@ -71,26 +88,6 @@
   if (desktopNav.addEventListener) { desktopNav.addEventListener("change", closeNavOnDesktop); }
   closeNavOnDesktop(desktopNav);
 
-  // Tema visual persistente (solo presentaciÃ³n).
-  var themeToggle = document.getElementById("jcThemeToggle");
-  var themeIcon = document.getElementById("jcThemeIcon");
-  function syncThemeIcon() {
-    var isLight = document.documentElement.classList.contains("jc-theme-light");
-    if (themeIcon) { themeIcon.textContent = isLight ? "dark_mode" : "light_mode"; }
-    if (themeToggle) {
-      themeToggle.setAttribute("aria-label", isLight ? "Usar modo oscuro" : "Usar modo claro");
-      themeToggle.setAttribute("title", isLight ? "Usar modo oscuro" : "Usar modo claro");
-    }
-  }
-  if (themeToggle) {
-    themeToggle.addEventListener("click", function () {
-      var isLight = document.documentElement.classList.toggle("jc-theme-light");
-      localStorage.setItem("jc-theme", isLight ? "light" : "dark");
-      syncThemeIcon();
-    });
-  }
-  syncThemeIcon();
-
   // ── Modales (fade + backdrop) ─────────────────────────────────────────
   function getFocusable(scope) {
     return Array.prototype.slice.call(scope.querySelectorAll(
@@ -143,6 +140,21 @@
         if (opener.dataset.action) {
           var form = modal.querySelector("form");
           if (form) { form.setAttribute("action", opener.dataset.action); }
+        }
+        if (opener.dataset.secretUrl) {
+          var passwordField = modal.querySelector('[name="account_password"]');
+          var pinField = modal.querySelector('[name="profile_pin"]');
+          if (passwordField) { passwordField.value = ""; passwordField.disabled = true; }
+          if (pinField) { pinField.value = ""; pinField.disabled = true; }
+          loadSubscriptionSecret(opener.dataset.secretUrl).then(function (secret) {
+            if (passwordField) { passwordField.value = secret.password || ""; }
+            if (pinField) { pinField.value = secret.profile_pin || ""; }
+          }).catch(function () {
+            if (typeof showCopyFeedback === "function") { showCopyFeedback("No se pudieron cargar las credenciales"); }
+          }).finally(function () {
+            if (passwordField) { passwordField.disabled = false; }
+            if (pinField) { pinField.disabled = false; }
+          });
         }
       }
       return;
@@ -215,12 +227,22 @@
     var lbl = btn.querySelector("[data-jc-verlbl]");
     var hidden = box.hasAttribute("hidden");
     if (hidden) {
-      box.removeAttribute("hidden");
-      btn.classList.add("is-open");
-      if (icon) { icon.textContent = "visibility_off"; }
-      if (lbl) { lbl.textContent = "Ocultar"; }
+      var secretUrl = box.getAttribute("data-jc-secret-url");
+      var secretOutput = box.querySelector("[data-jc-sub-secret]");
+      btn.disabled = true;
+      loadSubscriptionSecret(secretUrl).then(function (secret) {
+        if (secretOutput) { secretOutput.textContent = secret.password || "Sin contraseña"; }
+        box.removeAttribute("hidden");
+        btn.classList.add("is-open");
+        if (icon) { icon.textContent = "visibility_off"; }
+        if (lbl) { lbl.textContent = "Ocultar"; }
+      }).catch(function () {
+        if (typeof showCopyFeedback === "function") { showCopyFeedback("No se pudieron cargar las credenciales"); }
+      }).finally(function () { btn.disabled = false; });
     } else {
       box.setAttribute("hidden", "");
+      var output = box.querySelector("[data-jc-sub-secret]");
+      if (output) { output.textContent = "••••••••"; }
       btn.classList.remove("is-open");
       if (icon) { icon.textContent = "visibility"; }
       if (lbl) { lbl.textContent = "Ver"; }
@@ -527,6 +549,14 @@
   var panel = document.getElementById("jcBellPanel");
   var countEl = document.getElementById("jcBellCount");
   var bellDot = bell ? bell.querySelector(".lv-bell-dot") : null;
+  function notifText(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (character) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character];
+    });
+  }
+  function notifStatus(value) {
+    return /^[a-z0-9_-]+$/i.test(String(value || "")) ? String(value) : "warning";
+  }
   function loadNotifs() {
     if (!root) { return; }
     var url = root.getAttribute("data-notif-url");
@@ -538,16 +568,20 @@
           else { countEl.hidden = true; }
         }
         if (bellDot) { bellDot.hidden = !(data.count > 0); }
+        if (bell) { bell.classList.toggle("has-alerts", data.count > 0); }
         if (panel) {
           if (!data.alerts.length) {
-            panel.innerHTML = '<div class="jc-bell__empty">Sin alertas de vencimiento 🎉</div>';
+            panel.innerHTML = '<div class="jc-bell__head"><span><i class="material-symbols-outlined">notifications_active</i><b>Notificaciones</b></span><em>Todo al día</em></div>' +
+              '<div class="jc-bell__empty"><i class="material-symbols-outlined">task_alt</i><strong>Todo está bajo control</strong><small>No tienes vencimientos pendientes.</small></div>';
           } else {
-            panel.innerHTML = data.alerts.map(function (a) {
-              return '<a class="jc-bell__item" href="' + a.url + '">' +
-                '<span class="jc-chip jc-chip--' + a.status + '"></span>' +
-                '<span><strong>' + a.service + '</strong> · ' + a.client +
-                '<br><small>' + a.time_left + '</small></span></a>';
-            }).join("");
+            panel.innerHTML = '<div class="jc-bell__head"><span><i class="material-symbols-outlined">notifications_active</i><b>Notificaciones</b></span><em>' + data.count + ' pendientes</em></div><div class="jc-bell__list">' +
+              data.alerts.map(function (a, index) {
+                var status = notifStatus(a.status);
+                return '<a class="jc-bell__item jc-bell__item--' + status + '" style="--notif-index:' + index + '" href="' + notifText(a.url) + '">' +
+                  '<span class="jc-bell__status"><i class="material-symbols-outlined">priority_high</i></span>' +
+                  '<span class="jc-bell__copy"><strong>' + notifText(a.service) + '</strong><small><b>' + notifText(a.client) + '</b><span>•</span>' + notifText(a.time_left) + '</small></span>' +
+                  '<i class="jc-bell__arrow material-symbols-outlined">arrow_forward</i></a>';
+              }).join("") + '</div>';
           }
         }
       })
@@ -559,10 +593,12 @@
     bell.addEventListener("click", function () {
       panel.hidden = !panel.hidden;
       bell.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+      panel.classList.toggle("is-open", !panel.hidden);
     });
     document.addEventListener("click", function (e) {
       if (!e.target.closest(".jc-topbar__actions")) {
         panel.hidden = true;
+        panel.classList.remove("is-open");
         bell.setAttribute("aria-expanded", "false");
       }
     });

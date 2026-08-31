@@ -2,14 +2,19 @@
   const form = document.querySelector("[data-login-form]");
   if (!form) return;
 
-  const password = form.querySelector("#jcLoginPassword");
-  const toggle = form.querySelector("[data-password-toggle]");
-  if (password && toggle) {
-    toggle.addEventListener("click", () => {
-      const showing = password.type === "text";
-      password.type = showing ? "password" : "text";
-      toggle.setAttribute("aria-pressed", String(!showing));
-      toggle.setAttribute("aria-label", showing ? "Mostrar contraseña" : "Ocultar contraseña");
+  const password = form.querySelector('input[name="password"]');
+  const passwordToggle = form.querySelector("[data-password-toggle]");
+  if (password && passwordToggle) {
+    passwordToggle.addEventListener("click", () => {
+      const visible = password.type === "text";
+      password.type = visible ? "password" : "text";
+      passwordToggle.setAttribute("aria-pressed", visible ? "false" : "true");
+      passwordToggle.setAttribute("aria-label", visible ? "Mostrar contraseña" : "Ocultar contraseña");
+      const icon = passwordToggle.querySelector(".material-symbols-outlined");
+      if (icon) icon.textContent = visible ? "visibility" : "visibility_off";
+      password.focus({ preventScroll: true });
+      const length = password.value.length;
+      password.setSelectionRange(length, length);
     });
   }
 

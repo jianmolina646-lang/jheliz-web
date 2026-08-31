@@ -11,7 +11,7 @@
 {% block pb_twitter_title %}{% block mk_twitter_title %}JHELIZCONTROLTV{% endblock %}{% endblock %}
 {% block pb_twitter_description %}{% block mk_twitter_description %}Sistema para gestionar clientes, pagos, vencimientos y renovaciones.{% endblock %}{% endblock %}
 {% block pb_extra_head %}
-  <link rel="stylesheet" href="{% static 'css/jheliz-landing.css' %}?v=seo-public-v1-20260809">
+  <link rel="stylesheet" href="{% static 'css/jheliz-landing.css' %}?v=official-brand-v2-20260829">
 {% endblock %}
 {% block pb_header %}{% endblock %}
 
@@ -22,7 +22,7 @@
     <div class="jl-container">
       <nav class="jl-navbar__inner" aria-label="Navegación principal">
         <a href="{% url 'jheliztv_landing' %}" class="jl-logo" aria-label="JHELIZCONTROLTV">
-          <span class="jl-logo__mark"><svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg></span>
+          <span class="jl-logo__mark"><img src="{% static 'img/jhelizcontroltv-official.png' %}" alt="" aria-hidden="true"></span>
           <span>JHELIZ<strong>CONTROLTV</strong></span>
         </a>
         <div class="jl-navbar__links">

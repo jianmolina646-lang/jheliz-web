@@ -28,7 +28,7 @@
         {% if renewals %}
           <ul class="lvr-request-list">
             {% for item in renewals %}
-              <li class="lvr-request">
+              <li class="lvr-request" style="--request-index:{{ forloop.counter0 }}">
                 <div class="lvr-request-copy">
                   <div class="lvr-request-id">{{ item.display_number }}</div>
                   <div class="lvr-request-client">{{ item.subscription.client.name }}</div>
@@ -81,7 +81,7 @@
         {% if payment_methods %}
           <ul class="lvr-method-list">
             {% for method in payment_methods %}
-              <li class="lvr-method">
+              <li class="lvr-method" style="--method-index:{{ forloop.counter0 }}">
                 <div class="lvr-method-main">
                   <div>
                     <strong>{{ method.label }}</strong>

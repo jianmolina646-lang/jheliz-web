@@ -44,20 +44,22 @@
                 <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
                 <h2>{{ group.cat.name }}</h2>
               </div>
-              <span>{{ group.services|length }} servicio{{ group.services|length|pluralize }}</span>
+              <div class="lv-service-category__monitor"><span class="is-live"><i></i>Monitoreo en vivo</span><span>{{ group.services|length }} servicio{{ group.services|length|pluralize }}</span></div>
             </header>
             <div class="lv-service-grid">
               {% for svc in group.services %}
-                <article class="lv-service-card{% if svc.active_subscriptions.count %} lv-service-card--active{% endif %}">
+                <article class="lv-service-card{% if svc.active_subscriptions.count %} lv-service-card--active{% endif %}" style="--service-accent:{{ svc.color|default:'#10b981' }};--card-index:{{ forloop.counter0 }}">
                   <a class="lv-service-card__link" href="{% url 'jheliztv_service_detail' svc.pk %}" aria-label="Abrir {{ svc.name }}">
                     <span class="lv-service-card__accent" aria-hidden="true"></span>
                     <div class="lv-service-card__media">
-                      {% if svc.image %}<img src="{{ svc.image.url }}" alt="Logo de {{ svc.name }}" loading="lazy" decoding="async">
+                      {% if svc.official_logo_url %}<img class="lv-service-card__official-logo" src="{{ svc.official_logo_url }}" alt="Logo oficial de {{ svc.name }}" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+                      {% elif svc.image %}<img src="{{ svc.image.url }}" alt="Logo de {{ svc.name }}" loading="lazy" decoding="async">
                       {% elif svc.icon %}<div class="lv-service-card__placeholder"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
                       {% else %}<div class="lv-service-card__placeholder">{{ svc.name|first|upper }}</div>{% endif %}
                       <div class="lv-service-card__shade" aria-hidden="true"></div>
                       <span class="lv-service-card__code">{{ svc.name|slice:":3"|upper }}</span>
                       <span class="lv-service-card__status"><i><b></b></i>{% if svc.active_subscriptions.count %}Activo{% else %}Vacío{% endif %}</span>
+                      <span class="lv-service-card__signal" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
                     </div>
                     <div class="lv-service-card__body">
                       <div><h3>{{ svc.name }}</h3><p><span class="lv-service-card__count-label">{{ svc.active_subscriptions.count }} cuenta{{ svc.active_subscriptions.count|pluralize }}</span></p></div>
@@ -83,20 +85,22 @@
               <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
               <h2>Sin categoría</h2>
             </div>
-            <span>{{ uncategorized|length }} servicio{{ uncategorized|length|pluralize }}</span>
+            <div class="lv-service-category__monitor"><span class="is-live"><i></i>Monitoreo en vivo</span><span>{{ uncategorized|length }} servicio{{ uncategorized|length|pluralize }}</span></div>
           </header>
           <div class="lv-service-grid">
             {% for svc in uncategorized %}
-              <article class="lv-service-card{% if svc.active_subscriptions.count %} lv-service-card--active{% endif %}">
+              <article class="lv-service-card{% if svc.active_subscriptions.count %} lv-service-card--active{% endif %}" style="--service-accent:{{ svc.color|default:'#10b981' }};--card-index:{{ forloop.counter0 }}">
                 <a class="lv-service-card__link" href="{% url 'jheliztv_service_detail' svc.pk %}" aria-label="Abrir {{ svc.name }}">
                   <span class="lv-service-card__accent" aria-hidden="true"></span>
                   <div class="lv-service-card__media">
-                    {% if svc.image %}<img src="{{ svc.image.url }}" alt="Logo de {{ svc.name }}" loading="lazy" decoding="async">
+                    {% if svc.official_logo_url %}<img class="lv-service-card__official-logo" src="{{ svc.official_logo_url }}" alt="Logo oficial de {{ svc.name }}" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+                    {% elif svc.image %}<img src="{{ svc.image.url }}" alt="Logo de {{ svc.name }}" loading="lazy" decoding="async">
                     {% elif svc.icon %}<div class="lv-service-card__placeholder"><span class="material-symbols-outlined">{{ svc.icon }}</span></div>
                     {% else %}<div class="lv-service-card__placeholder">{{ svc.name|first|upper }}</div>{% endif %}
                     <div class="lv-service-card__shade" aria-hidden="true"></div>
                     <span class="lv-service-card__code">{{ svc.name|slice:":3"|upper }}</span>
                     <span class="lv-service-card__status"><i><b></b></i>{% if svc.active_subscriptions.count %}Activo{% else %}Vacío{% endif %}</span>
+                    <span class="lv-service-card__signal" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
                   </div>
                   <div class="lv-service-card__body">
                     <div><h3>{{ svc.name }}</h3><p><span class="lv-service-card__count-label">{{ svc.active_subscriptions.count }} cuenta{{ svc.active_subscriptions.count|pluralize }}</span></p></div>

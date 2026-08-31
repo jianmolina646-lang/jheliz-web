@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import logging
 import re
 import secrets
 from hashlib import sha256
@@ -85,6 +86,7 @@ from .views import _decorate_subs  # reuso de helpers
 from .support_operations import add_message as add_support_message, set_status as set_support_status
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class FifteenMinutePasswordResetTokenGenerator(PasswordResetTokenGenerator):
@@ -850,6 +852,10 @@ def subscription_edit(request, tenant, pk):
     data = request.POST.copy()
     data["client"] = sub.client_id
     data["service"] = sub.service_id
+    if not (data.get("account_password") or "").strip():
+        data["account_password"] = sub.account_password
+    if not (data.get("profile_pin") or "").strip():
+        data["profile_pin"] = sub.profile_pin
     form = SubscriptionForm(data, instance=sub)
     if form.is_valid():
         form.save()
@@ -857,6 +863,24 @@ def subscription_edit(request, tenant, pk):
     else:
         messages.error(request, "No se pudo actualizar la suscripción.")
     return redirect("jheliztv_service_detail", pk=sub.service_id)
+
+
+@tenant_required
+@require_GET
+def subscription_secret(request, tenant, pk):
+    """Entrega credenciales únicamente al propietario y sin caché."""
+    sub = get_object_or_404(Subscription, pk=pk, owner=request.user)
+    logger.info(
+        "subscription_secret_viewed",
+        extra={"subscription_id": sub.pk, "owner_id": request.user.pk},
+    )
+    response = JsonResponse(
+        {"password": sub.account_password or "", "profile_pin": sub.profile_pin or ""}
+    )
+    response["Cache-Control"] = "no-store, private, max-age=0"
+    response["Pragma"] = "no-cache"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @tenant_required
