@@ -123,7 +123,7 @@ _KEYWORDS = {
 # Pistas en la ruta del link para elegir el botón correcto.
 _URL_HINTS = {
     "passwordless_signin": ("accountaccess", "passwordless", "magiclink"),
-    "tv_signin": ("/tv", "tv/out", "tv-signin", "tv8"),
+    "tv_signin": ("/tv", "tv/out", "tv-signin", "tv8", "/ilum"),
     "temp_code": ("travel", "verify", "otp", "temporary"),
     "household": ("update-primary-location", "primary-location", "household", "confirm"),
     "password_reset": ("password", "forgotpassword", "loginhelp", "reset"),
@@ -160,11 +160,13 @@ class NetflixResult:
 
 def _classify(subject: str, body: str, links: list[str] | None = None) -> str:
     haystack = f"{subject}\n{body}".lower()
-    # Aviso de seguridad: no contiene un código utilizable y su botón
-    # /denysignin rechaza el acceso. Nunca debe entregarse como signin_code.
-    if "nueva solicitud de inicio de sesión" in haystack or any(
-        "/denysignin" in link.lower() for link in links or []
-    ):
+    # Las solicitudes nuevas incluyen dos acciones distintas: /ilum aprueba
+    # el acceso y /denysignin lo rechaza. Solo el enlace de aprobación se
+    # entrega mediante ``enlace tv``; un aviso que tenga únicamente el botón
+    # de rechazo continúa bloqueado.
+    if "nueva solicitud de inicio de sesión" in haystack:
+        if any("/ilum" in link.lower() for link in links or []):
+            return "tv_signin"
         return "other"
     for kind, kws in _KEYWORDS.items():
         if any(kw in haystack for kw in kws):
@@ -185,13 +187,17 @@ def _pick_action_url(kind: str, links: list[str]) -> str:
     hints = _URL_HINTS.get(kind, ())
     for link in links:
         low = link.lower()
+        if "/denysignin" in low:
+            continue
         if any(h in low for h in hints):
             return link
     # Preferí un link de /account/ antes que uno de marketing/ayuda.
     for link in links:
+        if "/denysignin" in link.lower():
+            continue
         if "/account" in link.lower():
             return link
-    return links[0]
+    return next((link for link in links if "/denysignin" not in link.lower()), "")
 
 
 def _extract_code(kind: str, body_text: str) -> str:

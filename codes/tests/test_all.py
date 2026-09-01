@@ -104,6 +104,22 @@ class NetflixParserTests(TestCase):
         )
         self.assertEqual(r.kind, "other")
 
+    def test_new_tv_signin_request_delivers_approval_and_never_rejection(self):
+        r = parse_netflix_email(
+            "Netflix: Nueva solicitud de inicio de sesión",
+            html=(
+                "<h1>Aprueba la nueva solicitud de inicio de sesión</h1>"
+                "<p>JVC - Smart TV</p>"
+                '<a href="https://www.netflix.com/ilum?token=approve">'
+                "Aprobar solicitud</a>"
+                '<a href="https://www.netflix.com/denysignin?token=deny">'
+                "Rechazar solicitud</a>"
+            ),
+        )
+        self.assertEqual(r.kind, "tv_signin")
+        self.assertIn("/ilum", r.action_url)
+        self.assertNotIn("/denysignin", r.action_url)
+
     def test_password_reset_classification_and_link(self):
         html = (
             "<p>Restablece tu contraseña</p>"
