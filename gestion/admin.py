@@ -165,4 +165,4 @@ class TenantPaymentAdmin(ModelAdmin):
 
 @admin.register(SaasSettings)
 class SaasSettingsAdmin(ModelAdmin):
-    list_display = ("monthly_price", "yape_holder", "yape_phone")
+    list_display = ("monthly_price", "yape_holder", "yape_phone", "binance_holder", "binance_pay_id")
