@@ -93,11 +93,6 @@ jobs:
               exit 1
             fi
 
-            # El verificador de códigos pertenecía a la tienda retirada. Se
-            # detiene explícitamente para que no quede como proceso huérfano.
-            $COMPOSE stop codes_bot 2>/dev/null || true
-            $COMPOSE rm -f codes_bot 2>/dev/null || true
-
             echo "→ Smoke test público..."
             if ! curl -fsS -o /dev/null --max-time 10 http://localhost:8000/; then
               echo "✗ Smoke test falló."
