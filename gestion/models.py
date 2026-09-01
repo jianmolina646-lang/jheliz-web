@@ -989,6 +989,7 @@ class TenantPayment(models.Model):
     """Pago de alquiler de un inquilino, con aprobación manual."""
 
     class Method(models.TextChoices):
+        YAPE = "yape", "Yape"
         BINANCE_PAY = "binance_pay", "Binance Pay"
 
     class Status(models.TextChoices):
@@ -1002,7 +1003,7 @@ class TenantPayment(models.Model):
     )
     method = models.CharField(
         "Método", max_length=24, choices=Method.choices,
-        default=Method.BINANCE_PAY,
+        default=Method.YAPE,
     )
     amount = models.DecimalField("Monto", max_digits=10, decimal_places=2, default=Decimal("0.00"))
     days = models.PositiveIntegerField("Días que otorga", default=30)
@@ -1049,13 +1050,20 @@ class SaasSettings(models.Model):
     monthly_price = models.DecimalField(
         "Precio mensual (S/)", max_digits=10, decimal_places=2, default=Decimal("30.00")
     )
-    yape_holder = models.CharField("Titular", max_length=120, blank=True)
-    yape_phone = models.CharField("Binance Pay ID / referencia", max_length=30, blank=True)
+    yape_holder = models.CharField("Titular Yape", max_length=120, blank=True)
+    yape_phone = models.CharField("Número Yape", max_length=30, blank=True)
     yape_qr = models.ImageField(
-        "QR de pago", upload_to="jheliz_control/yape/", blank=True,
-        help_text="QR de pago (Binance Pay) para cobrar el alquiler.",
+        "QR de Yape", upload_to="jheliz_control/yape/", blank=True,
+        help_text="QR de Yape para cobrar el alquiler.",
     )
-    instructions = models.TextField("Instrucciones extra", blank=True)
+    instructions = models.TextField("Instrucciones de Yape", blank=True)
+    binance_holder = models.CharField("Titular Binance", max_length=120, blank=True)
+    binance_pay_id = models.CharField("Binance Pay ID", max_length=30, blank=True)
+    binance_qr = models.ImageField(
+        "QR de Binance Pay", upload_to="jheliz_control/binance/", blank=True,
+        help_text="QR de Binance Pay para cobrar el alquiler.",
+    )
+    binance_instructions = models.TextField("Instrucciones de Binance Pay", blank=True)
 
     class Meta:
         verbose_name = "Ajustes del SaaS (Jheliz Control)"

@@ -48,14 +48,36 @@ FORM: Réplica visual directa de src/routes/suscripcion.tsx del proyecto Lovable
     <section class="lvsu-payment-grid">
       <article class="lvsu-card">
         <div class="lvsu-card-title">
+          <span><span class="material-symbols-outlined">account_balance_wallet</span></span>
+          <div><small class="lvsu-method-label">MÉTODO DE PAGO</small><h2>Yape</h2></div>
+        </div>
+        <div class="lvsu-qr-content">
+          {% if saas.yape_qr %}
+            <div class="lvsu-qr-frame"><img src="{{ saas.yape_qr.url }}" alt="Código QR de Yape" loading="lazy" decoding="async"></div>
+          {% else %}
+            <div class="lvsu-qr-frame lvsu-qr-empty"><span class="material-symbols-outlined">qr_code_2</span><small>QR pendiente</small></div>
+          {% endif %}
+          <div class="lvsu-amount"><span>Monto a pagar</span><strong>S/ {{ saas.monthly_price }}</strong><small>Pago mensual · PEN</small></div>
+          {% if saas.yape_holder or saas.yape_phone %}
+            <div class="lvsu-binance-details">
+              {% if saas.yape_holder %}<div><span>Titular</span><strong>{{ saas.yape_holder }}</strong></div>{% endif %}
+              {% if saas.yape_phone %}<div><span>Número Yape</span><strong>{{ saas.yape_phone }}</strong></div>{% endif %}
+            </div>
+          {% endif %}
+          {% if saas.instructions %}<p class="lvsu-binance-instructions">{{ saas.instructions|linebreaksbr }}</p>{% endif %}
+        </div>
+      </article>
+
+      <article class="lvsu-card">
+        <div class="lvsu-card-title">
           <span class="lvsu-binance-icon"><b>BNB</b></span>
           <div><small class="lvsu-method-label">MÉTODO DE PAGO</small><h2>Binance Pay</h2></div>
         </div>
         <div class="lvsu-binance-banner"><span class="material-symbols-outlined">verified</span><div><strong>Pago seguro con Binance Pay</strong><small>Escanea el QR desde la app de Binance</small></div></div>
         <div class="lvsu-qr-content">
-          {% if saas.yape_qr %}
+          {% if saas.binance_qr %}
             <div class="lvsu-qr-frame">
-              <img src="{{ saas.yape_qr.url }}" alt="Código QR para pagar la suscripción" loading="lazy" decoding="async">
+              <img src="{{ saas.binance_qr.url }}" alt="Código QR de Binance Pay" loading="lazy" decoding="async">
             </div>
           {% else %}
             <div class="lvsu-qr-frame lvsu-qr-empty" role="img" aria-label="Código QR pendiente">
@@ -68,13 +90,13 @@ FORM: Réplica visual directa de src/routes/suscripcion.tsx del proyecto Lovable
             <strong>S/ {{ saas.monthly_price }}</strong>
             <small>Pago mensual · PEN</small>
           </div>
-          {% if saas.yape_holder or saas.yape_phone %}
+          {% if saas.binance_holder or saas.binance_pay_id %}
             <div class="lvsu-binance-details">
-              {% if saas.yape_holder %}<div><span>Titular</span><strong>{{ saas.yape_holder }}</strong></div>{% endif %}
-              {% if saas.yape_phone %}<div><span>Binance Pay ID</span><strong>{{ saas.yape_phone }}</strong></div>{% endif %}
+              {% if saas.binance_holder %}<div><span>Titular</span><strong>{{ saas.binance_holder }}</strong></div>{% endif %}
+              {% if saas.binance_pay_id %}<div><span>Binance Pay ID</span><strong>{{ saas.binance_pay_id }}</strong></div>{% endif %}
             </div>
           {% endif %}
-          {% if saas.instructions %}<p class="lvsu-binance-instructions">{{ saas.instructions|linebreaksbr }}</p>{% endif %}
+          {% if saas.binance_instructions %}<p class="lvsu-binance-instructions">{{ saas.binance_instructions|linebreaksbr }}</p>{% endif %}
         </div>
       </article>
 
@@ -93,7 +115,11 @@ FORM: Réplica visual directa de src/routes/suscripcion.tsx del proyecto Lovable
         {% else %}
           <form method="post" action="{% url 'jheliztv_billing_upload' %}" enctype="multipart/form-data" class="lvsu-upload-form" id="lvsuUploadForm">
             {% csrf_token %}
-            <input type="hidden" name="payment_method" value="binance_pay">
+            <label class="lvsu-file-label">Método utilizado</label>
+            <div class="lvsu-payment-methods">
+              <label><input type="radio" name="payment_method" value="yape" checked><span>Yape</span></label>
+              <label><input type="radio" name="payment_method" value="binance_pay"><span>Binance Pay</span></label>
+            </div>
             <label for="lvsuProof" class="lvsu-file-label">Captura del pago</label>
             <label for="lvsuProof" class="lvsu-dropzone" tabindex="0">
               <span class="lvsu-file-icon"><span class="material-symbols-outlined">image</span></span>
