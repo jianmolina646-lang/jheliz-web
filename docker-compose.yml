@@ -74,8 +74,14 @@ services:
     env_file: .env
     environment:
       DATABASE_URL_FILE: /run/secrets/database_url
+    extra_hosts:
+      - "proton-bridge.internal:host-gateway"
     volumes:
       - ./secrets/database_url.txt:/run/secrets/database_url:ro
+    networks:
+      default: {}
+      netflix_imap:
+        gw_priority: 1
     depends_on:
       - web
     restart: unless-stopped
