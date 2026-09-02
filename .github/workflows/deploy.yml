@@ -104,14 +104,16 @@ jobs:
               exit 1
             fi
 
-            echo "→ Verificando bot de códigos Netflix y su base persistente..."
-            if ! $BOT_COMPOSE --profile bot up -d --build --no-deps --wait --wait-timeout 180 codes_bot; then
-              echo "✗ El bot Netflix no llegó a estado healthy."
-              $BOT_COMPOSE logs --tail=80 codes_bot || true
+            echo "→ Verificando bots Netflix/Disney y su base persistente..."
+            if ! $BOT_COMPOSE --profile bot up -d --build --no-deps --wait --wait-timeout 180 codes_bot disney_bot; then
+              echo "✗ Uno de los bots de códigos no llegó a estado healthy."
+              $BOT_COMPOSE logs --tail=80 codes_bot disney_bot || true
               exit 1
             fi
             $BOT_COMPOSE exec -T codes_bot python manage.py shell -c \
-              "from codes.models import AssignedEmail; from codes.imap_reader import health_check; count=AssignedEmail.objects.count(); checks=health_check(); assert count > 0, 'La base activa no contiene correos Netflix asignados'; assert checks and all(item.get('ok') for item in checks), 'Proton IMAP no responde'; print(f'✓ Bot Netflix protegido: {count} asignaciones e IMAP OK')"
+              "import requests; from django.conf import settings; from codes.models import AssignedEmail; from codes.imap_reader import health_check; count=AssignedEmail.objects.count(); checks=health_check(); telegram=requests.get('https://api.telegram.org/bot'+settings.TELEGRAM_CODES_BOT_TOKEN+'/getMe', timeout=15).json().get('ok'); assert count > 0, 'La base activa no contiene correos Netflix asignados'; assert checks and all(item.get('ok') for item in checks), 'Proton IMAP no responde para Netflix'; assert telegram, 'Token Telegram Netflix inválido'; print(f'✓ Bot Netflix protegido: {count} asignaciones, Telegram e IMAP OK')"
+            $BOT_COMPOSE exec -T disney_bot python manage.py shell -c \
+              "import requests; from django.conf import settings; from codes.models import DisneyAssignedEmail; from codes.imap_reader import health_check; count=DisneyAssignedEmail.objects.count(); checks=health_check(); telegram=requests.get('https://api.telegram.org/bot'+settings.TELEGRAM_DISNEY_BOT_TOKEN+'/getMe', timeout=15).json().get('ok'); assert count > 0, 'La base activa no contiene correos Disney asignados'; assert checks and all(item.get('ok') for item in checks), 'Proton IMAP no responde para Disney'; assert telegram, 'Token Telegram Disney inválido'; print(f'✓ Bot Disney protegido: {count} asignaciones, Telegram e IMAP OK')"
 
             echo "→ Smoke test público..."
             if ! curl -fsS -o /dev/null --max-time 10 http://localhost:8000/; then
