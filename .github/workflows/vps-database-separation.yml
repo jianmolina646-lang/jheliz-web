@@ -133,8 +133,6 @@ jobs:
               ACTIVE_DB="$($COMPOSE exec -T web python manage.py shell -c "from django.db import connection; print(connection.settings_dict['NAME'])" | tail -1)"
               test "$ACTIVE_DB" = "$NEW_DB"
               curl -fsS -o /dev/null --max-time 15 -H 'Host: jheliztv.xyz' http://127.0.0.1:8000/
-              $COMPOSE stop codes_bot 2>/dev/null || true
-              $COMPOSE rm -f codes_bot 2>/dev/null || true
               echo "ACTIVE_DB=$ACTIVE_DB"
               echo "SWITCH_OK"
 
