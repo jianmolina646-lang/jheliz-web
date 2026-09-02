@@ -93,6 +93,15 @@ jobs:
               exit 1
             fi
 
+            echo "→ Verificando bot de códigos Netflix y su base persistente..."
+            if ! $COMPOSE --profile bot up -d --build --no-deps --wait --wait-timeout 180 codes_bot; then
+              echo "✗ El bot Netflix no llegó a estado healthy."
+              $COMPOSE logs --tail=80 codes_bot || true
+              exit 1
+            fi
+            $COMPOSE exec -T codes_bot python manage.py shell -c \
+              "from codes.models import AssignedEmail; from codes.imap_reader import health_check; count=AssignedEmail.objects.count(); checks=health_check(); assert count > 0, 'La base activa no contiene correos Netflix asignados'; assert checks and all(item.get('ok') for item in checks), 'Proton IMAP no responde'; print(f'✓ Bot Netflix protegido: {count} asignaciones e IMAP OK')"
+
             echo "→ Smoke test público..."
             if ! curl -fsS -o /dev/null --max-time 10 http://localhost:8000/; then
               echo "✗ Smoke test falló."
