@@ -892,13 +892,9 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
     if isinstance(progress, dict):
         progress_id = (progress.get("result") or {}).get("message_id")
     if progress_id is not None:
-        result = edit_message(chat_id, progress_id, result_text)
-        _schedule_sensitive_deletion(
-            chat_id, send_result=result, message_id=progress_id
-        )
+        edit_message(chat_id, progress_id, result_text)
     else:
-        result = send_message(chat_id, result_text)
-        _schedule_sensitive_deletion(chat_id, send_result=result)
+        send_message(chat_id, result_text)
 
 
 # ---------- Handlers ----------
@@ -1042,20 +1038,9 @@ def _handle_callback(update: dict) -> None:
                 client, emails[idx], kind=kind, wait_seconds=10
             )
             if message_id is not None:
-                edit_result = edit_message(chat_id, message_id, result_text)
-                _schedule_sensitive_deletion(
-                    chat_id,
-                    send_result=edit_result,
-                    message_id=(
-                        None
-                        if isinstance(edit_result, dict)
-                        and (edit_result.get("result") or {}).get("message_id")
-                        else message_id
-                    ),
-                )
+                edit_message(chat_id, message_id, result_text)
             else:
-                result = send_message(chat_id, result_text)
-                _schedule_sensitive_deletion(chat_id, send_result=result)
+                send_message(chat_id, result_text)
         return
     if data == "back:emails":
         if cq_id:
@@ -1112,20 +1097,9 @@ def _handle_callback(update: dict) -> None:
                 wait_seconds=10,
             )
             if message_id is not None:
-                edit_result = edit_message(chat_id, message_id, result_text)
-                _schedule_sensitive_deletion(
-                    chat_id,
-                    send_result=edit_result,
-                    message_id=(
-                        None
-                        if isinstance(edit_result, dict)
-                        and (edit_result.get("result") or {}).get("message_id")
-                        else message_id
-                    ),
-                )
+                edit_message(chat_id, message_id, result_text)
             else:
-                result = send_message(chat_id, result_text)
-                _schedule_sensitive_deletion(chat_id, send_result=result)
+                send_message(chat_id, result_text)
         return
     if data.startswith("pick:"):
         # pick:<idx> -> mostrar las 4 opciones de tipo para ese correo.

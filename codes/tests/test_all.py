@@ -658,9 +658,7 @@ class CmdCodeTests(TestCase):
             self.client_obj, "solo@gmail.com", kind="signin_code", wait_seconds=10
         )
         medit.assert_called_once_with("555", 88, "CODIGO LISTO")
-        mschedule.assert_called_once_with(
-            "555", send_result=medit.return_value, message_id=88
-        )
+        mschedule.assert_not_called()
 
 
 class DeliverKindTests(TestCase):
@@ -1284,11 +1282,7 @@ class TvEmailLinkCommandTests(TestCase):
             wait_seconds=10,
         )
         self.assertEqual(medit.call_args.args[2], "ENLACE")
-        mschedule.assert_called_once_with(
-            780,
-            send_result=medit.return_value,
-            message_id=77,
-        )
+        mschedule.assert_not_called()
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email")
