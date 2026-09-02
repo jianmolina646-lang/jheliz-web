@@ -84,6 +84,14 @@ jobs:
             # es crítico: de él dependen los nombres de los contenedores y,
             # especialmente, el volumen persistente de PostgreSQL.
             COMPOSE="docker compose -p jheliz -f docker-compose.yml -f docker-compose.control-alerts.yml -f docker-compose.jheliztv.yml"
+            # Producción mantiene tokens, credenciales IMAP y compatibilidad
+            # histórica en overrides locales no versionados. Omitirlos al
+            # recrear codes_bot lo deja arrancado pero sin Telegram/Proton.
+            for override in docker-compose.secrets.yml /srv/jheliz/docker-compose.yml; do
+              if [ -f "$override" ]; then
+                COMPOSE="$COMPOSE -f $override"
+              fi
+            done
             $COMPOSE pull || true
             if ! $COMPOSE up -d --build --wait --wait-timeout 240; then
               echo "✗ Deploy abortado: web no llegó a estado healthy."
