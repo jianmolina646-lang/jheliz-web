@@ -606,7 +606,7 @@ class CmdCodeTests(TestCase):
     def test_single_email_fallback_when_no_arg(self, mdeliver, _msend):
         bot._cmd_code(self.client_obj, "signin_code", "")
         mdeliver.assert_called_once_with(
-            self.client_obj, "solo@gmail.com", kind="signin_code"
+            self.client_obj, "solo@gmail.com", kind="signin_code", wait_seconds=10
         )
 
     @mock.patch("codes.bot.send_message")
@@ -614,7 +614,7 @@ class CmdCodeTests(TestCase):
     def test_explicit_email_arg_is_used(self, mdeliver, _msend):
         bot._cmd_code(self.client_obj, "household", "Solo@Gmail.com")
         mdeliver.assert_called_once_with(
-            self.client_obj, "solo@gmail.com", kind="household"
+            self.client_obj, "solo@gmail.com", kind="household", wait_seconds=10
         )
 
     @mock.patch("codes.bot.send_message")
@@ -630,7 +630,7 @@ class CmdCodeTests(TestCase):
             }
         )
         mdeliver.assert_called_once_with(
-            self.client_obj, "solo@gmail.com", kind="signin_code"
+            self.client_obj, "solo@gmail.com", kind="signin_code", wait_seconds=10
         )
 
     @mock.patch("codes.bot._deliver_code", return_value="OK")
@@ -641,6 +641,26 @@ class CmdCodeTests(TestCase):
         mdeliver.assert_not_called()
         _args, kwargs = msend.call_args
         self.assertTrue(kwargs.get("buttons"))
+
+    @mock.patch("codes.bot._schedule_sensitive_deletion")
+    @mock.patch("codes.bot.edit_message")
+    @mock.patch("codes.bot._deliver_code", return_value="CODIGO LISTO")
+    @mock.patch("codes.bot.send_message")
+    def test_direct_command_shows_searching_then_edits_result(
+        self, msend, mdeliver, medit, mschedule
+    ):
+        msend.return_value = {"ok": True, "result": {"message_id": 88}}
+
+        bot._cmd_code(self.client_obj, "signin_code", "solo@gmail.com")
+
+        self.assertIn("Buscando tu código", msend.call_args.args[1])
+        mdeliver.assert_called_once_with(
+            self.client_obj, "solo@gmail.com", kind="signin_code", wait_seconds=10
+        )
+        medit.assert_called_once_with("555", 88, "CODIGO LISTO")
+        mschedule.assert_called_once_with(
+            "555", send_result=medit.return_value, message_id=88
+        )
 
 
 class DeliverKindTests(TestCase):
@@ -846,6 +866,42 @@ class DeliverCodeTests(TestCase):
             msg = bot._deliver_code(self.client_obj, "mine@gmail.com")
         self.assertIn("Abrir en Netflix", msg)
         self.assertIn("netflix.com", msg)
+
+    @mock.patch("codes.bot.time.sleep")
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email")
+    def test_waits_for_delayed_email_up_to_ten_seconds(self, mfetch, _cfg, msleep):
+        mfetch.side_effect = [
+            None,
+            NetflixResult(kind="signin_code", code="2468"),
+        ]
+
+        msg = bot._deliver_code(
+            self.client_obj,
+            "mine@gmail.com",
+            kind="signin_code",
+            wait_seconds=10,
+        )
+
+        self.assertIn("2468", msg)
+        self.assertEqual(mfetch.call_count, 2)
+        msleep.assert_called_once_with(2)
+
+    @mock.patch("codes.bot.time.sleep")
+    @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
+    @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
+    def test_stops_polling_after_ten_seconds(self, mfetch, _cfg, msleep):
+        msg = bot._deliver_code(
+            self.client_obj,
+            "mine@gmail.com",
+            kind="signin_code",
+            wait_seconds=10,
+        )
+
+        self.assertIn("No encontré", msg)
+        self.assertEqual(mfetch.call_count, 6)
+        self.assertEqual(msleep.call_count, 5)
+        self.assertEqual(sum(call.args[0] for call in msleep.call_args_list), 10)
 
 
 @override_settings(
@@ -1225,6 +1281,7 @@ class TvEmailLinkCommandTests(TestCase):
             self.client_obj,
             "cliente@gmail.com",
             kind="passwordless_signin",
+            wait_seconds=10,
         )
         self.assertEqual(medit.call_args.args[2], "ENLACE")
         mschedule.assert_called_once_with(

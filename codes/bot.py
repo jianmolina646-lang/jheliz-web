@@ -703,7 +703,13 @@ def _on_cooldown(client: CodeBotClient) -> bool:
     return False
 
 
-def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) -> str:
+def _deliver_code(
+    client: CodeBotClient,
+    email: str,
+    kind: str | None = None,
+    *,
+    wait_seconds: int = 0,
+) -> str:
     email = _normalize_email_arg(email)
     if not _has_access(client):
         return _expired_message()
@@ -751,21 +757,32 @@ def _deliver_code(client: CodeBotClient, email: str, kind: str | None = None) ->
         )
 
     result = None
-    for attempt in range(2):
-        try:
-            lookup_kind = (
-                ("passwordless_signin", "tv_signin")
-                if kind == "passwordless_signin"
-                else kind
-            )
-            result = imap_reader.fetch_latest_for_email(email, kind=lookup_kind)
+    wait_seconds = max(0, int(wait_seconds or 0))
+    poll_seconds = 2
+    poll_count = 1 + ((wait_seconds + poll_seconds - 1) // poll_seconds)
+    lookup_kind = (
+        ("passwordless_signin", "tv_signin")
+        if kind == "passwordless_signin"
+        else kind
+    )
+    for poll_attempt in range(poll_count):
+        for attempt in range(2):
+            try:
+                result = imap_reader.fetch_latest_for_email(email, kind=lookup_kind)
+                break
+            except Exception:
+                logger.exception(
+                    "Fallo leyendo IMAP para %s (intento %d)", email, attempt + 1
+                )
+                if attempt == 0:
+                    time.sleep(_RETRY_SLEEP)
+                    continue
+                return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
+        if result is not None and result.has_payload:
             break
-        except Exception:
-            logger.exception("Fallo leyendo IMAP para %s (intento %d)", email, attempt + 1)
-            if attempt == 0:
-                time.sleep(_RETRY_SLEEP)
-                continue
-            return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
+        if poll_attempt < poll_count - 1:
+            elapsed = poll_attempt * poll_seconds
+            time.sleep(min(poll_seconds, max(0, wait_seconds - elapsed)))
 
     if result is None or not result.has_payload:
         CodeDelivery.objects.create(
@@ -865,8 +882,23 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
             )
             return
 
-    result = send_message(chat_id, _deliver_code(client, arg, kind=kind))
-    _schedule_sensitive_deletion(chat_id, send_result=result)
+    progress = send_message(
+        chat_id,
+        "⏳ <b>Buscando tu código…</b>\n"
+        "Revisando Proton durante unos segundos.",
+    )
+    result_text = _deliver_code(client, arg, kind=kind, wait_seconds=10)
+    progress_id = None
+    if isinstance(progress, dict):
+        progress_id = (progress.get("result") or {}).get("message_id")
+    if progress_id is not None:
+        result = edit_message(chat_id, progress_id, result_text)
+        _schedule_sensitive_deletion(
+            chat_id, send_result=result, message_id=progress_id
+        )
+    else:
+        result = send_message(chat_id, result_text)
+        _schedule_sensitive_deletion(chat_id, send_result=result)
 
 
 # ---------- Handlers ----------
@@ -1006,7 +1038,9 @@ def _handle_callback(update: dict) -> None:
                     message_id,
                     "⏳ <b>Buscando el correo más reciente…</b>",
                 )
-            result_text = _deliver_code(client, emails[idx], kind=kind)
+            result_text = _deliver_code(
+                client, emails[idx], kind=kind, wait_seconds=10
+            )
             if message_id is not None:
                 edit_result = edit_message(chat_id, message_id, result_text)
                 _schedule_sensitive_deletion(
@@ -1075,6 +1109,7 @@ def _handle_callback(update: dict) -> None:
                 client,
                 emails[idx],
                 kind="passwordless_signin",
+                wait_seconds=10,
             )
             if message_id is not None:
                 edit_result = edit_message(chat_id, message_id, result_text)
