@@ -85,15 +85,26 @@
   </div>
 </section>
 
-<div class="jc-modal" id="supportLinks" aria-hidden="true">
+<div class="jc-modal lvs-links-modal" id="supportLinks" aria-hidden="true">
   <div class="jc-modal__backdrop" data-jc-close></div>
-  <div class="jc-modal__box jc-support-links" role="dialog" aria-modal="true" aria-labelledby="supportLinksTitle">
-    <div class="jc-modal__head"><h3 id="supportLinksTitle">Enlaces privados de soporte</h3><button type="button" class="jc-modal__close" data-jc-close aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button></div>
+  <div class="jc-modal__box jc-support-links" role="dialog" aria-modal="true" aria-labelledby="supportLinksTitle" aria-describedby="supportLinksDescription">
+    <span class="lvs-links-modal__orb lvs-links-modal__orb--one" aria-hidden="true"></span>
+    <span class="lvs-links-modal__orb lvs-links-modal__orb--two" aria-hidden="true"></span>
+    <div class="jc-modal__head">
+      <div class="lvs-links-modal__heading"><span class="lvs-links-modal__icon material-symbols-outlined" aria-hidden="true">link</span><div><h3 id="supportLinksTitle">Enlaces privados de soporte</h3><p>Accesos personales y seguros</p></div></div>
+      <button type="button" class="jc-modal__close" data-jc-close aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
+    </div>
     <div class="jc-modal__body">
-      <p class="jc-support-links-help">Comparte con cada cliente únicamente su propio enlace.</p>
+      <p class="jc-support-links-help" id="supportLinksDescription"><span class="material-symbols-outlined" aria-hidden="true">shield_lock</span>Comparte con cada cliente únicamente su propio enlace.</p>
+      <div class="lvs-links-modal__list">
       {% for contact in support_contacts %}
-        <div class="jc-support-link-row"><span><strong>{{ contact.client.name }}</strong><small>{% if contact.linked %}Telegram conectado{% else %}Pendiente de conectar{% endif %}</small></span><input id="supportLink{{ forloop.counter }}" value="{{ contact.link }}" readonly aria-label="Enlace de soporte de {{ contact.client.name }}"><button type="button" data-copy-target="supportLink{{ forloop.counter }}" aria-label="Copiar enlace de {{ contact.client.name }}"><span class="material-symbols-outlined">content_copy</span></button></div>
+        <div class="jc-support-link-row" style="--link-index:{{ forloop.counter0 }}">
+          <span class="lvs-links-modal__person"><i aria-hidden="true">{{ contact.client.name|first|upper }}</i><span><strong>{{ contact.client.name }}</strong><small class="{% if contact.linked %}is-linked{% endif %}"><b aria-hidden="true"></b>{% if contact.linked %}Telegram conectado{% else %}Pendiente de conectar{% endif %}</small></span></span>
+          <div class="lvs-links-modal__url"><span class="material-symbols-outlined" aria-hidden="true">lock</span><input id="supportLink{{ forloop.counter }}" value="{{ contact.link }}" readonly aria-label="Enlace de soporte de {{ contact.client.name }}"></div>
+          <button type="button" data-copy-target="supportLink{{ forloop.counter }}" aria-label="Copiar enlace de {{ contact.client.name }}"><span class="material-symbols-outlined">content_copy</span><b>Copiar</b></button>
+        </div>
       {% empty %}<p>Primero agrega un cliente.</p>{% endfor %}
+      </div>
     </div><p class="jc-sr-only" id="copyStatus" role="status" aria-live="polite"></p>
   </div>
 </div>
@@ -103,8 +114,11 @@ document.addEventListener("click", async function (event) {
   if (!button) return;
   const input = document.getElementById(button.dataset.copyTarget);
   const status = document.getElementById("copyStatus");
-  try { await navigator.clipboard.writeText(input.value); button.classList.add("is-copied"); if (status) status.textContent = "Enlace copiado"; setTimeout(() => button.classList.remove("is-copied"), 1200); }
-  catch (_) { try { input.select(); document.execCommand("copy"); if (status) status.textContent = "Enlace copiado"; } catch (error) { if (status) status.textContent = "No se pudo copiar. Mantén presionado el enlace para copiarlo."; } }
+  const icon = button.querySelector(".material-symbols-outlined");
+  const label = button.querySelector("b");
+  const showCopied = () => { button.classList.add("is-copied"); if (icon) icon.textContent = "check"; if (label) label.textContent = "Copiado"; if (status) status.textContent = "Enlace copiado"; setTimeout(() => { button.classList.remove("is-copied"); if (icon) icon.textContent = "content_copy"; if (label) label.textContent = "Copiar"; }, 1400); };
+  try { await navigator.clipboard.writeText(input.value); showCopied(); }
+  catch (_) { try { input.select(); document.execCommand("copy"); showCopied(); } catch (error) { if (status) status.textContent = "No se pudo copiar. Mantén presionado el enlace para copiarlo."; } }
 });
 const stream = document.querySelector("[data-message-stream]");
 if (stream) requestAnimationFrame(() => { stream.scrollTop = stream.scrollHeight; });
