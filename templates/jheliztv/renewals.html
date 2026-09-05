@@ -116,32 +116,47 @@
   </div>
 </section>
 
-<div class="jc-modal" id="paymentMethod" aria-hidden="true">
+<div class="jc-modal lvr-payment-modal" id="paymentMethod" aria-hidden="true">
   <div class="jc-modal__backdrop" data-jc-close></div>
-  <div class="jc-modal__box">
+  <div class="jc-modal__box" role="dialog" aria-modal="true" aria-labelledby="paymentMethodTitle" aria-describedby="paymentMethodDescription">
+    <span class="lvr-payment-modal__orb lvr-payment-modal__orb--one" aria-hidden="true"></span>
+    <span class="lvr-payment-modal__orb lvr-payment-modal__orb--two" aria-hidden="true"></span>
     <form method="post" enctype="multipart/form-data" action="{% url 'jheliztv_payment_method_add' %}">
       {% csrf_token %}
       <div class="jc-modal__head">
-        <h3>Agregar método de pago</h3>
-        <button type="button" class="jc-modal__close" data-jc-close><span class="material-symbols-outlined">close</span></button>
+        <div class="lvr-payment-modal__heading">
+          <span class="lvr-payment-modal__icon material-symbols-outlined" aria-hidden="true">account_balance_wallet</span>
+          <div>
+            <h3 id="paymentMethodTitle">Agregar método de pago</h3>
+            <p id="paymentMethodDescription">Configura cómo podrán pagarte tus clientes.</p>
+          </div>
+        </div>
+        <button type="button" class="jc-modal__close" data-jc-close aria-label="Cerrar"><span class="material-symbols-outlined">close</span></button>
       </div>
       <div class="jc-modal__body">
         <div class="jc-grid2">
           <div class="jc-field">
-            <label>Tipo</label>
-            <select name="kind">
+            <label for="paymentMethodKind">Tipo</label>
+            <select id="paymentMethodKind" name="kind">
               <option value="yape">Yape</option><option value="plin">Plin</option><option value="bank">Transferencia bancaria</option><option value="usdt">USDT</option><option value="paypal">PayPal</option><option value="zelle">Zelle</option><option value="mercadopago">Mercado Pago</option><option value="other">Otro</option>
             </select>
           </div>
-          <div class="jc-field"><label>Nombre visible</label><input name="label" required placeholder="Ej. Yape principal"></div>
+          <div class="jc-field"><label for="paymentMethodLabel">Nombre visible</label><input id="paymentMethodLabel" name="label" required placeholder="Ej. Yape principal"></div>
         </div>
-        <div class="jc-field"><label>Titular</label><input name="holder"></div>
-        <div class="jc-field"><label>Número, cuenta o instrucciones</label><textarea name="details" rows="4" required></textarea></div>
-        <div class="jc-field"><label>QR opcional</label><input type="file" name="qr_image" accept="image/*"></div>
+        <div class="jc-field"><label for="paymentMethodHolder">Titular</label><input id="paymentMethodHolder" name="holder" placeholder="Nombre del titular"></div>
+        <div class="jc-field"><label for="paymentMethodDetails">Número, cuenta o instrucciones</label><textarea id="paymentMethodDetails" name="details" rows="4" required placeholder="Escribe el número de cuenta y las indicaciones de pago"></textarea></div>
+        <div class="jc-field lvr-payment-modal__upload">
+          <label for="paymentMethodQr">Código QR <span>opcional</span></label>
+          <div class="lvr-payment-modal__file">
+            <span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>
+            <div><strong>Sube tu QR de pago</strong><small>PNG, JPG o WEBP</small></div>
+            <input id="paymentMethodQr" type="file" name="qr_image" accept="image/*">
+          </div>
+        </div>
       </div>
       <div class="jc-modal__foot">
         <button type="button" class="jc-btn jc-btn--ghost" data-jc-close>Cancelar</button>
-        <button class="jc-btn" type="submit">Guardar</button>
+        <button class="jc-btn lvr-payment-modal__save" type="submit"><span class="material-symbols-outlined" aria-hidden="true">check</span>Guardar método</button>
       </div>
     </form>
   </div>
