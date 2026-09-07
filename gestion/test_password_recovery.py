@@ -1,3 +1,4 @@
+from gestion.testing import force_owner_login
 from datetime import timedelta
 from unittest.mock import patch
 from urllib.parse import urlsplit
@@ -101,7 +102,7 @@ class TenantPasswordRecoveryTests(TestCase):
         owner = get_user_model().objects.create_superuser(
             username="control-owner", password="owner-safe-password-123"
         )
-        self.client.force_login(owner)
+        force_owner_login(self.client, owner)
         with self.settings(ROOT_URLCONF="config.urls_jheliztv"):
             response = self.client.post(
                 reverse("jheliztv_control_password_recovery"),

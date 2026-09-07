@@ -15,6 +15,7 @@ from decimal import Decimal
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.db.models.functions import Lower
 from django.utils import timezone
@@ -71,7 +72,47 @@ class ServiceCategory(models.Model):
         return self.name
 
 
-class Service(models.Model):
+class TenantOwnedModel(models.Model):
+    """Invariantes compartidas por web, bot y edición administrativa.
+
+    Las escrituras masivas del ORM no ejecutan save/clean: solo deben usarse
+    en migraciones o tareas auditadas, nunca con relaciones recibidas del cliente.
+    """
+    owner_relations = ()
+    subscription_matches_client = False
+
+    class Meta:
+        abstract = True
+
+    def validate_ownership(self, using=None):
+        database = using or self._state.db or "default"
+        if self.pk and not self._state.adding:
+            previous = type(self).objects.using(database).filter(pk=self.pk).values_list("owner_id", flat=True).first()
+            if previous is not None and previous != self.owner_id:
+                raise ValidationError({"owner": "No se puede transferir este registro a otro revendedor."})
+        for name in self.owner_relations:
+            related_id = getattr(self, name + "_id")
+            if related_id is None:
+                continue
+            model = self._meta.get_field(name).remote_field.model
+            related = model.objects.using(database).filter(pk=related_id)
+            if not related.filter(owner_id=self.owner_id).exists():
+                raise ValidationError({name: "El registro debe pertenecer al mismo revendedor."})
+            if name == "subscription" and self.subscription_matches_client and self.client_id is not None and not related.filter(client_id=self.client_id).exists():
+                raise ValidationError({name: "La suscripción debe pertenecer a este cliente."})
+
+    def clean(self):
+        super().clean()
+        # Los ModelForms de creación reciben owner del servidor tras validarse.
+        if self.owner_id is not None or not self._state.adding:
+            self.validate_ownership()
+
+    def save(self, *args, **kwargs):
+        self.validate_ownership(kwargs.get("using"))
+        return super().save(*args, **kwargs)
+
+
+class Service(TenantOwnedModel):
     """Un servicio que el revendedor ofrece (Netflix, Disney+, Spotify, Canva…)."""
 
     owner = models.ForeignKey(
@@ -125,7 +166,7 @@ class Service(models.Model):
         return self.subscriptions.filter(is_archived=False)
 
 
-class Client(models.Model):
+class Client(TenantOwnedModel):
     """Un cliente del revendedor (a quién le vende las suscripciones)."""
 
     owner = models.ForeignKey(
@@ -184,8 +225,9 @@ class Client(models.Model):
         return self.subscriptions.filter(is_archived=False)
 
 
-class Subscription(models.Model):
+class Subscription(TenantOwnedModel):
     """Una suscripción vendida a un cliente para un servicio puntual."""
+    owner_relations = ("client", "service")
 
     class Plan(models.TextChoices):
         COMPLETA = "completa", "Cuenta completa"
@@ -320,13 +362,15 @@ class Subscription(models.Model):
         self.save(update_fields=["expires_at", "updated_at"])
 
 
-class StockEmail(models.Model):
+class StockEmail(TenantOwnedModel):
     """Correo de una cuenta en stock (Netflix, Prime…) con su disponibilidad.
 
     Inventario simple por plataforma: el revendedor carga los correos que
     tiene de cada servicio y marca cuáles siguen disponibles para vender y
     cuáles ya están vendidos/ocupados.
     """
+
+    owner_relations = ("service",)
 
     class Status(models.TextChoices):
         AVAILABLE = "available", "Disponible"
@@ -412,8 +456,10 @@ class StockEmail(models.Model):
         raise IntegrityError("No se pudo asignar un número único al correo.")
 
 
-class Transaction(models.Model):
+class Transaction(TenantOwnedModel):
     """Movimiento del libro de caja: ingreso (verde) o egreso (rojo)."""
+    owner_relations = ("client", "subscription")
+    subscription_matches_client = True
 
     class Kind(models.TextChoices):
         INCOME = "income", "Ingreso"
@@ -676,8 +722,9 @@ class TelegramActionReceipt(models.Model):
         ]
 
 
-class SupportContact(models.Model):
+class SupportContact(TenantOwnedModel):
     """Enlace privado que conecta un cliente final con el soporte de su revendedor."""
+    owner_relations = ("client",)
 
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
@@ -697,7 +744,9 @@ class SupportContact(models.Model):
         verbose_name_plural = "Contactos de soporte"
 
 
-class SupportTicket(models.Model):
+class SupportTicket(TenantOwnedModel):
+    owner_relations = ("client", "subscription")
+    subscription_matches_client = True
     class Status(models.TextChoices):
         NEW = "new", "Nuevo"
         OPEN = "open", "En atención"
@@ -781,7 +830,7 @@ class SupportCustomerSession(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
-class ResellerPaymentMethod(models.Model):
+class ResellerPaymentMethod(TenantOwnedModel):
     class Kind(models.TextChoices):
         YAPE = "yape", "Yape"
         PLIN = "plin", "Plin"
@@ -809,7 +858,8 @@ class ResellerPaymentMethod(models.Model):
         ordering = ["order", "label"]
 
 
-class RenewalRequest(models.Model):
+class RenewalRequest(TenantOwnedModel):
+    owner_relations = ("subscription", "payment_method")
     class Status(models.TextChoices):
         INVITED = "invited", "Enlace enviado"
         DECLINED = "declined", "No renovará"

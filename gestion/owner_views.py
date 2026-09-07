@@ -47,8 +47,30 @@ from .models import (
 User = get_user_model()
 
 
-def owner_required(view):
+def _owner_otp_verified(request):
+    from django_otp.models import Device
+    if request.session.get("jheliz_control_otp_user") != request.user.pk:
+        return False
+    device_id = request.session.get("jheliz_control_otp_device", "")
+    if not device_id:
+        return False
+    try:
+        device = Device.from_persistent_id(device_id)
+    except (ValueError, LookupError):
+        return False
+    return bool(device and device.confirmed and device.user_id == request.user.pk)
+
+
+def _mark_owner_otp(request, device):
+    request.session["jheliz_control_otp_verified"] = True
+    request.session["jheliz_control_otp_user"] = device.user_id
+    request.session["jheliz_control_otp_device"] = device.persistent_id
+
+
+def owner_required(view=None, *, allow_setup=False):
     """Exige el permiso global explícito del dueño de la plataforma."""
+    if view is None:
+        return lambda decorated: owner_required(decorated, allow_setup=allow_setup)
 
     @wraps(view)
     def _wrapped(request, *args, **kwargs):
@@ -58,9 +80,12 @@ def owner_required(view):
         ):
             return redirect("jheliztv_control_login")
         from django_otp.plugins.otp_totp.models import TOTPDevice
-        if TOTPDevice.objects.filter(
+        enrolled = TOTPDevice.objects.filter(
             user=request.user, confirmed=True
-        ).exists() and not request.session.get("jheliz_control_otp_verified"):
+        ).exists()
+        if not enrolled and not allow_setup:
+            return redirect("jheliztv_control_2fa_setup")
+        if enrolled and not _owner_otp_verified(request):
             request.session["jheliz_control_otp_pending_user"] = request.user.pk
             return redirect("jheliztv_control_2fa_verify")
         return view(request, *args, **kwargs)
@@ -84,7 +109,7 @@ def control_login(request):
             request.session["jheliz_control_otp_backend"] = "django.contrib.auth.backends.ModelBackend"
             return redirect("jheliztv_control_2fa_verify")
         login(request, user)
-        return redirect("jheliztv_control_dashboard")
+        return redirect("jheliztv_control_2fa_setup")
     return render(request, "jheliztv/control/login.html", {})
 
 
@@ -438,6 +463,7 @@ def control_tenant_password_reset_link(request, pk):
     return response
 
 
+@transaction.atomic
 def control_2fa_verify(request):
     uid = request.session.get("jheliz_control_otp_pending_user")
     if not uid:
@@ -449,34 +475,45 @@ def control_2fa_verify(request):
         token = (request.POST.get("token") or "").strip()
         from django_otp.plugins.otp_totp.models import TOTPDevice
         from django_otp.plugins.otp_static.models import StaticDevice
-        valid = any(
-            device.verify_token(token)
-            for device in TOTPDevice.objects.filter(user=user, confirmed=True)
-        )
-        if not valid:
-            valid = any(d.verify_token(token) for d in StaticDevice.objects.filter(user=user, confirmed=True))
-        if valid:
+        verified_device = None
+        for model in (TOTPDevice, StaticDevice):
+            for device in model.objects.select_for_update().filter(user=user, confirmed=True).order_by("pk"):
+                if device.verify_token(token):
+                    verified_device = device
+                    break
+            if verified_device:
+                break
+        if verified_device:
             login(request, user, backend=request.session.pop("jheliz_control_otp_backend", "django.contrib.auth.backends.ModelBackend"))
             request.session.pop("jheliz_control_otp_pending_user", None)
-            request.session["jheliz_control_otp_verified"] = True
+            _mark_owner_otp(request, verified_device)
             return redirect("jheliztv_control_dashboard")
         messages.error(request, "Código 2FA incorrecto o vencido.")
     return render(request, "jheliztv/control/2fa_verify.html")
 
 
-@owner_required
+@owner_required(allow_setup=True)
+@transaction.atomic
 def control_2fa_setup(request):
     from django_otp.plugins.otp_totp.models import TOTPDevice
     user=request.user
-    confirmed=TOTPDevice.objects.filter(user=user, name="Jheliz Control", confirmed=True).first()
-    pending=TOTPDevice.objects.filter(user=user, confirmed=False).order_by("-id").first()
+    # Serializa el alta sin borrar dispositivos existentes, incluso de otro panel.
+    User.objects.select_for_update().get(pk=user.pk)
+    confirmed=TOTPDevice.objects.filter(user=user, confirmed=True).first()
+    if confirmed:
+        response = render(request, "jheliztv/control/2fa_setup.html", {"confirmed": confirmed})
+        response["Cache-Control"] = "no-store, private"
+        return response
+    pending=TOTPDevice.objects.filter(user=user, name="Jheliz Control", confirmed=False).order_by("-id").first()
     if request.method == "POST" and request.POST.get("action") == "create":
-        TOTPDevice.objects.filter(user=user, confirmed=False).delete()
-        TOTPDevice.objects.create(user=user, name="Jheliz Control", confirmed=False)
+        if not pending:
+            TOTPDevice.objects.create(user=user, name="Jheliz Control", confirmed=False)
         return redirect("jheliztv_control_2fa_setup")
     if request.method == "POST" and request.POST.get("action") == "verify" and pending:
         if pending.verify_token((request.POST.get("token") or "").strip()):
-            pending.confirmed=True; pending.save(update_fields=["confirmed"]); request.session["jheliz_control_otp_verified"]=True
+            pending.confirmed=True
+            pending.save(update_fields=["confirmed"])
+            _mark_owner_otp(request, pending)
             messages.success(request,"2FA activado correctamente para Jheliz Control.")
             return redirect("jheliztv_control_dashboard")
         messages.error(request,"El código no coincide.")
@@ -485,4 +522,7 @@ def control_2fa_setup(request):
         uri=pending.config_url
         from urllib.parse import parse_qs, urlparse
         secret=(parse_qs(urlparse(uri).query).get("secret") or [None])[0]
-    return render(request,"jheliztv/control/2fa_setup.html",{"confirmed":confirmed,"pending":pending,"secret":secret,"uri":uri})
+    response = render(request,"jheliztv/control/2fa_setup.html",{"confirmed":confirmed,"pending":pending,"secret":secret,"uri":uri})
+    response["Cache-Control"] = "no-store, private"
+    response["Referrer-Policy"] = "no-referrer"
+    return response
