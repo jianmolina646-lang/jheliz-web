@@ -525,6 +525,8 @@ def subscriptions_for_connection(connection):
 
 @transaction.atomic
 def link_chat(raw_token, chat):
+    if chat.get("type") != "private":
+        return False
     digest = hashlib.sha256(raw_token.encode()).hexdigest()
     connection = (
         TelegramConnection.objects.select_for_update()
@@ -1735,6 +1737,14 @@ def _handle_callback(connection, callback):
 
 
 def process_update(update):
+    # La cuenta web se vincula a una persona, nunca a todos los miembros de un grupo.
+    event = update.get("callback_query") or update.get("message") or {}
+    event_message = event.get("message", {}) if update.get("callback_query") else event
+    private_chat = event_message.get("chat") or {}
+    if private_chat.get("type") != "private":
+        return
+    if str((event.get("from") or {}).get("id", "")) != str(private_chat.get("id", "")):
+        return
     callback = update.get("callback_query")
     if callback:
         chat = (callback.get("message") or {}).get("chat") or {}

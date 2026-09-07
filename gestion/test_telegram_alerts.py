@@ -75,11 +75,11 @@ class TelegramAlertTests(TestCase):
             link_token_digest=hashlib.sha256(raw.encode()).hexdigest(),
             link_expires_at=timezone.now() + timedelta(minutes=10),
         )
-        self.assertTrue(link_chat(raw, {"id": 123, "username": "revendedor"}))
+        self.assertTrue(link_chat(raw, {"id": 123, "type": "private", "username": "revendedor"}))
         connection.refresh_from_db()
         self.assertEqual(connection.chat_id, "123")
         self.assertEqual(connection.link_token_digest, "")
-        self.assertFalse(link_chat(raw, {"id": 999}))
+        self.assertFalse(link_chat(raw, {"id": 999, "type": "private"}))
 
     def test_control_buttons_use_premium_icons_and_semantic_colors(self):
         add = _button("➕ Nuevo cliente", "new")
@@ -187,7 +187,7 @@ class TelegramAlertTests(TestCase):
             link_expires_at=timezone.now() + timedelta(minutes=10),
         )
 
-        self.assertTrue(link_chat(raw, {"id": 123, "username": "mismo_chat"}))
+        self.assertTrue(link_chat(raw, {"id": 123, "type": "private", "username": "mismo_chat"}))
 
         first.refresh_from_db()
         second.refresh_from_db()
@@ -199,7 +199,7 @@ class TelegramAlertTests(TestCase):
     def test_unlinked_telegram_receives_no_private_data(self, send):
         Client.objects.create(owner=self.owner, name="Cliente privado")
 
-        process_update({"message": {"text": "/menu", "chat": {"id": 999}}})
+        process_update({"message": {"text": "/menu", "chat": {"id": 999, "type": "private"}, "from": {"id": 999}}})
 
         message = send.call_args.args[1]
         self.assertIn("no vinculado", message)
@@ -214,7 +214,7 @@ class TelegramAlertTests(TestCase):
             notify_windows=[1, 0],
         )
 
-        process_update({"message": {"text": "/estado", "chat": {"id": 123}}})
+        process_update({"message": {"text": "/estado", "chat": {"id": 123, "type": "private"}, "from": {"id": 123}}})
 
         message = send.call_args.args[1]
         self.assertIn(self.owner.username, message)
@@ -461,7 +461,8 @@ class TelegramAlertTests(TestCase):
                 "callback_query": {
                     "id": "callback-1",
                     "data": f"client:{foreign_client.pk}",
-                    "message": {"message_id": 9, "chat": {"id": 123}},
+                    "message": {"message_id": 9, "chat": {"id": 123, "type": "private"}},
+                    "from": {"id": 123},
                 }
             }
         )

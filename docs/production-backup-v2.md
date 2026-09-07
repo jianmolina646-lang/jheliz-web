@@ -19,12 +19,17 @@ Destinations:
 - R2: `jheliztv.xyz/complete-v2/daily/` in the configured bucket.
 - MEGA: `/JhelizControlBackups/CompleteV2/daily/`.
 
-Retention: 14 daily, 4 Sunday copies and 6 first-of-month copies in the new
-namespace, managed through `/var/lib/jheliz-backup-v2/inventory.json`. Expired
-MEGA objects are removed only after moving their R2 copies into `expired/`.
-R2 expired copies are retained for 30 additional days before deletion through
-the same scoped inventory. Three local archives
-are kept. Legacy copies and other projects are untouched.
+Retention is independent per destination: R2 keeps 7 daily, 4 Sunday and 3
+first-of-month copies; MEGA keeps 3 daily, 2 Sunday and 1 first-of-month copy.
+Two local archives are kept. The scoped inventory tracks each destination
+separately and checkpoints each deletion. Pruning runs only after the new daily
+copy has been restored successfully from both destinations. Newly expired R2
+copies are deleted, not moved to another space-consuming tier. Objects already
+in the old `expired/` tier retain their original 30-day grace period.
+Legacy copies and other projects are untouched. Archives remain complete,
+compressed and encrypted, not incremental chains. The exact Git revision is
+included along with the configuration. No cache, Docker image or backup
+directories are selected as sources.
 
 Status: `/var/lib/jheliz-backup-v2/success.json`. Logs:
 `/var/log/production-backups/jheliz-backup-v2.log`, rotated weekly (8 files).

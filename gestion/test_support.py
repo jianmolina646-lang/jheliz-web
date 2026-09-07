@@ -42,7 +42,8 @@ class SupportTicketTests(TestCase):
             {
                 "message": {
                     "text": "/start support_abc123",
-                    "chat": {"id": 12345},
+                    "chat": {"id": 12345, "type": "private"},
+                    "from": {"id": 12345},
                 }
             }
         )

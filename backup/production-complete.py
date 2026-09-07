@@ -51,45 +51,69 @@ def mega_mkdir(path):
         run('docker','exec',MEGA,'mega-ls',path)
 
 def retention(remote, archive):
-    """Only manage CompleteV2 objects; legacy and other projects stay intact."""
+    """Prune only inventoried CompleteV2 copies, after both restores succeed."""
     today = dt.datetime.now(dt.timezone.utc)
     inventory_path = STATE / 'inventory.json'
     inventory = json.loads(inventory_path.read_text()) if inventory_path.exists() else {}
-    tiers = [('daily', archive.name, 14)]
+    policy = {'daily': (7, 3), 'weekly': (4, 2), 'monthly': (3, 1)}
+    pattern = r'jheliz-complete-[0-9W-]+\.tar\.gz\.age'
+    for tier in policy:
+        for name in inventory.get(tier, []):
+            if not re.fullmatch(pattern, name):
+                raise RuntimeError('Invalid retention inventory')
+    # Migrate the old shared inventory without losing knowledge of MEGA copies.
+    mega = inventory.setdefault('_mega', {tier: list(inventory.get(tier, [])) for tier in policy})
+    for tier in policy:
+        if any(not re.fullmatch(pattern, name) for name in mega.get(tier, [])):
+            raise RuntimeError('Invalid MEGA retention inventory')
+
+    def save():
+        (STATE / 'inventory.tmp').write_text(json.dumps(inventory))
+        (STATE / 'inventory.tmp').replace(inventory_path)
+
+    additions = {'daily': archive.name}
     if today.weekday() == 6:
-        tiers.append(('weekly', 'jheliz-complete-' + today.strftime('%G-W%V') + '.tar.gz.age', 4))
+        additions['weekly'] = 'jheliz-complete-' + today.strftime('%G-W%V') + '.tar.gz.age'
     if today.day == 1:
-        tiers.append(('monthly', 'jheliz-complete-' + today.strftime('%Y%m') + '.tar.gz.age', 6))
-    for tier, name, keep in tiers:
+        additions['monthly'] = 'jheliz-complete-' + today.strftime('%Y%m') + '.tar.gz.age'
+    for tier, name in additions.items():
+        if not re.fullmatch(pattern, name):
+            raise RuntimeError('Invalid archive name')
         if tier != 'daily' and name not in inventory.get(tier, []):
-            run('rclone','copyto',str(archive),remote+'/'+tier+'/'+name,'--s3-no-check-bucket','--immutable')
+            # Copy the already verified object, not an independently rebuilt archive.
+            run('rclone','copyto',remote+'/daily/'+archive.name,remote+'/'+tier+'/'+name,'--s3-no-check-bucket','--immutable')
             mega_mkdir(REMOTE+'/'+tier)
-            # Skip existing immutable period copies to avoid MEGA versions.
             existing = run('docker','exec',MEGA,'mega-ls',REMOTE+'/'+tier).decode().splitlines()
             if name not in existing:
                 run('docker','exec',MEGA,'mega-put','/backups/'+archive.name,REMOTE+'/'+tier+'/'+name)
-        names = list(set(inventory.get(tier, []) + [name]))
-        valid = sorted((n for n in names if re.fullmatch(r'jheliz-complete-[0-9W-]+\.tar\.gz\.age', n)), reverse=True)
-        # Move expired objects to a recoverable archive tier on R2.
-        for old in valid[keep:]:
-            run('rclone','moveto',remote+'/'+tier+'/'+old,remote+'/expired/'+tier+'/'+old,'--s3-no-check-bucket')
-            run('docker','exec',MEGA,'mega-rm',REMOTE+'/'+tier+'/'+old)
-            inventory.setdefault('_expired', []).append({'key': tier+'/'+old, 'timestamp': today.timestamp()})
-            print('RETENTION_MEGA_REMOVED_R2_ARCHIVED ' + tier + '/' + old)
-        inventory[tier] = valid[:keep]
-    pending = []
-    for item in inventory.get('_expired', []):
+        inventory[tier] = sorted(set(inventory.get(tier, []) + [name]), reverse=True)
+        mega[tier] = sorted(set(mega.get(tier, []) + [name]), reverse=True)
+    save()
+    for tier, (keep_r2, keep_mega) in policy.items():
+        # MEGA's smaller history is still recoverable from R2 at this point.
+        for old in sorted(mega.get(tier, []), reverse=True)[keep_mega:]:
+            existing = run('docker','exec',MEGA,'mega-ls',REMOTE+'/'+tier).decode().splitlines()
+            if old in existing:
+                run('docker','exec',MEGA,'mega-rm',REMOTE+'/'+tier+'/'+old)
+            mega[tier].remove(old)
+            save()
+            print('RETENTION_MEGA_REMOVED ' + tier + '/' + old)
+        for old in sorted(inventory.get(tier, []), reverse=True)[keep_r2:]:
+            run('rclone','deletefile',remote+'/'+tier+'/'+old,'--s3-no-check-bucket')
+            inventory[tier].remove(old)
+            save()
+            print('RETENTION_R2_EXPIRED_REMOVED ' + tier + '/' + old)
+    # Honor the original grace period for objects archived by the previous policy.
+    for item in list(inventory.get('_expired', [])):
+        if not re.fullmatch(r'(daily|weekly|monthly)/' + pattern, item['key']):
+            raise RuntimeError('Invalid expired inventory')
         if today.timestamp() - item['timestamp'] > 30 * 86400:
-            if not re.fullmatch(r'(daily|weekly|monthly)/jheliz-complete-[0-9W-]+\.tar\.gz\.age', item['key']):
-                raise RuntimeError('Invalid retention inventory')
             run('rclone','deletefile',remote+'/expired/'+item['key'],'--s3-no-check-bucket')
-        else:
-            pending.append(item)
-    inventory['_expired'] = pending
-    (STATE / 'inventory.tmp').write_text(json.dumps(inventory))
-    (STATE / 'inventory.tmp').replace(inventory_path)
-    for old in sorted(STATE.glob('jheliz-complete-*.tar.gz.age'), reverse=True)[3:]:
-        old.unlink()
+            inventory['_expired'].remove(item)
+            save()
+    for old in sorted(STATE.glob('jheliz-complete-*.tar.gz.age'), reverse=True)[2:]:
+        if re.fullmatch(pattern, old.name):
+            old.unlink()
 
 def capacity():
     info = run('docker','exec',MEGA,'mega-df').decode()
@@ -200,6 +224,7 @@ def main():
             shutil.copy2(file, config / file.name)
         # Runtime values capture private overrides needed for disaster recovery.
         (config / 'web-environment.json').write_text(json.dumps(web_env))
+        (config / 'git-revision.txt').write_bytes(run('git', '-c', 'safe.directory='+str(ROOT), '-C', str(ROOT), 'rev-parse', 'HEAD'))
         manifest = {'created_utc':stamp, 'database':env['POSTGRES_DB'], 'counts':counts, 'sources':{k:str(v) for k,v in mounts.items()}, 'sha256':{str(p.relative_to(payload)):digest(p) for p in payload.rglob('*') if p.is_file()}}
         (payload / 'manifest.json').write_text(json.dumps(manifest, indent=2))
         plain = work / 'complete.tar.gz'
