@@ -7,8 +7,9 @@ casillas configuradas y devolvemos el más reciente.
 
 Como los correos llegan reenviados, el destinatario original puede estar en
 distintos headers (``To``, ``Delivered-To``, ``X-Forwarded-To``,
-``Resent-To``…); los revisamos todos y, como último recurso, buscamos el
-correo dentro del cuerpo.
+``Resent-To``…). Para Netflix exigimos una dirección exacta en esos headers:
+una mención en el cuerpo o parte de otra dirección no identifica al destinatario.
+Disney conserva por separado su compatibilidad histórica de reenvíos.
 """
 
 from __future__ import annotations
@@ -224,7 +225,8 @@ def fetch_latest_for_email(
         try:
             candidates.extend(
                 _search_account(
-                    account, account_email, search_term, parser, kind, since_dt
+                    account, account_email, search_term, parser, kind, since_dt,
+                    service=service,
                 )
             )
         except Exception:
@@ -245,6 +247,8 @@ def _search_account(
     parser,
     kind: str | Collection[str] | None,
     since_dt: datetime,
+    *,
+    service: str = "netflix",
 ) -> list[tuple[datetime, NetflixResult | DisneyResult]]:
     """Busca en UNA casilla y devuelve los candidatos (fecha, resultado)."""
     # IMAP SINCE tiene granularidad de día; afinamos por hora en Python.
@@ -280,15 +284,19 @@ def _search_account(
             if dt is None or dt < since_dt:
                 continue
             recipients = _recipients(msg)
-            html, text = _bodies(msg)
-            matches = account_email in recipients or account_email in raw.decode(
-                "utf-8", errors="replace"
-            ).lower()
+            matches = account_email in recipients
+            if service == "disney" and not matches:
+                # Compatibilidad de Disney fuera del alcance de este cambio.
+                # Netflix nunca autoriza por subcadenas ni por texto del cuerpo.
+                matches = account_email in raw.decode(
+                    "utf-8", errors="replace"
+                ).lower()
             if not matches:
                 continue
+            html, text = _bodies(msg)
             subject = _decode(msg.get("Subject"))
             result = parser(subject, html=html, text=text)
-            if kind is None and result.kind == "other":
+            if result.kind == "other" and (service == "netflix" or kind is None):
                 continue
             expected_kinds = {kind} if isinstance(kind, str) else set(kind or ())
             if expected_kinds and result.kind not in expected_kinds:

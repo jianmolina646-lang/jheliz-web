@@ -679,6 +679,19 @@ def _result_cache_key(email: str, kind: str | None) -> str:
     return f"codesbot:res:{email}:{kind or 'any'}"
 
 
+def _result_kind_matches(result_kind: str, kind: str | None) -> bool:
+    """Solo entrega tipos conocidos que correspondan a la acción solicitada."""
+    return (
+        isinstance(result_kind, str)
+        and result_kind in DELIVERABLE_KINDS
+        and (
+            kind is None
+            or result_kind == kind
+            or (kind == "passwordless_signin" and result_kind == "tv_signin")
+        )
+    )
+
+
 def _payload_fingerprint(result) -> str:
     value = "\0".join((result.kind, result.code or "", result.action_url or ""))
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
@@ -710,6 +723,10 @@ def _deliver_code(
     *,
     wait_seconds: int = 0,
 ) -> str:
+    if kind is not None and (
+        not isinstance(kind, str) or kind not in DELIVERABLE_KINDS
+    ):
+        return "⚠️ Acción no permitida. Elegí una opción del menú."
     email = _normalize_email_arg(email)
     if not _has_access(client):
         return _expired_message()
@@ -745,9 +762,15 @@ def _deliver_code(
     # reusamos (toques repetidos al mismo botón) sin volver a Gmail.
     cache_key = _result_cache_key(email, kind)
     cached = cache.get(cache_key)
-    if cached:
+    # Las entradas antiguas sin tipo no permiten comprobar qué se entrega.
+    if (
+        isinstance(cached, dict)
+        and _result_kind_matches(cached.get("kind"), kind)
+        and isinstance(cached.get("message"), str)
+        and cached["message"]
+    ):
         client.touch()
-        return cached
+        return cached["message"]
 
     # Anti-spam: si pide de más, evitamos golpear Gmail (que puede bloquear).
     if _on_cooldown(client):
@@ -778,6 +801,8 @@ def _deliver_code(
                     time.sleep(_RETRY_SLEEP)
                     continue
                 return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
+        if result is not None and not _result_kind_matches(result.kind, kind):
+            result = None
         if result is not None and result.has_payload:
             break
         if poll_attempt < poll_count - 1:
@@ -838,7 +863,7 @@ def _deliver_code(
     # nuevo puede invalidar inmediatamente el código o enlace anterior.
     ttl = min(getattr(settings, "CODES_RESULT_CACHE_SECONDS", 5), 5)
     if ttl > 0:
-        cache.set(cache_key, msg, timeout=ttl)
+        cache.set(cache_key, {"kind": result.kind, "message": msg}, timeout=ttl)
     return msg
 
 
@@ -1002,6 +1027,10 @@ def _handle_callback(update: dict) -> None:
     from_user = cq.get("from") or {}
     if chat_id is None:
         return
+    if not isinstance(data, str):
+        if cq_id:
+            answer_callback_query(cq_id, "Acción no permitida.")
+        return
     client, _ = _get_or_create_client(
         chat_id, from_user.get("username") or "", from_user.get("first_name") or ""
     )
@@ -1010,6 +1039,10 @@ def _handle_callback(update: dict) -> None:
         # c:<kind>:<idx> -> entregar ese tipo para el correo elegido.
         _, _, payload = data.partition(":")
         kind, _, idx_raw = payload.partition(":")
+        if kind not in DELIVERABLE_KINDS:
+            if cq_id:
+                answer_callback_query(cq_id, "Acción no permitida.")
+            return
         if cq_id:
             answer_callback_query(cq_id, "Buscando…")
         try:
