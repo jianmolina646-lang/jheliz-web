@@ -2,6 +2,10 @@
 
 ## Sistema vigente
 
+Para **jheliztv.xyz en el VPS**, el respaldo completo vigente desde el
+2026-09-06 es el servicio del host descrito en [production-backup-v2.md](production-backup-v2.md).
+Las copias Docker descritas a continuación siguen como legado durante la transición.
+
 El servicio Docker `backup`, construido desde `backup/`, es el mecanismo
 documentado como vigente para JhelizTV/My Control y para instalaciones aisladas
 del bot de códigos.
@@ -86,4 +90,3 @@ Es una operación destructiva y requiere autorización específica. Antes:
 anterior basado en cron, GPG y rclone. Se conservan por compatibilidad e historia.
 No se deben mezclar ambos procedimientos ni eliminar el legado hasta confirmar
 que ninguna instalación lo utiliza.
-

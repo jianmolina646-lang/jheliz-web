@@ -1,0 +1,5 @@
+# The VPS uses UTC. 08:20 UTC = 03:20 America/Lima.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+20 8 * * * root /usr/local/sbin/jheliz-backup-v2 >> /var/log/production-backups/jheliz-backup-v2.log 2>&1
+50 * * * * root /usr/local/sbin/jheliz-backup-v2 --health >> /var/log/production-backups/jheliz-backup-v2.log 2>&1
