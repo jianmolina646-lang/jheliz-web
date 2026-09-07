@@ -1,4 +1,6 @@
 from django.db import transaction
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db.models import Max
 from django.utils import timezone
 
@@ -8,8 +10,15 @@ from .models import SupportMessage, SupportTicket
 @transaction.atomic
 def create_ticket(contact, category, text, subscription=None, telegram_message_id=None):
     owner_id = contact.owner_id
-    # Bloquea la fila del contacto para serializar la numeración por revendedor.
-    type(contact).objects.select_for_update().get(pk=contact.pk)
+    # Todos los contactos del mismo revendedor comparten el mismo contador.
+    get_user_model().objects.select_for_update().get(pk=owner_id)
+    contact = type(contact).objects.select_for_update().get(pk=contact.pk, owner_id=owner_id)
+    contact.validate_ownership()
+    if subscription is not None:
+        subscription.refresh_from_db()
+        subscription.validate_ownership()
+        if subscription.owner_id != owner_id or subscription.client_id != contact.client_id:
+            raise ValidationError("La suscripción no corresponde al cliente de este revendedor.")
     last = (
         SupportTicket.objects.filter(owner_id=owner_id)
         .aggregate(value=Max("number"))["value"] or 0

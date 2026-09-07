@@ -1,3 +1,4 @@
+from gestion.testing import force_owner_login
 """Tests de Jheliz Control: modelos (utilidad, semáforo, contador, renovar),
 vistas (render + acciones) y reporte PDF."""
 from datetime import timedelta
@@ -746,7 +747,7 @@ class OwnerControlPanelTests(TestCase):
         )
 
     def test_staff_sees_registered_tenants(self):
-        self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
+        force_owner_login(self.client, self.owner)
         r = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "Negocio Inq")
@@ -763,7 +764,7 @@ class OwnerControlPanelTests(TestCase):
             is_demo=True,
             plan_expires_at=timezone.now() + timedelta(days=3),
         )
-        self.client.force_login(self.owner)
+        force_owner_login(self.client, self.owner)
 
         users = self.client.get(self.CONTROL_USERS, HTTP_HOST=self.HOST)
         demos = self.client.get(self.CONTROL_DEMOS, HTTP_HOST=self.HOST)
@@ -788,7 +789,7 @@ class OwnerControlPanelTests(TestCase):
             business_name="Negocio desconectado",
             plan_expires_at=timezone.now() + timedelta(days=3),
         )
-        self.client.force_login(self.owner)
+        force_owner_login(self.client, self.owner)
 
         response = self.client.get(
             self.CONTROL_USERS, {"q": "Negocio Inq", "estado": "online"},
@@ -802,7 +803,7 @@ class OwnerControlPanelTests(TestCase):
     def test_control_shows_client_count_for_each_user_and_total(self):
         Client.objects.create(owner=self.tenant_user, name="Cliente uno")
         Client.objects.create(owner=self.tenant_user, name="Cliente dos")
-        self.client.force_login(self.owner)
+        force_owner_login(self.client, self.owner)
 
         users = self.client.get(self.CONTROL_USERS, HTTP_HOST=self.HOST)
         dashboard = self.client.get(self.CONTROL, HTTP_HOST=self.HOST)
@@ -820,7 +821,7 @@ class OwnerControlPanelTests(TestCase):
             plan_expires_at=timezone.now() + timedelta(days=10),
         )
         Client.objects.create(owner=other_user, name="Cliente ajeno")
-        self.client.force_login(self.owner)
+        force_owner_login(self.client, self.owner)
 
         response = self.client.get(
             f"/control/usuarios/{self.tenant.pk}/", HTTP_HOST=self.HOST,
@@ -840,7 +841,7 @@ class OwnerControlPanelTests(TestCase):
         self.assertRedirects(anonymous, self.CONTROL_LOGIN, fetch_redirect_response=False)
         demo_user = get_user_model().objects.create_user("demo-ficha", password="pw")
         demo = self.Tenant.objects.create(user=demo_user, is_demo=True)
-        self.client.force_login(self.owner)
+        force_owner_login(self.client, self.owner)
         self.assertEqual(
             self.client.get(f"/control/usuarios/{demo.pk}/", HTTP_HOST=self.HOST).status_code,
             404,
@@ -849,7 +850,7 @@ class OwnerControlPanelTests(TestCase):
     def test_owner_generates_functional_three_day_demo_with_credentials(self):
         from .models import TenantPayment
 
-        self.client.force_login(self.owner)
+        force_owner_login(self.client, self.owner)
         response = self.client.post(self.CREATE_DEMO, HTTP_HOST=self.HOST, secure=True)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Demo generada")
@@ -902,7 +903,7 @@ class OwnerControlPanelTests(TestCase):
         self.tenant.save(update_fields=["plan_expires_at"])
         pay = TenantPayment.objects.create(tenant=self.tenant, amount=30, days=30)
 
-        self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
+        force_owner_login(self.client, self.owner)
         self.client.post(f"/control/pagos/{pay.pk}/aprobar/", HTTP_HOST=self.HOST)
 
         pay.refresh_from_db()
@@ -925,7 +926,7 @@ class OwnerControlPanelTests(TestCase):
         anonymous = self.client.get(url, HTTP_HOST=self.HOST)
         self.assertRedirects(anonymous, self.CONTROL_LOGIN, fetch_redirect_response=False)
 
-        self.client.force_login(self.owner)
+        force_owner_login(self.client, self.owner)
         allowed = self.client.get(url, HTTP_HOST=self.HOST)
         self.assertEqual(allowed.status_code, 200)
         self.assertIn("no-store", allowed["Cache-Control"])
@@ -934,7 +935,7 @@ class OwnerControlPanelTests(TestCase):
         self.assertEqual(self.client.get(public_url, HTTP_HOST=self.HOST).status_code, 404)
 
     def test_extend_tenant_adds_days(self):
-        self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
+        force_owner_login(self.client, self.owner)
         before = self.tenant.days_left
         self.client.post(f"/control/inquilinos/{self.tenant.pk}/extender/", {"days": "30"}, HTTP_HOST=self.HOST)
         self.tenant.refresh_from_db()
@@ -942,7 +943,7 @@ class OwnerControlPanelTests(TestCase):
 
     def test_owner_can_generate_password_reset_link(self):
         from urllib.parse import urlparse
-        self.client.force_login(self.owner)
+        force_owner_login(self.client, self.owner)
         response = self.client.post(f"/control/inquilinos/{self.tenant.pk}/recuperar-clave/", HTTP_HOST=self.HOST, secure=True)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Enlace para restablecer contraseña")
@@ -960,7 +961,7 @@ class OwnerControlPanelTests(TestCase):
         self.assertRedirects(response, self.CONTROL_LOGIN, fetch_redirect_response=False)
 
     def test_block_and_unblock_tenant(self):
-        self.client.post(self.CONTROL_LOGIN, {"username": "dueno", "password": "pw"}, HTTP_HOST=self.HOST)
+        force_owner_login(self.client, self.owner)
         # Bloquear: el inquilino queda sin acceso aunque tenga alquiler vigente.
         self.client.post(f"/control/inquilinos/{self.tenant.pk}/bloquear/", HTTP_HOST=self.HOST)
         self.tenant.refresh_from_db()

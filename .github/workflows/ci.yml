@@ -10,6 +10,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  postgres-isolation:
+    name: Aislamiento y concurrencia PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tenant_test
+          POSTGRES_PASSWORD: ephemeral-ci-only
+          POSTGRES_DB: tenant_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U tenant_test -d tenant_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DJANGO_SETTINGS_MODULE: config.test_settings
+      SECRET_KEY: ephemeral-concurrency-tests
+      DEBUG: 'True'
+      DATABASE_URL: postgres://tenant_test:ephemeral-ci-only@127.0.0.1:5432/tenant_test
+      PGOPTIONS: '-c statement_timeout=20000 -c lock_timeout=15000'
+      FIELD_ENCRYPTION_KEY: dQyMEwMZ8Z6oFYw1Qi0boOcevXs0rod9CYHhCyK423U=
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python manage.py collectstatic --noinput
+      - run: python manage.py test gestion.test_postgres_concurrency --noinput -v 2
+      - run: python -m unittest discover -s backup -p test_retention.py
+
   dependency-security:
     name: Auditar vulnerabilidades de dependencias
     runs-on: ubuntu-latest

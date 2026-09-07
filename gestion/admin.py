@@ -9,7 +9,7 @@ from django.contrib import admin, messages
 from django.utils.encoding import force_bytes
 from django.utils.html import format_html
 from django.utils.http import urlsafe_base64_encode
-from unfold.admin import ModelAdmin
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
 
 from .models import (
     Client,
@@ -23,6 +23,32 @@ from .models import (
     TenantPayment,
     Transaction,
 )
+
+
+class ModelAdmin(UnfoldModelAdmin):
+    """El admin Django es global; los revendedores utilizan /app/."""
+
+    def _global_access(self, request):
+        return request.user.is_active and request.user.has_perm("gestion.manage_tenants")
+
+    def has_module_permission(self, request):
+        return self._global_access(request) and super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        return self._global_access(request) and super().has_view_permission(request, obj)
+
+    def has_add_permission(self, request):
+        return self._global_access(request) and super().has_add_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self._global_access(request) and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self._global_access(request) and super().has_delete_permission(request, obj)
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset if self._global_access(request) else queryset.none()
 
 
 @admin.register(ServiceCategory)

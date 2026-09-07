@@ -510,17 +510,11 @@ class TelegramAlertTests(TestCase):
             service=own_service,
             **common,
         )
-        # Filas deliberadamente inconsistentes: owner=A, relación=B.
-        Subscription.objects.create(
-            client=foreign_client,
-            service=own_service,
-            **common,
-        )
-        Subscription.objects.create(
-            client=own_client,
-            service=foreign_service,
-            **common,
-        )
+        # Simula corrupción histórica por SQL: save() ahora impide estas relaciones.
+        wrong_client = Subscription.objects.create(client=own_client, service=own_service, **common)
+        Subscription.objects.filter(pk=wrong_client.pk).update(client=foreign_client)
+        wrong_service = Subscription.objects.create(client=own_client, service=own_service, **common)
+        Subscription.objects.filter(pk=wrong_service.pk).update(service=foreign_service)
         TelegramConnection.objects.create(
             owner=self.owner,
             chat_id="123",

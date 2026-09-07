@@ -105,6 +105,28 @@ jobs:
             fi
 
             echo "→ Verificando bots Netflix/Disney y su base persistente..."
+            # Este perfil no participa en `up` sin --profile. Actualizarlo siempre
+            # junto con web, preservando el archivo local de secretos.
+            CONTROL_COMPOSE="docker compose -p jheliz -f docker-compose.yml"
+            if [ -f docker-compose.secrets.yml ]; then
+              CONTROL_COMPOSE="$CONTROL_COMPOSE -f docker-compose.secrets.yml"
+            fi
+            CONTROL_COMPOSE="$CONTROL_COMPOSE -f docker-compose.control-alerts.yml -f docker-compose.jheliztv.yml"
+            $CONTROL_COMPOSE --profile control-alerts up -d --build --no-deps --wait --wait-timeout 180 control_alerts_bot
+            WEB_CODE="$($COMPOSE exec -T web sha256sum gestion/telegram_alerts.py gestion/control_operations.py gestion/models.py)"
+            BOT_CODE="$($CONTROL_COMPOSE exec -T control_alerts_bot sha256sum gestion/telegram_alerts.py gestion/control_operations.py gestion/models.py)"
+            if [ "$WEB_CODE" != "$BOT_CODE" ]; then
+              echo "✗ Web y bot de control tienen versiones distintas."
+              exit 1
+            fi
+            DB_FINGERPRINT="import hashlib,json; from django.conf import settings; db=settings.DATABASES['default']; print(hashlib.sha256(json.dumps({k:db.get(k) for k in ('ENGINE','HOST','PORT','NAME','USER')},sort_keys=True).encode()).hexdigest())"
+            WEB_DB="$($COMPOSE exec -T web python manage.py shell -c "$DB_FINGERPRINT" | tail -n 1)"
+            BOT_DB="$($CONTROL_COMPOSE exec -T control_alerts_bot python manage.py shell -c "$DB_FINGERPRINT" | tail -n 1)"
+            if [ "$WEB_DB" != "$BOT_DB" ]; then
+              echo "✗ Web y bot de control no apuntan a la misma base."
+              exit 1
+            fi
+
             if ! $BOT_COMPOSE --profile bot up -d --build --no-deps --wait --wait-timeout 180 codes_bot disney_bot; then
               echo "✗ Uno de los bots de códigos no llegó a estado healthy."
               $BOT_COMPOSE logs --tail=80 codes_bot disney_bot || true

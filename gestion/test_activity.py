@@ -1,3 +1,4 @@
+from gestion.testing import force_owner_login
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -36,7 +37,7 @@ class ActivityDashboardTests(TestCase):
         owner = get_user_model().objects.create_superuser(
             username="activity-owner", password="owner-safe-password-123"
         )
-        self.client.force_login(owner)
+        force_owner_login(self.client, owner)
         response = self.client.get(
             reverse("jheliztv_control_users"),
             {"q": "active"},
