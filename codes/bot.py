@@ -87,7 +87,42 @@ MENU_BUTTONS: dict[str, str] = {
     "clave": "/clave",
     "activar tv": "/tv",
     "mis correos": "/miscorreos",
+    "enlace tv": "/enlacetv",
+    "📨 enlace tv": "/enlacetv",
+    "ayuda": "/cmds",
 }
+
+
+# ---------- Presentación (sin consultas ni cambios de estado) ----------
+
+def _message_card(title: str, body: str, icon: str = "📺") -> str:
+    """Composición común; body contiene HTML interno con datos ya escapados."""
+    return (
+        f"{icon} <b>{html.escape(title)}</b>\n"
+        f"<i>NETFLIX · {html.escape(BRAND)}</i>\n\n"
+        f"{body}"
+    )
+
+
+def _searching_message(email: str, kind: str | None) -> str:
+    title = "Buscando tu código…" if kind in {"signin_code", "temp_code"} else "Buscando tu enlace…"
+    return _message_card(
+        title,
+        f"📧 <code>{html.escape(_mask_email(email))}</code>\n\n"
+        "Revisando el mensaje más reciente de Netflix.\n"
+        "<i>No necesitas repetir la solicitud; te responderé aquí.</i>",
+        icon="⏳",
+    )
+
+
+def _account_actions_message(email: str) -> str:
+    return _message_card(
+        "Elige lo que necesitas",
+        f"<b>Cuenta seleccionada</b>\n"
+        f"<code>{html.escape(_mask_email(email))}</code>\n\n"
+        "Selecciona una acción para esta cuenta.",
+        icon="📧",
+    )
 
 
 # ---------- Configuración ----------
@@ -193,19 +228,24 @@ def _menu_keyboard() -> dict:
         "keyboard": [
             [
                 button("Código", "🔑", "primary"),
+                button("Enlace TV", "📨", "success"),
+            ],
+            [
                 button("Viaje", "✈️", "primary"),
-            ],
-            [
                 button("Hogar", "🏠", "success"),
-                button("Clave", "🔒", "danger"),
             ],
             [
+                button("Clave", "🔒", "danger"),
                 button("Activar TV", "📺", "success"),
+            ],
+            [
                 button("Mis correos", "📋", "primary"),
+                button("Ayuda", "❓", "primary"),
             ],
         ],
         "resize_keyboard": True,
         "is_persistent": True,
+        "input_field_placeholder": "Elige una acción o escribe /codigo correo",
     }
 
 
@@ -352,10 +392,11 @@ def _has_access(client: CodeBotClient) -> bool:
 
 
 def _expired_message() -> str:
-    return (
-        "⏳ <b>Tu acceso venció.</b>\n"
-        "Contactá al admin para renovarlo y seguir recibiendo tus códigos.\n"
-        f"👑 <b>{BRAND}</b>"
+    return _message_card(
+        "Tu acceso venció",
+        "Contacta al administrador para renovar tu acceso.\n"
+        "<i>Cuando lo active, podrás volver a solicitar tus códigos.</i>",
+        icon="⏳",
     )
 
 
@@ -496,12 +537,10 @@ def _email_buttons(
         idx = source.index(e) if index_source is not None else local_idx
         data = f"c:{kind}:{idx}" if kind else f"pick:{idx}"
         button = {"text": _mask_email(e), "callback_data": data}
-        if icon_fallback:
-            custom_id = emoji_id(icon_fallback)
-            if custom_id:
-                button["icon_custom_emoji_id"] = custom_id
-        if style:
-            button["style"] = style
+        custom_id = emoji_id(icon_fallback or "📧")
+        if custom_id:
+            button["icon_custom_emoji_id"] = custom_id
+        button["style"] = style or "primary"
         rows.append([button])
     return rows
 
@@ -527,7 +566,7 @@ def _tv_email_buttons(
 
 
 def _kind_buttons(idx: int) -> list[list[dict]]:
-    """Las 4 opciones de tipo para un correo (por índice)."""
+    """Acciones de la cuenta, manteniendo sus callbacks y orden originales."""
     styles = {
         "signin_code": ("Código de inicio de sesión", "🔑", "primary"),
         "temp_code": ("Acceso temporal (viaje)", "✈️", "primary"),
@@ -548,7 +587,7 @@ def _kind_buttons(idx: int) -> list[list[dict]]:
             button["icon_custom_emoji_id"] = custom_id
         rows.append([button])
     rows.append(
-        [{"text": "⬅️ Volver", "callback_data": "back:emails", "style": "primary"}]
+        [{"text": "‹ Volver a mis cuentas", "callback_data": "back:emails", "style": "primary"}]
     )
     return rows
 
@@ -557,15 +596,16 @@ NETFLIX_TV_ACTIVATION_URL = "https://www.netflix.com/tv8"
 
 
 def _tv_activation_message() -> str:
-    return "\n".join([
-        "\u2728 <b>\ud83d\udcfa Activar Netflix en tu TV</b>",
-        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
-        "\ud83d\udcfa Si tu TV ya muestra un c\u00f3digo, ingresalo ac\u00e1: "
-        f'<a href="{NETFLIX_TV_ACTIVATION_URL}">P\u00e1gina para activar la TV</a>',
-        "(inici\u00e1 sesi\u00f3n con la cuenta y pon\u00e9 el c\u00f3digo de la TV).",
-        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
-        f"\ud83d\udc51 <b>{BRAND}</b> \u00b7 gracias por tu compra",
-    ])
+    return _message_card(
+        "Activar Netflix en tu TV",
+        "<b>Si tu TV muestra un código</b>\n\n"
+        "1. Abre la página de activación.\n"
+        "2. Inicia sesión con la cuenta que usarás en la TV.\n"
+        "3. Introduce el código que aparece en tu televisor.\n\n"
+        f'📺 <a href="{NETFLIX_TV_ACTIVATION_URL}"><b>Página para activar la TV</b></a>\n\n'
+        "<i>¿Netflix envió un enlace al correo?</i>\n"
+        "Usa <b>Enlace TV</b> o <code>/enlacetv correo</code>.",
+    )
 
 
 def _cmd_tv(client: CodeBotClient) -> None:
@@ -592,16 +632,17 @@ def _tv_email_confirmation(
         send_message(client.telegram_chat_id, text)
         return
     idx = emails.index(email)
-    text = (
-        "📨 <b>Confirmar activación por correo</b>\n\n"
-        f"Cuenta: <code>{html.escape(_mask_email(email))}</code>\n"
-        "Se buscará el enlace más reciente enviado por Netflix.\n\n"
-        "¿Querés continuar?"
+    text = _message_card(
+        "Confirmar activación por correo",
+        f"<b>Cuenta seleccionada</b>\n<code>{html.escape(_mask_email(email))}</code>\n\n"
+        "Buscaré el enlace más reciente enviado por Netflix.\n"
+        "<i>Confirma que esta es la cuenta que quieres usar.</i>",
+        icon="📨",
     )
     buttons = [
         [
             {
-                "text": "Confirmar activación",
+                "text": "Confirmar y buscar enlace",
                 "callback_data": f"tvconfirm:{idx}",
                 "style": "success",
                 "icon_custom_emoji_id": emoji_id("📨"),
@@ -636,16 +677,24 @@ def _cmd_tv_email(client: CodeBotClient, arg: str) -> None:
         elif len(emails) <= MAX_EMAIL_BUTTONS:
             send_message(
                 chat_id,
-                "📨 Elegí la cuenta que recibió el enlace de activación:",
+                _message_card(
+                    "Enlace de acceso para TV",
+                    "Selecciona la cuenta que recibió el enlace de Netflix.",
+                    icon="📨",
+                ),
                 buttons=_tv_email_buttons(emails),
             )
             return
         else:
             send_message(
                 chat_id,
-                f"Tenés <b>{len(emails)}</b> cuentas. Indicá exactamente cuál "
-                "recibió el mensaje:\n"
-                "<code>/enlacetv nombre@correo.com</code>",
+                _message_card(
+                    "Enlace de acceso para TV",
+                    f"Tienes <b>{len(emails)}</b> cuentas asignadas.\n\n"
+                    "Indica cuál recibió el mensaje de Netflix:\n"
+                    "<code>/enlacetv nombre@correo.com</code>",
+                    icon="📨",
+                ),
             )
             return
 
@@ -653,26 +702,35 @@ def _cmd_tv_email(client: CodeBotClient, arg: str) -> None:
 
 
 def _format_result(email: str, result) -> str:
+    icons = {
+        "signin_code": "🔑", "temp_code": "✈️", "household": "🏠",
+        "password_reset": "🔒", "tv_signin": "📺", "passwordless_signin": "📨",
+    }
     parts = [
-        f"✨ <b>{html.escape(result.human_kind)}</b>",
         f"📧 <code>{html.escape(_mask_email(email))}</code>",
-        "──────────────────",
+        "",
     ]
     if result.code:
-        parts.append(f"🔢 Código: <code>{html.escape(result.code)}</code>")
+        parts.extend([
+            "<b>TU CÓDIGO</b>",
+            f"<code>{html.escape(result.code)}</code>",
+            "<i>Listo para copiar y usar en Netflix.</i>",
+            "",
+        ])
     if result.action_url:
         parts.append(
-            f'🔗 <a href="{html.escape(result.action_url)}">Abrir en Netflix</a>'
+            f'🔗 <a href="{html.escape(result.action_url, quote=True)}"><b>Abrir en Netflix →</b></a>'
         )
+        parts.append("")
     if result.kind == "tv_signin":
         parts.append(
             f'📺 <a href="{NETFLIX_TV_ACTIVATION_URL}">Página para activar la TV</a>'
-            " — iniciá sesión con la cuenta y poné el código que muestra la TV."
+            " · para el código que aparece en tu televisor."
         )
-    parts.append("──────────────────")
-    parts.append("⏱ Suele vencer en ~15 min. Si no funciona, generá uno nuevo y volvé a pedirlo.")
-    parts.append(f"👑 <b>{BRAND}</b> · gracias por tu compra")
-    return "\n".join(parts)
+        parts.append("")
+    parts.append("⏱ <i>Úsalo cuanto antes: puede vencer en pocos minutos.</i>")
+    parts.append("Si no funciona, solicita uno nuevo desde Netflix.")
+    return _message_card(result.human_kind, "\n".join(parts), icon=icons.get(result.kind, "📺"))
 
 
 def _result_cache_key(email: str, kind: str | None) -> str:
@@ -726,15 +784,16 @@ def _deliver_code(
     if kind is not None and (
         not isinstance(kind, str) or kind not in DELIVERABLE_KINDS
     ):
-        return "⚠️ Acción no permitida. Elegí una opción del menú."
+        return "⚠️ Acción no permitida. Elige una opción del menú."
     email = _normalize_email_arg(email)
     if not _has_access(client):
         return _expired_message()
     if _is_security_blocked(client):
-        return (
-            "🛑 <b>Acceso temporalmente bloqueado</b>\n"
-            "Detectamos varios intentos sobre cuentas no asignadas. Esperá "
-            "15 minutos o contactá al administrador."
+        return _message_card(
+            "Acceso temporalmente bloqueado",
+            "Detectamos varios intentos sobre cuentas no asignadas.\n\n"
+            "Espera 15 minutos o contacta al administrador.",
+            icon="🔒",
         )
     assigned = set(_assigned_emails(client))
     if email not in assigned:
@@ -745,18 +804,27 @@ def _deliver_code(
             f"El cliente {html.escape(str(client))} pidió un código del correo "
             f"<code>{html.escape(email)}</code>, que NO tiene asignado.",
         )
-        return (
-            f"⚠️ El correo <b>{html.escape(email)}</b> no está asignado a tu "
-            "cuenta, así que no te corresponde. Si creés que es un error, "
-            "escribile al admin."
+        return _message_card(
+            "Cuenta no asignada",
+            f"El correo <code>{html.escape(email)}</code> no está asignado a tu "
+            "cuenta, así que no te corresponde.\n\n"
+            "Revisa el correo o contacta al administrador.",
+            icon="🔒",
         )
     if _over_daily_limit(client):
-        return (
-            "🛑 Alcanzaste el límite de pedidos por hoy.\n"
-            "Si necesitás más códigos, escribile al admin."
+        return _message_card(
+            "Límite de solicitudes alcanzado",
+            "Alcanzaste el límite de pedidos por hoy.\n"
+            "Contacta al administrador si necesitas más códigos.",
+            icon="⚠️",
         )
     if not imap_reader.is_configured():
-        return "El servicio de códigos todavía no está configurado. Probá más tarde."
+        return _message_card(
+            "Servicio no disponible",
+            "El servicio de códigos todavía no está configurado.\n"
+            "Contacta al administrador o vuelve a intentarlo más tarde.",
+            icon="⚠️",
+        )
 
     # Mini-caché: si justo leímos este código hace unos segundos, lo
     # reusamos (toques repetidos al mismo botón) sin volver a Gmail.
@@ -774,9 +842,11 @@ def _deliver_code(
 
     # Anti-spam: si pide de más, evitamos golpear Gmail (que puede bloquear).
     if _on_cooldown(client):
-        return (
-            "⏳ Esperá unos segundos antes de pedir otro código y volvé a "
-            "intentar (así no saturamos el correo)."
+        return _message_card(
+            "Un momento, por favor",
+            "Espera unos segundos antes de pedir otro código.\n"
+            "<i>Así evitamos saturar el correo con solicitudes repetidas.</i>",
+            icon="⏳",
         )
 
     result = None
@@ -800,7 +870,12 @@ def _deliver_code(
                 if attempt == 0:
                     time.sleep(_RETRY_SLEEP)
                     continue
-                return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
+                return _message_card(
+                    "No pudimos completar la búsqueda",
+                    "Hubo un problema leyendo el correo.\n\n"
+                    "Vuelve a intentarlo en un minuto. Si continúa, contacta al administrador.",
+                    icon="⚠️",
+                )
         if result is not None and not _result_kind_matches(result.kind, kind):
             result = None
         if result is not None and result.has_payload:
@@ -824,10 +899,12 @@ def _deliver_code(
                 f'<a href="{NETFLIX_TV_ACTIVATION_URL}">Página para activar la TV</a>'
                 " (iniciá sesión con la cuenta y poné el código de la TV)."
             )
-        return (
+        return _message_card(
+            "Aún no hay un resultado disponible",
             f"No encontré {que} para <b>{html.escape(_mask_email(email))}</b>.\n"
-            "Generá el correo desde Netflix y volvé a pedirlo en un minuto."
-            + extra
+            "\nGenera el correo desde Netflix y vuelve a pedirlo en un minuto."
+            + extra,
+            icon="📧",
         )
     fingerprint = _payload_fingerprint(result)
     already_delivered = CodeDelivery.objects.filter(
@@ -846,9 +923,11 @@ def _deliver_code(
             duplicate=True,
             payload_fingerprint=fingerprint,
         )
-        return (
-            "♻️ Este código o enlace ya fue entregado anteriormente.\n"
-            "Generá uno nuevo en Netflix y volvé a solicitarlo."
+        return _message_card(
+            "Solicitud ya atendida",
+            "Este código o enlace ya fue entregado anteriormente.\n\n"
+            "Genera uno nuevo en Netflix y vuelve a solicitarlo.",
+            icon="🔑",
         )
     client.touch()
     CodeDelivery.objects.create(
@@ -880,8 +959,12 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
     if not emails:
         send_message(
             chat_id,
-            "Tu cuenta está activa pero todavía no tenés correos asignados.\n"
-            "El admin te los va a asignar en breve.",
+            _message_card(
+                "Falta asignar tus cuentas",
+                "Tu acceso está activo, pero todavía no tienes correos asignados.\n\n"
+                "Contacta al administrador para completar la asignación.",
+                icon="📧",
+            ),
         )
         return
 
@@ -894,23 +977,30 @@ def _cmd_code(client: CodeBotClient, kind: str, arg: str) -> None:
             if len(emails) > MAX_EMAIL_BUTTONS:
                 send_message(
                     chat_id,
-                    f"Tenés <b>{len(emails)}</b> correos asignados. Pedí el código "
-                    "directamente con:\n"
-                    "<code>/codigo nombre@correo.com</code>",
+                    _message_card(
+                        "Elige la cuenta de tu solicitud",
+                        f"Tienes <b>{len(emails)}</b> correos asignados.\n\n"
+                        "Indica el correo completo en tu comando. Por ejemplo:\n"
+                        "<code>/codigo nombre@correo.com</code>",
+                        icon="📧",
+                    ),
                 )
                 return
             send_message(
                 chat_id,
-                f"¿De qué correo querés <b>{html.escape(KIND_LABELS[kind])}</b>?\n"
-                "Elegí uno (o repetí el comando con el correo al lado):",
+                _message_card(
+                    "Selecciona una cuenta",
+                    f"<b>{html.escape(KIND_LABELS[kind])}</b>\n\n"
+                    "Elige el correo para el que hiciste la solicitud en Netflix.",
+                    icon="📧",
+                ),
                 buttons=_email_buttons(emails, kind=kind),
             )
             return
 
     progress = send_message(
         chat_id,
-        "⏳ <b>Buscando tu código…</b>\n"
-        "Revisando Proton durante unos segundos.",
+        _searching_message(arg, kind),
     )
     result_text = _deliver_code(client, arg, kind=kind, wait_seconds=10)
     progress_id = None
@@ -1065,7 +1155,7 @@ def _handle_callback(update: dict) -> None:
                 edit_message(
                     chat_id,
                     message_id,
-                    "⏳ <b>Buscando el correo más reciente…</b>",
+                    _searching_message(emails[idx], kind),
                 )
             result_text = _deliver_code(
                 client, emails[idx], kind=kind, wait_seconds=10
@@ -1080,15 +1170,19 @@ def _handle_callback(update: dict) -> None:
             answer_callback_query(cq_id)
         recent = _recent_emails(client)
         if recent:
-            text = (
-                "📧 <b>Cuentas recientes</b>\n"
-                "Elegí una o enviá <code>/codigo correo@gmail.com</code>."
+            text = _message_card(
+                "Cuentas recientes",
+                "Selecciona una cuenta o solicita directamente:\n\n"
+                "<code>/codigo correo@gmail.com</code>",
+                icon="📧",
             )
             buttons = _email_buttons(recent, index_source=emails)
         else:
-            text = (
-                "🔑 <b>Pedir un código</b>\n"
-                "Escribí <code>/codigo correo@gmail.com</code>."
+            text = _message_card(
+                "Solicita tu código",
+                "Escribe el comando con tu correo completo:\n\n"
+                "<code>/codigo correo@gmail.com</code>",
+                icon="🔑",
             )
             buttons = None
         if message_id is not None:
@@ -1121,7 +1215,7 @@ def _handle_callback(update: dict) -> None:
                 edit_message(
                     chat_id,
                     message_id,
-                    "⏳ <b>Buscando el enlace enviado por Netflix…</b>",
+                    _searching_message(emails[idx], "passwordless_signin"),
                 )
             result_text = _deliver_code(
                 client,
@@ -1143,10 +1237,7 @@ def _handle_callback(update: dict) -> None:
         except ValueError:
             return
         if 0 <= idx < len(emails):
-            text = (
-                f"📧 <b>{html.escape(_mask_email(emails[idx]))}</b>\n"
-                "¿Qué necesitás?"
-            )
+            text = _account_actions_message(emails[idx])
             if message_id is not None:
                 edit_message(chat_id, message_id, text, buttons=_kind_buttons(idx))
             else:
@@ -1163,21 +1254,23 @@ def _send_welcome(client: CodeBotClient) -> None:
     if not client.is_active and not admin:
         send_message(
             chat_id,
-            f"👋 <b>¡Bienvenido al Bot de Códigos de {BRAND}!</b> ✨\n\n"
-            "Acá vas a obtener al instante los códigos de tu cuenta de Netflix:\n"
-            "🔑 inicio de sesión · ✈️ viaje · 🏠 Hogar · 🔒 contraseña · 📺 TV\n\n"
-            "🔒 Tu acceso todavía <b>no está activado</b>.\n"
-            f"Tu ID es <code>{html.escape(str(chat_id))}</code>.\n"
-            "Enviáselo al admin para que te active y te asigne tus correos. "
-            "En cuanto lo haga, te aviso por acá ✅",
+            _message_card(
+                "Bienvenido a tu centro de acceso",
+                "Códigos y enlaces para tus cuentas de Netflix, en un solo lugar.\n\n"
+                "🔒 <b>PENDIENTE DE ACTIVACIÓN</b>\n"
+                "Tu acceso todavía no está activado.\n\n"
+                "<b>Tu ID de Telegram</b>\n"
+                f"<code>{html.escape(str(chat_id))}</code>\n\n"
+                "Envía este ID al administrador para que active tu acceso "
+                "y te asigne tus cuentas.",
+            ),
         )
         return
     emails = _assigned_emails(client)
     if admin:
         send_message(
             chat_id,
-            f"👋 <b>Hola, admin.</b> Bienvenido al Bot de Códigos de {BRAND}.\n\n"
-            + _admin_help_text(),
+            _admin_help_text(),
             buttons=(
                 _email_buttons(emails)
                 if 0 < len(emails) <= MAX_EMAIL_BUTTONS
@@ -1188,8 +1281,13 @@ def _send_welcome(client: CodeBotClient) -> None:
     if not emails:
         send_message(
             chat_id,
-            "✅ <b>Tu cuenta está activada</b>, pero todavía no tenés correos asignados.\n"
-            "El admin te los va a asignar en breve. Te aviso cuando estén listos 📩",
+            _message_card(
+                "Tu acceso está activo",
+                "📧 <b>Falta asignar tus cuentas</b>\n\n"
+                "Todavía no tienes correos asignados. Contacta al administrador "
+                "para completar la asignación.",
+                icon="✅",
+            ),
         )
         return
     if not _has_access(client):
@@ -1197,10 +1295,17 @@ def _send_welcome(client: CodeBotClient) -> None:
         return
     send_message(
         chat_id,
-        f"✨ <b>{BRAND} · Códigos Netflix</b>\n\n"
-        "Elegí una acción en el menú.\n"
-        "Para pedirlo directamente usá <code>/codigo correo@gmail.com</code>.\n\n"
-        "❓ Ayuda completa: <code>/cmds</code>",
+        _message_card(
+            "Tu centro de acceso",
+            f"Hola, <b>{html.escape(client.display_name or 'bienvenido')}</b>.\n"
+            "Todo listo para solicitar tus códigos y enlaces.\n\n"
+            f"📧 <b>{len(emails)} {'cuenta asignada' if len(emails) == 1 else 'cuentas asignadas'}</b>\n\n"
+            "<b>¿QUÉ NECESITAS?</b>"
+            "\nElige una opción del menú o escribe:\n"
+            "<code>/codigo correo@gmail.com</code>\n\n"
+            "<i>Solo se consultan las cuentas que tienes asignadas.</i>\n"
+            "❓ Todos los comandos: <code>/cmds</code>",
+        ),
         menu=True,
     )
 
@@ -1223,60 +1328,69 @@ def _send_commands_help(client: CodeBotClient) -> None:
 
 
 def _client_help_text(emails: list[str]) -> str:
-    ejemplo = emails[0] if emails else "tucorreo@gmail.com"
+    ejemplo = html.escape(emails[0] if emails else "tucorreo@gmail.com")
     lines = [
-        f"✨ <b>Bot de Códigos · {BRAND}</b>",
-        "──────────────────",
-        "Escribí el comando con tu correo al lado 👇",
+        "<b>INICIAR SESIÓN</b>",
+        "🔑 <code>/codigo correo</code> — código de acceso",
+        "📨 <code>/enlacetv correo</code> — enlace recibido por email",
+        "📺 <code>/tv</code> — página para el código que muestra tu TV",
         "",
-        f"🔑 <code>/codigo {ejemplo}</code> — código de inicio de sesión",
-        f"✈️ <code>/viaje {ejemplo}</code> — código de acceso temporal (de viaje)",
-        f"🏠 <code>/hogar {ejemplo}</code> — link para actualizar Hogar",
-        f"🔒 <code>/clave {ejemplo}</code> — link para restablecer contraseña",
-        "📺 <code>/tv</code> — página para activar Netflix en tu TV",
-        "📨 <code>/enlacetv correo</code> — buscar el enlace enviado por Netflix",
+        "<b>GESTIONAR TU ACCESO</b>",
+        "✈️ <code>/viaje correo</code> — acceso temporal",
+        "🏠 <code>/hogar correo</code> — actualizar Hogar",
+        "🔒 <code>/clave correo</code> — restablecer contraseña",
         "",
-        "📋 <code>/miscorreos</code> — ver tus correos asignados",
-        "❓ <code>/cmds</code> — ver esta ayuda",
+        "<b>TUS CUENTAS</b>",
+        "📋 <code>/miscorreos</code> — correos asignados",
+        "❓ <code>/cmds</code> — esta guía",
+        "",
+        "<b>Ejemplo de solicitud</b>",
+        f"<code>/codigo {ejemplo}</code>",
     ]
     if not emails:
         lines.append("")
-        lines.append("⏳ Todavía no tenés correos asignados; el admin te los asigna en breve.")
+        lines.append("⏳ Todavía no tienes correos asignados; contacta al administrador.")
     elif len(emails) == 1:
         lines.append("")
         lines.append(
-            "💡 Tenés un solo correo, así que podés mandar el comando solo "
-            "(ej. <code>/codigo</code>) y te lo doy de esa cuenta."
+            "<i>Tienes una sola cuenta: también puedes enviar solo</i>\n"
+            "<code>/codigo</code>"
         )
     elif len(emails) <= MAX_EMAIL_BUTTONS:
         lines.append("")
-        lines.append("💡 También podés tocar un correo de abajo y elegir qué necesitás.")
+        lines.append("<i>También puedes seleccionar una cuenta de los botones de abajo.</i>")
     else:
         lines.append("")
         lines.append(
-            f"💡 Tenés {len(emails)} correos. Pedí directamente el que "
-            "necesitás con <code>/codigo correo@gmail.com</code>."
+            f"<i>Tienes {len(emails)} cuentas: indica siempre el correo completo.</i>"
         )
-    return "\n".join(lines)
+    return _message_card("Guía rápida", "\n".join(lines), icon="❓")
 
 
 def _admin_help_text() -> str:
     lines = [
-        f"🛠 <b>Panel de administrador · {BRAND}</b>",
-        "──────────────────",
-        "👥 <code>/clientes</code> — lista de clientes (ID, usuario, correos)",
-        "🔓 <code>/activar &lt;ID o @usuario&gt;</code> — activa el acceso (sin asignar correo aún)",
-        "⏸ <code>/desactivar &lt;ID o @usuario&gt;</code> — pausa el acceso",
-        "➕ <code>/asignar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — asigna y activa",
-        "➖ <code>/quitar &lt;ID o @usuario&gt; &lt;correo&gt;</code> — quita un correo",
-        "📢 <code>/anuncio &lt;mensaje&gt;</code> — enviar un anuncio a todos los registrados",
-        "📊 <code>/limite [cantidad]</code> — ver o cambiar el límite diario de consultas",
+        "<b>CLIENTES Y ACCESO</b>",
+        "👥 <code>/clientes</code> — clientes y cuentas asignadas",
+        "🔓 <code>/activar ID</code> — activar acceso",
+        "⏸ <code>/desactivar ID</code> — pausar acceso",
         "",
-        "— También tenés los comandos de cliente —",
-        "🔑 /codigo · ✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📺 /tv · "
-        "📋 /miscorreos",
+        "<b>ASIGNACIÓN DE CUENTAS</b>",
+        "➕ <code>/asignar ID correo</code> — asignar y activar",
+        "➖ <code>/quitar ID correo</code> — retirar una asignación",
+        "<i>Puedes usar el ID o @usuario del cliente.</i>",
+        "",
+        "<b>OPERACIÓN DEL BOT</b>",
+        "📢 <code>/anuncio mensaje</code> — avisar a todos los registrados",
+        "📊 <code>/limite [cantidad]</code> — límite diario; 0 = sin cupo diario",
+        "🔍 <code>/diagnostico</code> — estado de correo y bot",
+        "📋 <code>/metricas</code> — resultados de solicitudes",
+        "✨ <code>/emojiid</code> — consultar un emoji Premium",
+        "",
+        "<b>ACCESOS DE CLIENTE</b>",
+        "🔑 /codigo · 📨 /enlacetv · 📺 /tv\n"
+        "✈️ /viaje · 🏠 /hogar · 🔒 /clave · 📋 /miscorreos",
     ]
-    return "\n".join(lines)
+    return _message_card("Panel de administrador", "\n".join(lines), icon="👥")
 
 
 def _offer_kinds_for_email(client: CodeBotClient, raw_email: str) -> None:
@@ -1289,15 +1403,19 @@ def _offer_kinds_for_email(client: CodeBotClient, raw_email: str) -> None:
     if email not in set(emails):
         send_message(
             chat_id,
-            f"⚠️ El correo <b>{html.escape(email)}</b> no está asignado a tu "
-            "cuenta, así que no te corresponde. Si creés que es un error, "
-            "escribile al admin.",
+            _message_card(
+                "Cuenta no asignada",
+                f"El correo <code>{html.escape(email)}</code> no está asignado a tu "
+                "cuenta, así que no te corresponde.\n\n"
+                "Revisa el correo o contacta al administrador.",
+                icon="🔒",
+            ),
         )
         return
     idx = emails.index(email)
     send_message(
         chat_id,
-        f"📧 <b>{html.escape(_mask_email(email))}</b>\n¿Qué necesitás?",
+        _account_actions_message(email),
         buttons=_kind_buttons(idx),
     )
 
@@ -1311,16 +1429,25 @@ def _send_email_menu(client: CodeBotClient) -> None:
         recent = _recent_emails(client)
         send_message(
             client.telegram_chat_id,
-            f"📧 Tenés <b>{len(emails)}</b> correos asignados.\n\n"
-            "Pedí el código indicando el correo completo:\n"
-            "<code>/codigo nombre@gmail.com</code>"
-            + ("\n\nTus cuentas recientes:" if recent else ""),
+            _message_card(
+                "Tus cuentas Netflix",
+                f"<b>{len(emails)} cuentas asignadas</b>\n\n"
+                "Solicita el código indicando el correo completo:\n"
+                "<code>/codigo nombre@gmail.com</code>"
+                + ("\n\n<b>Cuentas recientes</b>\nSelecciona una para continuar." if recent else ""),
+                icon="📧",
+            ),
             buttons=_email_buttons(recent, index_source=emails) if recent else None,
         )
         return
     send_message(
         client.telegram_chat_id,
-        "Tus correos asignados. Tocá uno y elegí qué necesitás:",
+        _message_card(
+            "Tus cuentas Netflix",
+            f"<b>{len(emails)} {'cuenta disponible' if len(emails) == 1 else 'cuentas disponibles'}</b>\n\n"
+            "Selecciona un correo para ver sus opciones de acceso.",
+            icon="📧",
+        ),
         buttons=_email_buttons(emails),
     )
 
@@ -1342,7 +1469,7 @@ def _cmd_search(client: CodeBotClient, raw_query: str) -> None:
 
     search_key = f"codesbot:search:{client.telegram_chat_id}"
     if not _is_admin(chat_id) and cache.get(search_key):
-        send_message(chat_id, "⏳ Esperá un momento antes de realizar otra búsqueda.")
+        send_message(chat_id, "⏳ Espera un momento antes de realizar otra búsqueda.")
         return
     cache.set(search_key, 1, timeout=2)
 
@@ -1350,20 +1477,28 @@ def _cmd_search(client: CodeBotClient, raw_query: str) -> None:
     if not query:
         send_message(
             chat_id,
-            "🔑 Pedí el código indicando el correo completo.\n"
-            "Ejemplo: <code>/codigo nombre@gmail.com</code>",
+            _message_card(
+                "Solicita tu código",
+                "Indica el correo completo junto al comando:\n\n"
+                "<code>/codigo nombre@gmail.com</code>",
+                icon="🔑",
+            ),
         )
         return
     if len(query) < 2:
-        send_message(chat_id, "🔍 Escribí al menos 2 caracteres para buscar.")
+        send_message(chat_id, "🔍 Escribe al menos 2 caracteres para buscar.")
         return
 
     matches = [email for email in emails if query in email.lower()]
     if not matches:
         send_message(
             chat_id,
-            f"🔍 No encontré correos asignados que coincidan con "
-            f"<code>{html.escape(query)}</code>.",
+            _message_card(
+                "Sin coincidencias",
+                f"No encontré correos asignados que coincidan con "
+                f"<code>{html.escape(query)}</code>.\n\nPrueba con otra parte del correo.",
+                icon="🔍",
+            ),
         )
         return
     if len(matches) == 1:
@@ -1373,12 +1508,16 @@ def _cmd_search(client: CodeBotClient, raw_query: str) -> None:
     visible = matches[:MAX_EMAIL_BUTTONS]
     extra = len(matches) - len(visible)
     detail = (
-        f"\nMostrando los primeros {len(visible)}. Escribí una búsqueda más "
+        f"\nMostrando los primeros {len(visible)}. Escribe una búsqueda más "
         "específica." if extra else ""
     )
     send_message(
         chat_id,
-        f"🔍 Encontré <b>{len(matches)}</b> coincidencias. Elegí un correo:{detail}",
+        _message_card(
+            "Resultados de tu búsqueda",
+            f"<b>{len(matches)} coincidencias</b>\n\nSelecciona un correo para continuar.{detail}",
+            icon="🔍",
+        ),
         buttons=_email_buttons(
             visible,
             index_source=emails,
@@ -1446,7 +1585,7 @@ def _delivery_metrics(hours: int = 24) -> list[dict]:
 
 def _admin_metrics(chat_id) -> None:
     rows = _delivery_metrics()
-    lines = ["📊 <b>Métricas del bot · últimas 24 h</b>"]
+    lines = ["<b>ÚLTIMAS 24 HORAS</b>", ""]
     for row in rows:
         label = KIND_LABELS.get(row["kind"], row["kind"] or "general")
         lines.append(
@@ -1455,7 +1594,7 @@ def _admin_metrics(chat_id) -> None:
         )
     if not rows:
         lines.append("Sin solicitudes registradas.")
-    send_message(chat_id, "\n".join(lines))
+    send_message(chat_id, _message_card("Resumen de solicitudes", "\n".join(lines), icon="📋"))
 
 
 def _diagnostic_text() -> str:
@@ -1466,14 +1605,17 @@ def _diagnostic_text() -> str:
         timezone.localtime(last_delivery.created_at).strftime("%Y-%m-%d %H:%M")
         if last_delivery else "sin entregas"
     )
-    return (
-        "🩺 <b>Diagnóstico del bot Netflix</b>\n"
-        f"• Telegram: {'OK' if is_configured() else 'NO CONFIGURADO'}\n"
-        f"• IMAP Proton: {'OK' if imap_ok else 'ERROR'}\n"
-        f"• Casillas activas: {len(checks)}\n"
-        f"• Última solicitud: {last_label}\n"
-        f"• Ventana: {settings.CODES_LOOKBACK_MINUTES} min\n"
-        f"• Máximo escaneado: {settings.CODES_IMAP_MAX_SCAN} mensajes"
+    return _message_card(
+        "Diagnóstico del bot",
+        "<b>CONFIGURACIÓN Y CORREO</b>\n"
+        f"Telegram · {'Token configurado' if is_configured() else 'NO CONFIGURADO'}\n"
+        f"IMAP Proton · {'OK' if imap_ok else 'ERROR'}\n"
+        f"Casillas activas · {len(checks)}\n\n"
+        "<b>ACTIVIDAD</b>\n"
+        f"Última solicitud · {last_label}\n"
+        f"Ventana · {settings.CODES_LOOKBACK_MINUTES} min\n"
+        f"Máximo escaneado · {settings.CODES_IMAP_MAX_SCAN} mensajes",
+        icon="🔍",
     )
 
 

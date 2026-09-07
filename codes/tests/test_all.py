@@ -941,7 +941,7 @@ class EfficiencyTests(TestCase):
         bot._deliver_code(self.client_obj, "mine@gmail.com", kind="signin_code")
         # Segundo pedido inmediato de OTRO tipo (no cacheado) → frenado.
         msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="household")
-        self.assertIn("Esperá unos segundos", msg)
+        self.assertIn("Espera unos segundos", msg)
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
@@ -950,21 +950,21 @@ class EfficiencyTests(TestCase):
         AssignedEmail.objects.create(client=admin, email="mine@gmail.com")
         bot._deliver_code(admin, "mine@gmail.com", kind="signin_code")
         msg = bot._deliver_code(admin, "mine@gmail.com", kind="household")
-        self.assertNotIn("Esperá unos segundos", msg)
+        self.assertNotIn("Espera unos segundos", msg)
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
     def test_travel_not_found_explains_how_to_generate_email(self, _fetch, _cfg):
         msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="temp_code")
-        self.assertIn("Generá el correo desde Netflix", msg)
-        self.assertIn("volvé a pedirlo en un minuto", msg)
+        self.assertIn("Genera el correo desde Netflix", msg)
+        self.assertIn("vuelve a pedirlo en un minuto", msg)
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     @mock.patch("codes.bot.imap_reader.fetch_latest_for_email", return_value=None)
     def test_household_not_found_explains_how_to_generate_email(self, _fetch, _cfg):
         msg = bot._deliver_code(self.client_obj, "mine@gmail.com", kind="household")
-        self.assertIn("Generá el correo desde Netflix", msg)
-        self.assertIn("volvé a pedirlo en un minuto", msg)
+        self.assertIn("Genera el correo desde Netflix", msg)
+        self.assertIn("vuelve a pedirlo en un minuto", msg)
 
     @mock.patch("codes.bot.imap_reader.is_configured", return_value=True)
     def test_imap_retried_once_on_error(self, _cfg):
@@ -1329,7 +1329,7 @@ class SecurityFeatureTests(TestCase):
     def test_admin_diagnostic_contains_safe_status(self, msend, _health):
         bot._admin_diagnostics("900")
         message = msend.call_args.args[1]
-        self.assertIn("IMAP Proton: OK", message)
+        self.assertIn("IMAP Proton · OK", message)
         self.assertNotIn("password", message.lower())
 
     @mock.patch("codes.bot.send_message")
@@ -1443,7 +1443,7 @@ class MenuButtonTests(TestCase):
     def test_menu_buttons_map_to_known_commands(self):
         for label, cmd in bot.MENU_BUTTONS.items():
             self.assertTrue(
-                cmd in bot.COMMAND_KINDS or cmd in ("/miscorreos", "/cmds"),
+                cmd in bot.COMMAND_KINDS or cmd in ("/miscorreos", "/cmds", "/enlacetv"),
                 f"{label} -> {cmd}",
             )
 
@@ -1471,7 +1471,7 @@ class MenuButtonTests(TestCase):
         )
         self.assertEqual(
             [button["text"] for button in buttons],
-            ["Código", "Viaje", "Hogar", "Clave", "Activar TV", "Mis correos"],
+            ["Código", "Enlace TV", "Viaje", "Hogar", "Clave", "Activar TV", "Mis correos", "Ayuda"],
         )
 
     def test_inline_action_buttons_have_premium_icons_and_styles(self):
