@@ -16,6 +16,7 @@ import json
 import logging
 import re
 import secrets
+from io import BytesIO
 from hashlib import sha256
 from urllib.parse import quote
 from datetime import datetime, time, timedelta
@@ -36,6 +37,8 @@ from django.contrib.auth.views import (
     PasswordResetView,
 )
 from django.core.cache import cache
+from django.core.files.base import ContentFile
+from django.db import transaction
 from django.db.models import Prefetch, Q, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -260,9 +263,10 @@ def _public_renewal_render(request, context, status=200):
     return response
 
 
+@transaction.atomic
 def public_renewal(request, token):
     renewal = get_object_or_404(
-        RenewalRequest.objects.select_related(
+        RenewalRequest.objects.select_for_update(of=("self",)).select_related(
             "owner__jc_tenant", "subscription__client", "subscription__service"
         ),
         token=token,
@@ -279,6 +283,8 @@ def public_renewal(request, token):
     if renewal.link_expired:
         return _public_renewal_render(request, {**base_context, "expired": True}, status=410)
     if request.method == "POST":
+        if renewal.status == RenewalRequest.Status.APPROVED:
+            return redirect("jheliztv_public_renewal", token=renewal.token)
         action = (request.POST.get("action") or "").strip()
         if action == "renew":
             renewal.status = RenewalRequest.Status.PAYMENT_PENDING
@@ -294,7 +300,8 @@ def public_renewal(request, token):
             renewal.requested_at = timezone.now()
             renewal.save(update_fields=["status", "customer_note", "requested_at", "updated_at"])
         elif action == "proof":
-            method = methods.filter(pk=request.POST.get("payment_method")).first()
+            method_id = request.POST.get("payment_method") or ""
+            method = methods.filter(pk=method_id).first() if method_id.isdecimal() else None
             proof = request.FILES.get("proof")
             if not method or not proof:
                 return _public_renewal_render(request, {
@@ -678,7 +685,7 @@ def service_detail(request, tenant, pk):
     owner = request.user
     service = get_object_or_404(Service, pk=pk, owner=owner)
     subs = _decorate_subs(
-        list(service.subscriptions.filter(is_archived=False).select_related("client"))
+        list(service.subscriptions.filter(owner=request.user, client__owner=request.user, is_archived=False).select_related("client"))
     )
     control = ControlSettings.load(owner)
     business = tenant.business_name or owner.username
@@ -937,7 +944,7 @@ def subscription_delete(request, tenant, pk):
 def clients(request, tenant):
     owner = request.user
     active_subs_qs = (
-        Subscription.objects.filter(is_archived=False)
+        Subscription.objects.filter(owner=owner, service__owner=owner, is_archived=False)
         .select_related("service")
         .order_by("expires_at")
     )
@@ -1095,7 +1102,7 @@ def client_report_pdf(request, tenant, pk):
     from reportlab.pdfgen import canvas
 
     client = get_object_or_404(Client, pk=pk, owner=request.user)
-    subs_qs = client.subscriptions.filter(is_archived=False).select_related("service")
+    subs_qs = client.subscriptions.filter(owner=request.user, service__owner=request.user, is_archived=False).select_related("service")
     # "Extraer": permite elegir qué servicios incluir
     # (?services=1&services=2 o ?services=1,2,3).
     raw = " ".join(request.GET.getlist("services")).replace(",", " ")
@@ -1551,10 +1558,25 @@ def payment_method_add(request, tenant):
     if not label or not details or kind not in ResellerPaymentMethod.Kind.values:
         messages.error(request, "Completa el nombre y los datos del método de pago.")
         return redirect("jheliztv_renewals")
+    qr = request.FILES.get("qr_image")
+    if qr:
+        try:
+            if qr.size > 8 * 1024 * 1024:
+                raise ValueError("Imagen demasiado grande")
+            with Image.open(qr) as original:
+                if original.format not in {"PNG", "JPEG", "WEBP"} or original.width * original.height > 16_000_000:
+                    raise ValueError("Formato o dimensiones no admitidos")
+                original.load()
+                output = BytesIO()
+                original.convert("RGB").save(output, format="PNG")
+            qr = ContentFile(output.getvalue(), name=f"{secrets.token_hex(16)}.png")
+        except (ValueError, OSError, Image.DecompressionBombError):
+            messages.error(request, "El QR debe ser una imagen JPG, PNG o WebP de hasta 8 MB y 16 megapíxeles.")
+            return redirect("jheliztv_renewals")
     ResellerPaymentMethod.objects.create(
         owner=request.user, kind=kind, label=label,
         holder=(request.POST.get("holder") or "").strip(),
-        details=details, qr_image=request.FILES.get("qr_image"),
+        details=details, qr_image=qr,
     )
     messages.success(request, "Método de pago agregado.")
     return redirect("jheliztv_renewals")
@@ -1573,8 +1595,12 @@ def payment_method_delete(request, tenant, pk):
 
 @tenant_required
 @require_POST
+@transaction.atomic
 def renewal_review(request, tenant, pk):
-    renewal = get_object_or_404(RenewalRequest, pk=pk, owner=request.user)
+    renewal = get_object_or_404(RenewalRequest.objects.select_for_update(), pk=pk, owner=request.user)
+    if renewal.status == RenewalRequest.Status.APPROVED:
+        messages.info(request, "Esta renovación ya fue aprobada; no se modificó el vencimiento.")
+        return redirect("jheliztv_renewals")
     action = request.POST.get("action")
     if action == "approve":
         try:

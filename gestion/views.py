@@ -216,7 +216,7 @@ def service_detail(request, pk):
     owner = request.user
     service = get_object_or_404(Service, pk=pk, owner=owner)
     subs = _decorate_subs(
-        list(service.subscriptions.filter(is_archived=False).select_related("client"))
+        list(service.subscriptions.filter(owner=request.user, client__owner=request.user, is_archived=False).select_related("client"))
     )
     form = SubscriptionForm(initial={"service": service})
     form.fields["client"].queryset = Client.objects.filter(owner=owner)
@@ -281,6 +281,8 @@ def subscription_add(request):
 def subscription_edit(request, pk):
     sub = get_object_or_404(Subscription, pk=pk, owner=request.user)
     form = SubscriptionForm(request.POST, instance=sub)
+    form.fields["client"].queryset = Client.objects.filter(owner=request.user)
+    form.fields["service"].queryset = Service.objects.filter(owner=request.user)
     if form.is_valid():
         form.save()
         messages.success(request, "Suscripción actualizada.")
@@ -377,7 +379,7 @@ def client_delete(request, pk):
 def client_report_pdf(request, pk):
     """Genera un PDF con todos los servicios del cliente (correos + vencimientos)."""
     client = get_object_or_404(Client, pk=pk, owner=request.user)
-    subs = list(client.subscriptions.filter(is_archived=False).select_related("service"))
+    subs = list(client.subscriptions.filter(owner=request.user, service__owner=request.user, is_archived=False).select_related("service"))
 
     from io import BytesIO
 
