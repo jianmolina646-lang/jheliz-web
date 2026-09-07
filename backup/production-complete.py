@@ -118,7 +118,9 @@ def verify(archive, work, label):
     name = 'jheliz-restore-v2-' + label + '-' + str(os.getpid())
     try:
         run('docker', 'run', '-d', '--name', name, '--network', 'none', '--memory', '512m', '--tmpfs', '/var/lib/postgresql/data', '-e', 'POSTGRES_HOST_AUTH_METHOD=trust', 'postgres:16-alpine')
-        run('docker', 'exec', name, 'sh', '-c', 'for i in $(seq 1 60); do pg_isready -U postgres >/dev/null && exit 0; sleep 1; done; exit 1')
+        # initdb briefly starts a socket-only server; wait for the final TCP
+        # listener so restore cannot race that temporary server's shutdown.
+        run('docker', 'exec', name, 'sh', '-c', 'for i in $(seq 1 60); do pg_isready -h 127.0.0.1 -U postgres >/dev/null && exit 0; sleep 1; done; exit 1')
         with (target / 'database.dump').open('rb') as f:
             run('docker', 'exec', '-i', name, 'pg_restore', '-U', 'postgres', '-d', 'postgres', '--exit-on-error', '--no-owner', '--no-acl', stdin=f)
         # Exact counts captured from the same pg_dump snapshot.
