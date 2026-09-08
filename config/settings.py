@@ -390,6 +390,8 @@ CODES_IMAP_USER = config("CODES_IMAP_USER", default=SYSTEM_EMAIL_ACCOUNT)
 CODES_IMAP_PASSWORD = secret_config("CODES_IMAP_PASSWORD")
 CODES_IMAP_SECURITY = config("CODES_IMAP_SECURITY", default="STARTTLS")
 CODES_IMAP_TLS_VERIFY = config("CODES_IMAP_TLS_VERIFY", default=False, cast=bool)
+# Activar solo para el identificador de autenticación del receptor IMAP confiable.
+CODES_IMAP_TRUSTED_AUTHSERV_ID = config("CODES_IMAP_TRUSTED_AUTHSERV_ID", default="")
 # Segunda casilla opcional; vacía en producción.
 CODES_IMAP2_HOST = config("CODES_IMAP2_HOST", default="")
 CODES_IMAP2_PORT = config("CODES_IMAP2_PORT", default=993, cast=int)
@@ -397,6 +399,7 @@ CODES_IMAP2_USER = config("CODES_IMAP2_USER", default="")
 CODES_IMAP2_PASSWORD = secret_config("CODES_IMAP2_PASSWORD", allow_empty=True)
 CODES_IMAP2_SECURITY = config("CODES_IMAP2_SECURITY", default="SSL")
 CODES_IMAP2_TLS_VERIFY = config("CODES_IMAP2_TLS_VERIFY", default=True, cast=bool)
+CODES_IMAP2_TRUSTED_AUTHSERV_ID = config("CODES_IMAP2_TRUSTED_AUTHSERV_ID", default="")
 # Ventana (minutos) hacia atrás para considerar un correo de Netflix vigente.
 CODES_LOOKBACK_MINUTES = config("CODES_LOOKBACK_MINUTES", default=15, cast=int)
 # Máximo de pedidos de código por cliente por día (0 = sin límite).

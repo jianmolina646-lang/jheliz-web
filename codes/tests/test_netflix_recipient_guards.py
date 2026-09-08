@@ -26,7 +26,7 @@ class NetflixRecipientGuardTests(SimpleTestCase):
         msg.set_content(body or "Netflix sign-in code: 123456")
         return msg
 
-    def search(self, messages, kind="signin_code", service="netflix"):
+    def search(self, messages, kind="signin_code", service="netflix", trusted_authserv_id=""):
         conn = mock.Mock()
         conn.search.return_value = (
             "OK", [b" ".join(str(i).encode() for i in range(1, len(messages) + 1))]
@@ -37,7 +37,7 @@ class NetflixRecipientGuardTests(SimpleTestCase):
         parser = parse_netflix_email if service == "netflix" else parse_disney_email
         with mock.patch.object(imap_reader, "_connect", return_value=conn):
             results = imap_reader._search_account(
-                {"user": "synthetic", "password": "synthetic"},
+                {"user": "synthetic", "password": "synthetic", "trusted_authserv_id": trusted_authserv_id},
                 self.requested, service, parser, kind,
                 datetime.now(timezone.utc) - timedelta(minutes=15),
                 service=service,
@@ -49,6 +49,53 @@ class NetflixRecipientGuardTests(SimpleTestCase):
     def test_exact_recipient_still_delivers_code(self):
         results = self.search([self.message()])
         self.assertEqual(results[0][1].code, "123456")
+
+    def outlook_message(self):
+        target = "ana@outlook.com"
+        msg = self.message("relay@example.net", body=(
+            "De: Netflix <info@account.netflix.com>\n"
+            "Enviados: martes, 8 de septiembre de 2026\n"
+            f"Para: {target} <{target}>\n"
+            "Asunto: Your Netflix sign-in code\n\n"
+            "Netflix sign-in code: 123456"
+        ))
+        msg.replace_header("From", target)
+        msg["Auto-Submitted"] = "auto-generated"
+        msg["X-Ms-Exchange-Inbox-Rules-Loop"] = target
+        msg["Authentication-Results"] = "mail.protonmail.ch; dmarc=pass header.from=outlook.com"
+        msg["Authentication-Results"] = "mail.protonmail.ch; dkim=pass header.d=outlook.com"
+        return msg
+
+    def test_outlook_forward_requires_trust_for_that_mailbox(self):
+        with mock.patch.object(self, "requested", "ana@outlook.com"):
+            msg = self.outlook_message()
+            self.assertEqual(self.search([msg]), [])
+            results = self.search([msg], trusted_authserv_id="mail.protonmail.ch")
+            self.assertEqual(results[0][1].code, "123456")
+
+    def test_outlook_forward_still_enforces_age_and_requested_kind(self):
+        with mock.patch.object(self, "requested", "ana@outlook.com"):
+            msg = self.outlook_message()
+            self.assertEqual(self.search([msg], kind="household", trusted_authserv_id="mail.protonmail.ch"), [])
+            msg.replace_header("Date", format_datetime(datetime.now(timezone.utc) - timedelta(minutes=16)))
+            self.assertEqual(self.search([msg], trusted_authserv_id="mail.protonmail.ch"), [])
+
+    def test_disney_does_not_use_outlook_recipient_policy(self):
+        msg = self.message("relay@example.net", "Disney+ sign-in code: 123456. Contact: ana@example.com")
+        with mock.patch.object(imap_reader, "matches_outlook_forward") as forward:
+            self.search([msg], service="disney", trusted_authserv_id="mail.protonmail.ch")
+        forward.assert_not_called()
+
+    @override_settings(
+        CODES_IMAP_HOST="proton-bridge.internal", CODES_IMAP_USER="synthetic",
+        CODES_IMAP_PASSWORD="synthetic", CODES_IMAP_TRUSTED_AUTHSERV_ID="mail.protonmail.ch",
+        CODES_IMAP2_HOST="imap.example.net", CODES_IMAP2_USER="synthetic2",
+        CODES_IMAP2_PASSWORD="synthetic2", CODES_IMAP2_TRUSTED_AUTHSERV_ID="",
+    )
+    def test_authentication_trust_is_scoped_to_each_mailbox(self):
+        accounts = imap_reader._accounts()
+        self.assertEqual(accounts[0]["trusted_authserv_id"], "mail.protonmail.ch")
+        self.assertEqual(accounts[1]["trusted_authserv_id"], "")
 
     def test_recipient_case_and_display_name_are_supported(self):
         results = self.search([self.message("Ana <ANA@EXAMPLE.COM>")])
