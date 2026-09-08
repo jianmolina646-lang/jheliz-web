@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import html as _html
 import re
+import unicodedata
 from dataclasses import dataclass, field
 
 # Links de acción de netflix.com (los que llevan a confirmar/obtener código).
@@ -140,6 +141,25 @@ _HUMAN = {
     "other": "Correo de Netflix",
 }
 
+# Estos avisos incluyen palabras o enlaces de ayuda que también aparecen en
+# solicitudes de acción, pero solo informan de un cambio ya realizado.
+_NOTICE_SUBJECTS = {
+    "confirmacion: se ha confirmado tu hogar con netflix",
+    "un nuevo dispositivo esta usando tu cuenta",
+}
+
+
+def _is_notice_subject(subject: str) -> bool:
+    normalized = "".join(
+        char
+        for char in unicodedata.normalize("NFKD", subject.casefold())
+        if not unicodedata.combining(char)
+    )
+    normalized = " ".join(normalized.split())
+    normalized = re.sub(r"\s*:\s*", ": ", normalized)
+    normalized = re.sub(r"^(?:(?:rv|fw|fwd): )+", "", normalized)
+    return normalized in _NOTICE_SUBJECTS
+
 
 @dataclass
 class NetflixResult:
@@ -159,6 +179,8 @@ class NetflixResult:
 
 
 def _classify(subject: str, body: str, links: list[str] | None = None) -> str:
+    if _is_notice_subject(subject):
+        return "other"
     haystack = f"{subject}\n{body}".lower()
     # Las solicitudes nuevas incluyen dos acciones distintas: /ilum aprueba
     # el acceso y /denysignin lo rechaza. Solo el enlace de aprobación se

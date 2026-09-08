@@ -9,6 +9,8 @@ Como los correos llegan reenviados, el destinatario original puede estar en
 distintos headers (``To``, ``Delivered-To``, ``X-Forwarded-To``,
 ``Resent-To``…). Para Netflix exigimos una dirección exacta en esos headers:
 una mención en el cuerpo o parte de otra dirección no identifica al destinatario.
+Los reenvíos automáticos Outlook pueden identificar la cuenta por su remitente
+autenticado y su bloque original exacto, solo con un receptor confiable configurado.
 Disney conserva por separado su compatibilidad histórica de reenvíos.
 """
 
@@ -28,6 +30,7 @@ from email.utils import getaddresses, parsedate_to_datetime
 from django.conf import settings
 
 from .disney import DisneyResult, parse_disney_email
+from .forwarding import matches_outlook_forward
 from .netflix import NetflixResult, parse_netflix_email
 
 logger = logging.getLogger(__name__)
@@ -71,6 +74,7 @@ def _accounts() -> list[dict]:
                 "password": password,
                 "security": getattr(settings, f"{prefix}_SECURITY", "SSL").upper(),
                 "tls_verify": getattr(settings, f"{prefix}_TLS_VERIFY", True),
+                "trusted_authserv_id": getattr(settings, f"{prefix}_TRUSTED_AUTHSERV_ID", ""),
             })
     return accounts
 
@@ -285,6 +289,11 @@ def _search_account(
                 continue
             recipients = _recipients(msg)
             matches = account_email in recipients
+            if service == "netflix" and not matches:
+                matches = matches_outlook_forward(
+                    msg, account_email,
+                    trusted_authserv_id=account.get("trusted_authserv_id", ""),
+                )
             if service == "disney" and not matches:
                 # Compatibilidad de Disney fuera del alcance de este cambio.
                 # Netflix nunca autoriza por subcadenas ni por texto del cuerpo.
