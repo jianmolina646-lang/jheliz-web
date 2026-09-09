@@ -1702,22 +1702,22 @@ def _admin_set_active(chat_id, token: str, active: bool) -> None:
             "Mirá <code>/clientes</code> para ver los IDs.",
         )
         return
-    label = f"{client.display_name or 'cliente'} (<code>{html.escape(str(client.telegram_chat_id))}</code>)"
+    label = f"cliente con ID <code>{html.escape(str(client.telegram_chat_id))}</code>"
     if client.is_active == active:
         estado = "ya estaba activo" if active else "ya estaba desactivado"
-        send_message(chat_id, f"{label} {estado}.")
+        send_message(chat_id, f"El {label} {estado}.")
         return
     client.is_active = active
     client.save(update_fields=["is_active"])
     if active:
-        send_message(chat_id, f"✅ Activé a {label}. (Aún sin correos: asignale con <code>/asignar</code>.)")
+        send_message(chat_id, f"✅ Activé al {label}.")
         send_message(
             client.telegram_chat_id,
             "✅ <b>El admin activó tu acceso al bot.</b>\n"
             "En breve te asigna tus correos y vas a poder pedir /codigo, /viaje, /hogar, /clave o /tv.",
         )
     else:
-        send_message(chat_id, f"⏸ Desactivé a {label}. Ya no puede pedir códigos hasta que lo reactives.")
+        send_message(chat_id, f"⏸ Desactivé al {label}. Ya no puede pedir códigos hasta que lo reactives.")
 
 
 def _admin_broadcast(chat_id, message: str) -> None:
@@ -1808,27 +1808,27 @@ def _admin_assign(chat_id, rest: str, add: bool) -> None:
             "Mirá <code>/clientes</code> para ver los IDs.",
         )
         return
-    label = f"{client.display_name or 'cliente'} (<code>{html.escape(str(client.telegram_chat_id))}</code>)"
+    label = f"cliente con ID <code>{html.escape(str(client.telegram_chat_id))}</code>"
     if add:
         _obj, created = AssignedEmail.objects.get_or_create(client=client, email=email)
         if not client.is_active:
             client.is_active = True
             client.save(update_fields=["is_active"])
         if created:
-            send_message(chat_id, f"✅ Asigné <b>{html.escape(email)}</b> a {label} y lo activé.")
+            send_message(chat_id, f"✅ Asigné <b>{html.escape(email)}</b> al {label} y lo activé.")
             send_message(
                 client.telegram_chat_id,
                 f"✅ El admin te asignó <b>{html.escape(email)}</b>. "
                 "Ya podés pedir /codigo, /viaje, /hogar, /clave o /tv.",
             )
         else:
-            send_message(chat_id, f"{label} ya tenía <b>{html.escape(email)}</b> asignado.")
+            send_message(chat_id, f"El {label} ya tenía <b>{html.escape(email)}</b> asignado.")
     else:
         deleted, _ = AssignedEmail.objects.filter(client=client, email=email).delete()
         if deleted:
-            send_message(chat_id, f"🗑 Le quité <b>{html.escape(email)}</b> a {label}.")
+            send_message(chat_id, f"🗑 Le quité <b>{html.escape(email)}</b> al {label}.")
         else:
-            send_message(chat_id, f"{label} no tenía <b>{html.escape(email)}</b> asignado.")
+            send_message(chat_id, f"El {label} no tenía <b>{html.escape(email)}</b> asignado.")
 
 
 def _notify_admin_new(client: CodeBotClient) -> None:
