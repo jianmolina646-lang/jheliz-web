@@ -20,11 +20,11 @@ RUN pip install --upgrade pip "setuptools>=78.1.1" \
 COPY . .
 
 # Static assets collected at build time
-RUN DJANGO_SECRET_KEY=build SECRET_KEY=build DEBUG=False \
+RUN DJANGO_SECRET_KEY=build SECRET_KEY=build DJANGO_DEBUG=False \
     python manage.py collectstatic --noinput || true
 
 # Compilar traducciones (.po → .mo) si gettext está disponible.
-RUN DJANGO_SECRET_KEY=build SECRET_KEY=build DEBUG=False \
+RUN DJANGO_SECRET_KEY=build SECRET_KEY=build DJANGO_DEBUG=False \
     python manage.py compilemessages || true
 
 EXPOSE 8000

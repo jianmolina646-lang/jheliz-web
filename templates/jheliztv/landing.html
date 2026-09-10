@@ -52,9 +52,10 @@
         </a>
 
         <div class="jl-navbar__links">
-          <a href="#inicio">Inicio</a>
           <a href="#funciones">Funciones</a>
-          <a href="#suscripciones">Suscripciones</a>
+          <a href="#como-funciona">Cómo funciona</a>
+          <a href="#precio">Precio</a>
+          <a href="#preguntas">Preguntas</a>
         </div>
 
         <a class="jl-button jl-button--primary jl-navbar__cta" href="{% url 'jheliztv_register' %}">
@@ -69,9 +70,10 @@
       </nav>
 
       <div class="jl-navbar__mobile" id="jlMobileMenu" hidden>
-        <a href="#inicio">Inicio</a>
         <a href="#funciones">Funciones</a>
-        <a href="#suscripciones">Suscripciones</a>
+        <a href="#como-funciona">Cómo funciona</a>
+        <a href="#precio">Precio</a>
+        <a href="#preguntas">Preguntas</a>
         <a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">Probar ahora</a>
       </div>
     </div>
@@ -81,15 +83,16 @@
     <section class="jl-hero" id="inicio">
       <div class="jl-container jl-hero__inner">
         <span class="jl-pill">Panel todo en uno</span>
-        <h1>Gestión de <span>suscripciones</span> para tu negocio</h1>
-        <p>Controla clientes, cuentas, pagos y vencimientos de todos tus servicios de streaming desde un solo panel, con recordatorios automáticos y métricas en tiempo real.</p>
+        <h1>Controla tus <span>suscripciones</span> sin depender de hojas de cálculo</h1>
+        <p>Organiza clientes, cuentas, pagos y vencimientos desde un solo panel. Recibe alertas a tiempo y conoce con claridad cuánto gana tu negocio.</p>
         <div class="jl-hero__actions">
           <a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">
-            Probar ahora
+            Probar gratis {{ trial_days }} días
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
           </a>
-          <a class="jl-button jl-button--ghost" href="{% url 'jheliztv_login' %}">Ver demo</a>
+          <a class="jl-button jl-button--ghost" href="{% url 'jheliztv_login' %}">Iniciar sesión</a>
         </div>
+        <p class="jl-hero__assurance">Sin tarjeta para comenzar · Configuración en minutos · Tus datos permanecen aislados</p>
 
         <div class="jl-surface jl-dashboard-preview">
           <div class="jl-dashboard-preview__inner">
@@ -110,8 +113,13 @@
               <article><small>Renovaciones</small><strong>92%</strong></article>
             </div>
 
-            <div class="jl-dashboard-preview__chart" role="img" aria-label="Gráfico demostrativo de crecimiento mensual creado con Chart.js">
-              <canvas id="jlBusinessPreviewChart"></canvas>
+            <div class="jl-dashboard-preview__chart" role="img" aria-label="Gráfico demostrativo de ingresos mensuales en crecimiento">
+              <div class="jl-css-chart" aria-hidden="true">
+                <i style="--bar:38%"></i><i style="--bar:52%"></i><i style="--bar:44%"></i><i style="--bar:68%"></i>
+                <i style="--bar:59%"></i><i style="--bar:81%"></i><i style="--bar:72%"></i><i style="--bar:94%"></i>
+                <i style="--bar:86%"></i><i style="--bar:100%"></i><i style="--bar:78%"></i><i style="--bar:92%"></i>
+              </div>
+              <div class="jl-css-chart__labels" aria-hidden="true"><span>Ene</span><span>Abr</span><span>Jul</span><span>Oct</span><span>Dic</span></div>
             </div>
           </div>
         </div>
@@ -123,7 +131,7 @@
         <header class="jl-section-heading">
           <span class="jl-pill">Funciones</span>
           <h2>Todo lo que necesitas para administrar tu negocio</h2>
-          <p>Herramientas simples y potentes pensadas para revendedores de streaming.</p>
+          <p>Herramientas simples para negocios que administran servicios recurrentes.</p>
         </header>
 
         <div class="jl-feature-grid">
@@ -177,11 +185,27 @@
       </div>
     </section>
 
-    <section class="jl-subscriptions" id="suscripciones">
+    <section class="jl-steps" id="como-funciona">
+      <div class="jl-container">
+        <header class="jl-section-heading">
+          <span class="jl-pill">Cómo funciona</span>
+          <h2>Pasa del desorden al control en tres pasos</h2>
+          <p>No necesitas instalar programas ni preparar hojas de cálculo.</p>
+        </header>
+        <div class="jl-step-grid">
+          <article><span>1</span><h3>Crea tu cuenta</h3><p>Activa tu prueba gratis y configura los servicios que administras.</p></article>
+          <article><span>2</span><h3>Registra clientes</h3><p>Añade pagos, cuentas y fechas de vencimiento desde un único lugar.</p></article>
+          <article><span>3</span><h3>Trabaja con alertas</h3><p>Revisa renovaciones, recordatorios y resultados sin perder información.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="jl-subscriptions" id="vista-panel">
       <div class="jl-container">
         <header class="jl-subscriptions__heading">
-          <h2>Tus suscripciones</h2>
-          <p>Vista rápida del estado de cada cuenta y su próxima renovación.</p>
+          <span class="jl-pill">Vista del producto</span>
+          <h2>Todo lo importante, visible</h2>
+          <p>Ejemplo demostrativo de cómo verás el estado de cada cuenta y su próxima renovación.</p>
         </header>
 
         <div class="jl-surface jl-subscriptions__surface">
@@ -202,28 +226,67 @@
         </div>
 
         <div class="jl-subscriptions__action">
-          <a class="jl-button jl-button--primary" href="{% url 'jheliztv_login' %}">
-            Ver todas las suscripciones
+          <a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">
+            Crear mi panel
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
           </a>
         </div>
       </div>
     </section>
+
+    <section class="jl-pricing" id="precio">
+      <div class="jl-container jl-pricing__layout">
+        <div class="jl-pricing__copy">
+          <span class="jl-pill">Precio transparente</span>
+          <h2>Un solo plan, sin complicaciones</h2>
+          <p>Prueba todas las funciones con tus propios datos antes de decidir.</p>
+          <a href="{% url 'jheliztv_pricing' %}">Ver todos los detalles del plan →</a>
+        </div>
+        <article class="jl-surface jl-pricing-card">
+          <p>Plan mensual</p>
+          <div class="jl-pricing-card__price"><small>S/</small><strong>{{ saas.monthly_price|floatformat:2 }}</strong><span>/ mes</span></div>
+          <ul><li>Clientes y suscripciones</li><li>Pagos y vencimientos</li><li>Métricas y renovaciones</li><li>Recordatorios y soporte</li></ul>
+          <a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">Probar gratis {{ trial_days }} días</a>
+          <small>No necesitas tarjeta para iniciar la prueba.</small>
+        </article>
+      </div>
+    </section>
+
+    <section class="jl-trust" aria-label="Compromisos del servicio">
+      <div class="jl-container jl-trust__grid">
+        <article><strong>Acceso protegido</strong><span>Información disponible solo para tu cuenta.</span></article>
+        <article><strong>Datos aislados</strong><span>Cada negocio trabaja en su propio espacio.</span></article>
+        <article><strong>Soporte directo</strong><span>Canal de ayuda disponible desde el panel.</span></article>
+      </div>
+    </section>
+
+    <section class="jl-faq" id="preguntas">
+      <div class="jl-container jl-faq__layout">
+        <header><span class="jl-pill">Preguntas frecuentes</span><h2>Antes de comenzar</h2><p>Lo esencial sobre la prueba y el funcionamiento del panel.</p></header>
+        <div class="jl-faq__list">
+          <details><summary>¿Cuánto dura la prueba?<span>+</span></summary><p>Tienes {{ trial_days }} días para utilizar el panel con tus propios datos y conocer todas sus funciones.</p></details>
+          <details><summary>¿Necesito una tarjeta para registrarme?<span>+</span></summary><p>No. Puedes crear tu cuenta y comenzar la prueba sin registrar una tarjeta.</p></details>
+          <details><summary>¿Tengo que instalar algo?<span>+</span></summary><p>No. JHELIZCONTROLTV funciona desde el navegador en computadora o teléfono.</p></details>
+          <details><summary>¿Dónde resuelvo otras dudas?<span>+</span></summary><p>Consulta la página completa de preguntas o comunícate con el equipo.</p></details>
+          <div class="jl-faq__links"><a href="{% url 'jheliztv_faq' %}">Ver todas las preguntas</a><a href="{% url 'jheliztv_contact' %}">Contactar soporte</a></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="jl-final-cta"><div class="jl-container"><div class="jl-final-cta__card"><span class="jl-pill">Empieza hoy</span><h2>Ordena tu operación desde el primer día</h2><p>Crea tu cuenta, carga tus primeros clientes y prueba el panel gratis durante {{ trial_days }} días.</p><a class="jl-button jl-button--primary" href="{% url 'jheliztv_register' %}">Crear mi cuenta gratis</a></div></div></section>
   </main>
 
   <footer class="jl-footer">
-    <div class="jl-container jl-footer__inner">
+    <div class="jl-container jl-footer__inner jl-footer__inner--complete">
       <a href="#inicio" class="jl-logo" aria-label="JHELIZ CONTROL TV">
         <span class="jl-logo__mark"><img src="{% static 'img/apple-touch-icon.png' %}" alt="" aria-hidden="true"></span>
         <span>JHELIZ<strong>CONTROLTV</strong></span>
       </a>
+      <nav aria-label="Enlaces del pie de página"><a href="{% url 'jheliztv_features' %}">Funciones</a><a href="{% url 'jheliztv_pricing' %}">Precios</a><a href="{% url 'jheliztv_faq' %}">Preguntas frecuentes</a><a href="{% url 'jheliztv_contact' %}">Contacto y soporte</a><a href="{% url 'jheliztv_privacy' %}">Privacidad</a><a href="{% url 'jheliztv_terms' %}">Términos</a></nav>
       <p>© 2026 JHELIZ CONTROL TV</p>
     </div>
   </footer>
 </div>
 {% endblock %}
 
-{% block pb_scripts %}
-  <script src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
-  <script src="{% static 'js/jheliz-landing.js' %}?v=chart-motion-v2-20260828" defer></script>
-{% endblock %}
+{% block pb_scripts %}<script src="{% static 'js/jheliz-landing.js' %}?v=landing-v3-20260910" defer></script>{% endblock %}

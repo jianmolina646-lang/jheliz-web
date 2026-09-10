@@ -77,12 +77,14 @@ class JheliztvSeoTests(TestCase):
             "como-funciona/",
             "preguntas-frecuentes/",
             "contacto/",
+            "privacidad/",
+            "terminos/",
         ):
             self.assertContains(
                 response,
                 f"<loc>https://jheliztv.xyz/{public_path}</loc>",
             )
-        self.assertEqual(response.content.count(b"<url>"), 6)
+        self.assertEqual(response.content.count(b"<url>"), 8)
         for private_path in ("ingresar", "registro", "app", "control", "renovar"):
             self.assertNotContains(response, private_path)
 

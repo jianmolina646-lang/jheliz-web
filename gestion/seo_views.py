@@ -46,6 +46,8 @@ def sitemap_xml(request):
         "como-funciona/",
         "preguntas-frecuentes/",
         "contacto/",
+        "privacidad/",
+        "terminos/",
     )
     urls = "\n".join(
         f'''  <url>

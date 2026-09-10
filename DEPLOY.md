@@ -28,7 +28,7 @@ sudo nano .env   # rellena SECRET_KEY, MERCADOPAGO_*, SMTP, TELEGRAM_*, etc.
 Campos obligatorios en `.env`:
 
 - `SECRET_KEY` → genera uno con `python -c 'import secrets;print(secrets.token_urlsafe(64))'`
-- `DEBUG=False`
+- `DJANGO_DEBUG=False`
 - `ALLOWED_HOSTS=jheliztv.xyz,www.jheliztv.xyz`
 - `SITE_URL=https://jheliztv.xyz`
 - `DATABASE_URL=postgres://jheliz:jheliz@db:5432/jheliz` (o el Postgres que uses)

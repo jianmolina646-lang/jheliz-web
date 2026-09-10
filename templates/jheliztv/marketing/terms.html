@@ -1,0 +1,21 @@
+{% extends "jheliztv/marketing/base.html" %}
+{% block mk_title %}Términos de servicio | JHELIZCONTROLTV{% endblock %}
+{% block mk_description %}Condiciones generales para probar y utilizar el panel de gestión JHELIZCONTROLTV.{% endblock %}
+{% block mk_canonical %}https://jheliztv.xyz/terminos/{% endblock %}
+{% block mk_og_title %}Términos de servicio | JHELIZCONTROLTV{% endblock %}
+{% block mk_og_description %}Condiciones generales de uso de JHELIZCONTROLTV.{% endblock %}
+{% block mk_og_url %}https://jheliztv.xyz/terminos/{% endblock %}
+{% block mk_twitter_title %}Términos de servicio | JHELIZCONTROLTV{% endblock %}
+{% block mk_twitter_description %}Condiciones generales de uso de JHELIZCONTROLTV.{% endblock %}
+{% block mk_content %}
+<section class="jl-marketing-hero"><div class="jl-container"><span class="jl-pill">Términos</span><h1>Condiciones <span>claras</span></h1><p>Estas reglas buscan mantener un uso seguro y responsable del panel.</p></div></section>
+<section class="jl-marketing-section"><div class="jl-container jl-legal">
+  <article class="jl-surface"><h2>Uso del servicio</h2><p>JHELIZCONTROLTV ofrece herramientas para organizar clientes, pagos, cuentas y vencimientos. Eres responsable de utilizar el panel conforme a la ley y de contar con autorización para tratar la información que registres.</p></article>
+  <article class="jl-surface"><h2>Cuenta y acceso</h2><p>Debes proporcionar información correcta, proteger tus credenciales y notificarnos si sospechas de un acceso no autorizado. No debes compartir, revender ni intentar vulnerar el acceso al sistema.</p></article>
+  <article class="jl-surface"><h2>Prueba y plan mensual</h2><p>La prueba inicial dura {{ trial_days }} días. Al finalizar, el acceso puede requerir la activación del plan mensual mostrado en la página de precios. El importe vigente se confirma antes del pago.</p></article>
+  <article class="jl-surface"><h2>Disponibilidad</h2><p>Trabajamos para mantener el servicio disponible, aunque pueden existir interrupciones por mantenimiento, seguridad o causas fuera de nuestro control.</p></article>
+  <article class="jl-surface"><h2>Uso permitido</h2><p>El panel no concede derechos sobre marcas ni servicios de terceros. No puede utilizarse para actividades ilícitas, acceso no autorizado, fraude o vulneración de derechos de terceros.</p></article>
+  <article class="jl-surface"><h2>Contacto</h2><p>Si necesitas aclarar estas condiciones, comunícate mediante la página de <a href="{% url 'jheliztv_contact' %}">contacto</a>.</p></article>
+  <p class="jl-legal__updated">Última actualización: 10 de septiembre de 2026.</p>
+</div></section>
+{% endblock %}

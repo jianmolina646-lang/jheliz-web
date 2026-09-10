@@ -401,3 +401,39 @@
 @keyframes jlHeroButtonFlow{to{background-position:-220% 0}}
 @keyframes jlHeroButtonShine{0%,38%{left:-40%}72%,100%{left:130%}}
 @media(prefers-reduced-motion:reduce){.jl-logo__mark,.jl-logo__mark:after,.jl-hero:before,.jl-hero:after,.jl-hero .jl-pill,.jl-hero .jl-pill:before,.jl-hero h1,.jl-hero h1 span,.jl-hero__inner>p,.jl-hero__actions,.jl-hero__actions .jl-button--primary,.jl-navbar__cta,.jl-hero__actions .jl-button--primary:after,.jl-navbar__cta:after{animation:none!important}}
+
+/* Conversion-focused landing sections */
+.jl-hero h1{overflow-wrap:anywhere}
+.jl-hero__assurance{margin-top:14px!important;font-size:12px!important;line-height:1.5!important;color:#587166!important}
+.jl-css-chart{display:flex;height:138px;align-items:flex-end;gap:clamp(4px,1.3vw,12px);padding:14px 8px 0;border-bottom:1px solid #d8e9e2;background:repeating-linear-gradient(to bottom,transparent 0,transparent 33%,rgba(54,111,89,.08) 33.5%,transparent 34%)}
+.jl-css-chart i{display:block;height:var(--bar);min-width:4px;flex:1;border-radius:7px 7px 2px 2px;background:linear-gradient(180deg,#25d5a0,#4f7cf2);transform-origin:bottom;animation:jlChartGrow .7s cubic-bezier(.16,1,.3,1) both}
+.jl-css-chart i:nth-child(3n+2){background:linear-gradient(180deg,#46caff,#6575e8)}
+.jl-css-chart i:nth-child(3n){background:linear-gradient(180deg,#a66cf1,#ee7eae)}
+.jl-css-chart__labels{display:flex;justify-content:space-between;padding:6px 8px 0;color:#657d72;font-size:9px;font-weight:600}
+@keyframes jlChartGrow{from{transform:scaleY(0);opacity:.2}}
+
+.jl-steps,.jl-pricing,.jl-faq,.jl-final-cta{position:relative;padding:72px 0}
+.jl-steps{background:#fff}
+.jl-step-grid{display:grid;gap:16px;margin-top:38px}
+.jl-step-grid article{position:relative;padding:26px;border:1px solid #dce9e3;border-radius:20px;background:linear-gradient(145deg,#fff,#f4fbf8);box-shadow:0 20px 45px -36px rgba(13,69,49,.3)}
+.jl-step-grid article>span{display:grid;width:38px;height:38px;place-items:center;border-radius:12px;color:#007a55;background:#d9faec;font-weight:800}
+.jl-step-grid h3{margin:18px 0 8px;font-size:18px}.jl-step-grid p{margin:0;color:#60766c;font-size:14px;line-height:1.65}
+
+.jl-pricing{background:linear-gradient(145deg,#eefaf5,#f4f8ff)}
+.jl-pricing__layout{display:grid;align-items:center;gap:32px;max-width:980px}
+.jl-pricing__copy h2,.jl-faq h2{margin:18px 0 12px;color:#152a21;font-size:clamp(28px,4vw,42px);line-height:1.1;letter-spacing:-.035em}
+.jl-pricing__copy p,.jl-faq header p{margin:0;color:#60766c;line-height:1.65}.jl-pricing__copy>a{display:inline-block;margin-top:20px;color:#00865d;font-weight:700;text-decoration:none}
+.jl-pricing-card{padding:28px!important;color:#173026;background:#fff!important;border-color:#cce3d9!important}
+.jl-pricing-card>p{margin:0;color:#577066;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.jl-pricing-card__price{display:flex;align-items:baseline;gap:5px;margin:14px 0}.jl-pricing-card__price small{font-size:18px;font-weight:800}.jl-pricing-card__price strong{font-size:48px;line-height:1;font-weight:800;letter-spacing:-.05em}.jl-pricing-card__price span{color:#60766c}
+.jl-pricing-card ul{display:grid;gap:10px;margin:22px 0;padding:0;list-style:none}.jl-pricing-card li:before{content:"✓";margin-right:10px;color:#00a976;font-weight:900}.jl-pricing-card .jl-button{width:100%}.jl-pricing-card>small{display:block;margin-top:12px;text-align:center;color:#60766c}
+
+.jl-trust{padding:28px 0;border-block:1px solid #dce9e3;background:#fff}.jl-trust__grid{display:grid;gap:12px}.jl-trust article{display:flex;flex-direction:column;padding:12px 0}.jl-trust strong{color:#173026;font-size:14px}.jl-trust span{margin-top:4px;color:#60766c;font-size:12px;line-height:1.5}
+.jl-faq{background:#fff}.jl-faq__layout{display:grid;gap:32px;max-width:980px}.jl-faq__list details{border-bottom:1px solid #dce9e3}.jl-faq__list summary{display:flex;justify-content:space-between;gap:20px;padding:20px 0;color:#173026;font-weight:700;cursor:pointer;list-style:none}.jl-faq__list summary::-webkit-details-marker{display:none}.jl-faq__list summary span{color:#00a976;font-size:20px}.jl-faq__list details[open] summary span{transform:rotate(45deg)}.jl-faq__list details p{margin:-6px 30px 20px 0;color:#60766c;font-size:14px;line-height:1.65}.jl-faq__links{display:flex;flex-wrap:wrap;gap:18px;margin-top:22px}.jl-faq__links a{color:#00865d;font-size:14px;font-weight:700;text-decoration:none}
+.jl-final-cta{padding-top:20px;background:#fff}.jl-final-cta__card{padding:44px 24px;border-radius:26px;text-align:center;background:linear-gradient(135deg,#102c22,#0a4635);box-shadow:0 28px 65px -34px rgba(0,70,48,.6)}.jl-final-cta h2{max-width:660px;margin:20px auto 12px;color:#fff;font-size:clamp(28px,4vw,44px);line-height:1.08}.jl-final-cta p{max-width:620px;margin:0 auto 24px;color:#c1d9cf;line-height:1.65}
+.jl-footer__inner--complete{grid-template-columns:1fr!important}.jl-footer__inner--complete nav{display:flex;flex-wrap:wrap;gap:12px 22px}.jl-footer__inner--complete nav a{color:#60766c;font-size:13px;font-weight:600;text-decoration:none}.jl-footer__inner--complete nav a:hover{color:#00865d}
+@media(min-width:640px){.jl-css-chart{height:142px}.jl-step-grid,.jl-trust__grid{grid-template-columns:repeat(3,minmax(0,1fr))}.jl-footer__inner--complete{grid-template-columns:auto 1fr auto!important}.jl-footer__inner--complete nav{justify-content:center}}
+@media(min-width:800px){.jl-pricing__layout{grid-template-columns:minmax(0,1fr) 390px}.jl-faq__layout{grid-template-columns:320px minmax(0,1fr);gap:70px}.jl-steps,.jl-pricing,.jl-faq,.jl-final-cta{padding-block:96px}}
+@media(max-width:420px){.jl-container{padding-inline:16px}.jl-hero{padding-top:48px}.jl-hero h1{font-size:32px}.jl-dashboard-preview{margin-inline:0}.jl-dashboard-preview__head>span{padding-inline:7px}.jl-dashboard-preview__chart{height:164px!important}.jl-footer__inner--complete nav{justify-content:center}}
+@media(prefers-reduced-motion:reduce){.jl-css-chart i{animation:none}}
+.jl-legal{display:grid;gap:16px;max-width:840px}.jl-legal article{padding:24px;background:#fff!important;border-color:#dce9e3!important}.jl-legal h2{margin:0 0 10px;color:#173026;font-size:19px}.jl-legal p{margin:0;color:#60766c;font-size:14px;line-height:1.75}.jl-legal a{color:#00865d;font-weight:700}.jl-legal__updated{padding-top:8px;text-align:center;font-size:12px!important}

@@ -1,0 +1,20 @@
+{% extends "jheliztv/marketing/base.html" %}
+{% block mk_title %}Política de privacidad | JHELIZCONTROLTV{% endblock %}
+{% block mk_description %}Conoce cómo JHELIZCONTROLTV trata y protege la información utilizada para prestar el servicio.{% endblock %}
+{% block mk_canonical %}https://jheliztv.xyz/privacidad/{% endblock %}
+{% block mk_og_title %}Política de privacidad | JHELIZCONTROLTV{% endblock %}
+{% block mk_og_description %}Información sobre privacidad y tratamiento de datos en JHELIZCONTROLTV.{% endblock %}
+{% block mk_og_url %}https://jheliztv.xyz/privacidad/{% endblock %}
+{% block mk_twitter_title %}Política de privacidad | JHELIZCONTROLTV{% endblock %}
+{% block mk_twitter_description %}Información sobre privacidad y tratamiento de datos en JHELIZCONTROLTV.{% endblock %}
+{% block mk_content %}
+<section class="jl-marketing-hero"><div class="jl-container"><span class="jl-pill">Privacidad</span><h1>Tu información, <span>bajo control</span></h1><p>Resumen claro de los datos que utilizamos para operar y mejorar el servicio.</p></div></section>
+<section class="jl-marketing-section"><div class="jl-container jl-legal">
+  <article class="jl-surface"><h2>Información que tratamos</h2><p>Al crear una cuenta podemos solicitar datos de identificación y contacto, información del negocio y los datos operativos que decidas registrar en el panel.</p></article>
+  <article class="jl-surface"><h2>Para qué la utilizamos</h2><p>La usamos para autenticar tu acceso, prestar las funciones contratadas, mantener la seguridad, atender solicitudes de soporte y comunicar avisos relacionados con el servicio.</p></article>
+  <article class="jl-surface"><h2>Analítica y cookies</h2><p>La analítica opcional solo se activa cuando otorgas tu consentimiento. Las cookies estrictamente necesarias permiten iniciar sesión y proteger tu cuenta.</p></article>
+  <article class="jl-surface"><h2>Conservación y seguridad</h2><p>Aplicamos controles técnicos y de acceso para evitar usos no autorizados. Conservamos la información mientras la cuenta permanezca activa o durante el tiempo necesario para cumplir obligaciones aplicables.</p></article>
+  <article class="jl-surface"><h2>Tus solicitudes</h2><p>Puedes pedir acceso, corrección o eliminación de tus datos mediante la página de <a href="{% url 'jheliztv_contact' %}">contacto</a>. Algunas solicitudes pueden requerir verificar la identidad del titular.</p></article>
+  <p class="jl-legal__updated">Última actualización: 10 de septiembre de 2026.</p>
+</div></section>
+{% endblock %}

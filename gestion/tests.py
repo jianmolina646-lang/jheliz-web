@@ -223,6 +223,8 @@ class TenantSaasTests(TestCase):
             "/como-funciona/",
             "/preguntas-frecuentes/",
             "/contacto/",
+            "/privacidad/",
+            "/terminos/",
         ):
             with self.subTest(path=path):
                 response = self.client.get(path, HTTP_HOST=self.HOST)

@@ -324,7 +324,11 @@ def landing(request):
     if _get_tenant(request.user):
         return redirect("jheliztv_dashboard")
     saas = SaasSettings.load()
-    return render(request, "jheliztv/landing.html", {"saas": saas})
+    return render(
+        request,
+        "jheliztv/landing.html",
+        {"saas": saas, "trial_days": Tenant.TRIAL_DAYS},
+    )
 
 
 def _marketing_page(request, template_name):
@@ -356,6 +360,14 @@ def faq_page(request):
 
 def contact_page(request):
     return _marketing_page(request, "jheliztv/marketing/contact.html")
+
+
+def privacy_page(request):
+    return _marketing_page(request, "jheliztv/marketing/privacy.html")
+
+
+def terms_page(request):
+    return _marketing_page(request, "jheliztv/marketing/terms.html")
 
 
 def register(request):

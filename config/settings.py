@@ -13,7 +13,13 @@ from config.secret_config import secret_config
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = secret_config("SECRET_KEY", default="dev-insecure-key-change-me")
-DEBUG = config("DEBUG", default=True, cast=bool)
+# ``DJANGO_DEBUG`` evita colisiones con variables genéricas del entorno local.
+# Se conserva ``DEBUG`` como fallback para despliegues existentes que todavía
+# no hayan migrado su archivo .env.
+try:
+    DEBUG = config("DJANGO_DEBUG", default=config("DEBUG", default=True), cast=bool)
+except ValueError:
+    DEBUG = True
 if not DEBUG and SECRET_KEY == "dev-insecure-key-change-me":
     raise ImproperlyConfigured(
         "SECRET_KEY debe configurarse explícitamente cuando DEBUG=False."
