@@ -41,6 +41,7 @@ JHELIZTV_HOSTS = config(
     cast=Csv(),
 )
 JHELIZTV_GA4_ID = config("JHELIZTV_GA4_ID", default="G-W27KX3BC5E").strip()
+JHELIZTV_SUPPORT_WHATSAPP = config("JHELIZTV_SUPPORT_WHATSAPP", default="+51978640413").strip()
 ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, *JHELIZTV_HOSTS]))
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 
