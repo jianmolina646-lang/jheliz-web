@@ -79,14 +79,17 @@ class JheliztvSeoTests(TestCase):
             "contacto/",
             "privacidad/",
             "terminos/",
+            "pagos-y-cancelaciones/",
+            "control-de-vencimientos/",
+            "gestion-de-renovaciones/",
         ):
             self.assertContains(
                 response,
                 f"<loc>https://jheliztv.xyz/{public_path}</loc>",
             )
-        self.assertEqual(response.content.count(b"<url>"), 8)
-        for private_path in ("ingresar", "registro", "app", "control", "renovar"):
-            self.assertNotContains(response, private_path)
+        self.assertEqual(response.content.count(b"<url>"), 11)
+        for private_path in ("ingresar/", "registro/", "app/", "control/", "renovar/"):
+            self.assertNotContains(response, f"https://jheliztv.xyz/{private_path}")
 
     def test_www_redirects_to_single_canonical_host(self):
         response = self.client.get(

@@ -1,0 +1,22 @@
+name: Public uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  public-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify public pages
+        run: |
+          set -euo pipefail
+          for path in / /precios/ /registro/ /privacidad/ /terminos/; do
+            curl --fail --silent --show-error --location --max-time 15 \
+              --retry 2 --retry-delay 2 "https://jheliztv.xyz${path}" >/dev/null
+          done

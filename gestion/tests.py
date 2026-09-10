@@ -206,6 +206,7 @@ class TenantSaasTests(TestCase):
             {
                 "username": username, "business_name": business,
                 "password": "clave123", "password2": "clave123",
+                "accept_terms": "1",
             },
             HTTP_HOST=self.HOST,
         )
@@ -225,6 +226,9 @@ class TenantSaasTests(TestCase):
             "/contacto/",
             "/privacidad/",
             "/terminos/",
+            "/pagos-y-cancelaciones/",
+            "/control-de-vencimientos/",
+            "/gestion-de-renovaciones/",
         ):
             with self.subTest(path=path):
                 response = self.client.get(path, HTTP_HOST=self.HOST)

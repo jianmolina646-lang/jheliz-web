@@ -48,6 +48,9 @@ def sitemap_xml(request):
         "contacto/",
         "privacidad/",
         "terminos/",
+        "pagos-y-cancelaciones/",
+        "control-de-vencimientos/",
+        "gestion-de-renovaciones/",
     )
     urls = "\n".join(
         f'''  <url>

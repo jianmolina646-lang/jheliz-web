@@ -9,8 +9,15 @@
   window.jheliztvTrack = track;
 
   document.addEventListener("click", function (event) {
-    var link = event.target.closest('a[href*="/registro/"]');
-    if (link) track("begin_signup", { link_text: (link.textContent || "").trim() });
+    var link = event.target.closest("a[href]");
+    if (!link) return;
+    var href = link.getAttribute("href") || "";
+    var label = (link.textContent || "").trim().slice(0, 80);
+    if (href.indexOf("/registro/") !== -1) track("begin_signup", { link_text: label });
+    if (href.indexOf("/precios/") !== -1 || href === "#precio") track("view_pricing", { link_text: label });
+    if (href.indexOf("/contacto/") !== -1) track("contact", { link_text: label });
+    if (href.indexOf("wa.me/") !== -1) track("contact_whatsapp", { link_text: label });
+    if (href.indexOf("/ingresar/") !== -1) track("login_intent", { link_text: label });
   });
 
   var form = document.querySelector("[data-jheliztv-registration-form]");

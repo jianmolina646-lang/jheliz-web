@@ -22,8 +22,8 @@
       <span class="material-symbols-outlined">rocket_launch</span>
       <div><small>COMIENZA AHORA</small><h1>Crear mi cuenta</h1></div>
     </div>
-    <p class="pb-register-lead">Empezá a gestionar tus suscripciones hoy.</p>
-    <form method="post" action="{% url 'jheliztv_register' %}" class="pb-register-form">
+    <p class="pb-register-lead">30 días gratis. Sin tarjeta. Configura tu panel en minutos.</p>
+    <form method="post" action="{% url 'jheliztv_register' %}" class="pb-register-form" data-jheliztv-registration-form>
       {% csrf_token %}
       <div class="pb-field">
         <label>Nombre de tu negocio</label>
@@ -34,14 +34,6 @@
         <input type="text" name="username" value="{{ form_data.username|default:'' }}" required autocomplete="username">
       </div>
       <div class="pb-field">
-        <label>Correo (opcional)</label>
-        <input type="email" name="email" value="{{ form_data.email|default:'' }}" autocomplete="email">
-      </div>
-      <div class="pb-field">
-        <label>WhatsApp (opcional)</label>
-        <input type="text" name="whatsapp" value="{{ form_data.whatsapp|default:'' }}" placeholder="+51987654321">
-      </div>
-      <div class="pb-field">
         <label>Contraseña</label>
         <input type="password" name="password" required autocomplete="new-password">
       </div>
@@ -49,8 +41,13 @@
         <label>Repetir contraseña</label>
         <input type="password" name="password2" required autocomplete="new-password">
       </div>
+      <details class="pb-register-optional"><summary>Añadir recuperación y contacto (opcional)</summary>
+        <div class="pb-field"><label>Correo</label><input type="email" name="email" value="{{ form_data.email|default:'' }}" autocomplete="email"></div>
+        <div class="pb-field"><label>WhatsApp</label><input type="tel" name="whatsapp" value="{{ form_data.whatsapp|default:'' }}" placeholder="+51987654321" autocomplete="tel"></div>
+      </details>
+      <label class="pb-register-consent"><input type="checkbox" name="accept_terms" value="1" required> <span>Acepto los <a href="{% url 'jheliztv_terms' %}" target="_blank" rel="noopener">términos</a> y la <a href="{% url 'jheliztv_privacy' %}" target="_blank" rel="noopener">política de privacidad</a>.</span></label>
       <button type="submit" class="pb-btn pb-btn--primary pb-register-submit">
-        <span class="material-symbols-outlined">person_add</span> Crear cuenta
+        <span class="material-symbols-outlined">person_add</span> Comenzar prueba gratis
       </button>
     </form>
     <p class="pb-foot">¿Ya tenés cuenta? <a href="{% url 'jheliztv_login' %}">Ingresá</a></p>

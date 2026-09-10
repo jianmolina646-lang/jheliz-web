@@ -370,6 +370,18 @@ def terms_page(request):
     return _marketing_page(request, "jheliztv/marketing/terms.html")
 
 
+def payments_policy_page(request):
+    return _marketing_page(request, "jheliztv/marketing/payments_policy.html")
+
+
+def expiry_control_page(request):
+    return _marketing_page(request, "jheliztv/marketing/expiry_control.html")
+
+
+def renewal_management_page(request):
+    return _marketing_page(request, "jheliztv/marketing/renewal_management.html")
+
+
 def register(request):
     if request.user.is_authenticated:
         current_tenant = _get_tenant(request.user)
@@ -386,6 +398,8 @@ def register(request):
         password2 = request.POST.get("password2") or ""
 
         errors = []
+        if request.POST.get("accept_terms") != "1":
+            errors.append("Debes aceptar los términos y la política de privacidad.")
         if not username:
             errors.append("Elegí un usuario.")
         if User.objects.filter(username__iexact=username).exists():
