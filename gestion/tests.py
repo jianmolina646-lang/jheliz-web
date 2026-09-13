@@ -268,7 +268,14 @@ class TenantSaasTests(TestCase):
         self._register("inq2")
         tenant = self.Tenant.objects.get(user__username="inq2")
         proof = SimpleUploadedFile("p.png", VALID_PNG, content_type="image/png")
-        self.client.post(self.BILLING_UPLOAD, {"proof": proof}, HTTP_HOST=self.HOST)
+        self.client.post(self.BILLING_UPLOAD, {
+            "proof": proof,
+            "payment_method": "yape",
+            "payer_name": "Cliente Prueba",
+            "payer_phone_last4": "0413",
+            "yape_security_code": "317",
+            "paid_at": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+        }, HTTP_HOST=self.HOST)
         pay = TenantPayment.objects.get(tenant=tenant)
         self.assertEqual(pay.status, TenantPayment.Status.PENDING)
         pay.approve()
@@ -907,15 +914,51 @@ class OwnerControlPanelTests(TestCase):
         # Inquilino con prueba vencida + un pago pendiente.
         self.tenant.plan_expires_at = timezone.now() - timedelta(days=1)
         self.tenant.save(update_fields=["plan_expires_at"])
-        pay = TenantPayment.objects.create(tenant=self.tenant, amount=30, days=30)
+        pay = TenantPayment.objects.create(
+            tenant=self.tenant, amount=30, days=30,
+            payer_name="Juan Pérez", payer_phone_last4="0413",
+            yape_security_code="317", paid_at=timezone.now(),
+        )
 
         force_owner_login(self.client, self.owner)
-        self.client.post(f"/control/pagos/{pay.pk}/aprobar/", HTTP_HOST=self.HOST)
+        self.client.post(
+            f"/control/pagos/{pay.pk}/aprobar/",
+            {"payer_name": "Juan Pérez", "amount": "30.00", "security_code": "317"},
+            HTTP_HOST=self.HOST,
+        )
 
         pay.refresh_from_db()
         self.tenant.refresh_from_db()
         self.assertEqual(pay.status, TenantPayment.Status.APPROVED)
         self.assertTrue(self.tenant.subscription_active)
+        activated_until = self.tenant.plan_expires_at
+        self.client.post(
+            f"/control/pagos/{pay.pk}/aprobar/",
+            {"payer_name": "Juan Pérez", "amount": "30.00", "security_code": "317"},
+            HTTP_HOST=self.HOST,
+        )
+        self.tenant.refresh_from_db()
+        self.assertEqual(self.tenant.plan_expires_at, activated_until)
+
+    def test_yape_mismatch_does_not_activate_tenant(self):
+        from .models import TenantPayment
+
+        pay = TenantPayment.objects.create(
+            tenant=self.tenant, amount=30, days=30,
+            payer_name="Juan Pérez", payer_phone_last4="0413",
+            yape_security_code="317", paid_at=timezone.now(),
+        )
+        before = self.tenant.plan_expires_at
+        force_owner_login(self.client, self.owner)
+        self.client.post(
+            f"/control/pagos/{pay.pk}/aprobar/",
+            {"payer_name": "Juan Pérez", "amount": "30.00", "security_code": "999"},
+            HTTP_HOST=self.HOST,
+        )
+        pay.refresh_from_db()
+        self.tenant.refresh_from_db()
+        self.assertEqual(pay.status, TenantPayment.Status.PENDING)
+        self.assertEqual(self.tenant.plan_expires_at, before)
 
     def test_payment_proof_requires_owner_login(self):
         from django.core.files.uploadedfile import SimpleUploadedFile

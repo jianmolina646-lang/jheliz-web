@@ -19,6 +19,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError
 from django.http import FileResponse
 from django.db import transaction
 from django.db.models import Count, Q, Sum
@@ -43,6 +44,7 @@ from .models import (
     Transaction,
     WhatsAppConnection,
 )
+from .payment_verification import verify_and_approve_yape
 
 User = get_user_model()
 
@@ -348,8 +350,31 @@ def control_demo_create(request):
 def control_payment_approve(request, pk):
     pay = get_object_or_404(TenantPayment, pk=pk)
     if pay.is_pending:
-        pay.approve()
-        messages.success(request, f"Pago de {pay.tenant} aprobado: +{pay.days} días de alquiler.")
+        try:
+            if pay.method == TenantPayment.Method.YAPE:
+                verify_and_approve_yape(
+                    payment_id=pay.pk,
+                    actor=request.user,
+                    security_code=request.POST.get("security_code"),
+                    amount=request.POST.get("amount"),
+                    payer_name=request.POST.get("payer_name"),
+                )
+            else:
+                pay.approve()
+        except ValidationError as exc:
+            messages.error(request, exc.messages[0])
+        else:
+            record_security_event(
+                "payment.yape_verified",
+                severity="info",
+                request=request,
+                actor=request.user,
+                metadata={"payment_id": pay.pk, "tenant_id": pay.tenant_id},
+            )
+            messages.success(
+                request,
+                f"Pago de {pay.tenant} aprobado: +{pay.days} días de alquiler.",
+            )
     return redirect("jheliztv_control_payments")
 
 

@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 from decimal import Decimal
+import hashlib
+import hmac
 import uuid
 
 from django.conf import settings
@@ -1062,6 +1064,18 @@ class TenantPayment(models.Model):
         storage=private_media_storage, blank=True,
         help_text="Captura del pago subida por el inquilino.",
     )
+    payer_name = models.CharField("Nombre del pagador", max_length=120, blank=True)
+    payer_phone_last4 = models.CharField("Últimos 4 dígitos", max_length=4, blank=True)
+    yape_security_code = models.CharField("Código de seguridad Yape", max_length=3, blank=True)
+    paid_at = models.DateTimeField("Fecha y hora declarada", null=True, blank=True)
+    verification_fingerprint = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, editable=False
+    )
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="verified_tenant_payments", editable=False,
+    )
+    verified_at = models.DateTimeField(null=True, blank=True, editable=False)
     status = models.CharField(
         "Estado", max_length=10, choices=Status.choices, default=Status.PENDING,
     )
@@ -1080,6 +1094,15 @@ class TenantPayment(models.Model):
     @property
     def is_pending(self) -> bool:
         return self.status == self.Status.PENDING
+
+    @staticmethod
+    def build_fingerprint(*, payer_name, phone_last4, security_code, amount, paid_at):
+        minute = paid_at.replace(second=0, microsecond=0).isoformat()
+        normalized_name = " ".join((payer_name or "").casefold().split())
+        payload = f"{normalized_name}|{phone_last4}|{security_code}|{Decimal(amount):.2f}|{minute}"
+        return hmac.new(
+            settings.SECRET_KEY.encode(), payload.encode(), hashlib.sha256
+        ).hexdigest()
 
     def approve(self) -> None:
         self.status = self.Status.APPROVED

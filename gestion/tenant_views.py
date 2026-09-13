@@ -44,6 +44,7 @@ from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.utils.encoding import force_bytes
 from django.utils.http import base36_to_int, urlsafe_base64_encode
 from django.views.generic import TemplateView
@@ -572,12 +573,48 @@ def billing_upload(request):
     if tenant.payments.filter(status=TenantPayment.Status.PENDING).exists():
         messages.info(request, "Ya tenés un pago pendiente de revisión.")
         return redirect("jheliztv_billing")
+    extra = {}
+    if method == TenantPayment.Method.YAPE:
+        payer_name = " ".join((request.POST.get("payer_name") or "").split())
+        phone_last4 = (request.POST.get("payer_phone_last4") or "").strip()
+        security_code = (request.POST.get("yape_security_code") or "").strip()
+        paid_at = parse_datetime((request.POST.get("paid_at") or "").strip())
+        if paid_at and timezone.is_naive(paid_at):
+            paid_at = timezone.make_aware(paid_at)
+        now = timezone.now()
+        if (
+            not payer_name
+            or not phone_last4.isdigit() or len(phone_last4) != 4
+            or not security_code.isdigit() or len(security_code) != 3
+            or not paid_at or paid_at < now - timedelta(days=7)
+            or paid_at > now + timedelta(minutes=5)
+        ):
+            messages.error(
+                request,
+                "Completa correctamente nombre, últimos 4 dígitos, código Yape y hora del pago.",
+            )
+            return redirect("jheliztv_billing")
+        fingerprint = TenantPayment.build_fingerprint(
+            payer_name=payer_name, phone_last4=phone_last4,
+            security_code=security_code, amount=saas.monthly_price, paid_at=paid_at,
+        )
+        if TenantPayment.objects.filter(verification_fingerprint=fingerprint).exists():
+            messages.error(request, "Este pago ya fue presentado anteriormente.")
+            return redirect("jheliztv_billing")
+        extra = {
+            "payer_name": payer_name,
+            "payer_phone_last4": phone_last4,
+            "yape_security_code": security_code,
+            "paid_at": paid_at,
+            "verification_fingerprint": fingerprint,
+        }
     TenantPayment.objects.create(
         tenant=tenant,
         method=method,
         amount=saas.monthly_price,
         days=30,
         proof=proof,
+        **extra,
     )
     messages.success(
         request,

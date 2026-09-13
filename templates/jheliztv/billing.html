@@ -121,6 +121,17 @@ FORM: Réplica visual directa de src/routes/suscripcion.tsx del proyecto Lovable
               <label><input type="radio" name="payment_method" value="yape" checked><span>Yape</span></label>
               <label><input type="radio" name="payment_method" value="binance_pay"><span>Binance Pay</span></label>
             </div>
+            <div class="lvsu-yape-verification" id="lvsuYapeVerification">
+              <label class="lvsu-file-label" for="payerName">Nombre que aparece en Yape</label>
+              <input id="payerName" name="payer_name" maxlength="120" autocomplete="name">
+              <label class="lvsu-file-label" for="payerPhone">Últimos 4 dígitos de tu celular</label>
+              <input id="payerPhone" name="payer_phone_last4" inputmode="numeric" pattern="[0-9]{4}" maxlength="4">
+              <label class="lvsu-file-label" for="yapeCode">Código de seguridad del yapeo</label>
+              <input id="yapeCode" name="yape_security_code" inputmode="numeric" pattern="[0-9]{3}" maxlength="3" autocomplete="off">
+              <label class="lvsu-file-label" for="paidAt">Fecha y hora del pago</label>
+              <input id="paidAt" name="paid_at" type="datetime-local">
+              <p class="lvsu-help">Estos datos se comparan con la notificación recibida. La captura por sí sola no aprueba el pago.</p>
+            </div>
             <label for="lvsuProof" class="lvsu-file-label">Captura del pago</label>
             <label for="lvsuProof" class="lvsu-dropzone" tabindex="0">
               <span class="lvsu-file-icon"><span class="material-symbols-outlined">image</span></span>
@@ -159,6 +170,15 @@ FORM: Réplica visual directa de src/routes/suscripcion.tsx del proyecto Lovable
     const error = document.getElementById("lvsuFileError");
     const form = document.getElementById("lvsuUploadForm");
     if (!input || !zone || !selected || !action || !error || !form) return;
+    const yapeFields = document.getElementById("lvsuYapeVerification");
+    const methodInputs = form.querySelectorAll('input[name="payment_method"]');
+    function updateYapeFields() {
+      const yape = form.querySelector('input[name="payment_method"]:checked').value === "yape";
+      yapeFields.hidden = !yape;
+      yapeFields.querySelectorAll("input").forEach(function (field) { field.required = yape; });
+    }
+    methodInputs.forEach(function (field) { field.addEventListener("change", updateYapeFields); });
+    updateYapeFields();
     zone.addEventListener("keydown", function (event) {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); input.click(); }
     });
