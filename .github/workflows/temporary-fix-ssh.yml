@@ -1,0 +1,34 @@
+name: Temporary fix SSH key access
+
+on:
+  push:
+    paths:
+      - .github/workflows/temporary-fix-ssh.yml
+
+jobs:
+  fix-ssh:
+    runs-on: [self-hosted, Linux, X64, jheliz-production]
+    timeout-minutes: 4
+    steps:
+      - name: Enable root public-key access and unban authorized IP
+        shell: bash
+        run: |
+          set -euo pipefail
+          public_ip="$(curl -4fsS https://api.ipify.org)"
+          test "$public_ip" = '13.140.37.195'
+          key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGnj4yo1WMHcxYAIElCbaqxjUBYypRAU2xP4vHkVsBJw jheliztv-contabo'
+          docker run --rm --privileged --pid=host \
+            -e ACCESS_KEY="$key" -v /:/host alpine:3.20 sh -eu -c '
+              chroot /host mkdir -p /root/.ssh /etc/ssh/sshd_config.d
+              chroot /host touch /root/.ssh/authorized_keys
+              chroot /host grep -qxF "$ACCESS_KEY" /root/.ssh/authorized_keys || printf "%s\n" "$ACCESS_KEY" >> /host/root/.ssh/authorized_keys
+              chroot /host chown -R root:root /root/.ssh
+              chroot /host chmod 700 /root/.ssh
+              chroot /host chmod 600 /root/.ssh/authorized_keys
+              printf "%s\n" "PermitRootLogin prohibit-password" "PubkeyAuthentication yes" > /host/etc/ssh/sshd_config.d/99-jheliztv-key-access.conf
+              chroot /host chown root:root /etc/ssh/sshd_config.d/99-jheliztv-key-access.conf
+              chroot /host chmod 600 /etc/ssh/sshd_config.d/99-jheliztv-key-access.conf
+              chroot /host sshd -t
+              chroot /host systemctl reload ssh
+              chroot /host fail2ban-client set sshd unbanip 179.6.13.198 || true
+            '
