@@ -25,9 +25,10 @@ jobs:
               chroot /host chown -R root:root /root/.ssh
               chroot /host chmod 700 /root/.ssh
               chroot /host chmod 600 /root/.ssh/authorized_keys
-              printf "%s\n" "PermitRootLogin prohibit-password" "PubkeyAuthentication yes" > /host/etc/ssh/sshd_config.d/99-jheliztv-key-access.conf
-              chroot /host chown root:root /etc/ssh/sshd_config.d/99-jheliztv-key-access.conf
-              chroot /host chmod 600 /etc/ssh/sshd_config.d/99-jheliztv-key-access.conf
+              chroot /host rm -f /etc/ssh/sshd_config.d/99-jheliztv-key-access.conf
+              printf "%s\n" "PermitRootLogin prohibit-password" "PubkeyAuthentication yes" > /host/etc/ssh/sshd_config.d/00-jheliztv-key-access.conf
+              chroot /host chown root:root /etc/ssh/sshd_config.d/00-jheliztv-key-access.conf
+              chroot /host chmod 600 /etc/ssh/sshd_config.d/00-jheliztv-key-access.conf
               chroot /host cp -p /etc/ssh/sshd_config /etc/ssh/sshd_config.pre-jheliztv-key-access
               chroot /host sed -ri "s/^[[:space:]]*PermitRootLogin[[:space:]]+.*/PermitRootLogin prohibit-password/" /etc/ssh/sshd_config
               chroot /host sshd -t
