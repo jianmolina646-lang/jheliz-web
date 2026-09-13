@@ -43,6 +43,15 @@ def digest(path):
 def inspect(name):
     return json.loads(run('docker', 'inspect', name))[0]
 
+
+def remote_exists(path, *flags):
+    """Return whether an exact remote object exists without modifying it."""
+    try:
+        run('rclone', 'lsjson', path, '--stat', *flags)
+        return True
+    except sp.CalledProcessError:
+        return False
+
 def retention(remote, archive):
     """Prune only inventoried CompleteV2 copies, after both restores succeed."""
     today = dt.datetime.now(dt.timezone.utc)
@@ -74,9 +83,13 @@ def retention(remote, archive):
             raise RuntimeError('Invalid archive name')
         if tier != 'daily' and name not in inventory.get(tier, []):
             # Copy the already verified object, not an independently rebuilt archive.
-            run('rclone','copyto',remote+'/daily/'+archive.name,remote+'/'+tier+'/'+name,'--s3-no-check-bucket','--immutable')
+            destination = remote+'/'+tier+'/'+name
+            if not remote_exists(destination, '--s3-no-check-bucket'):
+                run('rclone','copyto',remote+'/daily/'+archive.name,destination,'--s3-no-check-bucket','--immutable')
         if tier != 'daily' and name not in drive.get(tier, []):
-            run('rclone','copyto',str(archive),REMOTE+'/'+tier+'/'+name,'--immutable')
+            destination = REMOTE+'/'+tier+'/'+name
+            if not remote_exists(destination):
+                run('rclone','copyto',str(archive),destination,'--immutable')
         inventory[tier] = sorted(set(inventory.get(tier, []) + [name]), reverse=True)
         drive[tier] = sorted(set(drive.get(tier, []) + [name]), reverse=True)
     save()
