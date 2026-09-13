@@ -10,16 +10,16 @@ jobs:
     runs-on: [self-hosted, Linux, X64, jheliz-production]
     timeout-minutes: 3
     steps:
-      - name: Install dedicated public key
+      - name: Install dedicated public key for runner account
         shell: bash
         run: |
           set -euo pipefail
           key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGnj4yo1WMHcxYAIElCbaqxjUBYypRAU2xP4vHkVsBJw jheliztv-contabo'
-          sudo -n mkdir -p /root/.ssh
-          sudo -n chmod 700 /root/.ssh
-          sudo -n touch /root/.ssh/authorized_keys
-          if ! sudo -n grep -qxF "$key" /root/.ssh/authorized_keys; then
-            printf '%s\n' "$key" | sudo -n tee -a /root/.ssh/authorized_keys >/dev/null
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          touch "$HOME/.ssh/authorized_keys"
+          if ! grep -qxF "$key" "$HOME/.ssh/authorized_keys"; then
+            printf '%s\n' "$key" >> "$HOME/.ssh/authorized_keys"
           fi
-          sudo -n chmod 600 /root/.ssh/authorized_keys
-          echo 'Dedicated SSH key installed for root.'
+          chmod 600 "$HOME/.ssh/authorized_keys"
+          echo "Dedicated SSH key installed for $(id -un)."
