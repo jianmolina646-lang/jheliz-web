@@ -144,7 +144,9 @@ jobs:
               "import requests; from django.conf import settings; from codes.models import DisneyAssignedEmail; from codes.imap_reader import health_check; count=DisneyAssignedEmail.objects.count(); checks=health_check(); telegram=requests.get('https://api.telegram.org/bot'+settings.TELEGRAM_DISNEY_BOT_TOKEN+'/getMe', timeout=15).json().get('ok'); assert count > 0, 'La base activa no contiene correos Disney asignados'; assert checks and all(item.get('ok') for item in checks), 'Proton IMAP no responde para Disney'; assert telegram, 'Token Telegram Disney inválido'; print(f'✓ Bot Disney protegido: {count} asignaciones, Telegram e IMAP OK')"
 
             echo "→ Smoke test público..."
-            if ! curl -fsS -o /dev/null --max-time 10 http://localhost:8000/; then
+            if ! curl -fsS -o /dev/null --max-time 10 \
+              -H 'Host: jheliztv.xyz' -H 'X-Forwarded-Proto: https' \
+              http://localhost:8000/healthz/; then
               echo "✗ Smoke test falló."
               $COMPOSE logs --tail=50 web || true
               exit 1
