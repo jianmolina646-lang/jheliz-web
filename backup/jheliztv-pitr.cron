@@ -1,0 +1,7 @@
+CRON_TZ=America/Lima
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+*/15 * * * * root /usr/local/sbin/jheliztv-pitr wal >> /var/log/production-backups/jheliztv-pitr.log 2>&1
+30 6 * * 0 root /usr/local/sbin/jheliztv-pitr base >> /var/log/production-backups/jheliztv-pitr.log 2>&1
+55 * * * * root /usr/local/sbin/jheliztv-pitr health >> /var/log/production-backups/jheliztv-pitr.log 2>&1

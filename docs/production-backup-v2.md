@@ -37,6 +37,18 @@ Failure notifications use the existing private server Telegram configuration.
 Drive capacity warnings trigger at 85%, at most once per UTC day. No verified
 copy for 30 hours triggers failure. Existing PITR jobs remain separate.
 
+## PITR independiente de JhelizTV
+
+`backup/jheliztv-pitr.sh` se instala como `/usr/local/sbin/jheliztv-pitr` y
+`backup/jheliztv-pitr.cron` como `/etc/cron.d/jheliztv-pitr`. PostgreSQL usa
+`archive_mode=on`, `wal_level=replica` y `archive_timeout=15min`.
+
+Los WAL cerrados se comprimen, cifran y verifican en R2 y Drive cada 15 minutos;
+solo entonces se elimina el archivo local. Una copia base física se crea cada
+domingo a las 06:30 `America/Lima`. La salud se valida cada hora y falla si la
+base supera 8 días o el último ciclo WAL supera 35 minutos. Este servicio es
+independiente de los PITR de otros proyectos y de la cuota de MEGA.
+
 Initial actual restore: archive `jheliz-complete-20260906-220017.tar.gz.age`,
 81 tables and 55 checksummed files, restored successfully from both remotes.
 Recovery identity copied outside VPS to the owner's Windows profile with a

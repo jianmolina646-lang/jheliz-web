@@ -57,6 +57,8 @@ producción requiere ventana de mantenimiento, copia previa y plan de rollback.
 ## Validación periódica
 
 - Cada hora: frescura y capacidad.
+- Cada 15 minutos: cierre máximo de WAL y sincronización PITR a R2 y Drive.
+- Cada domingo 06:30: copia base física PITR independiente de JhelizTV.
 - Cada día: restauración automática aislada desde ambos destinos.
 - Cada mes: simulacro documentado en un entorno limpio.
 - Cada trimestre: comprobar que la identidad externa descifra una copia real.
