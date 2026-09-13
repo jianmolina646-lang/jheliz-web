@@ -169,6 +169,30 @@ DATABASES = {
     )
 }
 
+# Caché compartida en producción. Los rate limits, bloqueos breves y claves de
+# idempotencia deben ser visibles por todos los workers web y bots; LocMem solo
+# es correcto para desarrollo y tests de un único proceso.
+CACHE_URL = config(
+    "CACHE_URL",
+    default="" if DEBUG else "redis://redis:6379/1",
+).strip()
+if CACHE_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": CACHE_URL,
+            "TIMEOUT": 300,
+            "OPTIONS": {"socket_connect_timeout": 2, "socket_timeout": 2},
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "jheliz-development",
+        }
+    }
+
 # Custom user with roles (cliente / distribuidor / admin)
 AUTH_USER_MODEL = "accounts.User"
 

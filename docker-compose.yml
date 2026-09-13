@@ -1,4 +1,19 @@
 services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   web:
     build: .
     # Gunicorn:
@@ -31,6 +46,8 @@ services:
       - "127.0.0.1:8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     logging:
