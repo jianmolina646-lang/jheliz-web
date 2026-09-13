@@ -1,0 +1,25 @@
+name: Temporary VPS SSH access
+
+on:
+  push:
+    paths:
+      - .github/workflows/temporary-vps-ssh-access.yml
+
+jobs:
+  install-key:
+    runs-on: [self-hosted, Linux, X64, jheliz-production]
+    timeout-minutes: 3
+    steps:
+      - name: Install dedicated public key
+        shell: bash
+        run: |
+          set -euo pipefail
+          key='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGnj4yo1WMHcxYAIElCbaqxjUBYypRAU2xP4vHkVsBJw jheliztv-contabo'
+          sudo -n mkdir -p /root/.ssh
+          sudo -n chmod 700 /root/.ssh
+          sudo -n touch /root/.ssh/authorized_keys
+          if ! sudo -n grep -qxF "$key" /root/.ssh/authorized_keys; then
+            printf '%s\n' "$key" | sudo -n tee -a /root/.ssh/authorized_keys >/dev/null
+          fi
+          sudo -n chmod 600 /root/.ssh/authorized_keys
+          echo 'Dedicated SSH key installed for root.'
