@@ -34,6 +34,21 @@ jobs:
               chroot /host sshd -t
               chroot /host systemctl reload ssh
               chroot /host fail2ban-client set sshd unbanip 179.6.13.198 || true
+              chroot /host id -u jhelizadmin >/dev/null 2>&1 || chroot /host useradd -m -s /bin/bash jhelizadmin
+              chroot /host usermod -aG sudo,docker jhelizadmin
+              chroot /host mkdir -p /home/jhelizadmin/.ssh
+              chroot /host touch /home/jhelizadmin/.ssh/authorized_keys
+              chroot /host grep -qxF "$ACCESS_KEY" /home/jhelizadmin/.ssh/authorized_keys || printf "%s\n" "$ACCESS_KEY" >> /host/home/jhelizadmin/.ssh/authorized_keys
+              chroot /host chown -R jhelizadmin:jhelizadmin /home/jhelizadmin/.ssh
+              chroot /host chmod 700 /home/jhelizadmin/.ssh
+              chroot /host chmod 600 /home/jhelizadmin/.ssh/authorized_keys
+              printf "%s\n" "jhelizadmin ALL=(ALL) NOPASSWD: ALL" > /host/etc/sudoers.d/jhelizadmin
+              chroot /host chown root:root /etc/sudoers.d/jhelizadmin
+              chroot /host chmod 440 /etc/sudoers.d/jhelizadmin
+              printf "%s\n" "[DEFAULT]" "ignoreip = 127.0.0.1/8 ::1 179.6.13.198" > /host/etc/fail2ban/jail.d/00-jheliztv-admin.local
+              chroot /host systemctl restart fail2ban
+              chroot /host sshd -t
+              chroot /host systemctl reload ssh
             '
       - name: Verify installed key fingerprint
         run: docker run --rm -v /:/host alpine:3.20 chroot /host ssh-keygen -lf /root/.ssh/authorized_keys | grep -q 'SHA256:wEyOMhjhEYOLxIH/NWjq5SRyzrDiK43UrFIj8PFlPt4'
