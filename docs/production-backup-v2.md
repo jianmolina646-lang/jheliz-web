@@ -4,7 +4,7 @@ Authoritative complete backup: `/usr/local/sbin/jheliz-backup-v2` on the VPS.
 Source: `backup/production-complete.py`. This host service is independent of web
 container replacement. Its cron file is `/etc/cron.d/jheliz-backup-v2`.
 
-Runs daily at 08:20 UTC (03:20 Peru); hourly freshness and MEGA capacity checks.
+Runs daily at 08:20 UTC (03:20 Peru); hourly freshness and Google Drive capacity checks.
 Success requires download, decryption, file checksums and isolated PostgreSQL
 restoration from **each** destination. Production is never a restore target.
 Table counts come from the same exported snapshot as pg_dump. Each restore
@@ -17,10 +17,10 @@ are never logged. All files are encrypted with the existing age identity.
 
 Destinations:
 - R2: `jheliztv.xyz/complete-v2/daily/` in the configured bucket.
-- MEGA: `/JhelizControlBackups/CompleteV2/daily/`.
+- Google Drive: `ProductionBackups/jheliztv.xyz/complete-v2/daily/`.
 
-Retention is independent per destination: R2 keeps 7 daily, 4 Sunday and 3
-first-of-month copies; MEGA keeps 3 daily, 2 Sunday and 1 first-of-month copy.
+Retention is independent per destination: R2 and Drive each keep 14 daily,
+8 Sunday and 12 first-of-month copies.
 Two local archives are kept. The scoped inventory tracks each destination
 separately and checkpoints each deletion. Pruning runs only after the new daily
 copy has been restored successfully from both destinations. Newly expired R2
@@ -34,13 +34,13 @@ directories are selected as sources.
 Status: `/var/lib/jheliz-backup-v2/success.json`. Logs:
 `/var/log/production-backups/jheliz-backup-v2.log`, rotated weekly (8 files).
 Failure notifications use the existing private server Telegram configuration.
-MEGA capacity warnings trigger at 85%, at most once per UTC day. No verified
+Drive capacity warnings trigger at 85%, at most once per UTC day. No verified
 copy for 30 hours triggers failure. Existing PITR jobs remain separate.
 
 Initial actual restore: archive `jheliz-complete-20260906-220017.tar.gz.age`,
-81 tables and 55 checksummed files, restored successfully from MEGA and R2.
-Recovery identity copied outside VPS to the owner's laptop, mode 0600,
-`/home/jheliz/.config/jheliz-backup-recovery/age-identity-20260906.txt`.
+81 tables and 55 checksummed files, restored successfully from both remotes.
+Recovery identity copied outside VPS to the owner's Windows profile with a
+restricted ACL in `Documents/JhelizTV-Recovery/`.
 Never commit this identity or move it into the backup bucket.
 
 To recover: download a complete `.tar.gz.age` archive, decrypt with `age -d -i`
@@ -50,5 +50,5 @@ verify every manifest checksum. Restore `database.dump` into a fresh PostgreSQL
 application and restore media/configuration. Production replacement needs its
 own maintenance procedure and rollback backup.
 
-Open capacity issue: shared MEGA storage was 92% full after validation. This
-change does not delete other applications' copies or purchase additional quota.
+Google Drive and R2 are independent recovery destinations. The Drive remote
+must use a dedicated Google OAuth client before rclone's shared client retires.

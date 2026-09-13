@@ -16,9 +16,8 @@ import tempfile
 STATE = Path('/var/lib/jheliz-backup-v2')
 ROOT = Path('/opt/jheliz-deploy')
 IDENTITY = '/root/.config/production-backups/age/identity.txt'
-MEGA = 'jheliz-backup-1'
 PREFIX = 'jheliztv.xyz/complete-v2'
-REMOTE = '/JhelizControlBackups/CompleteV2'
+REMOTE = 'mailcontrol_drive:ProductionBackups/jheliztv.xyz/complete-v2'
 
 def run(*args, **kw):
     kw.setdefault('timeout', 600)
@@ -34,7 +33,7 @@ def remote_config():
     for key in ('R2_ENDPOINT', 'R2_BUCKET', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY'):
         if not env.get(key):
             raise RuntimeError('Missing remote configuration: ' + key)
-    os.environ.update(RCLONE_CONFIG='/dev/null', RCLONE_CONFIG_R2_TYPE='s3', RCLONE_CONFIG_R2_PROVIDER='Cloudflare', RCLONE_CONFIG_R2_ENDPOINT=env['R2_ENDPOINT'], RCLONE_CONFIG_R2_ACCESS_KEY_ID=env['R2_ACCESS_KEY_ID'], RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=env['R2_SECRET_ACCESS_KEY'])
+    os.environ.update(RCLONE_CONFIG='/root/.config/production-backups/drive/rclone.conf', RCLONE_CONFIG_R2_TYPE='s3', RCLONE_CONFIG_R2_PROVIDER='Cloudflare', RCLONE_CONFIG_R2_ENDPOINT=env['R2_ENDPOINT'], RCLONE_CONFIG_R2_ACCESS_KEY_ID=env['R2_ACCESS_KEY_ID'], RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=env['R2_SECRET_ACCESS_KEY'])
     return 'r2:' + env['R2_BUCKET'] + '/' + PREFIX
 
 def digest(path):
@@ -44,28 +43,22 @@ def digest(path):
 def inspect(name):
     return json.loads(run('docker', 'inspect', name))[0]
 
-def mega_mkdir(path):
-    try:
-        run('docker','exec',MEGA,'mega-mkdir','-p',path)
-    except sp.CalledProcessError:
-        run('docker','exec',MEGA,'mega-ls',path)
-
 def retention(remote, archive):
     """Prune only inventoried CompleteV2 copies, after both restores succeed."""
     today = dt.datetime.now(dt.timezone.utc)
     inventory_path = STATE / 'inventory.json'
     inventory = json.loads(inventory_path.read_text()) if inventory_path.exists() else {}
-    policy = {'daily': (7, 3), 'weekly': (4, 2), 'monthly': (3, 1)}
+    policy = {'daily': (14, 14), 'weekly': (8, 8), 'monthly': (12, 12)}
     pattern = r'jheliz-complete-[0-9W-]+\.tar\.gz\.age'
     for tier in policy:
         for name in inventory.get(tier, []):
             if not re.fullmatch(pattern, name):
                 raise RuntimeError('Invalid retention inventory')
-    # Migrate the old shared inventory without losing knowledge of MEGA copies.
-    mega = inventory.setdefault('_mega', {tier: list(inventory.get(tier, [])) for tier in policy})
+    # Drive and R2 keep independent inventories and identical retention windows.
+    drive = inventory.setdefault('_drive', {tier: [] for tier in policy})
     for tier in policy:
-        if any(not re.fullmatch(pattern, name) for name in mega.get(tier, [])):
-            raise RuntimeError('Invalid MEGA retention inventory')
+        if any(not re.fullmatch(pattern, name) for name in drive.get(tier, [])):
+            raise RuntimeError('Invalid Drive retention inventory')
 
     def save():
         (STATE / 'inventory.tmp').write_text(json.dumps(inventory))
@@ -82,22 +75,17 @@ def retention(remote, archive):
         if tier != 'daily' and name not in inventory.get(tier, []):
             # Copy the already verified object, not an independently rebuilt archive.
             run('rclone','copyto',remote+'/daily/'+archive.name,remote+'/'+tier+'/'+name,'--s3-no-check-bucket','--immutable')
-            mega_mkdir(REMOTE+'/'+tier)
-            existing = run('docker','exec',MEGA,'mega-ls',REMOTE+'/'+tier).decode().splitlines()
-            if name not in existing:
-                run('docker','exec',MEGA,'mega-put','/backups/'+archive.name,REMOTE+'/'+tier+'/'+name)
+        if tier != 'daily' and name not in drive.get(tier, []):
+            run('rclone','copyto',str(archive),REMOTE+'/'+tier+'/'+name,'--immutable')
         inventory[tier] = sorted(set(inventory.get(tier, []) + [name]), reverse=True)
-        mega[tier] = sorted(set(mega.get(tier, []) + [name]), reverse=True)
+        drive[tier] = sorted(set(drive.get(tier, []) + [name]), reverse=True)
     save()
-    for tier, (keep_r2, keep_mega) in policy.items():
-        # MEGA's smaller history is still recoverable from R2 at this point.
-        for old in sorted(mega.get(tier, []), reverse=True)[keep_mega:]:
-            existing = run('docker','exec',MEGA,'mega-ls',REMOTE+'/'+tier).decode().splitlines()
-            if old in existing:
-                run('docker','exec',MEGA,'mega-rm',REMOTE+'/'+tier+'/'+old)
-            mega[tier].remove(old)
+    for tier, (keep_r2, keep_drive) in policy.items():
+        for old in sorted(drive.get(tier, []), reverse=True)[keep_drive:]:
+            run('rclone','deletefile',REMOTE+'/'+tier+'/'+old,'--drive-use-trash=false')
+            drive[tier].remove(old)
             save()
-            print('RETENTION_MEGA_REMOVED ' + tier + '/' + old)
+            print('RETENTION_DRIVE_REMOVED ' + tier + '/' + old)
         for old in sorted(inventory.get(tier, []), reverse=True)[keep_r2:]:
             run('rclone','deletefile',remote+'/'+tier+'/'+old,'--s3-no-check-bucket')
             inventory[tier].remove(old)
@@ -116,16 +104,14 @@ def retention(remote, archive):
             old.unlink()
 
 def capacity():
-    info = run('docker','exec',MEGA,'mega-df').decode()
-    match = re.search(r'USED STORAGE:.*?([0-9.]+)%', info)
-    if not match:
-        raise RuntimeError('Cannot read MEGA capacity')
-    percent = float(match[1])
-    print('MEGA_USED_PERCENT=' + str(percent))
+    remote_config()
+    info = json.loads(run('rclone','about','mailcontrol_drive:','--json'))
+    percent = 100 * (1 - info.get('free', 0) / info['total']) if info.get('total') else 0
+    print('DRIVE_USED_PERCENT=' + str(round(percent, 2)))
     flag = STATE / 'capacity-warning-date'
     day = dt.datetime.now(dt.timezone.utc).strftime('%Y-%m-%d')
     if percent >= 85 and (not flag.exists() or flag.read_text() != day):
-        notify('JhelizTV: MEGA al ' + str(percent) + '%. Revisar capacidad; R2 mantiene copia independiente.')
+        notify('JhelizTV: Google Drive al ' + str(round(percent, 2)) + '%. Revisar capacidad.')
         flag.write_text(day)
 
 def verify(archive, work, label):
@@ -238,32 +224,22 @@ def main():
             run('rclone','copyto',str(archive),remote+'/daily/'+name,'--s3-no-check-bucket','--retries','3')
         except Exception:
             upload_errors.append('R2')
-        stage = '/backups/' + name
         try:
-            run('docker','cp',str(archive),MEGA+':'+stage)
-            mega_mkdir(REMOTE+'/daily')
-            run('docker','exec',MEGA,'mega-put',stage,REMOTE+'/daily/')
+            run('rclone','copyto',str(archive),REMOTE+'/daily/'+name,'--retries','3')
         except Exception:
-            upload_errors.append('MEGA')
+            upload_errors.append('Google Drive')
         if upload_errors:
             raise RuntimeError('Upload failed: ' + ', '.join(upload_errors))
         downloaded = work / 'r2.age'
         run('rclone','copyto',remote+'/daily/'+name,str(downloaded),'--s3-no-check-bucket')
         if digest(downloaded) != digest(archive): raise RuntimeError('R2 digest mismatch')
         verify(downloaded,work,'r2')
-        download_dir = '/backups/verify-v2-' + stamp
-        run('docker','exec',MEGA,'mkdir','-m','700',download_dir)
-        try:
-            run('docker','exec',MEGA,'mega-get',REMOTE+'/daily/'+name,download_dir+'/')
-            downloaded = work / 'mega.age'
-            run('docker','cp',MEGA+':'+download_dir+'/'+name,str(downloaded))
-            if digest(downloaded) != digest(archive): raise RuntimeError('MEGA digest mismatch')
-            verify(downloaded,work,'mega')
-            retention(remote, archive)
-        finally:
-            run('docker','exec',MEGA,'rm','-f',download_dir+'/'+name,stage)
-            run('docker','exec',MEGA,'rmdir',download_dir)
-        status = {'timestamp':dt.datetime.now(dt.timezone.utc).timestamp(),'archive':name,'tables':len(counts),'files':len(manifest['sha256']),'r2':'restored','mega':'restored'}
+        downloaded = work / 'drive.age'
+        run('rclone','copyto',REMOTE+'/daily/'+name,str(downloaded),'--retries','3')
+        if digest(downloaded) != digest(archive): raise RuntimeError('Drive digest mismatch')
+        verify(downloaded,work,'drive')
+        retention(remote, archive)
+        status = {'timestamp':dt.datetime.now(dt.timezone.utc).timestamp(),'archive':name,'tables':len(counts),'files':len(manifest['sha256']),'r2':'restored','drive':'restored'}
         (STATE / 'success.tmp').write_text(json.dumps(status))
         (STATE / 'success.tmp').replace(STATE / 'success.json')
         capacity()

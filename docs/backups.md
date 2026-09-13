@@ -6,9 +6,10 @@ Para **jheliztv.xyz en el VPS**, el respaldo completo vigente desde el
 2026-09-06 es el servicio del host descrito en [production-backup-v2.md](production-backup-v2.md).
 Las copias Docker descritas a continuación siguen como legado durante la transición.
 
-El servicio Docker `backup`, construido desde `backup/`, es el mecanismo
-documentado como vigente para JhelizTV/My Control y para instalaciones aisladas
-del bot de códigos.
+El servicio del host `jheliz-backup-v2` es el mecanismo autoritativo de
+`jheliztv.xyz`. El servicio Docker `backup` se conserva como generador legado y
+para instalaciones aisladas del bot de códigos; no define la copia completa del
+producto SaaS.
 
 Incluye:
 
@@ -17,8 +18,9 @@ Incluye:
 - Copia de `.env` y del directorio `secrets/` si están montados.
 - Manifiesto y checksums SHA-256.
 
-El bundle se cifra antes de salir del VPS con AES-256-CBC, PBKDF2 y 200 000
-iteraciones. MEGA recibe el archivo `.tar.gz.enc`, no el contenido en claro.
+El bundle completo autoritativo se cifra con `age` antes de salir del VPS. R2 y
+Google Drive reciben solamente el archivo cifrado. Las copias legacy Docker usan
+AES-256-CBC, PBKDF2 y 200 000 iteraciones.
 
 ## Programación y retención
 
