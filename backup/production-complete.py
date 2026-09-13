@@ -85,7 +85,7 @@ def retention(remote, archive):
             # Copy the already verified object, not an independently rebuilt archive.
             destination = remote+'/'+tier+'/'+name
             if not remote_exists(destination, '--s3-no-check-bucket'):
-                run('rclone','copyto',remote+'/daily/'+archive.name,destination,'--s3-no-check-bucket')
+                run('rclone','copyto',str(archive),destination,'--s3-no-check-bucket')
         if tier != 'daily' and name not in drive.get(tier, []):
             destination = REMOTE+'/'+tier+'/'+name
             if not remote_exists(destination):
