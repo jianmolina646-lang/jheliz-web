@@ -88,6 +88,7 @@ from .models import (
 from .whatsapp import MetaAPIError, finish_signup, process_webhook, verify_signature
 from .views import _decorate_subs  # reuso de helpers
 from .support_operations import add_message as add_support_message, set_status as set_support_status
+from .flow_payments import FlowError, apply_paid_status, configured as flow_configured, create_payment, get_status
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -545,8 +546,80 @@ def billing(request):
         "pending": pending,
         "last_rejected": last_rejected,
         "payments": tenant.payments.all()[:10],
+        "flow_enabled": flow_configured(),
     }
     return render(request, "jheliztv/billing.html", ctx)
+
+
+@require_POST
+def flow_payment_create(request):
+    tenant = _get_tenant(request.user)
+    if tenant is None:
+        return redirect("jheliztv_login")
+    if tenant.is_demo:
+        messages.warning(request, "La demo no permite realizar pagos.")
+        return redirect("jheliztv_billing")
+    if not flow_configured():
+        messages.error(request, "El QR interoperable todavia no esta configurado.")
+        return redirect("jheliztv_billing")
+    if tenant.payments.filter(status=TenantPayment.Status.PENDING).exists():
+        messages.info(request, "Ya tienes un pago pendiente.")
+        return redirect("jheliztv_billing")
+    saas = SaasSettings.load()
+    payment = TenantPayment.objects.create(
+        tenant=tenant, method=TenantPayment.Method.FLOW_QR,
+        amount=saas.monthly_price, days=30,
+    )
+    payment.provider_order_id = f"JC-{payment.pk}-{secrets.token_hex(4)}"
+    payment.save(update_fields=["provider_order_id"])
+    try:
+        result = create_payment(
+            payment=payment,
+            email=request.user.email or f"{request.user.username}@jheliztv.xyz",
+            confirmation_url=request.build_absolute_uri(reverse("jheliztv_flow_confirmation")),
+            return_url=request.build_absolute_uri(reverse("jheliztv_flow_result")),
+        )
+        payment.provider_token = result["token"]
+        payment.provider_flow_order = result.get("flowOrder")
+        payment.provider_payload = result
+        payment.save(update_fields=["provider_token", "provider_flow_order", "provider_payload"])
+        return redirect(f'{result["url"]}?token={quote(result["token"])}')
+    except (FlowError, KeyError, ValueError):
+        logger.exception("No se pudo crear la orden de Flow para tenant=%s", tenant.pk)
+        payment.reject("Flow no pudo crear la orden")
+        messages.error(request, "No se pudo generar el QR. Intentalo nuevamente.")
+        return redirect("jheliztv_billing")
+
+
+def _process_flow_token(token):
+    if not token or len(token) > 160:
+        raise ValueError("Token invalido")
+    payload = get_status(token)
+    return apply_paid_status(token=token, payload=payload)
+
+
+@csrf_exempt
+@require_POST
+def flow_confirmation(request):
+    try:
+        _process_flow_token(request.POST.get("token", ""))
+    except Exception:
+        logger.exception("No se pudo procesar una confirmacion de Flow")
+        return HttpResponse(status=400)
+    return HttpResponse(status=200)
+
+
+@csrf_exempt
+def flow_result(request):
+    token = request.POST.get("token") or request.GET.get("token") or ""
+    state = "pending"
+    try:
+        payment, _ = _process_flow_token(token)
+        state = "approved" if payment.status == TenantPayment.Status.APPROVED else "pending"
+    except Exception:
+        logger.exception("No se pudo consultar el resultado de Flow")
+        state = "error"
+    return render(request, "jheliztv/flow_result.html", {"state": state})
 
 
 @require_POST

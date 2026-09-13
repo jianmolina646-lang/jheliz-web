@@ -61,6 +61,9 @@ urlpatterns = [
     # Cobro (Yape)
     path("suscripcion/", v.billing, name="jheliztv_billing"),
     path("suscripcion/pagar/", v.billing_upload, name="jheliztv_billing_upload"),
+    path("pagos/flow/crear/", v.flow_payment_create, name="jheliztv_flow_create"),
+    path("pagos/flow/confirmacion/", v.flow_confirmation, name="jheliztv_flow_confirmation"),
+    path("pagos/flow/resultado/", v.flow_result, name="jheliztv_flow_result"),
 
     # Panel
     path("app/", v.dashboard, name="jheliztv_dashboard"),

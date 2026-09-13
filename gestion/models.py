@@ -1043,6 +1043,7 @@ class TenantPayment(models.Model):
     class Method(models.TextChoices):
         YAPE = "yape", "Yape"
         BINANCE_PAY = "binance_pay", "Binance Pay"
+        FLOW_QR = "flow_qr", "QR interoperable (Flow)"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pendiente"
@@ -1071,6 +1072,10 @@ class TenantPayment(models.Model):
     verification_fingerprint = models.CharField(
         max_length=64, unique=True, null=True, blank=True, editable=False
     )
+    provider_order_id = models.CharField(max_length=40, unique=True, null=True, blank=True, editable=False)
+    provider_token = models.CharField(max_length=160, unique=True, null=True, blank=True, editable=False)
+    provider_flow_order = models.BigIntegerField(null=True, blank=True, editable=False)
+    provider_payload = models.JSONField(default=dict, blank=True, editable=False)
     verified_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="verified_tenant_payments", editable=False,

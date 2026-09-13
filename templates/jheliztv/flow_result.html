@@ -1,0 +1,16 @@
+{% extends "jheliztv/base.html" %}
+{% block title %}Resultado del pago{% endblock %}
+{% block jc_content %}
+<main class="lvsu-page"><div class="lvsu-container"><section class="lvsu-status">
+  <div class="lvsu-status-main"><div class="lvsu-status-copy">
+    {% if state == "approved" %}
+      <h1>Pago confirmado</h1><p>Tu suscripcion fue renovada automaticamente.</p>
+    {% elif state == "pending" %}
+      <h1>Pago en proceso</h1><p>Flow aun esta procesando el pago. Actualizaremos tu suscripcion al recibir la confirmacion.</p>
+    {% else %}
+      <h1>No pudimos consultar el pago</h1><p>Tu dinero no se pierde. Revisaremos el estado directamente con Flow.</p>
+    {% endif %}
+    <p><a class="lvsu-submit" href="{% url 'jheliztv_billing' %}">Volver a mi suscripcion</a></p>
+  </div></div>
+</section></div></main>
+{% endblock %}
