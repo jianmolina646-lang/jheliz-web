@@ -31,8 +31,9 @@ compressed and encrypted, not incremental chains. The exact Git revision is
 included along with the configuration. No cache, Docker image or backup
 directories are selected as sources.
 
-Status: `/var/lib/jheliz-backup-v2/success.json`. Logs:
-`/var/log/production-backups/jheliz-backup-v2.log`, rotated weekly (8 files).
+Status: `/var/lib/jheliz-backup-v2/success.json`. All logs under
+`/var/log/production-backups/*.log` are rotated weekly, with eight rotations,
+by the versioned `backup/production-backups.logrotate` policy.
 Failure notifications use the existing private server Telegram configuration.
 Drive capacity warnings trigger at 85%, at most once per UTC day. No verified
 copy for 30 hours triggers failure. Existing PITR jobs remain separate.

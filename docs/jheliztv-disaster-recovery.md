@@ -64,6 +64,9 @@ producción requiere ventana de mantenimiento, copia previa y plan de rollback.
 - Cada trimestre: comprobar que la identidad externa descifra una copia real.
 - Al cambiar credenciales: probar R2 y Drive antes de retirar las anteriores.
 
+Los logs de `/var/log/production-backups/*.log` se rotan semanalmente y se
+conservan ocho rotaciones mediante `backup/production-backups.logrotate`.
+
 ## Dependencias externas
 
 El remoto Drive debe usar un OAuth `client_id` dedicado. La autorización OAuth
