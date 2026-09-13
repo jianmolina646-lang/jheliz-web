@@ -37,6 +37,24 @@ def robots_txt(request):
     return response
 
 
+@require_GET
+def security_txt(request):
+    """RFC 9116 contact information for responsible vulnerability reports."""
+    content = "\n".join(
+        [
+            "Contact: https://wa.me/51978640413",
+            "Preferred-Languages: es, en",
+            f"Canonical: {CANONICAL_ORIGIN}/.well-known/security.txt",
+            "Expires: 2027-09-13T23:59:59Z",
+            "Policy: https://jheliztv.xyz/terminos/",
+            "",
+        ]
+    )
+    response = HttpResponse(content, content_type="text/plain; charset=utf-8")
+    response["Cache-Control"] = "public, max-age=86400"
+    return response
+
+
 @require_safe
 def sitemap_xml(request):
     public_paths = (

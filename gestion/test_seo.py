@@ -66,6 +66,21 @@ class JheliztvSeoTests(TestCase):
         ):
             self.assertContains(response, directive)
 
+    def test_security_txt_has_canonical_support_contact(self):
+        response = self.get("/.well-known/security.txt")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain; charset=utf-8")
+        self.assertContains(response, "Contact: https://wa.me/51978640413")
+        self.assertContains(
+            response,
+            "Canonical: https://jheliztv.xyz/.well-known/security.txt",
+        )
+
+    def test_legacy_payments_url_redirects_permanently(self):
+        response = self.get("/precios-y-pagos/")
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(response["Location"], "/pagos-y-cancelaciones/")
+
     def test_sitemap_contains_public_marketing_pages_only(self):
         response = self.get("/sitemap.xml")
         self.assertEqual(response.status_code, 200)

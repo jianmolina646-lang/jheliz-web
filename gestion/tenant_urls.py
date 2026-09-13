@@ -1,5 +1,6 @@
 """URLs de la web del inquilino (producto SaaS en jheliztv.xyz)."""
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import tenant_views as v
 
@@ -14,6 +15,11 @@ urlpatterns = [
     path("privacidad/", v.privacy_page, name="jheliztv_privacy"),
     path("terminos/", v.terms_page, name="jheliztv_terms"),
     path("pagos-y-cancelaciones/", v.payments_policy_page, name="jheliztv_payments_policy"),
+    path(
+        "precios-y-pagos/",
+        RedirectView.as_view(url="/pagos-y-cancelaciones/", permanent=True),
+        name="jheliztv_payments_policy_legacy",
+    ),
     path("control-de-vencimientos/", v.expiry_control_page, name="jheliztv_expiry_control"),
     path("gestion-de-renovaciones/", v.renewal_management_page, name="jheliztv_renewal_management"),
     path("registro/", v.register, name="jheliztv_register"),

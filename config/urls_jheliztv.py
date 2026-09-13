@@ -34,6 +34,11 @@ urlpatterns = [
         name="jheliztv_favicon",
     ),
     path("robots.txt", seo_views.robots_txt, name="jheliztv_robots"),
+    path(
+        ".well-known/security.txt",
+        seo_views.security_txt,
+        name="jheliztv_security",
+    ),
     path("sitemap.xml", seo_views.sitemap_xml, name="jheliztv_sitemap"),
     path("i18n/", include("django.conf.urls.i18n")),
     # Compatibilidad con la URL administrativa anunciada anteriormente.
