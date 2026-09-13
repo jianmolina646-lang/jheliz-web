@@ -6,6 +6,11 @@ services:
   web:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings_jheliztv
+      FLOW_API_KEY_FILE: /run/secrets/flow_api_key
+      FLOW_SECRET_KEY_FILE: /run/secrets/flow_secret_key
+    secrets:
+      - flow_api_key
+      - flow_secret_key
 
   control_alerts_bot:
     environment:
@@ -18,3 +23,9 @@ services:
   backup:
     environment:
       POSTGRES_DB: jheliz_control
+
+secrets:
+  flow_api_key:
+    file: ./secrets/flow_api_key.txt
+  flow_secret_key:
+    file: ./secrets/flow_secret_key.txt
