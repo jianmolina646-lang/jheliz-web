@@ -7,6 +7,12 @@ LOG_FILE="$LOG_DIR/restore-$(date -u +%Y%m%d).log"
 COMPLETE_STATUS=/var/lib/jheliz-backup-v2/success.json
 status=0
 
+notify() {
+  # shellcheck disable=SC1091
+  . /usr/local/lib/production-backup-notify.sh
+  backup_notify "$1"
+}
+
 install -d -o root -g root -m 700 "$LOG_DIR"
 : > "$LOG_FILE"
 chmod 600 "$LOG_FILE"
@@ -41,11 +47,9 @@ if [[ ! -s "$COMPLETE_STATUS" ]]; then
 fi
 
 if (( status != 0 )); then
-  /usr/local/sbin/jheliz-security-notify \
-    "🔴 Auditoría mensual de restauración FALLIDA. Informe: $LOG_FILE" || true
+  notify "🔴 Auditoría mensual de restauración FALLIDA. Informe: $LOG_FILE" || true
 else
-  /usr/local/sbin/jheliz-security-notify \
-    "✅ Restauración mensual aislada completada correctamente en todos los sistemas." || true
+  notify "✅ Restauración mensual aislada completada correctamente en todos los sistemas." || true
 fi
 
 exit "$status"
