@@ -28,6 +28,8 @@ jobs:
               printf "%s\n" "PermitRootLogin prohibit-password" "PubkeyAuthentication yes" > /host/etc/ssh/sshd_config.d/99-jheliztv-key-access.conf
               chroot /host chown root:root /etc/ssh/sshd_config.d/99-jheliztv-key-access.conf
               chroot /host chmod 600 /etc/ssh/sshd_config.d/99-jheliztv-key-access.conf
+              chroot /host cp -p /etc/ssh/sshd_config /etc/ssh/sshd_config.pre-jheliztv-key-access
+              chroot /host sed -ri "s/^[[:space:]]*PermitRootLogin[[:space:]]+.*/PermitRootLogin prohibit-password/" /etc/ssh/sshd_config
               chroot /host sshd -t
               chroot /host systemctl reload ssh
               chroot /host fail2ban-client set sshd unbanip 179.6.13.198 || true
