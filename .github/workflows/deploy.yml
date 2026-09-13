@@ -96,6 +96,12 @@ jobs:
               fi
             done
             $COMPOSE pull || true
+            # Ejecutar tareas de release una sola vez usando la misma imagen que
+            # servirá tráfico. Reiniciar Gunicorn nunca debe tocar el esquema.
+            $COMPOSE build web
+            $COMPOSE run --rm --no-deps web python manage.py collectstatic --noinput
+            $COMPOSE run --rm web python manage.py migrate --noinput
+            $COMPOSE run --rm --no-deps web python manage.py check --deploy
             if ! $COMPOSE up -d --build --wait --wait-timeout 240; then
               echo "✗ Deploy abortado: web no llegó a estado healthy."
               $COMPOSE ps

@@ -11,7 +11,10 @@ services:
     # - --preload: carga el código una vez en master, fork() en workers (ahorra RAM).
     # - --keep-alive 5: nginx reusa la conexión a gunicorn, evita TCP handshake.
     # - --max-requests + jitter: recicla workers cada ~1k requests (evita memory leaks).
-    command: ["bash", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 4 --worker-class gthread --preload --timeout 30 --graceful-timeout 10 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100 --access-logfile - --error-logfile -"]
+    # Las migraciones y collectstatic son pasos únicos del pipeline de deploy.
+    # El proceso web solo sirve tráfico; reiniciar un worker nunca debe volver a
+    # ejecutar cambios de esquema ni competir con otro contenedor.
+    command: ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "4", "--worker-class", "gthread", "--preload", "--timeout", "30", "--graceful-timeout", "10", "--keep-alive", "5", "--max-requests", "1000", "--max-requests-jitter", "100", "--access-logfile", "-", "--error-logfile", "-"]
     env_file: .env
     environment:
       JHELIZ_CONTROL_TELEGRAM_BOT_TOKEN_FILE: /run/secrets/jheliz_control_telegram_bot_token
