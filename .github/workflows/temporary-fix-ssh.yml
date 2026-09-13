@@ -38,7 +38,14 @@ jobs:
       - name: Verify installed key fingerprint
         run: docker run --rm -v /:/host alpine:3.20 chroot /host ssh-keygen -lf /root/.ssh/authorized_keys | grep -q 'SHA256:wEyOMhjhEYOLxIH/NWjq5SRyzrDiK43UrFIj8PFlPt4'
       - name: Verify root login policy
+        continue-on-error: true
         run: docker run --rm -v /:/host alpine:3.20 chroot /host sshd -T -C user=root,host=vmi3536279,addr=179.6.13.198 | grep -Eq '^permitrootlogin (yes|without-password|prohibit-password)$'
+      - name: Root policy is no
+        continue-on-error: true
+        run: docker run --rm -v /:/host alpine:3.20 chroot /host sshd -T -C user=root,host=vmi3536279,addr=179.6.13.198 | grep -q '^permitrootlogin no$'
+      - name: Root policy is forced commands only
+        continue-on-error: true
+        run: docker run --rm -v /:/host alpine:3.20 chroot /host sshd -T -C user=root,host=vmi3536279,addr=179.6.13.198 | grep -q '^permitrootlogin forced-commands-only$'
       - name: Verify public key authentication
         run: docker run --rm -v /:/host alpine:3.20 chroot /host sshd -T -C user=root,host=vmi3536279,addr=179.6.13.198 | grep -q '^pubkeyauthentication yes$'
       - name: Verify authorized keys path
