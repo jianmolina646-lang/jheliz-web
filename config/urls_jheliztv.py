@@ -16,6 +16,7 @@ from django.views.static import serve as static_serve
 from django.views.generic import RedirectView
 
 from gestion import seo_views
+from config.health_views import readiness
 
 
 handler404 = "gestion.seo_views.page_not_found"
@@ -25,6 +26,7 @@ def _private_media(request, path=""):
     return HttpResponseNotFound()
 
 urlpatterns = [
+    path("healthz/", readiness, name="jheliztv_healthz"),
     path(
         "favicon.ico",
         RedirectView.as_view(

@@ -18,6 +18,7 @@ from catalog.seo_views import (
 from catalog.sitemaps import SITEMAPS
 from config import admin_views
 from config import i18n_country
+from config.health_views import readiness
 from livechat import admin_views as livechat_admin_views
 from orders import media_views as orders_media_views
 from support import views as support_views
@@ -25,6 +26,7 @@ from support import views as support_views
 SITEMAPS_ALL = {**SITEMAPS, "blog": BlogPostSitemap}
 
 urlpatterns = [
+    path("healthz/", readiness, name="healthz"),
     # Vistas extra del admin (deben ir antes de admin.site.urls).
     path(
         "panel-jheliz-control/inbox/",
