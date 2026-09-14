@@ -7,7 +7,7 @@ from django.core.cache import cache
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.cache import patch_response_headers
 from django.views.decorators.http import require_POST
@@ -218,7 +218,7 @@ def cache_for_anon(timeout=60):
             # todos los otros idiomas).
             from django.utils import translation
             lang = translation.get_language() or "es"
-            cache_key = f"anonview:{lang}:{request.get_full_path()}"
+            cache_key = f"anonview:{request.get_host().lower()}:{lang}:{request.get_full_path()}"
             cached = cache.get(cache_key)
             if cached is not None:
                 return cached
@@ -239,6 +239,21 @@ def cache_for_anon(timeout=60):
 
 @cache_for_anon(timeout=60)
 def home(request):
+    if getattr(request, "is_marketing", False):
+        products = list(
+            Product.objects.filter(
+                is_active=True,
+                mode="completa",
+                delivery_is_instant=True,
+                plans__is_active=True,
+                plans__available_for_distributor=True,
+                plans__price_distributor__gt=0,
+            )
+            .select_related("category")
+            .prefetch_related("plans")
+            .distinct()[:12]
+        )
+        return render(request, "marketing/home.html", {"products": products})
     featured = (
         Product.objects.filter(is_active=True, is_featured=True)
         .filter(_audience_filter(request.user))
@@ -285,6 +300,8 @@ def home(request):
 
 @cache_for_anon(timeout=60)
 def product_list(request):
+    if getattr(request, "is_marketing", False) and not getattr(request.user, "is_distributor", False):
+        return redirect("accounts:signup")
     q = request.GET.get("q", "").strip()
     category_slug = request.GET.get("categoria")
     products = (
@@ -294,6 +311,8 @@ def product_list(request):
         .prefetch_related("plans")
         .distinct()
     )
+    if getattr(request, "is_marketing", False):
+        products = products.filter(mode="completa", delivery_is_instant=True)
     if q:
         products = products.filter(
             Q(name__icontains=q) | Q(short_description__icontains=q)
@@ -317,6 +336,8 @@ def product_list(request):
 
 @cache_for_anon(timeout=60)
 def category_detail(request, slug: str):
+    if getattr(request, "is_marketing", False) and not getattr(request.user, "is_distributor", False):
+        return redirect("accounts:signup")
     category = get_object_or_404(Category, slug=slug, is_active=True)
     products = (
         category.products.filter(is_active=True)
@@ -325,6 +346,8 @@ def category_detail(request, slug: str):
         .prefetch_related("plans")
         .distinct()
     )
+    if getattr(request, "is_marketing", False):
+        products = products.filter(mode="completa", delivery_is_instant=True)
     categories = Category.objects.filter(is_active=True)
     return render(
         request,
@@ -486,11 +509,17 @@ def _product_faqs(product):
 
 
 def product_detail(request, slug: str):
+    if getattr(request, "is_marketing", False) and not getattr(request.user, "is_distributor", False):
+        return redirect("accounts:signup")
     product = get_object_or_404(
         Product.objects.select_related("category").prefetch_related("plans"),
         slug=slug,
         is_active=True,
     )
+    if getattr(request, "is_marketing", False) and (
+        product.mode != "completa" or not product.delivery_is_instant
+    ):
+        raise Http404
     plans = list(product.active_plans(request.user))
 
     reviews_qs = (
@@ -1124,6 +1153,11 @@ def distributor_catalog(request):
         .prefetch_related("plans")
         .distinct()
     )
+    if getattr(request, "is_marketing", False):
+        products = [
+            product for product in products
+            if product.mode == "completa" and product.delivery_is_instant
+        ]
     # Calcula el copy de WhatsApp por producto para que el template no tenga
     # que importar nada y JS pueda copiarlo de un atributo data-*.
     for product in products:

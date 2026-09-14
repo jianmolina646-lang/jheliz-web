@@ -25,6 +25,8 @@ class JheliztvHostMiddleware:
         self.get_response = get_response
         hosts = getattr(settings, "JHELIZTV_HOSTS", []) or []
         self.hosts = {h.strip().lower() for h in hosts if h.strip()}
+        marketing_hosts = getattr(settings, "MARKETING_HOSTS", []) or []
+        self.marketing_hosts = {h.strip().lower() for h in marketing_hosts if h.strip()}
 
     def __call__(self, request):
         host = request.get_host().split(":")[0].lower()
@@ -32,12 +34,19 @@ class JheliztvHostMiddleware:
             return HttpResponsePermanentRedirect(
                 f"https://jheliztv.xyz{request.get_full_path()}"
             )
+        if host == "www.marketingjhelizxyz.online":
+            return HttpResponsePermanentRedirect(
+                f"https://marketingjhelizxyz.online{request.get_full_path()}"
+            )
+        request.is_marketing = host in self.marketing_hosts
         if host in self.hosts:
             request.urlconf = "config.urls_jheliztv"
             request.is_jheliztv = True
         else:
             request.is_jheliztv = False
         response = self.get_response(request)
+        if request.is_marketing:
+            response["X-Robots-Tag"] = "noindex, nofollow, noarchive"
         if request.is_jheliztv and request.path not in self.PUBLIC_INDEX_PATHS:
             response["X-Robots-Tag"] = "noindex, nofollow, noarchive"
         return response

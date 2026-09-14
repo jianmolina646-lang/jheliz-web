@@ -29,7 +29,7 @@ ALLOWED_HOSTS = config(
     default=(
         "127.0.0.1,localhost,ecormecejhelizstore.com,www.ecormecejhelizstore.com,"
         "jheliztv.xyz,www.jheliztv.xyz,"
-        "jheliztv.xyz,www.jheliztv.xyz"
+        "marketingjhelizxyz.online,www.marketingjhelizxyz.online"
     ),
     cast=Csv(),
 )
@@ -42,7 +42,12 @@ JHELIZTV_HOSTS = config(
 )
 JHELIZTV_GA4_ID = config("JHELIZTV_GA4_ID", default="G-W27KX3BC5E").strip()
 JHELIZTV_SUPPORT_WHATSAPP = config("JHELIZTV_SUPPORT_WHATSAPP", default="+51978640413").strip()
-ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, *JHELIZTV_HOSTS]))
+MARKETING_HOSTS = config(
+    "MARKETING_HOSTS",
+    default="marketingjhelizxyz.online,www.marketingjhelizxyz.online",
+    cast=Csv(),
+)
+ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, *JHELIZTV_HOSTS, *MARKETING_HOSTS]))
 SITE_URL = config("SITE_URL", default="http://127.0.0.1:8000")
 
 # URL base del panel admin. Cambiá esto en .env para "esconder" el admin
@@ -57,6 +62,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://www.jheliztv.xyz",
     "https://jheliztv.xyz",
     "https://www.jheliztv.xyz",
+    "https://marketingjhelizxyz.online",
+    "https://www.marketingjhelizxyz.online",
 ]
 
 # Ante un token CSRF vencido (formulario viejo / botón "atrás"), recargar el

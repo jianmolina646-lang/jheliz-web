@@ -27,10 +27,14 @@ from .models import Role
 def signup(request):
     if request.user.is_authenticated:
         return redirect("accounts:dashboard")
-    requested_role = (request.GET.get("role") or "").lower().strip()
+    marketing_mode = getattr(request, "is_marketing", False)
+    requested_role = Role.DISTRIBUIDOR if marketing_mode else (request.GET.get("role") or "").lower().strip()
     is_distri_mode = requested_role == Role.DISTRIBUIDOR
     if request.method == "POST":
-        form = SignupForm(request.POST)
+        form_data = request.POST.copy()
+        if marketing_mode:
+            form_data["role"] = Role.DISTRIBUIDOR
+        form = SignupForm(form_data)
         if form.is_valid():
             user = form.save()
             # Con AUTHENTICATION_BACKENDS múltiples (axes + ModelBackend),
@@ -43,7 +47,7 @@ def signup(request):
                     "Tu cuenta de distribuidor est\u00e1 pendiente de aprobaci\u00f3n. "
                     "Mientras tanto ver\u00e1s los precios de cliente.",
                 )
-            return redirect("accounts:dashboard")
+            return redirect("catalog:distributor_panel" if marketing_mode else "accounts:dashboard")
         # POST con error: si el usuario marcó distribuidor, mantenemos el panel
         if (form.data.get("role") or "").lower() == Role.DISTRIBUIDOR:
             is_distri_mode = True
@@ -55,7 +59,7 @@ def signup(request):
     return render(
         request,
         "accounts/signup.html",
-        {"form": form, "is_distri_mode": is_distri_mode},
+        {"form": form, "is_distri_mode": is_distri_mode, "marketing_mode": marketing_mode},
     )
 
 
@@ -63,6 +67,11 @@ class JhelizLoginView(LoginView):
     template_name = "accounts/login.html"
     authentication_form = LoginForm
     redirect_authenticated_user = True
+
+    def get_success_url(self):
+        if getattr(self.request, "is_marketing", False):
+            return str(reverse_lazy("catalog:distributor_panel"))
+        return super().get_success_url()
 
 
 class JhelizLogoutView(LogoutView):
