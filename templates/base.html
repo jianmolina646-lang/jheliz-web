@@ -232,11 +232,12 @@
     a.btn-primary:hover, button.btn-primary:hover, .btn-primary:not(.btn):hover { background: #60a5fa !important; }
   </style>
   <link rel="stylesheet" href="{% static 'css/modern-v1.css' %}">
+  {% if request.is_marketing %}<link rel="stylesheet" href="{% static 'css/marketing.css' %}">{% endif %}
   <script defer src="{% static 'js/modern-v1.js' %}"></script>
   {% block extra_head %}{% endblock %}
   {% include "partials/tracking_head.html" %}
 </head>
-<body class="min-h-screen font-sans antialiased">
+<body class="min-h-screen font-sans antialiased{% if request.is_marketing %} marketing-site{% endif %}">
 
   <!-- Promo banner (editable desde el admin) ----------------------------- -->
   {% include "catalog/_promo_banner.html" %}

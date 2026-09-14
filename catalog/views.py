@@ -728,6 +728,8 @@ def review_thanks(request):
 
 
 def distributor_landing(request):
+    if getattr(request, "is_marketing", False):
+        return redirect("catalog:home")
     categories = Category.objects.filter(
         is_active=True, audience__in=["distribuidor", "ambos"],
     )

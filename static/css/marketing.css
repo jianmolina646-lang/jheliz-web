@@ -1,0 +1,15 @@
+/* Portal mayorista: modo claro, centrado en compra de cuentas completas. */
+.marketing-site{background:#f5f8fc!important;color:#152238!important}
+.marketing-site .nav-glass{background:#fff!important;border-color:#e5eaf2!important;box-shadow:0 3px 18px rgba(25,45,80,.07)}
+.marketing-site .nav-glass a,.marketing-site .nav-glass span{color:#17243a!important}
+.marketing-site .nav-glass b{color:#087f5b!important}
+.marketing-site .card-glass{background:#fff!important;border-color:#e4eaf2!important;box-shadow:0 12px 30px rgba(28,51,85,.07)}
+.marketing-site .text-white{color:#152238!important}
+.marketing-site .text-slate-300,.marketing-site .text-white\/60,.marketing-site .text-white\/70{color:#617086!important}
+.marketing-site .marketing-hero{background:linear-gradient(135deg,#fff 0%,#eef8f4 55%,#eaf3ff 100%)!important;border-color:#cfe9dc!important}
+.marketing-site .marketing-hero h1{color:#10243c!important}
+.marketing-site .marketing-hero p{color:#53667d!important}
+.marketing-site .marketing-step{background:#fff!important;border-color:#e3eaf3!important}
+.marketing-site .btn-secondary{background:#fff!important;color:#1c3553!important;border-color:#d5dfeb!important}
+.marketing-site .btn-primary{background:#087f5b!important;color:#fff!important}
+.marketing-site .site-footer{background:#fff;border-color:#e3eaf3}
