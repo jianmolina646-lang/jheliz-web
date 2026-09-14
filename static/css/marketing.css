@@ -13,3 +13,17 @@
 .marketing-site .btn-secondary{background:#fff!important;color:#1c3553!important;border-color:#d5dfeb!important}
 .marketing-site .btn-primary{background:#087f5b!important;color:#fff!important}
 .marketing-site .site-footer{background:#fff;border-color:#e3eaf3}
+
+/* Panel y cuenta: experiencia de compra mayorista, clara y dinámica. */
+.marketing-site main .surface{background:rgba(255,255,255,.92)!important;border:1px solid #dfe8f2!important;color:#17243a;box-shadow:0 10px 26px rgba(29,58,94,.06);transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.marketing-site main .surface:hover{transform:translateY(-3px);box-shadow:0 16px 34px rgba(29,58,94,.12);border-color:#b9d8ca!important}
+.marketing-site main .text-zinc-400,.marketing-site main .text-zinc-500{color:#617086!important}
+.marketing-site main .text-zinc-200{color:#243954!important}
+.marketing-site main .font-display{color:#142943}
+.marketing-site main h1{color:#10243c!important}
+.marketing-site main .mesh-accent{animation:marketing-in .55s ease both}
+.marketing-site main section{animation:marketing-in .55s ease both}
+.marketing-site main section:nth-of-type(2){animation-delay:.06s}.marketing-site main section:nth-of-type(3){animation-delay:.12s}.marketing-site main section:nth-of-type(4){animation-delay:.18s}
+.marketing-site .btn{transition:transform .2s ease,box-shadow .2s ease}.marketing-site .btn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(8,127,91,.2)}
+@keyframes marketing-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.marketing-site *{animation:none!important;transition:none!important}}
