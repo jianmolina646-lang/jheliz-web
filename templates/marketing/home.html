@@ -27,7 +27,7 @@
         <a class="btn btn-primary btn-lg" href="{% url 'catalog:distributor_catalog' %}">Entrar al catálogo mayorista</a>
         <a class="btn btn-secondary btn-lg" href="{% url 'catalog:distributor_accounts' %}">Ver mis cuentas</a>
       {% else %}
-        <a class="btn btn-primary btn-lg" href="{% url 'accounts:signup' %}?role=distribuidor">Solicitar acceso</a>
+        <a class="btn btn-primary btn-lg" href="{% url 'catalog:products' %}">Entrar a la tienda</a>
         <a class="btn btn-secondary btn-lg" href="{% url 'accounts:login' %}">Ya tengo una cuenta</a>
       {% endif %}
     </div>
