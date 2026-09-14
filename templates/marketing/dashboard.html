@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load humanize %}
+{% load humanize static %}
 {% block title %}Panel mayorista — Jheliz{% endblock %}
 {% block site_header %}{% endblock %}
 {% block content %}
@@ -10,7 +10,7 @@
       <a class="active" href="#resumen">⌂ <span>Resumen</span></a>
       <a href="#tienda">▣ <span>Tienda</span></a>
       <a href="#compras">▤ <span>Mis compras</span></a>
-      <a href="{% url 'support:list' %}">? <span>Soporte</span></a>
+      <a href="#soporte">? <span>Soporte</span></a>
     </nav>
     <div class="mk-side-note"><small>CUENTAS COMPLETAS</small><strong>Correo + contraseña</strong><span>Entrega automática</span></div>
   </aside>
@@ -50,6 +50,8 @@
     </main>
   </div>
 </div>
+<script src="{% static 'js/marketing-panel.js' %}" defer></script>
+{% comment %}
 <script>
 (function () {
   const store = document.getElementById('mk-store');
@@ -95,5 +97,6 @@
   showSection();
 })();
 </script>
+{% endcomment %}
 {% endblock %}
 {% block site_footer %}{% endblock %}
