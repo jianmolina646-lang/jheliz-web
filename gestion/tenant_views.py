@@ -565,6 +565,13 @@ def flow_payment_create(request):
     if tenant.payments.filter(status=TenantPayment.Status.PENDING).exists():
         messages.info(request, "Ya tienes un pago pendiente.")
         return redirect("jheliztv_billing")
+    try:
+        payer_email = forms.EmailField().clean(
+            request.POST.get("payer_email") or request.user.email
+        )
+    except forms.ValidationError:
+        messages.error(request, "Ingresa un correo real para recibir el comprobante de Flow.")
+        return redirect("jheliztv_billing")
     saas = SaasSettings.load()
     payment = TenantPayment.objects.create(
         tenant=tenant, method=TenantPayment.Method.FLOW_QR,
@@ -575,7 +582,7 @@ def flow_payment_create(request):
     try:
         result = create_payment(
             payment=payment,
-            email=request.user.email or f"{request.user.username}@jheliztv.xyz",
+            email=payer_email,
             confirmation_url=request.build_absolute_uri(reverse("jheliztv_flow_confirmation")),
             return_url=request.build_absolute_uri(reverse("jheliztv_flow_result")),
         )

@@ -326,7 +326,7 @@ FLOW_SECRET_KEY = secret_config("FLOW_SECRET_KEY", allow_empty=True)
 FLOW_API_URL = config("FLOW_API_URL", default="https://sandbox.flow.cl/api").rstrip("/")
 FLOW_PAYMENT_METHOD = config("FLOW_PAYMENT_METHOD", default="")
 FLOW_PAYMENT_TIMEOUT = config("FLOW_PAYMENT_TIMEOUT", default=1800, cast=int)
-FLOW_HTTP_TIMEOUT = config("FLOW_HTTP_TIMEOUT", default=10, cast=int)
+FLOW_HTTP_TIMEOUT = config("FLOW_HTTP_TIMEOUT", default=30, cast=int)
 
 # Evita depender de una API externa durante desarrollo y pruebas. En
 # produccion queda habilitado por defecto y siempre conserva el TC manual como

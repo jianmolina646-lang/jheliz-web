@@ -56,6 +56,8 @@ FORM: Réplica visual directa de src/routes/suscripcion.tsx del proyecto Lovable
           <p class="lvsu-help">Flow genera un QR unico y confirma el pago directamente con JhelizTV. No necesitas subir comprobante.</p>
           {% if flow_enabled %}
             <form method="post" action="{% url 'jheliztv_flow_create' %}">{% csrf_token %}
+              <label class="lvsu-file-label" for="flowPayerEmail">Correo para el comprobante</label>
+              <input id="flowPayerEmail" name="payer_email" type="email" value="{{ request.user.email }}" autocomplete="email" required>
               <button type="submit" class="lvsu-submit"><span class="material-symbols-outlined">qr_code_scanner</span>Generar QR para pagar</button>
             </form>
           {% else %}

@@ -30,12 +30,19 @@ class FlowPaymentTests(TestCase):
     @patch("gestion.tenant_views.create_payment")
     def test_create_redirects_to_flow_and_stores_order(self, create):
         create.return_value = {"url": "https://sandbox.flow.cl/app/web/pay.php", "token": "tok-1", "flowOrder": 123}
-        response = self.client.post("/pagos/flow/crear/", HTTP_HOST=self.host)
+        response = self.client.post("/pagos/flow/crear/", {"payer_email": "payer@example.com"}, HTTP_HOST=self.host)
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.url.startswith("https://sandbox.flow.cl/"))
         payment = TenantPayment.objects.get(tenant=self.tenant)
         self.assertEqual(payment.method, TenantPayment.Method.FLOW_QR)
         self.assertEqual(payment.provider_token, "tok-1")
+
+    @patch("gestion.tenant_views.create_payment")
+    def test_create_requires_real_email(self, create):
+        response = self.client.post("/pagos/flow/crear/", {"payer_email": "correo-invalido"}, HTTP_HOST=self.host)
+        self.assertEqual(response.status_code, 302)
+        create.assert_not_called()
+        self.assertFalse(TenantPayment.objects.exists())
 
     @patch("gestion.tenant_views.get_status")
     def test_callback_approves_once(self, status):
