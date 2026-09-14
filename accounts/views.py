@@ -49,7 +49,7 @@ def signup(request):
                     request,
                     "Acceso mayorista activado. Ya puedes comprar cuentas completas.",
                 )
-            return redirect("catalog:distributor_panel" if marketing_mode else "accounts:dashboard")
+            return redirect("accounts:dashboard")
         # POST con error: si el usuario marcó distribuidor, mantenemos el panel
         if (form.data.get("role") or "").lower() == Role.DISTRIBUIDOR:
             is_distri_mode = True
@@ -72,7 +72,7 @@ class JhelizLoginView(LoginView):
 
     def get_success_url(self):
         if getattr(self.request, "is_marketing", False):
-            return str(reverse_lazy("catalog:distributor_panel"))
+            return str(reverse_lazy("accounts:dashboard"))
         return super().get_success_url()
 
 
@@ -163,7 +163,7 @@ def dashboard(request):
 
     return render(
         request,
-        "accounts/dashboard.html",
+        "marketing/dashboard.html" if getattr(request, "is_marketing", False) else "accounts/dashboard.html",
         {
             "orders": orders,
             "active_items": active_items[:8],

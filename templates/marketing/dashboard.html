@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Panel mayorista — Jheliz{% endblock %}
+{% block site_header %}{% endblock %}
+{% block content %}
+<div class="mk-app">
+  <aside class="mk-side">
+    <a class="mk-brand" href="/"><span>J</span><b>Jheliz</b></a>
+    <nav>
+      <a class="active" href="{% url 'accounts:dashboard' %}">⌂ <span>Resumen</span></a>
+      <a href="{% url 'catalog:distributor_catalog' %}">▣ <span>Tienda</span></a>
+      <a href="#compras">▤ <span>Mis compras</span></a>
+      <a href="{% url 'support:list' %}">? <span>Soporte</span></a>
+    </nav>
+    <div class="mk-side-note"><small>CUENTAS COMPLETAS</small><strong>Correo + contraseña</strong><span>Entrega automática</span></div>
+  </aside>
+  <div class="mk-workspace">
+    <header class="mk-top">
+      <div><span class="mk-mobile-logo">J</span><b>Panel mayorista</b></div>
+      <div class="mk-top-actions"><span class="mk-balance">Saldo <strong>{{ CURRENCY_SYMBOL }} {{ user.wallet_balance|floatformat:2|intcomma }}</strong></span><span>{{ user.username }}</span><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button>Salir</button></form></div>
+    </header>
+    <main class="mk-main">
+      <div class="mk-heading"><div><small>RESUMEN GENERAL</small><h1>Hola, <em>{{ user.first_name|default:user.username }}</em></h1><p>Compra cuentas completas listas para entregar a tus clientes.</p></div><a class="mk-primary" href="{% url 'catalog:distributor_catalog' %}">＋ Nueva compra</a></div>
+      <section class="mk-kpis">
+        <article><span>Pedidos totales</span><strong>{{ stats.total_orders }}</strong><small>Historial completo</small></article>
+        <article><span>Cuentas entregadas</span><strong>{{ stats.delivered }}</strong><small>Correo y contraseña</small></article>
+        <article><span>Cuentas activas</span><strong>{{ stats.active }}</strong><small>Disponibles en tu panel</small></article>
+        <article><span>Por vencer</span><strong>{{ stats.expiring_soon }}</strong><small>Próximos 7 días</small></article>
+      </section>
+      <section class="mk-actions"><h2>Accesos rápidos</h2><div><a href="{% url 'catalog:distributor_catalog' %}"><b>Explorar tienda</b><span>Ver cuentas y stock →</span></a><a href="#compras"><b>Revisar compras</b><span>Credenciales entregadas →</span></a><a href="{% url 'support:list' %}"><b>Solicitar soporte</b><span>Te ayudamos con tu pedido →</span></a></div></section>
+      <section class="mk-orders" id="compras"><div class="mk-section-title"><h2>Compras recientes</h2><a href="{% url 'catalog:distributor_accounts' %}">Ver todas</a></div>
+        {% for order in orders %}<a class="mk-order" href="{% url 'orders:detail' order.uuid %}"><div><small>#{{ order.display_number }} · {{ order.created_at|date:"d/m/Y H:i" }}</small><strong>{% for item in order.items.all %}{{ item.product_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong></div><div><b>{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2 }}</b><span class="mk-status">{{ order.get_status_display }}</span></div></a>{% empty %}<div class="mk-empty"><b>Aún no tienes compras</b><span>Elige una cuenta completa y recibe las credenciales automáticamente.</span><a class="mk-primary" href="{% url 'catalog:distributor_catalog' %}">Ir a la tienda</a></div>{% endfor %}
+      </section>
+    </main>
+  </div>
+</div>
+{% endblock %}
+{% block site_footer %}{% endblock %}
