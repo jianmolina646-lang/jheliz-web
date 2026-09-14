@@ -64,6 +64,8 @@ urlpatterns = [
     path("pagos/flow/crear/", v.flow_payment_create, name="jheliztv_flow_create"),
     path("pagos/flow/confirmacion/", v.flow_confirmation, name="jheliztv_flow_confirmation"),
     path("pagos/flow/resultado/", v.flow_result, name="jheliztv_flow_result"),
+    path("pagos/flow/<int:pk>/comprobante/", v.flow_proof_upload, name="jheliztv_flow_proof"),
+    path("pagos/flow/<int:pk>/estado.json", v.flow_payment_status, name="jheliztv_flow_status"),
 
     # Panel
     path("app/", v.dashboard, name="jheliztv_dashboard"),

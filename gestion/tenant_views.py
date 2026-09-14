@@ -626,13 +626,63 @@ def flow_confirmation(request):
 def flow_result(request):
     token = request.POST.get("token") or request.GET.get("token") or ""
     state = "pending"
+    payment = None
     try:
         payment, _ = _process_flow_token(token)
+        tenant = _get_tenant(request.user)
+        if tenant is None or payment.tenant_id != tenant.pk:
+            return redirect("jheliztv_login")
         state = "approved" if payment.status == TenantPayment.Status.APPROVED else "pending"
     except Exception:
         logger.exception("No se pudo consultar el resultado de Flow")
         state = "error"
-    return render(request, "jheliztv/flow_result.html", {"state": state})
+    return render(request, "jheliztv/flow_result.html", {
+        "state": state,
+        "payment": payment,
+        "checking": request.GET.get("checking") == "1",
+    })
+
+
+@require_POST
+def flow_proof_upload(request, pk):
+    tenant = _get_tenant(request.user)
+    if tenant is None:
+        return redirect("jheliztv_login")
+    payment = get_object_or_404(
+        TenantPayment, pk=pk, tenant=tenant, method=TenantPayment.Method.FLOW_QR,
+    )
+    if payment.status == TenantPayment.Status.APPROVED:
+        return redirect("jheliztv_billing")
+    proof = request.FILES.get("proof")
+    if not proof or not _valid_proof_image(proof):
+        messages.error(request, "El comprobante debe ser JPG, PNG o WebP de maximo 8 MB.")
+        return redirect(f'{reverse("jheliztv_flow_result")}?token={quote(payment.provider_token)}')
+    payment.proof = proof
+    payment.save(update_fields=["proof"])
+    return redirect(
+        f'{reverse("jheliztv_flow_result")}?token={quote(payment.provider_token)}&checking=1'
+    )
+
+
+@require_GET
+def flow_payment_status(request, pk):
+    tenant = _get_tenant(request.user)
+    if tenant is None:
+        return JsonResponse({"state": "unauthorized"}, status=401)
+    payment = get_object_or_404(
+        TenantPayment, pk=pk, tenant=tenant, method=TenantPayment.Method.FLOW_QR,
+    )
+    if payment.status == TenantPayment.Status.PENDING:
+        try:
+            payment, _ = _process_flow_token(payment.provider_token)
+        except Exception:
+            logger.exception("No se pudo actualizar el pago Flow pk=%s", payment.pk)
+    payment.refresh_from_db()
+    return JsonResponse({
+        "state": payment.status,
+        "approved": payment.status == TenantPayment.Status.APPROVED,
+        "redirect": reverse("jheliztv_billing") if payment.status == TenantPayment.Status.APPROVED else "",
+    })
 
 
 @require_POST

@@ -1,16 +1,62 @@
 {% extends "jheliztv/base.html" %}
 {% block title %}Resultado del pago{% endblock %}
 {% block jc_content %}
-<main class="lvsu-page"><div class="lvsu-container"><section class="lvsu-status">
-  <div class="lvsu-status-main"><div class="lvsu-status-copy">
+<main class="lvsu-page"><div class="lvsu-container"><section class="lvsu-card lvsu-flow-result">
+  <div class="lvsu-review-state" id="flowResult">
     {% if state == "approved" %}
-      <h1>Pago confirmado</h1><p>Tu suscripcion fue renovada automaticamente.</p>
+      <span><span class="material-symbols-outlined">verified</span></span>
+      <h1>Pago confirmado</h1><p>Flow confirmo el dinero y tu suscripcion fue renovada automaticamente.</p>
     {% elif state == "pending" %}
-      <h1>Pago en proceso</h1><p>Flow aun esta procesando el pago. Actualizaremos tu suscripcion al recibir la confirmacion.</p>
+      {% if checking %}
+        <span><span class="material-symbols-outlined">sync</span></span>
+        <h1>Estamos verificando tu pago</h1>
+        <p>Consultamos directamente a Flow. Esto normalmente tarda solo unos segundos.</p>
+        <strong id="flowCountdown">Verificando...</strong>
+      {% else %}
+        <span><span class="material-symbols-outlined">receipt_long</span></span>
+        <h1>Pago realizado</h1>
+        <p>Adjunta el comprobante como respaldo y verificaremos el pago automaticamente con Flow.</p>
+        {% if payment %}
+          <form method="post" enctype="multipart/form-data" action="{% url 'jheliztv_flow_proof' payment.pk %}" class="lvsu-upload-form">{% csrf_token %}
+            <label class="lvsu-dropzone" for="flowProof"><span class="lvsu-file-icon"><span class="material-symbols-outlined">upload</span></span><strong>Seleccionar comprobante</strong><small>JPG, PNG o WebP · maximo 8 MB</small></label>
+            <input id="flowProof" type="file" name="proof" accept="image/jpeg,image/png,image/webp" required>
+            <button class="lvsu-submit" type="submit"><span class="material-symbols-outlined">verified_user</span>Enviar y verificar pago</button>
+          </form>
+        {% endif %}
+      {% endif %}
     {% else %}
       <h1>No pudimos consultar el pago</h1><p>Tu dinero no se pierde. Revisaremos el estado directamente con Flow.</p>
     {% endif %}
     <p><a class="lvsu-submit" href="{% url 'jheliztv_billing' %}">Volver a mi suscripcion</a></p>
-  </div></div>
+  </div>
 </section></div></main>
 {% endblock %}
+{% block jc_scripts %}{% if checking and payment %}
+<script>
+(function () {
+  const box = document.getElementById("flowResult");
+  const countdown = document.getElementById("flowCountdown");
+  let attempts = 0;
+  async function verifyPayment() {
+    attempts += 1;
+    countdown.textContent = "Verificando pago seguro... " + attempts;
+    try {
+      const response = await fetch("{% url 'jheliztv_flow_status' payment.pk %}", {headers: {"Accept": "application/json"}, credentials: "same-origin"});
+      const data = await response.json();
+      if (data.approved) {
+        box.innerHTML = '<span><span class="material-symbols-outlined">verified</span></span><h1>Pago confirmado</h1><p>Flow confirmo el dinero. Tu suscripcion ya fue renovada.</p><a class="lvsu-submit" href="' + data.redirect + '">Ver mi suscripcion</a>';
+        return;
+      }
+    } catch (error) {}
+    if (attempts < 10) window.setTimeout(verifyPayment, 3000);
+    else {
+      countdown.textContent = "Flow aun esta procesando el pago.";
+      const note = document.createElement("p");
+      note.textContent = "Guardamos tu comprobante. Puedes volver a consultar en unos minutos; la renovacion se aplicara automaticamente.";
+      countdown.after(note);
+    }
+  }
+  window.setTimeout(verifyPayment, 1200);
+})();
+</script>
+{% endif %}{% endblock %}

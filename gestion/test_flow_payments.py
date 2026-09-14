@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from .flow_payments import _signed
 from .models import SaasSettings, Tenant, TenantPayment
@@ -89,3 +90,38 @@ class FlowPaymentTests(TestCase):
         response = self.client.get("/suscripcion/", HTTP_HOST=self.host)
         self.assertContains(response, "Continuar pago en Flow")
         self.assertContains(response, "https://www.flow.cl/app/web/pay.php?token=tok-resume")
+
+    @patch("gestion.tenant_views.get_status")
+    def test_flow_proof_then_status_approves_payment(self, status):
+        payment = TenantPayment.objects.create(
+            tenant=self.tenant, method=TenantPayment.Method.FLOW_QR,
+            amount=Decimal("30.00"), days=30, provider_order_id="JC-proof",
+            provider_token="tok-proof",
+        )
+        proof = SimpleUploadedFile("pago.png", b"not-a-real-image", content_type="image/png")
+        with patch("gestion.tenant_views._valid_proof_image", return_value=True):
+            response = self.client.post(
+                f"/pagos/flow/{payment.pk}/comprobante/", {"proof": proof}, HTTP_HOST=self.host,
+            )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("checking=1", response.url)
+        payment.refresh_from_db()
+        self.assertTrue(payment.proof.name)
+        status.return_value = {
+            "status": 2, "commerceOrder": "JC-proof", "amount": 30,
+            "flowOrder": 789, "currency": "PEN",
+        }
+        response = self.client.get(f"/pagos/flow/{payment.pk}/estado.json", HTTP_HOST=self.host)
+        self.assertJSONEqual(response.content, {
+            "state": "approved", "approved": True, "redirect": "/suscripcion/",
+        })
+
+    def test_flow_status_cannot_read_another_tenant_payment(self):
+        other_user = get_user_model().objects.create_user("other", "other@example.com", "pass12345")
+        other = Tenant.objects.create(user=other_user, business_name="Other")
+        payment = TenantPayment.objects.create(
+            tenant=other, method=TenantPayment.Method.FLOW_QR,
+            amount=Decimal("30.00"), provider_order_id="JC-other", provider_token="tok-other",
+        )
+        response = self.client.get(f"/pagos/flow/{payment.pk}/estado.json", HTTP_HOST=self.host)
+        self.assertEqual(response.status_code, 404)
