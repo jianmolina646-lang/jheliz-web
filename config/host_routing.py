@@ -46,6 +46,15 @@ class JheliztvHostMiddleware:
             "/como-funciona/", "/preguntas-frecuentes/", "/contacto/",
         }:
             return HttpResponsePermanentRedirect("/")
+        if request.is_marketing and not (
+            request.path == "/" or request.path.startswith((
+                "/productos", "/catalogo", "/carrito", "/checkout", "/pedido",
+                "/cuenta", "/accounts/", "/login", "/registro", "/signup", "/logout",
+                "/static/", "/media/", "/healthz/", "/panel-jheliz-control/",
+                "/webhooks/", "/flow/"
+            ))
+        ):
+            return HttpResponsePermanentRedirect("/")
         if host in self.hosts:
             request.urlconf = "config.urls_jheliztv"
             request.is_jheliztv = True
