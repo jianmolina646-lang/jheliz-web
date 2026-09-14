@@ -6,7 +6,9 @@
 .marketing-site .card-glass{background:#fff!important;border-color:#e4eaf2!important;box-shadow:0 12px 30px rgba(28,51,85,.07)}
 .marketing-site .text-white{color:#152238!important}
 .marketing-site .text-slate-300,.marketing-site .text-white\/60,.marketing-site .text-white\/70{color:#617086!important}
-.marketing-site .marketing-hero{background:linear-gradient(135deg,#fff 0%,#eef8f4 55%,#eaf3ff 100%)!important;border-color:#cfe9dc!important}
+.marketing-site .marketing-hero{background:linear-gradient(135deg,#fff7ed 0%,#fff 42%,#eef2ff 100%)!important;border:2px solid #fed7aa!important;box-shadow:0 24px 60px rgba(79,70,229,.12)!important}
+.marketing-site .marketing-hero:before{content:"";position:absolute;right:8%;top:12%;width:220px;height:220px;border-radius:50%;background:linear-gradient(135deg,#fb923c,#6366f1);opacity:.14;filter:blur(2px);animation:marketing-float 6s ease-in-out infinite}
+.marketing-site .marketing-hero h1{font-size:clamp(2.8rem,6vw,5.4rem)!important;letter-spacing:-.055em!important}
 .marketing-site .marketing-hero h1{color:#10243c!important}
 .marketing-site .marketing-hero p{color:#53667d!important}
 .marketing-site .marketing-step{background:#fff!important;border-color:#e3eaf3!important}
@@ -26,4 +28,5 @@
 .marketing-site main section:nth-of-type(2){animation-delay:.06s}.marketing-site main section:nth-of-type(3){animation-delay:.12s}.marketing-site main section:nth-of-type(4){animation-delay:.18s}
 .marketing-site .btn{transition:transform .2s ease,box-shadow .2s ease}.marketing-site .btn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(8,127,91,.2)}
 @keyframes marketing-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes marketing-float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-14px) scale(1.06)}}
 @media(prefers-reduced-motion:reduce){.marketing-site *{animation:none!important;transition:none!important}}
