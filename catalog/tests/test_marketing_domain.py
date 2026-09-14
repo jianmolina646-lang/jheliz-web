@@ -65,7 +65,17 @@ class MarketingDomainTests(TestCase):
         self.assertEqual(response.status_code, 302)
         user = get_user_model().objects.get(username="mayorista")
         self.assertEqual(user.role, "distribuidor")
-        self.assertFalse(user.distributor_approved)
+        self.assertTrue(user.distributor_approved)
+
+    def test_distributor_can_open_store(self):
+        user = get_user_model().objects.create_user(
+            username="storebuyer", role="distribuidor", distributor_approved=True,
+        )
+        self.client.force_login(user)
+        response = self.client.get("/distribuidor/catalogo/", HTTP_HOST=self.host)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Cuenta completa")
+        self.assertNotContains(response, "Perfil compartido")
 
     def test_www_redirects_to_canonical_host(self):
         response = self.client.get("/ruta/?x=1", HTTP_HOST="www.marketingjhelizxyz.online")

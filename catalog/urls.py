@@ -7,6 +7,7 @@ app_name = "catalog"
 urlpatterns = [
     path("", views.home, name="home"),
     path("productos/", views.product_list, name="products"),
+    path("tienda/", views.distributor_catalog, name="marketing_store"),
     path("combos/", views.combo_builder, name="combo_builder"),
     path("combos/agregar/", views.combo_add, name="combo_add"),
     path("categoria/<slug:slug>/", views.category_detail, name="category"),
