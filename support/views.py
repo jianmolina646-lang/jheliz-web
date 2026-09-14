@@ -48,6 +48,11 @@ _TIPO_PRESETS = {
 @login_required
 def ticket_list(request):
     tickets = request.user.tickets.all()
+    if getattr(request, "is_marketing", False):
+        return render(request, "marketing/support_list.html", {
+            "tickets": tickets,
+            "has_purchases": request.user.orders.filter(status="delivered", items__product__mode="completa").exists(),
+        })
     return render(request, "support/ticket_list.html", {"tickets": tickets})
 
 
