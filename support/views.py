@@ -1,4 +1,5 @@
 from datetime import timedelta
+from functools import wraps
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -10,6 +11,18 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .forms import CodeRequestForm, TicketCreateForm, TicketReplyForm
 from .models import CodeRequest, Ticket, TicketMessage
+
+
+def reseller_panel_frame(view):
+    """Allow the authenticated support UI inside its own reseller dashboard."""
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        response = view(request, *args, **kwargs)
+        if getattr(request, "is_marketing", False) and request.user.is_authenticated:
+            response["X-Frame-Options"] = "SAMEORIGIN"
+            response._csp_replace = {"frame-ancestors": ("'self'",)}
+        return response
+    return wrapped
 
 
 # Presets para abrir el formulario de ticket pre-llenado desde botones de
@@ -44,12 +57,14 @@ _TIPO_PRESETS = {
 
 
 @login_required
+@reseller_panel_frame
 def ticket_list(request):
     tickets = request.user.tickets.all()
     return render(request, "support/ticket_list.html", {"tickets": tickets})
 
 
 @login_required
+@reseller_panel_frame
 def ticket_create(request):
     initial = {}
     order_uuid = request.GET.get("pedido")
@@ -88,6 +103,7 @@ def _user_can_view(ticket: Ticket, user) -> bool:
 
 
 @login_required
+@reseller_panel_frame
 def ticket_detail(request, pk: int):
     ticket = get_object_or_404(Ticket, pk=pk)
     if not _user_can_view(ticket, request.user):

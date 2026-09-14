@@ -43,21 +43,30 @@
         {% empty %}<div class="mk-empty"><b>Estamos preparando el catálogo</b><span>Las cuentas completas aparecerán aquí cuando estén disponibles.</span></div>{% endfor %}
         </div>
       </section>
+      <section id="mk-support" hidden>
+        <div class="mk-heading"><div><small>ATENCIÓN AL REVENDEDOR</small><h1>Soporte</h1><p>Consulta tus tickets, crea una solicitud o responde al equipo desde este panel.</p></div></div>
+        <iframe id="mk-support-frame" title="Tickets de soporte" data-src="{% url 'support:list' %}" style="width:100%;height:75vh;min-height:500px;border:0;border-radius:16px;margin-top:20px;background:white"></iframe>
+      </section>
     </main>
   </div>
 </div>
 <script>
 (function () {
   const store = document.getElementById('mk-store');
+  const support = document.getElementById('mk-support');
+  const supportFrame = document.getElementById('mk-support-frame');
   const main = store.parentElement;
-  const sections = Array.from(main.children).filter(el => el !== store);
+  const sections = Array.from(main.children).filter(el => el !== store && el !== support);
   const storePaths = ["{% url 'catalog:marketing_store' %}", "{% url 'catalog:distributor_catalog' %}"];
   const navLinks = document.querySelectorAll('.mk-side nav a');
-  function showStore(open) {
-    sections.forEach(el => el.hidden = open);
-    store.hidden = !open;
+  function showSection() {
+    const selected = ['#tienda', '#soporte'].includes(location.hash) ? location.hash : '#resumen';
+    sections.forEach(el => el.hidden = selected !== '#resumen');
+    store.hidden = selected !== '#tienda';
+    support.hidden = selected !== '#soporte';
+    if (selected === '#soporte' && !supportFrame.hasAttribute('src')) supportFrame.src = supportFrame.dataset.src;
     navLinks.forEach(el => {
-      const active = el.hash === (open ? '#tienda' : '#resumen');
+      const active = el.hash === selected;
       el.classList.toggle('active', active);
       if (active) el.setAttribute('aria-current', 'page');
       else el.removeAttribute('aria-current');
@@ -65,19 +74,25 @@
   }
   document.querySelectorAll('.mk-app a').forEach(link => {
     if (storePaths.includes(link.pathname)) link.setAttribute('href', '#tienda');
+    if (link.pathname === "{% url 'support:list' %}") link.setAttribute('href', '#soporte');
   });
   document.querySelector('.mk-app').addEventListener('click', event => {
     const link = event.target.closest('a');
-    if (!link || !['#resumen', '#tienda'].includes(link.getAttribute('href'))) return;
+    if (!link || !['#resumen', '#tienda', '#soporte'].includes(link.getAttribute('href'))) return;
     event.preventDefault();
     const hash = link.getAttribute('href');
     if (location.hash !== hash) history.pushState(null, '', hash);
-    showStore(hash === '#tienda');
+    showSection();
     window.scrollTo({top: 0, behavior: 'auto'});
   });
-  window.addEventListener('popstate', () => showStore(location.hash === '#tienda'));
-  window.addEventListener('hashchange', () => showStore(location.hash === '#tienda'));
-  showStore(location.hash === '#tienda');
+  supportFrame.addEventListener('load', () => {
+    const doc = supportFrame.contentDocument;
+    if (!doc) return;
+    doc.querySelectorAll('header.nav-glass, footer, .mk-side').forEach(el => el.hidden = true);
+  });
+  window.addEventListener('popstate', showSection);
+  window.addEventListener('hashchange', showSection);
+  showSection();
 })();
 </script>
 {% endblock %}
