@@ -4,7 +4,8 @@
 {% block site_header %}{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/marketing-refined.css' %}">
-<div class="mk-app">
+<link rel="stylesheet" href="{% static 'css/marketing-summary.css' %}">
+<div class="mk-app" data-view="resumen">
   <aside class="mk-side">
     <a class="mk-brand" href="#resumen"><span>J</span><b>Jheliz</b></a>
     <nav>
@@ -21,12 +22,12 @@
       <div class="mk-top-actions"><span class="mk-balance">Saldo <strong>{{ CURRENCY_SYMBOL }} {{ user.wallet_balance|floatformat:2|intcomma }}</strong></span><span>{{ user.username }}</span><form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button>Salir</button></form></div>
     </header>
     <main class="mk-main">
-      <div class="mk-heading"><div><small>RESUMEN GENERAL</small><h1>Hola, <em>{{ user.first_name|default:user.username }}</em></h1><p>Compra cuentas completas listas para entregar a tus clientes.</p></div><a class="mk-primary" href="{% url 'catalog:distributor_catalog' %}">＋ Nueva compra</a></div>
+      <div class="mk-heading"><div><small>RESUMEN GENERAL</small><h1>Bienvenido, <em>{{ user.first_name|default:user.username }}</em> <span aria-hidden="true">👋</span></h1><p>Tu negocio de cuentas completas, en un solo lugar.</p></div><a class="mk-primary" href="#tienda">＋ Nueva compra</a></div>
       <section class="mk-kpis">
-        <article><span>Pedidos totales</span><strong>{{ stats.total_orders }}</strong><small>Historial completo</small></article>
-        <article><span>Cuentas entregadas</span><strong>{{ stats.delivered }}</strong><small>Correo y contraseña</small></article>
-        <article><span>Cuentas activas</span><strong>{{ stats.active }}</strong><small>Disponibles en tu panel</small></article>
-        <article><span>Por vencer</span><strong>{{ stats.expiring_soon }}</strong><small>Próximos 7 días</small></article>
+        <article><span>Saldo disponible</span><i class="mk-stat-icon lime" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7V5a2 2 0 0 1 2-2h13v4M4 7h16v14H6a2 2 0 0 1-2-2V7Z"/><path d="M20 11h-6v6h6M16 14h1"/></svg></i><strong>{{ CURRENCY_SYMBOL }} {{ user.wallet_balance|floatformat:2|intcomma }}</strong><small>Disponible en tu cuenta</small></article>
+        <article><span>Pedidos totales</span><i class="mk-stat-icon violet" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 3h3l3 13h11l3-10H6M9 20h1m7 0h1"/></svg></i><strong>{{ stats.total_orders }}</strong><small>Historial de compras</small></article>
+        <article><span>Cuentas activas</span><i class="mk-stat-icon amber" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg></i><strong>{{ stats.active }}</strong><small>{{ stats.expiring_soon }} por vencer</small></article>
+        <article><span>Cuentas entregadas</span><i class="mk-stat-icon green" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="9" width="16" height="12" rx="2"/><path d="M8 9V6a4 4 0 0 1 8 0v3m-7 6 2 2 4-4"/></svg></i><strong>{{ stats.delivered }}</strong><small>Correo y contraseña</small></article>
       </section>
       <section class="mk-actions"><h2>Accesos rápidos</h2><div><a href="{% url 'catalog:distributor_catalog' %}"><b>Explorar tienda</b><span>Ver cuentas y stock →</span></a><a href="#compras"><b>Revisar compras</b><span>Credenciales entregadas →</span></a><a href="{% url 'support:list' %}"><b>Solicitar soporte</b><span>Te ayudamos con tu pedido →</span></a></div></section>
       <section class="mk-orders" id="compras"><div class="mk-section-title"><h2>Compras recientes</h2><a href="{% url 'catalog:distributor_accounts' %}">Ver todas</a></div>

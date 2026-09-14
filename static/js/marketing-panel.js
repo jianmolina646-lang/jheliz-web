@@ -47,6 +47,7 @@
   });
   function render() {
     const tab = tabs.includes(location.hash) ? location.hash : '#resumen';
+    app.dataset.view = tab.slice(1);
     summary.forEach(el => el.hidden = tab !== '#resumen');
     store.hidden = tab !== '#tienda';
     support.hidden = tab !== '#soporte';
