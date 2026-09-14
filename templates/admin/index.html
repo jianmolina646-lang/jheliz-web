@@ -13,6 +13,9 @@
 {% endblock %}
 
 {% block content %}
+{% if request.is_marketing %}
+{% include 'admin/marketing_home.html' %}
+{% else %}
 <div class="flex flex-col gap-6">
     {% if dashboard_previous_login_text %}
     <!-- Aviso "última sesión" — security signal -->
@@ -629,4 +632,5 @@
 // admin: `static/admin/notifications_bell.js`. Se monta en TODAS las páginas
 // del admin, no sólo en este dashboard.
 </script>
+{% endif %}
 {% endblock %}
