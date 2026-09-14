@@ -39,6 +39,13 @@ class JheliztvHostMiddleware:
                 f"https://marketingjhelizxyz.online{request.get_full_path()}"
             )
         request.is_marketing = host in self.marketing_hosts
+        # El dominio de distribuidores es una tienda privada de cuentas completas;
+        # evita exponer las secciones generales (tutoriales, blog y landing antigua).
+        if request.is_marketing and request.path in {
+            "/distribuidor/", "/tutoriales/", "/blog/", "/funciones/", "/precios/",
+            "/como-funciona/", "/preguntas-frecuentes/", "/contacto/",
+        }:
+            return HttpResponsePermanentRedirect("/")
         if host in self.hosts:
             request.urlconf = "config.urls_jheliztv"
             request.is_jheliztv = True
