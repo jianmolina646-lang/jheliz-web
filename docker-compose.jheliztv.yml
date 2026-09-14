@@ -12,6 +12,17 @@ services:
       - flow_api_key
       - flow_secret_key
 
+  marketing_web:
+    extends:
+      file: docker-compose.yml
+      service: web
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings_marketing
+    ports: !override
+      - "127.0.0.1:8001:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null -H 'Host: marketingjhelizxyz.online' -H 'X-Forwarded-Proto: https' http://localhost:8000/healthz/ || exit 1"]
+
   control_alerts_bot:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings_jheliztv
