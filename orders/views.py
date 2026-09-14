@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from urllib.parse import quote
 from decimal import Decimal
 
 from django.conf import settings
@@ -10,13 +11,16 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET
 
 from catalog.models import Plan
 
 from . import emails, mercadopago_client, telegram
+from .flow_payments import FlowError, apply_paid_status as apply_flow_paid_status, configured as flow_configured, create_payment as create_flow_payment, get_status as get_flow_status
 from .cart import Cart
 from .forms import AddToCartForm, CartLineUpdateForm, CheckoutForm, PaymentProofForm
 from .models import Coupon, Order, OrderItem, PaymentSettings
@@ -419,6 +423,32 @@ def checkout(request):
                     return redirect("orders:checkout")
 
             order = _create_order_from_cart(request, cart, form.cleaned_data)
+            if getattr(request, "is_marketing", False) and method == "flow":
+                if not flow_configured():
+                    messages.error(request, "Flow no esta configurado en este momento.")
+                    return redirect("orders:checkout")
+                try:
+                    result = create_flow_payment(
+                        order=order,
+                        email=order.email,
+                        confirmation_url=request.build_absolute_uri(reverse("orders:flow_confirmation")),
+                        return_url=request.build_absolute_uri(reverse("orders:flow_result", args=[order.uuid])),
+                    )
+                    order.flow_token = result["token"]
+                    order.flow_order = result.get("flowOrder")
+                    order.payment_provider = "flow"
+                    order.save(update_fields=["flow_token", "flow_order", "payment_provider"])
+                except (FlowError, KeyError, ValueError):
+                    logger.exception("No se pudo crear orden Flow para pedido=%s", order.pk)
+                    order.status = Order.Status.FAILED
+                    order.save(update_fields=["status"])
+                    messages.error(request, "No se pudo generar el QR de Flow. Intentalo nuevamente.")
+                    return redirect("orders:checkout")
+                cart.clear()
+                _remember_order_access(request, order)
+                emails.send_order_received(order)
+                telegram.notify_admin_about_order(order)
+                return redirect(f'{result["url"]}?token={quote(result["token"])}')
             cart.clear()
             emails.send_order_received(order)
             telegram.notify_admin_about_order(order)
@@ -522,6 +552,8 @@ def checkout(request):
     # tiene saldo, y mercadopago si MERCADOPAGO_CHECKOUT_ENABLED está en False.
     available_methods = []
     for value, label in CheckoutForm.PAYMENT_METHODS:
+        if value == "flow" and (not getattr(request, "is_marketing", False) or not flow_configured()):
+            continue
         if value == "bank" and not bank_available:
             continue
         if value == "binance" and not binance_available:
@@ -779,6 +811,31 @@ def checkout_return(request, uuid):
         "order": order,
         "mp_status": mp_status,
     })
+
+
+@csrf_exempt
+@require_POST
+def flow_confirmation(request):
+    token = request.POST.get("token") or ""
+    try:
+        apply_flow_paid_status(token=token, payload=get_flow_status(token))
+    except Exception:
+        logger.exception("No se pudo confirmar pedido Flow")
+        return HttpResponse(status=400)
+    return HttpResponse(status=200)
+
+
+def flow_result(request, uuid):
+    order = get_object_or_404(Order, uuid=uuid)
+    denied = _order_access_denied(request, order)
+    if denied:
+        return denied
+    if order.flow_token and order.status not in {Order.Status.DELIVERED, Order.Status.CANCELED, Order.Status.FAILED}:
+        try:
+            order, _ = apply_flow_paid_status(token=order.flow_token, payload=get_flow_status(order.flow_token))
+        except Exception:
+            logger.exception("No se pudo consultar resultado Flow pedido=%s", order.pk)
+    return render(request, "orders/flow_result.html", {"order": order})
 
 
 @csrf_exempt

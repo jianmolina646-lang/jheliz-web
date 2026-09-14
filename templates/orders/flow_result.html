@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Estado del pago Flow{% endblock %}
+{% block content %}
+<section class="mx-auto max-w-2xl rounded-3xl border border-emerald-400/20 bg-slate-950 p-8 text-center md:p-12">
+  {% if order.status == 'delivered' %}
+    <div class="text-5xl">✅</div><h1 class="mt-5 text-3xl font-black text-white">Pago confirmado</h1><p class="mt-3 text-white/60">Tu compra fue entregada automáticamente. Revisa tu panel para ver el correo y contraseña.</p>
+  {% elif order.status == 'paid' %}
+    <div class="text-5xl">⏳</div><h1 class="mt-5 text-3xl font-black text-white">Pago confirmado</h1><p class="mt-3 text-white/60">Estamos asignando tu cuenta completa. Te avisaremos en breve.</p>
+  {% else %}
+    <div class="text-5xl">🔎</div><h1 class="mt-5 text-3xl font-black text-white">Estamos verificando tu pago</h1><p class="mt-3 text-white/60">Flow está procesando la operación. No cierres esta página; la entrega se realizará automáticamente al confirmar.</p>
+  {% endif %}
+  <a class="btn btn-primary mt-8" href="{% url 'accounts:dashboard' %}">Ir a mi panel</a>
+</section>
+{% endblock %}

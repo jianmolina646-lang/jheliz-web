@@ -244,6 +244,8 @@ class Order(models.Model):
     currency = models.CharField(max_length=10, default="PEN")
     payment_provider = models.CharField(max_length=30, blank=True)
     payment_reference = models.CharField(max_length=120, blank=True, db_index=True)
+    flow_token = models.CharField(max_length=160, blank=True, unique=True, null=True, editable=False)
+    flow_order = models.BigIntegerField(null=True, blank=True, editable=False)
     notes = models.TextField(blank=True)
     payment_proof = models.ImageField(
         "Comprobante de pago", upload_to="payments/proofs/", blank=True,

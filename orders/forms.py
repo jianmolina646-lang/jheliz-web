@@ -54,6 +54,7 @@ class CheckoutForm(forms.Form):
     """Datos de contacto del comprador. Los datos por item se editan en el carrito."""
 
     PAYMENT_METHODS = (
+        ("flow", "Flow — QR interoperable"),
         ("mercadopago", "Mercado Pago"),
         ("binance", "Binance Pay"),
         ("bank", "Depósito bancario"),
