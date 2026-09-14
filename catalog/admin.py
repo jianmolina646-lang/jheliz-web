@@ -29,6 +29,17 @@ from .models import (
 
 @admin.register(Category)
 class CategoryAdmin(ModelAdmin):
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        if getattr(request, "is_marketing", False) and db_field.name == "audience":
+            kwargs["choices"] = [("distribuidor", "Distribuidores — cuentas completas")]
+            kwargs["initial"] = "distribuidor"
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        if getattr(request, "is_marketing", False):
+            obj.audience = Category.Audience.DISTRIBUIDOR
+        super().save_model(request, obj, form, change)
+
     list_display = ("name", "emoji", "audience", "order", "is_active")
     list_editable = ("order", "is_active")
     list_filter = ("audience", "is_active")
@@ -200,6 +211,30 @@ class DistributorPlanAdmin(_PlanDisplayMixin, ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(ModelAdmin):
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        if getattr(request, "is_marketing", False) and db_field.name == "mode":
+            kwargs["choices"] = [(ProductMode.COMPLETA, "Cuenta completa (correo y contraseña)")]
+            kwargs["initial"] = ProductMode.COMPLETA
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
+
+    def get_exclude(self, request, obj=None):
+        excluded = super().get_exclude(request, obj)
+        if getattr(request, "is_marketing", False):
+            return [*(excluded or []), "requires_customer_profile_data"]
+        return excluded
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if getattr(request, "is_marketing", False):
+            return queryset.filter(mode=ProductMode.COMPLETA)
+        return queryset
+
+    def save_model(self, request, obj, form, change):
+        if getattr(request, "is_marketing", False):
+            obj.mode = ProductMode.COMPLETA
+            obj.requires_customer_profile_data = False
+        super().save_model(request, obj, form, change)
+
     list_display = (
         "product_preview", "mode_badge", "available_stock_count",
         "display_active", "featured_badge", "telegram_badge", "delivery_badge",
