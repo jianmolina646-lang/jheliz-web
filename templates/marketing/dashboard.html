@@ -31,8 +31,40 @@
       <section class="mk-orders" id="compras"><div class="mk-section-title"><h2>Compras recientes</h2><a href="{% url 'catalog:distributor_accounts' %}">Ver todas</a></div>
         {% for order in orders %}<a class="mk-order" href="{% url 'orders:detail' order.uuid %}"><div><small>#{{ order.display_number }} · {{ order.created_at|date:"d/m/Y H:i" }}</small><strong>{% for item in order.items.all %}{{ item.product_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong></div><div><b>{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2 }}</b><span class="mk-status">{{ order.get_status_display }}</span></div></a>{% empty %}<div class="mk-empty"><b>Aún no tienes compras</b><span>Elige una cuenta completa y recibe las credenciales automáticamente.</span><a class="mk-primary" href="{% url 'catalog:distributor_catalog' %}">Ir a la tienda</a></div>{% endfor %}
       </section>
+      <section id="mk-store" hidden>
+        <div class="mk-heading"><div><small>CATÁLOGO MAYORISTA</small><h1>Tienda de cuentas completas</h1><p>Correo y contraseña · Precios para revendedores</p></div></div>
+        <div class="mk-store-grid">
+        {% for product in store_products %}
+          <article class="mk-store-card"><h2>{{ product.icon }} {{ product.name }}</h2><p>{{ product.short_description }}</p>
+          {% for plan in product.plans.all %}{% if plan.is_active and plan.available_for_distributor and plan.price_distributor > 0 %}
+          <div class="mk-store-plan"><span>{{ plan.name }} · {{ plan.duration_days }} días</span><strong>{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2 }}</strong></div>
+          {% endif %}{% endfor %}
+          <a class="mk-primary" href="{{ product.get_absolute_url }}">Ver cuenta y comprar</a></article>
+        {% empty %}<div class="mk-empty"><b>Estamos preparando el catálogo</b><span>Las cuentas completas aparecerán aquí cuando estén disponibles.</span></div>{% endfor %}
+        </div>
+      </section>
     </main>
   </div>
 </div>
+<script>
+(function () {
+  const store = document.getElementById('mk-store');
+  const main = store.parentElement;
+  const sections = Array.from(main.children).filter(el => el !== store);
+  const storePaths = ["{% url 'catalog:marketing_store' %}", "{% url 'catalog:distributor_catalog' %}"];
+  const navLinks = document.querySelectorAll('.mk-side nav a');
+  function showStore(open) {
+    sections.forEach(el => el.hidden = open);
+    store.hidden = !open;
+    navLinks.forEach(el => el.classList.toggle('active', open ? el.hash === '#tienda' : el.pathname === "{% url 'accounts:dashboard' %}"));
+  }
+  document.querySelectorAll('.mk-app a').forEach(link => {
+    if (storePaths.includes(link.pathname)) link.setAttribute('href', '#tienda');
+  });
+  navLinks[0].setAttribute('href', '#resumen');
+  window.addEventListener('hashchange', () => showStore(location.hash === '#tienda'));
+  showStore(location.hash === '#tienda');
+})();
+</script>
 {% endblock %}
 {% block site_footer %}{% endblock %}

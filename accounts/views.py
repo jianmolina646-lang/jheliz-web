@@ -120,6 +120,7 @@ class JhelizPasswordResetCompleteView(PasswordResetCompleteView):
 
 @login_required
 def dashboard(request):
+    from catalog.models import Product
     from datetime import timedelta
 
     from django.utils import timezone
@@ -170,6 +171,7 @@ def dashboard(request):
             "expiring_soon": expiring_soon[:5],
             "recently_replaced": recently_replaced,
             "stats": stats,
+            "store_products": Product.objects.filter(is_active=True, mode="completa", delivery_is_instant=True, plans__is_active=True, plans__available_for_distributor=True, plans__price_distributor__gt=0).select_related("category").prefetch_related("plans").distinct() if getattr(request, "is_marketing", False) else [],
         },
     )
 
