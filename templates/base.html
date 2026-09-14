@@ -260,7 +260,9 @@
         {% if user.is_distributor %}
           <a href="{% url 'catalog:distributor_panel' %}" class="text-blue-400 hover:text-blue-300 font-semibold transition-colors">{% trans "Panel distribuidor" %}</a>
         {% else %}
+          {% if not request.is_marketing %}
           <a href="{% url 'catalog:distributor' %}" class="hover:text-white transition-colors">{% trans "Distribuidor" %}</a>
+          {% endif %}
         {% endif %}
         <a href="{% url 'catalog:tutorials' %}" class="hover:text-white transition-colors">{% trans "Tutoriales" %}</a>
         <a href="{% url 'blog:list' %}" class="hover:text-white transition-colors">Blog</a>
