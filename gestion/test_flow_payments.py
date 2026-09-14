@@ -78,3 +78,14 @@ class FlowPaymentTests(TestCase):
         response = self.client.post("/pagos/flow/confirmacion/", {"token": "tok-bad"}, HTTP_HOST=self.host)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(TenantPayment.objects.get(provider_token="tok-bad").status, TenantPayment.Status.PENDING)
+
+    def test_billing_can_resume_pending_flow_checkout(self):
+        TenantPayment.objects.create(
+            tenant=self.tenant, method=TenantPayment.Method.FLOW_QR,
+            amount=Decimal("30.00"), provider_order_id="JC-resume",
+            provider_token="tok-resume",
+            provider_payload={"url": "https://www.flow.cl/app/web/pay.php"},
+        )
+        response = self.client.get("/suscripcion/", HTTP_HOST=self.host)
+        self.assertContains(response, "Continuar pago en Flow")
+        self.assertContains(response, "https://www.flow.cl/app/web/pay.php?token=tok-resume")

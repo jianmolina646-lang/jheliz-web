@@ -54,14 +54,19 @@ FORM: Réplica visual directa de src/routes/suscripcion.tsx del proyecto Lovable
         <div class="lvsu-qr-content">
           <div class="lvsu-amount"><span>Monto a pagar</span><strong>S/ {{ saas.monthly_price }}</strong><small>Yape, Plin y billeteras compatibles</small></div>
           <p class="lvsu-help">Flow genera un QR unico y confirma el pago directamente con JhelizTV. No necesitas subir comprobante.</p>
-          {% if flow_enabled %}
+          {% if flow_checkout_url %}
+            <a class="lvsu-submit" href="{{ flow_checkout_url }}" rel="nofollow">
+              <span class="material-symbols-outlined">open_in_new</span>Continuar pago en Flow
+            </a>
+            <p class="lvsu-help">Ya existe una orden pendiente. Continuala sin generar otro cobro.</p>
+          {% elif flow_enabled and not pending %}
             <form method="post" action="{% url 'jheliztv_flow_create' %}">{% csrf_token %}
               <label class="lvsu-file-label" for="flowPayerEmail">Correo para el comprobante</label>
               <input id="flowPayerEmail" name="payer_email" type="email" value="{{ request.user.email }}" autocomplete="email" required>
               <button type="submit" class="lvsu-submit"><span class="material-symbols-outlined">qr_code_scanner</span>Generar QR para pagar</button>
             </form>
           {% else %}
-            <p class="lvsu-rejected">Medio temporalmente no disponible.</p>
+            <p class="lvsu-rejected">Hay otro pago pendiente o el medio no esta disponible.</p>
           {% endif %}
         </div>
       </article>
@@ -128,8 +133,13 @@ FORM: Réplica visual directa de src/routes/suscripcion.tsx del proyecto Lovable
         {% if pending %}
           <div class="lvsu-review-state">
             <span><span class="material-symbols-outlined">schedule</span></span>
-            <h3>Pago en revisión</h3>
-            <p>Recibimos tu comprobante del {{ pending.created_at|date:"d/m/Y H:i" }}. Te avisaremos cuando se apruebe.</p>
+            {% if pending.method == "flow_qr" %}
+              <h3>Pago Flow pendiente</h3>
+              <p>Completa la orden desde el boton “Continuar pago en Flow”. La activacion sera automatica.</p>
+            {% else %}
+              <h3>Pago en revisión</h3>
+              <p>Recibimos tu comprobante del {{ pending.created_at|date:"d/m/Y H:i" }}. Te avisaremos cuando se apruebe.</p>
+            {% endif %}
           </div>
         {% else %}
           <form method="post" action="{% url 'jheliztv_billing_upload' %}" enctype="multipart/form-data" class="lvsu-upload-form" id="lvsuUploadForm">

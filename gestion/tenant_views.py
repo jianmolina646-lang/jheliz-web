@@ -537,6 +537,11 @@ def billing(request):
         .order_by("-created_at")
         .first()
     )
+    flow_checkout_url = ""
+    if pending and pending.method == TenantPayment.Method.FLOW_QR and pending.provider_token:
+        checkout_base = (pending.provider_payload or {}).get("url", "")
+        if checkout_base.startswith(("https://www.flow.cl/", "https://sandbox.flow.cl/")):
+            flow_checkout_url = f"{checkout_base}?token={quote(pending.provider_token)}"
     ctx = {
         "jc_tenant": tenant,
         "jc_active": "billing",
@@ -547,6 +552,7 @@ def billing(request):
         "last_rejected": last_rejected,
         "payments": tenant.payments.all()[:10],
         "flow_enabled": flow_configured(),
+        "flow_checkout_url": flow_checkout_url,
     }
     return render(request, "jheliztv/billing.html", ctx)
 
