@@ -45,7 +45,8 @@
       </section>
       <section id="mk-support" hidden>
         <div class="mk-heading"><div><small>ATENCIÓN AL REVENDEDOR</small><h1>Soporte</h1><p>Consulta tus tickets, crea una solicitud o responde al equipo desde este panel.</p></div></div>
-        <iframe id="mk-support-frame" title="Tickets de soporte" data-src="{% url 'support:list' %}" style="width:100%;height:75vh;min-height:500px;border:0;border-radius:16px;margin-top:20px;background:white"></iframe>
+        <p id="mk-support-status" role="status" aria-live="polite"></p>
+        <div id="mk-support-content" data-src="{% url 'support:list' %}" style="margin-top:20px"></div>
       </section>
     </main>
   </div>
