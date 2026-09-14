@@ -1,3 +1,4 @@
+import hashlib
 import json
 from functools import wraps
 
@@ -218,7 +219,9 @@ def cache_for_anon(timeout=60):
             # todos los otros idiomas).
             from django.utils import translation
             lang = translation.get_language() or "es"
-            cache_key = f"anonview:{request.get_host().lower()}:{lang}:{request.get_full_path()}"
+            raw_host = request.META.get("HTTP_HOST") or request.META.get("SERVER_NAME", "unknown")
+            host_key = hashlib.sha256(raw_host.lower().encode()).hexdigest()[:12]
+            cache_key = f"anonview:{host_key}:{lang}:{request.get_full_path()}"
             cached = cache.get(cache_key)
             if cached is not None:
                 return cached
