@@ -5,6 +5,7 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/marketing-refined.css' %}">
 <link rel="stylesheet" href="{% static 'css/marketing-summary.css' %}">
+<link rel="stylesheet" href="{% static 'css/marketing-store.css' %}">
 <div class="mk-app" data-view="resumen">
   <aside class="mk-side">
     <a class="mk-brand" href="#resumen"><span>J</span><b>Jheliz</b></a>
@@ -34,16 +35,7 @@
         {% for order in orders %}<a class="mk-order" href="{% url 'orders:detail' order.uuid %}"><div><small>#{{ order.display_number }} · {{ order.created_at|date:"d/m/Y H:i" }}</small><strong>{% for item in order.items.all %}{{ item.product_name }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong></div><div><b>{{ CURRENCY_SYMBOL }} {{ order.total|floatformat:2 }}</b><span class="mk-status">{{ order.get_status_display }}</span></div></a>{% empty %}<div class="mk-empty"><b>Aún no tienes compras</b><span>Elige una cuenta completa y recibe las credenciales automáticamente.</span><a class="mk-primary" href="{% url 'catalog:distributor_catalog' %}">Ir a la tienda</a></div>{% endfor %}
       </section>
       <section id="mk-store" hidden>
-        <div class="mk-heading"><div><small>CATÁLOGO MAYORISTA</small><h1>Tienda de cuentas completas</h1><p>Correo y contraseña · Precios para revendedores</p></div></div>
-        <div class="mk-store-grid">
-        {% for product in store_products %}
-          <article class="mk-store-card"><h2>{{ product.icon }} {{ product.name }}</h2><p>{{ product.short_description }}</p>
-          {% for plan in product.plans.all %}{% if plan.is_active and plan.available_for_distributor and plan.price_distributor > 0 %}
-          <div class="mk-store-plan"><span>{{ plan.name }} · {{ plan.duration_days }} días</span><strong>{{ CURRENCY_SYMBOL }} {{ plan.price_distributor|floatformat:2 }}</strong></div>
-          {% endif %}{% endfor %}
-          <a class="mk-primary" href="{{ product.get_absolute_url }}">Ver cuenta y comprar</a></article>
-        {% empty %}<div class="mk-empty"><b>Estamos preparando el catálogo</b><span>Las cuentas completas aparecerán aquí cuando estén disponibles.</span></div>{% endfor %}
-        </div>
+        {% include 'marketing/store_table.html' %}
       </section>
       <section id="mk-support" hidden>
         <div class="mk-heading"><div><small>ATENCIÓN AL REVENDEDOR</small><h1>Soporte</h1><p>Consulta tus tickets, crea una solicitud o responde al equipo desde este panel.</p></div></div>

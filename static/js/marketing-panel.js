@@ -41,6 +41,27 @@
   }
   const summary = Array.from(store.parentElement.children).filter(el => el !== store && el !== support);
   const tabs = ['#resumen', '#tienda', '#soporte'];
+  const search = document.getElementById('ms-search');
+  const rows = Array.from(app.querySelectorAll('.ms-table tbody tr'));
+  let service = 'all';
+  function filterStore() {
+    const query = (search?.value || '').trim().toLocaleLowerCase();
+    let count = 0;
+    rows.forEach(row => {
+      const visible = (service === 'all' || row.dataset.service === service) && row.dataset.search.toLocaleLowerCase().includes(query);
+      row.hidden = !visible;
+      if (visible) count++;
+    });
+    const empty = document.getElementById('ms-empty');
+    if (empty) empty.hidden = count > 0;
+  }
+  search?.addEventListener('input', filterStore);
+  app.querySelectorAll('.ms-filters button').forEach(button => button.addEventListener('click', () => {
+    service = button.dataset.service;
+    app.querySelectorAll('.ms-filters button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+    filterStore();
+  }));
+  filterStore();
   app.querySelectorAll('a').forEach(link => {
     if (link.pathname === supportPath) link.setAttribute('href', '#soporte');
     if (['/tienda/', '/distribuidor/catalogo/'].includes(link.pathname)) link.setAttribute('href', '#tienda');
