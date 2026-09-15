@@ -233,6 +233,7 @@ class ProductAdmin(ModelAdmin):
         if getattr(request, "is_marketing", False):
             obj.mode = ProductMode.COMPLETA
             obj.requires_customer_profile_data = False
+            obj.delivery_is_instant = True
         super().save_model(request, obj, form, change)
 
     list_display = (
