@@ -249,8 +249,8 @@ def home(request):
                 mode="completa",
                 delivery_is_instant=True,
                 plans__is_active=True,
-                plans__available_for_distributor=True,
-                plans__price_distributor__gt=0,
+                plans__available_for_customer=True,
+                plans__price_customer__gt=0,
             )
             .select_related("category")
             .prefetch_related("plans")
@@ -303,8 +303,6 @@ def home(request):
 
 @cache_for_anon(timeout=60)
 def product_list(request):
-    if getattr(request, "is_marketing", False) and not getattr(request.user, "is_distributor", False):
-        return redirect("accounts:signup")
     q = request.GET.get("q", "").strip()
     category_slug = request.GET.get("categoria")
     products = (
@@ -339,8 +337,6 @@ def product_list(request):
 
 @cache_for_anon(timeout=60)
 def category_detail(request, slug: str):
-    if getattr(request, "is_marketing", False) and not getattr(request.user, "is_distributor", False):
-        return redirect("accounts:signup")
     category = get_object_or_404(Category, slug=slug, is_active=True)
     products = (
         category.products.filter(is_active=True)
@@ -512,8 +508,6 @@ def _product_faqs(product):
 
 
 def product_detail(request, slug: str):
-    if getattr(request, "is_marketing", False) and not getattr(request.user, "is_distributor", False):
-        return redirect("accounts:signup")
     product = get_object_or_404(
         Product.objects.select_related("category").prefetch_related("plans"),
         slug=slug,

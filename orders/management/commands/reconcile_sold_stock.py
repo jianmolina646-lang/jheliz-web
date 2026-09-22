@@ -99,15 +99,18 @@ class Command(BaseCommand):
                 if not creds:
                     continue
 
-                candidate = (
-                    StockItem.objects
-                    .filter(
-                        product_id=item.product_id,
-                        status=StockItem.Status.AVAILABLE,
-                        credentials=creds,
-                    )
-                    .order_by("created_at")
-                    .first()
+                # Fernet uses randomized encryption, so equality must be
+                # checked after field-level decryption, never in SQL.
+                candidate = next(
+                    (
+                        stock
+                        for stock in StockItem.objects.filter(
+                            product_id=item.product_id,
+                            status=StockItem.Status.AVAILABLE,
+                        ).order_by("created_at").iterator()
+                        if (stock.credentials or "").strip() == creds
+                    ),
+                    None,
                 )
                 if candidate is None:
                     skipped_no_match += 1

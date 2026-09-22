@@ -6,6 +6,7 @@ from .settings import *  # noqa: F403
 ROOT_URLCONF = "config.urls"
 SITE_URL = "https://marketingjhelizxyz.online"
 SITE_NAME = "Jheliz Distribuidores"
+MARKETING_STORE_ENABLED = True
 
 ALLOWED_HOSTS = [
     "marketingjhelizxyz.online",

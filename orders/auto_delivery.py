@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 
+from django.conf import settings
 from django.db import models, transaction
 from django.utils import timezone
 
@@ -30,7 +31,17 @@ logger = logging.getLogger(__name__)
 
 def _is_distributor_order(order: Order) -> bool:
     user = order.user
-    return bool(user and getattr(user, "is_distributor", False))
+    if user and getattr(user, "is_distributor", False):
+        return True
+    # The isolated marketing service is a public store for complete accounts.
+    # Its guest checkout must auto-deliver after a verified server webhook.
+    if not getattr(settings, "MARKETING_STORE_ENABLED", False):
+        return False
+    items = order.items.select_related("product").all()
+    return bool(items) and all(
+        item.product.mode == "completa" and item.product.delivery_is_instant
+        for item in items
+    )
 
 
 def auto_deliver_distributor_order(

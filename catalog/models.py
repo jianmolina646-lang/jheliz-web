@@ -6,6 +6,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
+from orders.encryption import EncryptedTextField
 
 
 class Category(models.Model):
@@ -331,7 +332,7 @@ class StockItem(models.Model):
         null=True, blank=True,
         help_text="Si queda en blanco, el stock sirve para cualquier plan del producto.",
     )
-    credentials = models.TextField(
+    credentials = EncryptedTextField(
         "Credenciales",
         help_text="Texto libre que recibir\u00e1 el cliente. Ej:\n"
                   "Correo: foo@bar.com\nContrase\u00f1a: 1234\nPerfil: Perfil 2\nPIN: 0000",

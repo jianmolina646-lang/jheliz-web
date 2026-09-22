@@ -346,16 +346,13 @@ def cart_duplicate_line(request, index: int):
 def checkout(request):
     cart = Cart(request)
     if getattr(request, "is_marketing", False):
-        if not getattr(request.user, "is_distributor", False):
-            messages.info(request, "Inicia sesion como distribuidor aprobado para comprar cuentas completas.")
-            return redirect("accounts:signup")
         if any(
             line.product.mode != "completa" or not line.product.delivery_is_instant
             for line in cart.lines()
         ):
             cart.clear()
             messages.error(request, "Este portal vende exclusivamente cuentas completas con entrega automatica.")
-            return redirect("catalog:distributor_catalog")
+            return redirect("catalog:products")
     if cart.is_empty():
         messages.info(request, "Tu carrito est\u00e1 vac\u00edo.")
         return redirect("catalog:products")
