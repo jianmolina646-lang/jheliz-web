@@ -1,7 +1,0 @@
-{% extends 'base.html' %}
-{% block content %}
-{% if not has_purchases %}<div class="msup-notice"><span class="msup-package" aria-hidden="true">◇</span><div><strong>Aún no tienes cuentas entregadas</strong><p>Cuando completes una compra, podrás consultar aquí el soporte de tus cuentas.</p></div><a href="#tienda">Ver tienda</a></div>{% endif %}
-<section class="msup-history"><div class="msup-title"><div><h2>Mis solicitudes de soporte</h2><p>Historial de consultas y ayuda para tus cuentas completas.</p></div><a class="mk-primary" href="{% url 'support:create' %}">＋ Nueva solicitud</a></div>
-{% for ticket in tickets %}<a class="msup-ticket" href="{% url 'support:detail' ticket.pk %}"><div><strong>#{{ ticket.pk }} · {{ ticket.subject }}</strong><small>Actualizado {{ ticket.updated_at|date:'d/m/Y H:i' }}</small></div><span>{{ ticket.get_status_display }} →</span></a>{% empty %}<div class="msup-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14v-3a8 8 0 0 1 16 0v3M4 13H3v7h4v-7H4Zm16 0h1v7h-4v-7h3Z"/></svg><strong>No tienes solicitudes de soporte</strong><p>Cuando abras una solicitud, podrás seguir la conversación aquí.</p></div>{% endfor %}
-</section>
-{% endblock %}
