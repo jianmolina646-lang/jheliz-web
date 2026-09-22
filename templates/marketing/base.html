@@ -1,0 +1,30 @@
+{% load static %}
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="robots" content="{% block robots %}index,follow{% endblock %}">
+  <title>{% block title %}Jheliz Distribuidores{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/marketing-2026.css' %}">
+  <link rel="stylesheet" href="{% static 'css/marketing-home-2026.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="ms-header">
+    <a class="ms-brand" href="/"><span>J</span>Jheliz <b>Distribuidores</b></a>
+    <nav><a href="/">Inicio</a><a href="/productos/">Productos</a><a href="/#ofertas">Combos</a><a href="/#faq">FAQ</a></nav>
+    <div class="ms-tools"><button id="theme" type="button" aria-label="Cambiar tema">◐</button><a href="{% url 'accounts:login' %}">Cuenta</a><a class="ms-cart" href="{% url 'orders:cart' %}">Carrito</a></div>
+  </header>
+  <main class="ms-shell">{% block content %}{% endblock %}</main>
+  <footer class="ms-footer">
+    <div><b>Jheliz Distribuidores</b><p>Productos digitales con entrega automática.</p></div>
+    <div><b>Productos</b><a href="/productos/">Catálogo</a><a href="/#ofertas">Combos</a></div>
+    <div><b>Ayuda</b><a href="/#faq">Preguntas frecuentes</a><a href="https://wa.me/51978640413">WhatsApp</a></div>
+    <div><b>Legal</b><a href="/terminos/">Términos</a><a href="/privacidad/">Privacidad</a></div>
+  </footer>
+  <script>const r=document.documentElement,t=document.getElementById('theme'),k='jheliz-theme';r.dataset.theme=localStorage.getItem(k)||'dark';t.onclick=()=>{r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';localStorage.setItem(k,r.dataset.theme)};</script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

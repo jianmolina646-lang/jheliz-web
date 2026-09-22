@@ -11,7 +11,7 @@ class MarketingAdminFieldTests(SimpleTestCase):
         request = RequestFactory().get('/')
         request.is_marketing = True
         for model, admin_class, field_name, allowed, rejected in [
-            (Category, CategoryAdmin, 'audience', 'distribuidor', 'cliente'),
+            (Category, CategoryAdmin, 'audience', 'cliente', 'distribuidor'),
             (Product, ProductAdmin, 'mode', 'completa', 'perfil'),
         ]:
             field = admin_class(model, AdminSite()).formfield_for_choice_field(

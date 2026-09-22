@@ -31,13 +31,13 @@ from .models import (
 class CategoryAdmin(ModelAdmin):
     def formfield_for_choice_field(self, db_field, request, **kwargs):
         if getattr(request, "is_marketing", False) and db_field.name == "audience":
-            kwargs["choices"] = [("distribuidor", "Distribuidores — cuentas completas")]
-            kwargs["initial"] = "distribuidor"
+            kwargs["choices"] = [("cliente", "Tienda pública — cuentas completas")]
+            kwargs["initial"] = "cliente"
         return super().formfield_for_choice_field(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
         if getattr(request, "is_marketing", False):
-            obj.audience = Category.Audience.DISTRIBUIDOR
+            obj.audience = Category.Audience.CLIENTE
         super().save_model(request, obj, form, change)
 
     list_display = ("name", "emoji", "audience", "order", "is_active")

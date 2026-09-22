@@ -12,6 +12,7 @@ urlpatterns = [
     path("combos/agregar/", views.combo_add, name="combo_add"),
     path("categoria/<slug:slug>/", views.category_detail, name="category"),
     path("producto/<slug:slug>/", views.product_detail, name="product"),
+    path("productos/<slug:slug>/", views.product_detail, name="marketing_product"),
     path(
         "producto/<slug:slug>/avisame/",
         views.back_in_stock_subscribe,

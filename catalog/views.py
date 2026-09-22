@@ -325,7 +325,7 @@ def product_list(request):
     categories = Category.objects.filter(is_active=True)
     return render(
         request,
-        "catalog/product_list.html",
+        "marketing/product_list.html" if getattr(request, "is_marketing", False) else "catalog/product_list.html",
         {
             "products": products,
             "categories": categories,
@@ -350,7 +350,7 @@ def category_detail(request, slug: str):
     categories = Category.objects.filter(is_active=True)
     return render(
         request,
-        "catalog/product_list.html",
+        "marketing/product_list.html" if getattr(request, "is_marketing", False) else "catalog/product_list.html",
         {
             "products": products,
             "categories": categories,
@@ -578,7 +578,7 @@ def product_detail(request, slug: str):
 
     return render(
         request,
-        "catalog/product_detail.html",
+        "marketing/product_detail.html" if getattr(request, "is_marketing", False) else "catalog/product_detail.html",
         {
             "product": product,
             "plans": plans,

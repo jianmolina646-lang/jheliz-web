@@ -208,9 +208,6 @@ def _decorated_lines(cart: Cart, user) -> list:
 
 def cart_view(request):
     cart = Cart(request)
-    if getattr(request, "is_marketing", False) and not getattr(request.user, "is_distributor", False):
-        messages.info(request, "Inicia sesion como distribuidor aprobado para comprar.")
-        return redirect("accounts:signup")
     lines = _decorated_lines(cart, request.user)
     subtotal = cart.subtotal_for(request.user)
     coupon = cart.get_coupon()
@@ -242,7 +239,7 @@ def cart_view(request):
                 .order_by("-id")[: 4 - len(suggested)]
             )
             suggested.extend(list(extra))
-    return render(request, "orders/cart.html", {
+    return render(request, "marketing/cart.html" if getattr(request, "is_marketing", False) else "orders/cart.html", {
         "cart": cart,
         "lines": lines,
         "subtotal": subtotal,
@@ -575,7 +572,7 @@ def checkout(request):
     combo_discount = cart.combo_discount_for(request.user)
     combo_pct = cart.combo_tier_percent()
     cart_total = subtotal - discount - combo_discount
-    return render(request, "orders/checkout.html", {
+    return render(request, "marketing/checkout.html" if getattr(request, "is_marketing", False) else "orders/checkout.html", {
         "form": form,
         "cart": cart,
         "lines": _decorated_lines(cart, request.user),

@@ -44,12 +44,12 @@ UNFOLD = {
         "navigation": [
             {"title": "GESTIÓN COMERCIAL", "items": [
                 {"title": "Resumen", "icon": "dashboard", "link": "/panel-jheliz-control/"},
-                {"title": "Ventas mayoristas", "icon": "shopping_bag", "link": "/panel-jheliz-control/orders/distributororder/"},
-                {"title": "Distribuidores", "icon": "groups", "link": "/panel-jheliz-control/accounts/distributor/"},
+                {"title": "Pedidos", "icon": "shopping_bag", "link": "/panel-jheliz-control/orders/order/"},
+                {"title": "Clientes", "icon": "groups", "link": "/panel-jheliz-control/accounts/user/"},
             ]},
             {"title": "CATÁLOGO E INVENTARIO", "separator": True, "items": [
                 {"title": "Cuentas completas", "icon": "inventory_2", "link": "/panel-jheliz-control/catalog/product/?mode__exact=completa"},
-                {"title": "Precios mayoristas", "icon": "sell", "link": "/panel-jheliz-control/catalog/distributorplan/"},
+                {"title": "Precios", "icon": "sell", "link": "/panel-jheliz-control/catalog/customerplan/"},
                 {"title": "Stock de cuentas", "icon": "key", "link": "/panel-jheliz-control/catalog/stockitem/"},
                 {"title": "Servicios y categorías", "icon": "category", "link": "/panel-jheliz-control/catalog/category/"},
             ]},
@@ -57,7 +57,7 @@ UNFOLD = {
                 {"title": "Solicitudes de soporte", "icon": "support_agent", "link": "/panel-jheliz-control/support/ticket/"},
                 {"title": "Reportes de ventas", "icon": "monitoring", "link": "/panel-jheliz-control/reports/"},
                 {"title": "Seguridad de acceso", "icon": "verified_user", "link": "/panel-jheliz-control/security/2fa/"},
-                {"title": "Abrir tienda", "icon": "storefront", "link": "/cuenta/#tienda"},
+                {"title": "Abrir tienda", "icon": "storefront", "link": "/productos/"},
             ]},
         ],
     },

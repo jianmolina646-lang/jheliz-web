@@ -48,7 +48,7 @@ class MarketingDomainTests(TestCase):
         self.assertNotContains(response, "Perfil compartido")
         self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow, noarchive")
 
-    def test_signup_forces_distributor_role(self):
+    def test_signup_creates_regular_customer(self):
         response = self.client.post(
             "/cuenta/registro/",
             {
@@ -64,15 +64,11 @@ class MarketingDomainTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         user = get_user_model().objects.get(username="mayorista")
-        self.assertEqual(user.role, "distribuidor")
-        self.assertTrue(user.distributor_approved)
+        self.assertEqual(user.role, "cliente")
+        self.assertFalse(user.distributor_approved)
 
-    def test_distributor_can_open_store(self):
-        user = get_user_model().objects.create_user(
-            username="storebuyer", role="distribuidor", distributor_approved=True,
-        )
-        self.client.force_login(user)
-        response = self.client.get("/distribuidor/catalogo/", HTTP_HOST=self.host)
+    def test_anonymous_buyer_can_open_store(self):
+        response = self.client.get("/productos/", HTTP_HOST=self.host)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Cuenta completa")
         self.assertNotContains(response, "Perfil compartido")

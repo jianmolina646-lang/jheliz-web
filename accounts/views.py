@@ -28,27 +28,21 @@ def signup(request):
     if request.user.is_authenticated:
         return redirect("accounts:dashboard")
     marketing_mode = getattr(request, "is_marketing", False)
-    requested_role = Role.DISTRIBUIDOR if marketing_mode else (request.GET.get("role") or "").lower().strip()
+    requested_role = Role.CLIENTE if marketing_mode else (request.GET.get("role") or "").lower().strip()
     is_distri_mode = requested_role == Role.DISTRIBUIDOR
     if request.method == "POST":
         form_data = request.POST.copy()
         if marketing_mode:
-            form_data["role"] = Role.DISTRIBUIDOR
+            form_data["role"] = Role.CLIENTE
         form = SignupForm(form_data)
         if form.is_valid():
             user = form.save()
-            if marketing_mode and user.role == Role.DISTRIBUIDOR:
-                user.distributor_approved = True
-                user.save(update_fields=["distributor_approved"])
             # Con AUTHENTICATION_BACKENDS múltiples (axes + ModelBackend),
             # Django requiere indicar qué backend usar al hacer login() de
             # un usuario recién creado.
             login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-            if user.role == Role.DISTRIBUIDOR and marketing_mode:
-                messages.success(
-                    request,
-                    "Acceso mayorista activado. Ya puedes comprar cuentas completas.",
-                )
+            if marketing_mode:
+                messages.success(request, "Tu cuenta fue creada correctamente.")
             return redirect("accounts:dashboard")
         # POST con error: si el usuario marcó distribuidor, mantenemos el panel
         if (form.data.get("role") or "").lower() == Role.DISTRIBUIDOR:
