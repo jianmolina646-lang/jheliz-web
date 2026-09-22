@@ -1,6 +1,6 @@
 {% load static %}
 <!doctype html>
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -9,6 +9,7 @@
   <title>{% block title %}Jheliz Distribuidores{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/marketing-2026.css' %}">
   <link rel="stylesheet" href="{% static 'css/marketing-home-2026.css' %}">
+  <link rel="stylesheet" href="{% static 'css/marketing-v2.css' %}">
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -24,7 +25,7 @@
     <div><b>Ayuda</b><a href="/#faq">Preguntas frecuentes</a><a href="https://wa.me/51978640413">WhatsApp</a></div>
     <div><b>Legal</b><a href="/terminos/">Términos</a><a href="/privacidad/">Privacidad</a></div>
   </footer>
-  <script>const r=document.documentElement,t=document.getElementById('theme'),k='jheliz-theme';r.dataset.theme=localStorage.getItem(k)||'dark';t.onclick=()=>{r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';localStorage.setItem(k,r.dataset.theme)};</script>
+  <script>const r=document.documentElement,t=document.getElementById('theme'),k='jheliz-theme-v2';r.dataset.theme=localStorage.getItem(k)||'light';t.onclick=()=>{r.dataset.theme=r.dataset.theme==='dark'?'light':'dark';localStorage.setItem(k,r.dataset.theme)};</script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
