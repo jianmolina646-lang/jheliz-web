@@ -1,65 +1,19 @@
-{% extends "base.html" %}
-{% block title %}Jheliz Distribuidores — Cuentas completas{% endblock %}
-{% block meta_description %}Portal privado mayorista para comprar cuentas completas con entrega automática de correo y contraseña.{% endblock %}
-{% block site_header %}
-<header class="vsp nav-glass sticky top-0 z-40 border-b border-slate-800">
-  <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
-    <a class="flex items-center gap-3 font-display text-lg font-black text-white" href="{% url 'catalog:home' %}"><span class="grid h-10 w-10 place-items-center rounded-xl bg-emerald-400 font-black text-slate-950">J</span><span>Jheliz <b class="text-emerald-300">Distribuidores</b></span></a>
-    <nav class="flex items-center gap-2">
-      {% if user.is_authenticated and user.is_distributor %}
-        <a class="btn btn-secondary" href="{% url 'catalog:distributor_accounts' %}">Mis cuentas</a><a class="btn btn-primary" href="{% url 'catalog:distributor_catalog' %}">Comprar</a>
-      {% else %}
-        <a class="btn btn-secondary" href="{% url 'accounts:login' %}">Ingresar</a><a class="btn btn-primary" href="{% url 'accounts:signup' %}?role=distribuidor">Crear acceso</a>
-      {% endif %}
-    </nav>
-  </div>
-</header>
-{% endblock %}
-{% block content %}
-<section class="marketing-hero relative overflow-hidden rounded-3xl border border-emerald-400/20 bg-slate-950 px-6 py-14 md:px-12 md:py-20">
-  <div class="absolute inset-0 opacity-30" style="background:radial-gradient(circle at 75% 20%,#10b98155,transparent 38%),radial-gradient(circle at 10% 90%,#2563eb44,transparent 35%)"></div>
-  <div class="relative max-w-3xl">
-    <span class="inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-xs font-bold uppercase tracking-widest text-emerald-300">Portal privado para distribuidores</span>
-    <h1 class="mt-6 font-display text-4xl font-black leading-tight tracking-tight text-white md:text-6xl">Cuentas completas listas para revender</h1>
-    <p class="mt-5 max-w-2xl text-lg leading-relaxed text-slate-300">Compra stock mayorista y recibe únicamente el correo y la contraseña. La entrega se realiza automáticamente después de confirmar el pago.</p>
-    <div class="mt-8 flex flex-wrap gap-3">
-      {% if user.is_authenticated and user.is_distributor %}
-        <a class="btn btn-primary btn-lg" href="{% url 'catalog:distributor_catalog' %}">Entrar al catálogo mayorista</a>
-        <a class="btn btn-secondary btn-lg" href="{% url 'catalog:distributor_accounts' %}">Ver mis cuentas</a>
-      {% else %}
-        <a class="btn btn-primary btn-lg" href="{% url 'catalog:products' %}">Entrar a la tienda</a>
-        <a class="btn btn-secondary btn-lg" href="{% url 'accounts:login' %}">Ya tengo una cuenta</a>
-      {% endif %}
-    </div>
-  </div>
-</section>
-<section class="mt-10 grid gap-4 md:grid-cols-3">
-  <article class="marketing-step card-glass rounded-2xl p-6"><div class="text-3xl">🔐</div><h2 class="mt-3 text-xl font-bold">Credenciales protegidas</h2><p class="mt-2 text-sm text-white/60">El inventario permanece cifrado y solo se revela al distribuidor que completó la compra.</p></article>
-  <article class="marketing-step card-glass rounded-2xl p-6"><div class="text-3xl">⚡</div><h2 class="mt-3 text-xl font-bold">Entrega automática</h2><p class="mt-2 text-sm text-white/60">Pago confirmado, stock reservado y credenciales entregadas sin intervención manual.</p></article>
-  <article class="marketing-step card-glass rounded-2xl p-6"><div class="text-3xl">📦</div><h2 class="mt-3 text-xl font-bold">Inventario en tiempo real</h2><p class="mt-2 text-sm text-white/60">Solo se ofrecen cuentas completas disponibles para evitar ventas sin stock.</p></article>
-</section>
-<section class="mt-14">
-  <div class="flex items-end justify-between gap-4"><div><span class="text-sm font-bold uppercase tracking-widest text-emerald-300">Stock mayorista</span><h2 class="mt-2 text-3xl font-black">Cuentas completas disponibles</h2></div>{% if user.is_distributor %}<a class="btn btn-secondary" href="{% url 'catalog:distributor_catalog' %}">Ver catálogo</a>{% endif %}</div>
-  <div class="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-    {% for product in products %}
-      <article class="card-glass rounded-2xl p-6">
-        <div class="flex items-center justify-between gap-3"><span class="text-3xl">{{ product.icon|default:"📺" }}</span><span class="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">{{ product.available_stock }} disponibles</span></div>
-        <h3 class="mt-5 text-xl font-black">{{ product.name }}</h3>
-        <p class="mt-2 min-h-10 text-sm text-white/60">{{ product.short_description|default:"Cuenta completa con entrega automática." }}</p>
-        {% if user.is_distributor %}<a class="btn btn-primary btn-block mt-5" href="{% url 'catalog:product' product.slug %}">Ver precio mayorista</a>{% else %}<a class="btn btn-secondary btn-block mt-5" href="{% url 'accounts:signup' %}?role=distribuidor">Acceder al precio</a>{% endif %}
-      </article>
-    {% empty %}<div class="card-glass rounded-2xl p-8 text-white/60 md:col-span-3">El inventario mayorista se está preparando. Vuelve pronto.</div>{% endfor %}
-  </div>
-</section>
-<section class="my-14 rounded-3xl border border-white/10 bg-white/5 p-7 md:p-10">
-  <h2 class="text-2xl font-black">Cómo funciona</h2>
-  <ol class="mt-6 grid gap-5 md:grid-cols-3">
-    <li><strong class="text-emerald-300">01 · Acceso</strong><p class="mt-2 text-sm text-white/60">Regístrate como distribuidor y espera la aprobación de seguridad.</p></li>
-    <li><strong class="text-emerald-300">02 · Compra</strong><p class="mt-2 text-sm text-white/60">Elige cuentas completas, cantidad y método de pago.</p></li>
-    <li><strong class="text-emerald-300">03 · Entrega</strong><p class="mt-2 text-sm text-white/60">Al validarse el pago recibes correo y contraseña en tu panel y email.</p></li>
-  </ol>
-</section>
-{% endblock %}
-{% block site_footer %}
-<footer class="mt-16 border-t border-white/10"><div class="mx-auto flex max-w-6xl flex-col justify-between gap-3 px-6 py-8 text-sm text-white/50 md:flex-row"><span>© Jheliz Distribuidores</span><span>Soporte WhatsApp: +51 978 640 413 · Acceso privado</span></div></footer>
-{% endblock %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Marketing Jheliz</title>
+  <style>
+    *{box-sizing:border-box}html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#fff;color:#111827;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}.start{text-align:center;padding:2rem}.mark{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 1rem;border-radius:15px;background:#111827;color:#fff;font-size:1.35rem;font-weight:800}.start h1{margin:0;font-size:clamp(1.5rem,4vw,2.25rem)}.start p{margin:.65rem 0 0;color:#64748b}
+  </style>
+</head>
+<body>
+  <main class="start">
+    <div class="mark" aria-hidden="true">J</div>
+    <h1>Estamos construyendo algo nuevo</h1>
+    <p>La nueva tienda de distribuidores estará disponible próximamente.</p>
+  </main>
+</body>
+</html>

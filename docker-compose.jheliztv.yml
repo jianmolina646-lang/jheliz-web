@@ -18,6 +18,9 @@ services:
       service: web
     environment:
       DJANGO_SETTINGS_MODULE: config.settings_marketing
+      # Override the database inherited from the main site. Marketing uses its
+      # own PostgreSQL instance and persistent volume.
+      DATABASE_URL_FILE: /run/secrets/marketing_database_url
     ports: !override
       - "127.0.0.1:8001:8000"
     healthcheck:
@@ -25,6 +28,29 @@ services:
     secrets:
       - flow_api_key
       - flow_secret_key
+      - marketing_database_url
+    depends_on:
+      marketing_db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  marketing_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: jheliz_marketing
+      POSTGRES_PASSWORD_FILE: /run/secrets/marketing_postgres_password
+      POSTGRES_DB: jheliz_marketing
+    secrets:
+      - marketing_postgres_password
+    volumes:
+      - marketing_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jheliz_marketing -d jheliz_marketing"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   control_alerts_bot:
     environment:
@@ -43,3 +69,10 @@ secrets:
     file: ./secrets/flow_api_key.txt
   flow_secret_key:
     file: ./secrets/flow_secret_key.txt
+  marketing_database_url:
+    file: ./secrets/marketing_database_url.txt
+  marketing_postgres_password:
+    file: ./secrets/marketing_postgres_password.txt
+
+volumes:
+  marketing_postgres_data:
