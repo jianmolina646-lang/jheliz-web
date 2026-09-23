@@ -1,0 +1,58 @@
+name: jheliz-whatsapp
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jheliz_bot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: jheliz_bot
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U jheliz_bot -d jheliz_bot"], interval: 5s, timeout: 5s, retries: 15}
+    networks: [internal]
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes: [redis_data:/data]
+    healthcheck: {test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"], interval: 5s, timeout: 4s, retries: 15}
+    networks: [internal]
+  migrate:
+    build: {context: ., dockerfile: docker/Dockerfile}
+    command: ["npm", "run", "db:migrate"]
+    env_file: .env
+    depends_on: {postgres: {condition: service_healthy}}
+    networks: [internal]
+    restart: "no"
+  api:
+    build: {context: ., dockerfile: docker/Dockerfile}
+    restart: unless-stopped
+    command: ["npm", "run", "start", "-w", "@jheliz/api"]
+    env_file: .env
+    depends_on: {postgres: {condition: service_healthy}, migrate: {condition: service_completed_successfully}}
+    healthcheck: {test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>{if(!r.ok)process.exit(1)})"], interval: 15s, timeout: 5s, retries: 10}
+    networks: [internal]
+  whatsapp:
+    build: {context: ., dockerfile: docker/Dockerfile}
+    restart: unless-stopped
+    command: ["npm", "run", "start", "-w", "@jheliz/whatsapp"]
+    env_file: .env
+    volumes: [whatsapp_session:/data/baileys]
+    depends_on: {postgres: {condition: service_healthy}, migrate: {condition: service_completed_successfully}}
+    networks: [internal]
+  panel:
+    build: {context: ., dockerfile: docker/Dockerfile}
+    restart: unless-stopped
+    command: ["npm", "run", "start", "-w", "@jheliz/panel"]
+    environment: {API_URL: "http://api:4000", NODE_ENV: production}
+    depends_on: {api: {condition: service_healthy}}
+    networks: [internal]
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes: [./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro]
+    ports: ["127.0.0.1:8010:80"]
+    depends_on: [panel, api]
+    networks: [internal]
+networks: {internal: {driver: bridge}}
+volumes: {postgres_data: {}, redis_data: {}, whatsapp_session: {}}

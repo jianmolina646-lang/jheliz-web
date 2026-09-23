@@ -1,0 +1,1 @@
+{"name":"@jheliz/db","version":"1.0.0","type":"module","main":"dist/index.js","types":"dist/index.d.ts","scripts":{"build":"tsc -p tsconfig.json","db:generate":"prisma generate","db:migrate":"prisma migrate deploy","db:dev":"prisma migrate dev"},"dependencies":{"@prisma/client":"6.16.2"},"devDependencies":{"@types/node":"22.18.6","prisma":"6.16.2","typescript":"5.8.3"}}

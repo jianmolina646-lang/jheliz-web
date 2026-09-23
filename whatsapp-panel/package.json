@@ -1,0 +1,13 @@
+{
+  "name": "jheliz-whatsapp-panel",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build": "npm run build -w @jheliz/shared && npm run build -w @jheliz/db && npm run build -w @jheliz/api && npm run build -w @jheliz/whatsapp && npm run build -w @jheliz/panel",
+    "test": "npm run test -w @jheliz/api && npm run test -w @jheliz/whatsapp",
+    "db:generate": "npm run db:generate -w @jheliz/db",
+    "db:migrate": "npm run db:migrate -w @jheliz/db"
+  },
+  "engines": {"node": ">=20"}
+}
