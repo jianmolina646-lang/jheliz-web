@@ -99,6 +99,8 @@ model BotFlow {
 model Customer {
   id                String              @id @default(uuid())
   jid               String              @unique
+  email             String?             @unique
+  passwordHash      String?
   phone             String?
   name              String?
   balanceCents      Int                 @default(0)
