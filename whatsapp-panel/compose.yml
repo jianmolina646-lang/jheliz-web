@@ -32,13 +32,19 @@ services:
     depends_on: {postgres: {condition: service_healthy}, migrate: {condition: service_completed_successfully}}
     healthcheck: {test: ["CMD", "node", "-e", "fetch('http://localhost:4000/health').then(r=>{if(!r.ok)process.exit(1)})"], interval: 15s, timeout: 5s, retries: 10}
     networks: [internal]
+  whatsapp-session-init:
+    image: alpine:3.20
+    user: "0:0"
+    command: ["chown", "-R", "1000:1000", "/data/baileys"]
+    volumes: [whatsapp_session:/data/baileys]
+    restart: "no"
   whatsapp:
     build: {context: ., dockerfile: docker/Dockerfile}
     restart: unless-stopped
     command: ["npm", "run", "start", "-w", "@jheliz/whatsapp"]
     env_file: .env
     volumes: [whatsapp_session:/data/baileys]
-    depends_on: {postgres: {condition: service_healthy}, migrate: {condition: service_completed_successfully}}
+    depends_on: {postgres: {condition: service_healthy}, migrate: {condition: service_completed_successfully}, whatsapp-session-init: {condition: service_completed_successfully}}
     networks: [internal]
   panel:
     build: {context: ., dockerfile: docker/Dockerfile}
