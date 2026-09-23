@@ -111,6 +111,59 @@ model Customer {
   recharges         Recharge[]
   walletEntries     WalletLedger[]
   events            ConversationEvent[]
+  subscriptions     Subscription[]
+  supportTickets    SupportTicket[]
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum SupportStatus {
+  OPEN
+  REVIEWING
+  RESTORED
+  REPLACED
+  RESOLVED
+  REJECTED
+}
+
+model Subscription {
+  id          String             @id @default(uuid())
+  customerId  String
+  customer    Customer           @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  productId   String
+  product     Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  inventoryId String?
+  inventory   InventoryItem?     @relation(fields: [inventoryId], references: [id], onDelete: SetNull)
+  startsAt    DateTime
+  expiresAt   DateTime
+  status      SubscriptionStatus @default(ACTIVE)
+  reminderSentAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  tickets     SupportTicket[]
+
+  @@index([customerId, status])
+  @@index([expiresAt, status])
+}
+
+model SupportTicket {
+  id             String         @id @default(uuid())
+  customerId     String
+  customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  subscriptionId String?
+  subscription   Subscription?  @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  reason         String
+  status         SupportStatus   @default(OPEN)
+  replacementId  String?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([customerId, status])
 }
 
 model Product {
@@ -130,6 +183,7 @@ model Product {
   updatedAt    DateTime        @updatedAt
   inventory    InventoryItem[]
   orders       Order[]
+  subscriptions Subscription[]
 
   @@index([active, sortOrder])
 }
@@ -145,6 +199,7 @@ model InventoryItem {
   reservedAt         DateTime?
   soldAt             DateTime?
   order              Order?
+  subscriptions      Subscription[]
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
