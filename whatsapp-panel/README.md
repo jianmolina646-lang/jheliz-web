@@ -55,4 +55,4 @@ Cookies HttpOnly/Secure/SameSite, rate limiting, Argon2, roles `OWNER/ADMIN/SUPP
 - Completar los formularios CRUD visuales, editor gráfico de flujos, 2FA y cambio de contraseña.
 - Integrar un proveedor de pagos verificable; no se simulan pagos.
 - Ejecutar pruebas E2E, concurrencia, backup/restauración y reconexión prolongada.
-- Baileys 7 está fijado a `7.0.0-rc.14`; revisar cambios antes de actualizar.
+- Baileys 7 está fijado a `7.0.0-rc14`; revisar cambios antes de actualizar.
