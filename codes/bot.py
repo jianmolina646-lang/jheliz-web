@@ -96,11 +96,14 @@ MENU_BUTTONS: dict[str, str] = {
 # ---------- Presentación (sin consultas ni cambios de estado) ----------
 
 def _message_card(title: str, body: str, icon: str = "📺") -> str:
-    """Composición común; body contiene HTML interno con datos ya escapados."""
+    """Tarjeta visual consistente para el bot premium de Netflix."""
     return (
-        f"{icon} <b>{html.escape(title)}</b>\n"
-        f"<i>NETFLIX · {html.escape(BRAND)}</i>\n\n"
-        f"{body}"
+        "<b>━━━━━━━━━━━━━━━━━━━━</b>\n"
+        f"{icon} <b>NETFLIX ACCESS</b> <i>· {html.escape(BRAND)}</i>\n"
+        "<b>━━━━━━━━━━━━━━━━━━━━</b>\n\n"
+        f"<b>{html.escape(title)}</b>\n"
+        f"{body}\n\n"
+        "<i>Acceso privado · Entrega automática</i>"
     )
 
 
@@ -712,9 +715,9 @@ def _format_result(email: str, result) -> str:
     ]
     if result.code:
         parts.extend([
-            "<b>TU CÓDIGO</b>",
-            f"<code>{html.escape(result.code)}</code>",
-            "<i>Listo para copiar y usar en Netflix.</i>",
+            "<b>🔐 TU CÓDIGO DE ACCESO</b>",
+            f"<code>  {html.escape(result.code)}  </code>",
+            "<i>Cópialo y úsalo directamente en Netflix.</i>",
             "",
         ])
     if result.action_url:
@@ -1296,15 +1299,14 @@ def _send_welcome(client: CodeBotClient) -> None:
     send_message(
         chat_id,
         _message_card(
-            "Tu centro de acceso",
-            f"Hola, <b>{html.escape(client.display_name or 'bienvenido')}</b>.\n"
-            "Todo listo para solicitar tus códigos y enlaces.\n\n"
-            f"📧 <b>{len(emails)} {'cuenta asignada' if len(emails) == 1 else 'cuentas asignadas'}</b>\n\n"
-            "<b>¿QUÉ NECESITAS?</b>"
-            "\nElige una opción del menú o escribe:\n"
+            f"Hola, {client.display_name or 'bienvenido'} 👋",
+            "Tu centro privado de códigos Netflix está listo.\n\n"
+            f"📬 <b>{len(emails)} {'cuenta protegida' if len(emails) == 1 else 'cuentas protegidas'}</b> asignada{'s' if len(emails) != 1 else ''}.\n\n"
+            "<b>EMPIEZA AHORA</b>\n"
+            "Usa el teclado inferior o escribe:\n"
             "<code>/codigo correo@gmail.com</code>\n\n"
-            "<i>Solo se consultan las cuentas que tienes asignadas.</i>\n"
-            "❓ Todos los comandos: <code>/cmds</code>",
+            "🔒 Solo puedes consultar las cuentas asignadas a ti.\n"
+            "❔ Guía completa: <code>/cmds</code>",
         ),
         menu=True,
     )

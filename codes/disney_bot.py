@@ -134,6 +134,18 @@ def _render_disney_emojis(text: str) -> str:
     return rendered
 
 
+def _message_card(title: str, body: str, icon: str = "✨") -> str:
+    """Tarjeta visual uniforme para la experiencia Disney+ premium."""
+    return (
+        "<b>━━━━━━━━━━━━━━━━━━━━</b>\n"
+        f"{icon} <b>DISNEY+ ACCESS</b> <i>· TEAM JHELIZ</i>\n"
+        "<b>━━━━━━━━━━━━━━━━━━━━</b>\n\n"
+        f"<b>{html.escape(title)}</b>\n"
+        f"{body}\n\n"
+        "<i>Acceso privado · Entrega automática</i>"
+    )
+
+
 def send_message(
     chat_id: str | int,
     text: str,
@@ -213,58 +225,55 @@ def _email_buttons(emails: list[str]) -> list[list[dict]]:
 
 
 def _format_result(email: str, result) -> str:
-    parts = [
-        "✨ <b>DISNEY+ ACCESS</b>\n"
-        "━━━━━━━━━━━━━━━━━━\n"
-        f"📧 <b>{html.escape(email)}</b>\n"
-        "🔑 Código de acceso"
-    ]
+    parts = [f"📧 <code>{html.escape(email)}</code>", "", "<b>🔐 TU CÓDIGO DE ACCESO</b>"]
     if result.code:
-        parts.append(f"\n\n<code>{html.escape(result.code)}</code>")
+        parts.append(f"<code>  {html.escape(result.code)}  </code>")
     if result.action_url:
         parts.append(
-            f'\n🔗 <a href="{html.escape(result.action_url)}">Abrir en Disney+</a>'
+            f'🔗 <a href="{html.escape(result.action_url)}"><b>Abrir en Disney+ →</b></a>'
         )
     parts.append(
-        "\n\n{DISNEY_EXPIRY} <i>Vence en pocos minutos y solo puede usarse una vez.</i>\n"
-        "{DISNEY_TEAM} <b>TEAM JHELIZ</b>"
+        "{DISNEY_EXPIRY} <i>Úsalo cuanto antes: vence en pocos minutos.</i>"
     )
-    return "".join(parts)
+    return _message_card("Código encontrado", "\n".join(parts), icon="🔑")
 
 
 def _deliver_code(client: DisneyBotClient, email: str) -> str:
     email = (email or "").strip().lower()
     assigned = set(_assigned_emails(client))
     if email not in assigned:
-        return (
-            f"⚠️ El correo <b>{html.escape(email)}</b> no está asignado a tu "
-            "cuenta, así que no te corresponde. Si creés que es un error, "
-            "escribile al admin."
+        return _message_card(
+            "Cuenta no asignada",
+            f"El correo <code>{html.escape(email)}</code> no está asignado a tu cuenta.\n\n"
+            "Si crees que es un error, contacta al administrador.",
+            icon="🔒",
         )
     if not imap_reader.is_configured():
-        return "El servicio de códigos todavía no está configurado. Probá más tarde."
+        return _message_card("Servicio temporalmente no disponible", "Vuelve a intentarlo en unos minutos.", icon="⚠️")
     try:
         result = imap_reader.fetch_latest_for_email(
             email, kind=SIGNIN_KIND, service=SERVICE
         )
     except Exception:
         logger.exception("Fallo leyendo IMAP (disney) para %s", email)
-        return "Hubo un problema leyendo el correo. Probá de nuevo en un minuto."
+        return _message_card("No pudimos revisar el correo", "Vuelve a intentarlo en un minuto.", icon="⚠️")
     if result is None or not result.has_payload:
         DisneyCodeDelivery.objects.create(client=client, email=email, found=False)
-        return (
-            f"No encontré un <b>código de inicio de sesión</b> de Disney+ para "
-            f"<b>{html.escape(email)}</b>.\n"
-            "Generá el correo desde Disney+ y volvé a pedirlo en un minuto."
+        return _message_card(
+            "Aún no hay un código disponible",
+            f"No encontré un código reciente para <code>{html.escape(email)}</code>.\n\n"
+            "Genéralo desde Disney+ y vuelve a solicitarlo en un minuto.",
+            icon="📭",
         )
     fingerprint = hashlib.sha256(f"{email}|{result.code}|{result.action_url}".encode()).hexdigest()
     duplicate = DisneyCodeDelivery.objects.filter(email=email, payload_fingerprint=fingerprint, found=True).exists()
     DisneyCodeDelivery.objects.create(client=client, email=email, found=not duplicate, duplicate=duplicate, payload_fingerprint=fingerprint)
     if duplicate:
-        return (
-            "⚠️ <b>Código ya utilizado</b>\n\n"
-            "Este código ya fue entregado. "
-            "Generá uno nuevo en Disney+ y volvé a pedirlo."
+        return _message_card(
+            "Solicitud ya atendida",
+            "Este código ya fue entregado anteriormente.\n\n"
+            "Genera uno nuevo en Disney+ y vuelve a solicitarlo.",
+            icon="🔁",
         )
     client.touch()
     return _format_result(email, result)
@@ -389,11 +398,15 @@ def _send_welcome(client: DisneyBotClient) -> None:
     if not client.is_active and not admin:
         send_message(
             chat_id,
-            "✨ <b>DISNEY+ ACCESS</b>\n"
-            "━━━━━━━━━━━━━━━━━━\n\n"
-            "🔒 Tu acceso todavía no está activado.\n\n"
-            f"Tu ID es <code>{html.escape(str(chat_id))}</code>. "
-            "Pasáselo al admin para que te active y te asigne tus correos.",
+            _message_card(
+                "Bienvenido a Disney+ Access",
+                "🔒 <b>ACCESO PENDIENTE</b>\n"
+                "Aún debes ser activado por el administrador.\n\n"
+                "<b>Tu ID de Telegram</b>\n"
+                f"<code>{html.escape(str(chat_id))}</code>\n\n"
+                "Envíale este ID al administrador para que active tu acceso y asigne tus cuentas.",
+                icon="✨",
+            ),
         )
         return
     emails = _assigned_emails(client)
@@ -417,8 +430,12 @@ def _send_welcome(client: DisneyBotClient) -> None:
             return
         send_message(
             chat_id,
-            "Tu cuenta está activa pero todavía no tenés correos asignados.\n"
-            "El admin te los va a asignar en breve.",
+            _message_card(
+                "Acceso activado",
+                "📬 <b>Faltan asignar tus cuentas</b>\n\n"
+                "El administrador completará la asignación en breve.",
+                icon="✅",
+            ),
         )
         return
     send_message(chat_id, _help_text(emails), buttons=_email_buttons(emails))
@@ -427,12 +444,10 @@ def _send_welcome(client: DisneyBotClient) -> None:
 def _help_text(emails: list[str]) -> str:
     ejemplo = emails[0] if emails else "correo@gmail.com"
     lines = [
-        "✨ <b>DISNEY+ ACCESS</b>",
-        "━━━━━━━━━━━━━━━━━━",
-        "",
-        "🔑 <b>Obtén tu código de acceso</b>",
-        "",
-        f"📧 <code>/codigo {ejemplo}</code>",
+        "📬 <b>CUENTAS ASIGNADAS</b>",
+        f"Tienes <b>{len(emails)}</b> {'cuenta disponible' if len(emails) == 1 else 'cuentas disponibles'}.\n",
+        "<b>SOLICITAR CÓDIGO</b>",
+        f"<code>/codigo {ejemplo}</code>",
     ]
     if len(emails) == 1:
         lines.append(
@@ -441,7 +456,7 @@ def _help_text(emails: list[str]) -> str:
         )
     else:
         lines.append("\nTambién podés tocar un correo de abajo.")
-    return "\n".join(lines)
+    return _message_card("Tu centro de acceso", "\n".join(lines), icon="✨")
 
 
 # ---------- Comandos de admin ----------
