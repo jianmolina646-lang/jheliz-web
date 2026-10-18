@@ -1,0 +1,49 @@
+import {setupSupport} from './support-ui.js?v=2.2.0';
+import {setupExternalSale} from './external-sale-ui.js?v=2.3.0';
+export function setupCommerce({api,escape:h,date,notify,render,getUser}){
+ setupExternalSale({api,h,notify,render});
+ const renderSupport=setupSupport({api,escape:h,date,notify,render,getUser});
+ let products=[];
+ const labels={PENDING:'Pago pendiente',APPROVED:'Aprobado · esperando entrega',SENDING:'Entregando',DELIVERED:'Entregado',REVIEW:'Revisar entrega',REJECTED:'Rechazado / cancelado',AVAILABLE:'Disponible',SOLD:'Vendida',DISABLED:'Retirada'};
+ const money=n=>'S/ '+(n/100).toFixed(2);
+ const nav=document.querySelector('nav');
+ document.querySelector('.sidebar-footer small').textContent='WhatsApp · Ventas y reportes';
+ for(const [view,label] of [['catalog','Catálogo y precios'],['inventory','Inventario de cuentas'],['orders','Pedidos y pagos'],['reports','Google Sheets']]){const b=document.createElement('button');b.dataset.view=view;b.dataset.admin='';b.textContent=label;nav.insertBefore(b,nav.querySelector('[data-view="events"]'));}
+ const dialog=document.createElement('dialog');dialog.id='commerce-editor';document.body.append(dialog);
+ const open=(title,fields,kind,id='')=>{dialog.innerHTML=`<form id="commerce-form" data-kind="${kind}" data-id="${h(id)}"><div class="dialog-head"><h2>${title}</h2><button type="button" data-commerce-close>✕</button></div>${fields}<p id="commerce-error" role="alert" class="danger"></p><button class="primary" type="submit">Guardar</button></form>`;dialog.showModal();};
+ const productOptions=()=>products.map(p=>`<option value="${p.id}">${h(p.name)}</option>`).join('');
+ const header=(t,d,b='')=>`<div class="page-heading"><div><p class="eyebrow">VENTAS JHELIZ</p><h2>${t}</h2><p>${d}</p></div>${t==='Pedidos y pagos'?'<button class="primary" data-external-sale>+ Registrar venta anterior</button>':''}${b}</div>`;
+ document.addEventListener('click',async e=>{
+  const b=e.target.closest('button');if(!b)return;
+  try{
+   if(b.hasAttribute('data-commerce-close'))dialog.close();
+   if(b.dataset.product!==undefined){const p=products.find(x=>x.id===b.dataset.product)||{code:'',name:'',price_cents:0,days:30,active:true};open('Producto',`<label>Nombre (ejemplo: Netflix · cuenta completa)<input name="name" maxlength="80" required value="${h(p.name)}"></label><label>Código para comprar (ejemplo: netflix)<input name="code" pattern="[a-z][a-z0-9_-]{0,29}" required value="${h(p.code)}"></label><label>Precio en soles<input name="price" type="number" min="0.01" max="100000" step="0.01" required value="${p.price_cents?p.price_cents/100:''}"></label><label>Días desde la entrega<input name="days" type="number" min="1" max="3660" required value="${p.days}"></label><label class="check"><input name="active" type="checkbox" ${p.active?'checked':''}> Visible en el catálogo del bot</label>`,'product',p.id||'');}
+   if(b.hasAttribute('data-stock-add')){if(!products.length){notify('Primero crea un producto en Catálogo.');return;}open('Cargar una cuenta',`<p>Solo carga cuentas que estés autorizado a vender. Los accesos se guardan cifrados y no se exportan a Sheets.</p><label>Producto<select name="product_id">${productOptions()}</select></label><label>Correo de la cuenta<input name="email" type="email" required autocomplete="off"></label><label>Contraseña de la cuenta<input name="password" type="password" required maxlength="256" autocomplete="new-password"></label><label>Vencimiento fijo de la cuenta (opcional)<input name="expires_on" type="date"></label><p class="muted">Si indicas una fecha, solo se asignará si cubre todos los días vendidos.</p>`,'stock');}
+   if(b.dataset.disableStock&&confirm('¿Retirar esta cuenta del stock? No se borrará su registro.')){await api('/stock/'+b.dataset.disableStock+'/disable','POST');await render();}
+   if(b.dataset.approve){
+    const order=await api('/orders/'+b.dataset.approve);
+    const account=order?.renewal_of?await api('/orders/'+order.id+'/renewal-account'):null;
+    const usdt=(Number((BigInt(order.price_cents)*100n+190n)/380n)/100).toFixed(2);
+    open(order?.renewal_of?'Aprobar renovación':'Verificar pago manual',`<p><strong>Ligo: ${money(order.price_cents)} · Binance: ${usdt} USDT</strong><br>Cambio fijo: S/ 3.80 por USDT.</p><p>Comprueba el ingreso en tu historial de Ligo o Binance, no solo en la captura. En Binance verifica la recepción en 739582457 · Jheliz2004, la moneda USDT, el importe completo y que el pago no haya sido usado antes.</p><label>ID único de la operación (sin prefijos ni comentarios)<input name="reference" minlength="4" maxlength="100" required autocomplete="off"></label><label class="check"><input name="confirmed" type="checkbox" required> Verifiqué el ingreso real completo, la moneda y que esta operación no se haya usado antes.</label>${order?.renewal_of?`<p><strong>${h(order.product_name)} · ${h(account.email)}</strong><br>Vencimiento actual: ${date(account.expires_at)}<br>Pedido original: ${h(order.renewal_of)}. No se asigna otra cuenta.</p><label class="check"><input name="service_renewed" type="checkbox" required> Confirmo que renové el servicio de esta cuenta en la plataforma por ${order.days} días.</label>`:'<p>Se asignará una cuenta y se programará su entrega.</p>'}`,'approve',b.dataset.approve);
+   }
+   if(b.dataset.reject&&confirm('¿Rechazar este pedido? Si hubo pago, coordina su devolución fuera del bot.')){const reason=prompt('Motivo del rechazo (mínimo 8 caracteres)');if(reason){await api('/orders/'+b.dataset.reject+'/reject','POST',{reason});await render();}}
+  }catch(err){notify(err.message);}
+ });
+ dialog.addEventListener('submit',async e=>{e.preventDefault();const form=e.target,b=form.querySelector('[type="submit"]'),d=Object.fromEntries(new FormData(form));b.disabled=true;try{
+  if(form.dataset.kind==='product'){const cents=Math.round(Number(d.price)*100);await api('/products'+(form.dataset.id?'/'+form.dataset.id:''),form.dataset.id?'PUT':'POST',{code:d.code,name:d.name,price_cents:cents,days:Number(d.days),active:form.elements.active.checked});}
+  if(form.dataset.kind==='stock')await api('/stock','POST',{...d,expires_on:d.expires_on||null});
+  if(form.dataset.kind==='approve')await api('/orders/'+form.dataset.id+'/approve','POST',{reference:d.reference,confirmed:form.elements.confirmed.checked,service_renewed:form.elements.service_renewed?.checked||false});
+  form.reset();dialog.close();dialog.innerHTML='';notify('Guardado correctamente.');await render();
+ }catch(err){document.querySelector('#commerce-error').textContent=err.message;}finally{b.disabled=false;}});
+ return async view=>{
+  if(view==='support')return renderSupport(view);
+  if(!['catalog','inventory','orders','reports'].includes(view))return null;
+  if(getUser()?.role!=='ADMIN')return '<p>Solo administradores.</p>';
+  if(view==='catalog'||view==='inventory')products=await api('/products');
+  if(view==='catalog')return header('Catálogo y precios','El bot responde a /catalogo y /comprar código. Desactiva un producto para ocultarlo sin borrar ventas.','<button class="primary" data-product="">+ Crear producto</button>')+`<div class="card table-scroll"><table><thead><tr><th>Producto</th><th>Código</th><th>Precio</th><th>Duración</th><th>Stock válido</th><th>Visible</th><th></th></tr></thead><tbody>${products.map(p=>`<tr><td>${h(p.name)}</td><td>${h(p.code)}</td><td>${money(p.price_cents)}</td><td>${p.days} días</td><td>${p.available}</td><td>${p.active?'Sí':'No'}</td><td><button data-product="${p.id}">Editar / desactivar</button></td></tr>`).join('')}</tbody></table>${products.length?'':'<p class="empty">Crea tu primer producto. No hay precios ni cuentas de ejemplo cargados.</p>'}</div>`;
+  if(view==='inventory'){const stock=await api('/stock');return header('Inventario de cuentas','Cada cuenta se asigna una sola vez. El listado no expone correos ni contraseñas.','<button class="primary" data-stock-add>+ Cargar cuenta</button>')+`<div class="card table-scroll"><table><thead><tr><th>Referencia</th><th>Producto</th><th>Estado</th><th>Vencimiento fijo</th><th></th></tr></thead><tbody>${stock.map(s=>`<tr><td title="${s.id}">${s.id.slice(0,8)}</td><td>${h(s.name)}</td><td>${labels[s.state]}</td><td>${h(s.expires_on?.slice(0,10)||'Según días vendidos')}</td><td>${s.state==='AVAILABLE'?`<button data-disable-stock="${s.id}">Retirar</button>`:''}</td></tr>`).join('')}</tbody></table>${stock.length?'':'<p class="empty">Carga cuentas después de crear los productos.</p>'}</div><p>Se muestran las últimas 500 cuentas.</p>`;}
+  if(view==='orders'){const orders=await api('/orders');return header('Pedidos y pagos','Gestiona cobros y entregas desde una sola vista.','<button data-view="orders">Actualizar</button>')+ordersWorkspace(orders,{h,money,date,labels});}
+  const r=await api('/reports');return header('Google Sheets','Tu sistema de reportes: clientes, cuentas, ventas, pagos, soporte y vencimientos.','<button data-view="reports">Actualizar</button>')+`<div class="card"><h3>Doce pestañas organizadas</h3><p>Resumen · Catálogo · Inventario · Disponibles · Vendidas · Clientes · Ventas Bot · Pagos · Vencimientos · Soporte · Historial soporte · Guía</p><p>Última actualización: ${r.last_success?date(r.last_success):'Pendiente'}</p><p>Pedidos pendientes de sincronizar: ${r.pending}</p>${r.last_error?`<p class="danger">${h(r.last_error)}</p>`:''}<a href="${h(r.url)}" target="_blank" rel="noopener">Abrir Google Sheets ↗</a><p>Actualización aproximada cada minuto. No se exportan contraseñas ni comprobantes. Estas pestañas se regeneran desde el panel: usa vistas de filtro o una pestaña propia para análisis. Los cambios en Sheets no modifican el bot.</p><h3>Pago manual por Ligo</h3><p>Beneficiario: Jhedy Javier Villa Lima</p><img src="/ligo-qr.jpg" alt="QR de pago Ligo" width="240"></div>`;
+ };
+}
+import {ordersWorkspace} from './orders-workspace.js?v=1.1.0';

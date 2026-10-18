@@ -1,0 +1,6 @@
+.env
+node_modules
+backups
+.git
+compose.codes.json
+compose.override.yml

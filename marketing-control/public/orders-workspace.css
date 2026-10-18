@@ -1,0 +1,59 @@
+#shell aside{background:#0c193d;background-image:linear-gradient(160deg,#0d2047,#0b1530)}#shell .navigation-group button[aria-current=page]{background:#2454f5;color:#fff;box-shadow:0 4px 12px #123af333}#shell .navigation-group button.selected:before{display:none}
+#shell #content[data-page=orders]{padding:26px;max-width:1700px}#shell [data-page=orders] .page-heading{border:0;padding-bottom:0;margin-bottom:20px}#shell [data-page=orders] .page-heading h2{font-size:28px;color:#111e40}#shell [data-page=orders] .primary{background:#2454f5;border-color:#2454f5}#shell [data-page=orders] .page-heading p{font-size:12px}
+.orders-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.orders-kpi{display:flex;align-items:flex-start;gap:12px;padding:20px 16px;background:#fff;border:1px solid #e8edf5;border-radius:12px;box-shadow:0 4px 18px #182e5304}.orders-kpi>div{min-width:0}.orders-kpi span:not(.kpi-mark){font-size:11px;color:#6a7891}.orders-kpi strong{display:block;font-size:24px;color:#142243;letter-spacing:-.7px;margin:5px 0}.orders-kpi small{display:block;font-size:10px;color:#7a879c;line-height:1.5}.kpi-mark{display:grid;place-items:center;width:36px;height:38px;border-radius:9px;background:#e7efff;color:#2454f5;font-size:22px;flex-shrink:0}.purple .kpi-mark{background:#f0eaff;color:#8855da}.orange .kpi-mark{background:#fff0e5;color:#e67625;font-size:15px}.green .kpi-mark{background:#e0f8ee;color:#099b69}
+.orders-filters{display:grid;grid-template-columns:1.7fr 1fr 1fr 1fr;gap:12px;padding:14px;background:white;border:1px solid #e6ecf4;border-radius:12px;margin-bottom:14px}.orders-filters label{min-width:0;margin:0;font-size:10px;color:#6a7891}.orders-filters input,.orders-filters select{width:100%;min-height:38px;margin:6px 0 0;font-size:12px;background:#fafbfe;border:1px solid #e0e7f1;border-radius:7px;padding:9px}
+#shell .orders-table{padding:0;border-radius:12px}#shell .orders-table table{min-width:1050px;width:100%}#shell .orders-table th{font-size:9px;letter-spacing:.4px;background:#f7f9fd;padding:14px 12px}#shell .orders-table td{padding:14px 12px;font-size:11px;vertical-align:middle}#shell .orders-table td small{display:block;color:#77849a;font-size:10px;line-height:1.6;margin-top:4px}#shell .orders-table td strong{color:#24324a;font-size:12px}.orders-table .pill{white-space:nowrap;font-size:10px}.orders-table .order-amount{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:600}.order-reference summary{cursor:pointer;color:#2546ab;font-weight:700;white-space:nowrap}.order-reference small{max-width:160px;overflow-wrap:anywhere}.orders-table td:last-child button{font-size:10px;min-height:30px;margin:4px 3px 0 0;padding:5px 8px}.orders-table .platform-label img{width:24px;height:28px;object-fit:contain}.orders-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 3px;font-size:11px;color:#6a7891}.orders-pagination>div{display:flex;align-items:center;gap:8px}.orders-pagination button{min-height:32px;padding:6px 10px;font-size:11px}.orders-pagination label{margin:0;display:flex;align-items:center;gap:7px}.orders-pagination select{width:auto;margin:0;min-height:32px;padding:5px}.orders-pagination button:disabled{opacity:.4;cursor:default}
+@media(max-width:1100px){.orders-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.orders-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){#shell #content[data-page=orders]{padding:18px 12px}.orders-kpi{padding:14px 10px;gap:8px}.orders-kpi strong{font-size:20px}.orders-filters{grid-template-columns:1fr}.orders-pagination>div{flex-wrap:wrap}.kpi-mark{width:28px;height:32px}}
+/* Reference-matched desktop proportions, preserving all operational actions. */
+@media(min-width:1101px){#shell aside{width:220px;padding:22px 12px 14px}#shell main{margin-left:220px;width:calc(100% - 220px)}#shell main>header{height:56px;padding:10px 24px}#shell .navigation-group button{min-height:35px;font-size:12px}#shell .navigation-group summary{padding-top:10px}#shell #content[data-page=orders]{padding:20px 22px}#shell .orders-table table{min-width:960px}}
+#shell [data-page=orders]{background:#f3f6fd}
+#shell [data-page=orders] .page-heading{gap:10px;margin-bottom:16px;align-items:center}
+#shell [data-page=orders] .page-heading .eyebrow{display:none}
+#shell [data-page=orders] .page-heading h2{font-size:25px;letter-spacing:-.8px;line-height:1.2;margin:0 0 5px;font-weight:750}
+#shell [data-page=orders] .page-heading p{margin:0;color:#7b879d;font-size:11px;line-height:1.5}
+#shell [data-page=orders] .page-heading>button{min-height:36px;height:auto;padding:9px 14px;font-size:11px;border-radius:6px;white-space:nowrap}
+#shell [data-page=orders] .orders-kpis{gap:12px;margin-bottom:12px}
+#shell [data-page=orders] .orders-kpi{padding:16px 14px;gap:11px;min-height:100px;border-radius:8px;border-color:#edf1f9;box-shadow:0 3px 12px #213b7203}
+#shell [data-page=orders] .orders-kpi strong{font-size:23px;margin:4px 0 6px;letter-spacing:-.8px}
+#shell [data-page=orders] .orders-kpi small{font-size:9px;line-height:1.4}
+#shell [data-page=orders] .kpi-mark{width:40px;height:42px;border-radius:10px}.kpi-mark svg{width:24px;height:24px}
+#shell [data-page=orders] .orders-filters{padding:0;background:transparent;border:0;gap:9px;grid-template-columns:1.7fr 1fr 1fr 1.1fr;margin-bottom:12px}
+#shell [data-page=orders] .orders-filters label{font-size:0;position:relative}
+#shell [data-page=orders] .orders-filters input,#shell [data-page=orders] .orders-filters select{margin:0;background:#fff;border-color:#e5eaf4;border-radius:6px;height:37px;min-height:37px;font-size:11px;padding:8px 10px}
+#shell [data-page=orders] .orders-table{border-radius:8px 8px 0 0;border-color:#e8edf7;box-shadow:none}
+#shell [data-page=orders] .orders-table th{padding:13px 10px;font-size:8px;letter-spacing:.3px;color:#7e8ba4;background:#f8faff}
+#shell [data-page=orders] .orders-table td{padding:12px 10px;font-size:11px;line-height:1.4;border-bottom:1px solid #edf1f8}
+#shell [data-page=orders] .orders-table td small{font-size:9px;line-height:1.4;color:#7d89a1;margin-top:3px}
+#shell [data-page=orders] .orders-table tr:nth-child(even){background:#fcfdff}
+#shell [data-page=orders] .orders-table tbody tr:hover{background:#f3f7ff}
+#shell [data-page=orders] .orders-table .pill{padding:4px 8px;font-size:9px;min-height:0;border-radius:20px;letter-spacing:0}
+#shell [data-page=orders] .orders-table td:nth-child(7) .pill{background:transparent;padding-left:0}
+#shell [data-page=orders] .orders-table .platform-label{gap:8px;white-space:nowrap}
+#shell [data-page=orders] .orders-table .platform-label img{width:22px!important;height:29px!important;border:0;background:transparent;padding:0;box-shadow:none}
+#shell [data-page=orders] .order-reference summary{list-style:none;font-size:11px;color:#314cad}.order-reference summary::-webkit-details-marker{display:none}
+#shell [data-page=orders] .orders-pagination{margin:0;background:white;border:1px solid #e8edf7;border-top:0;border-radius:0 0 8px 8px;padding:12px 14px;font-size:10px}
+#shell [data-page=orders] #orders-page{display:grid;place-items:center;min-width:42px;height:30px;border-radius:6px;background:#2454f5;color:white;font-weight:600}
+#shell [data-page=orders] .section-note{font-size:10px;color:#8894a8;line-height:1.5;margin-top:10px}
+@media(min-width:1101px){#shell [data-page=orders] .orders-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:700px){#shell [data-page=orders] .orders-filters{grid-template-columns:1fr 1fr}#shell [data-page=orders] .orders-kpis{grid-template-columns:1fr 1fr}#shell [data-page=orders] .orders-kpi{padding:12px 10px;gap:8px}#shell [data-page=orders] .kpi-mark{width:30px;height:34px}#shell [data-page=orders] .orders-kpi strong{font-size:19px}}
+/* Readable typography at normal browser zoom. */
+#shell [data-page=orders] .page-heading h2{font-size:28px}
+#shell [data-page=orders] .page-heading p{font-size:13px}
+#shell [data-page=orders] .page-heading>button{font-size:13px;min-height:40px}
+#shell [data-page=orders] .orders-kpi span:not(.kpi-mark){font-size:13px}
+#shell [data-page=orders] .orders-kpi strong{font-size:27px}
+#shell [data-page=orders] .orders-kpi small{font-size:11px;line-height:1.5}
+#shell [data-page=orders] .orders-kpi{min-height:112px}
+#shell [data-page=orders] .orders-filters input,#shell [data-page=orders] .orders-filters select{font-size:13px;min-height:42px;height:42px}
+#shell [data-page=orders] .orders-table table{min-width:1120px}
+#shell [data-page=orders] .orders-table th{font-size:11px;padding:15px 12px;letter-spacing:.2px}
+#shell [data-page=orders] .orders-table td{font-size:13px;padding:15px 12px;line-height:1.5}
+#shell [data-page=orders] .orders-table td strong{font-size:14px}
+#shell [data-page=orders] .orders-table td small{font-size:12px;line-height:1.5;color:#64748b}
+#shell [data-page=orders] .order-reference summary{font-size:13px}
+#shell [data-page=orders] .orders-table .pill{font-size:12px;padding:5px 9px}
+#shell [data-page=orders] .orders-table td:last-child button{font-size:12px;min-height:36px;padding:7px 10px}
+#shell [data-page=orders] .orders-pagination{font-size:12px}
+#shell [data-page=orders] .orders-pagination button,#shell [data-page=orders] .orders-pagination select{font-size:12px;min-height:36px}
+#shell [data-page=orders] .section-note{font-size:12px;line-height:1.6}
+@media(max-width:600px){#shell [data-page=orders] .page-heading h2{font-size:26px}#shell [data-page=orders] .orders-kpi strong{font-size:24px}#shell [data-page=orders] .orders-kpis{gap:8px}#shell [data-page=orders] .orders-kpi{flex-wrap:wrap}}

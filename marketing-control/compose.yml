@@ -1,0 +1,64 @@
+name: marketing-control
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: marketing
+      POSTGRES_USER: marketing
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    volumes: [database:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U marketing -d marketing"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate:
+    build: .
+    env_file: .env
+    command: [node, src/migrate.js]
+    depends_on: {db: {condition: service_healthy}}
+    restart: "no"
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes: [/opt/jheliz-marketing-secrets:/run/secrets:ro]
+    environment:
+      CODES_BRIDGE_URL: http://codes-bridge:4010/_internal/codes/whatsapp/
+      SHEETS_ID: 1GAX0jcSLcDuugzCYvnFwVX5mhMa6KJnRon7NUkqo4nc
+    networks: [default, codes-private]
+    ports: ["127.0.0.1:8011:4000"]
+    depends_on: {migrate: {condition: service_completed_successfully}}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+  session-init:
+    image: alpine:3.20
+    user: "0:0"
+    command: [chown, "1000:1000", /data]
+    volumes: [sessions:/data]
+    restart: "no"
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    command: [node, src/worker.js]
+    volumes: [sessions:/data, /opt/jheliz-marketing-secrets:/run/secrets:ro]
+    environment:
+      CODES_BRIDGE_URL: http://codes-bridge:4010/_internal/codes/whatsapp/
+      SHEETS_ID: 1GAX0jcSLcDuugzCYvnFwVX5mhMa6KJnRon7NUkqo4nc
+    networks: [default, codes-private]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      session-init: {condition: service_completed_successfully}
+volumes:
+  database: {}
+  sessions: {}
+networks:
+  default: {}
+  codes-private:
+    external: true
+    name: jheliz-codes-private

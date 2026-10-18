@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {buildReports} from '../src/reports.js';
+test('professional reports separate stock and customers, preserve amounts and never include secrets',()=>{
+ const now=new Date('2026-10-13T12:00:00Z');
+ const p=[{id:'p',code:'test',name:'Test',price_cents:2000,days:30,active:true,available:1}];
+ const stock=[{id:'s1',product_id:'p',product_name:'Test',state:'AVAILABLE',account_email:'available@example.test',expires_on:new Date('2027-01-01T00:00:00Z'),secret:'DO-NOT-EXPORT'},{id:'s2',product_id:'p',product_name:'Test',state:'SOLD',account_email:'sold@example.test',password:'DO-NOT-EXPORT',secret:'DO-NOT-EXPORT'}];
+ const orders=[{id:'o',instance_id:'i',jid:'123@s.whatsapp.net',customer:'=1+1',product_name:'Test',price_cents:1500,days:30,status:'DELIVERED',stock_id:'s2',created_at:now,started_at:now,expires_at:'2026-10-15T12:00:00Z',secret:'DO-NOT-EXPORT'}];
+ const r=buildReports(p,stock,orders,now),tab=n=>r.find(x=>x.title===n);
+ assert.equal(r.length,10);assert.equal(tab('Disponibles').rows.length,1);assert.equal(tab('Vendidas').rows.length,1);
+ assert.ok(Number.isFinite(tab('Disponibles').rows[0][9]));
+ assert.equal(tab('Disponibles').rows[0][1],'available@example.test');
+ assert.equal(tab('Disponibles').rows[0][4],'');
+ assert.equal(tab('Vendidas').rows[0][1],'sold@example.test');
+ assert.ok(Number.isFinite(tab('Vendidas').rows[0][4]));
+ assert.equal(tab('Vendidas').rows[0][5]-tab('Vendidas').rows[0][4],2);
+ assert.equal(tab('Ventas Bot').rows[0][14],'sold@example.test');
+ assert.equal(tab('Clientes').rows[0][8],15);assert.equal(tab('Ventas Bot').rows[0][4],15);
+ assert.equal(tab('Vencimientos').rows[0][8],'Por vencer');assert.equal(tab('Ventas Bot').rows[0][1],'=1+1');
+ assert.ok(!JSON.stringify(r).includes('DO-NOT-EXPORT'));
+});

@@ -1,0 +1,9 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><link rel="stylesheet" href="../public/style.css"><link rel="stylesheet" href="../public/modern.css"><link rel="stylesheet" href="../public/workspace.css"><title>Prueba local de logos</title></head><body><section id="content"><h2>Catálogo · prueba visual</h2><p id="result">Comprobando imágenes…</p><div class="card table-scroll"><table><thead><tr><th>Producto</th><th>Código</th><th>Precio</th><th>Días</th><th>Stock</th><th>Visible</th></tr></thead><tbody><tr><td>Netflix</td><td>netflix</td><td>S/ 35.00</td><td>30</td><td>0</td><td>Sí</td></tr><tr><td>crunchyroll</td><td>crunchyroll</td><td>S/ 7.00</td><td>30</td><td>1</td><td>Sí</td></tr><tr><td>prime video</td><td>prime</td><td>S/ 6.00</td><td>30</td><td>0</td><td>Sí</td></tr></tbody></table></div></section><script type="module">
+import {decorateView} from '../public/modern-ui.js';
+decorateView('catalog');
+const images=[...document.querySelectorAll('.platform-label img')];
+for(const img of images)img.src='../public/brands/'+img.dataset.brand+'.png';
+await Promise.all(images.map(img=>new Promise(resolve=>{img.onload=resolve;img.onerror=resolve;if(img.complete)resolve();})));
+const passed=images.length===3&&images.every(img=>img.naturalWidth>0)&&!document.querySelector('td:nth-child(2) img');
+document.querySelector('#result').textContent=passed?'PASS · 3 logos cargados · códigos sin imágenes duplicadas':'FAIL · revisar imágenes';
+</script></body></html>

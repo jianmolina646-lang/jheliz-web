@@ -22,10 +22,12 @@ from config.health_views import readiness
 from livechat import admin_views as livechat_admin_views
 from orders import media_views as orders_media_views
 from support import views as support_views
+from codes.whatsapp_bridge import whatsapp_codes
 
 SITEMAPS_ALL = {**SITEMAPS, "blog": BlogPostSitemap}
 
 urlpatterns = [
+    path("_internal/codes/whatsapp/", whatsapp_codes, name="whatsapp_codes_bridge"),
     path("healthz/", readiness, name="healthz"),
     # Vistas extra del admin (deben ir antes de admin.site.urls).
     path(

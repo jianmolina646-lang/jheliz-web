@@ -489,6 +489,9 @@ CODES_IMAP_TIMEOUT = config("CODES_IMAP_TIMEOUT", default=20, cast=int)
 CODES_COOLDOWN_SECONDS = config("CODES_COOLDOWN_SECONDS", default=6, cast=int)
 # Mini-caché: segundos que se reutiliza un código ya leído (toques repetidos).
 CODES_RESULT_CACHE_SECONDS = config("CODES_RESULT_CACHE_SECONDS", default=5, cast=int)
+# Private, signed bridge used by the separately hosted WhatsApp codes worker.
+WHATSAPP_CODES_ADMIN_NUMBERS = config("WHATSAPP_CODES_ADMIN_NUMBERS", default="")
+WHATSAPP_CODES_BRIDGE_SECRET = secret_config("WHATSAPP_CODES_BRIDGE_SECRET", allow_empty=True)
 
 # Discord bot (opcional)
 # Bot que reemplaza a Telegram para el back-office: pedidos nuevos, Yape,

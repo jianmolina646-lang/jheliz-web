@@ -1,0 +1,27 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prueba visual local · datos ficticios</title><link rel="stylesheet" href="../public/style.css"><link rel="stylesheet" href="../public/modern.css"><link rel="stylesheet" href="../public/workspace.css"><link rel="stylesheet" href="../public/operations.css"></head><body>
+<aside><div class="brand"><span class="brand-icon">J</span> JHELIZ <small>CONTROL</small></div><p class="nav-caption">PRUEBA LOCAL · DATOS FICTICIOS</p><nav><button data-view="overview">Resumen</button><button data-view="events">Actividad</button></nav></aside><main><header><span>JHELIZ / OPERACIONES</span><span id="test-status">Probando…</span></header><section id="content"></section></main>
+<script type="module">
+import {setupOperations} from '../public/operations-ui.js';
+const sample={id:'11111111-1111-4111-8111-111111111111',instance_id:'22222222-2222-4222-8222-222222222222',customer:'Cliente de prueba',jid:'51900000000@s.whatsapp.net',product_name:'Netflix',email:'prueba@example.test',bot:'Ventas · Prueba',price_cents:3500,status:'REVIEW',retry_count:0,purpose:'SALES',created_at:'2026-10-14T13:00:00Z',started_at:'2026-10-01T13:00:00Z',expires_at:'2026-10-31T13:00:00Z'};
+const fixture={
+ '/instances':[{name:'Ventas · Prueba',phone:'51900000000',purpose:'SALES',status:'CONNECTED',worker_online:true},{name:'Códigos · Prueba',phone:'51900000001',purpose:'CODES',status:'CONNECTED',worker_online:true}],
+ '/operations/overview':{pending_payments:2,queued:1,review:1,expiring:3,available:12,customers:8},
+ '/operations/customers':[{...sample,operations:2,accounts:1,paid_cents:7000,last_order:sample.created_at}],
+ '/operations/customer':{orders:[sample],support:[]},
+ '/operations/renewals':[{...sample,status:'PENDING',has_receipt:true,current_expiry:sample.expires_at,proposed_expiry:'2026-11-30T13:00:00Z'}],
+ '/operations/deliveries':[sample],
+ '/operations/history':[{action:'delivery.retry_requested',email:'admin@example.test',created_at:sample.created_at,details:{order:sample.id,reason:'Prueba visual, no se envió ningún mensaje'}}]
+};
+const h=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=async path=>fixture[path.split('?')[0]];
+let current='overview';
+const render=async()=>{document.querySelector('#content').innerHTML=await view(current);};
+const view=setupOperations({api,escape:h,date:v=>new Date(v).toLocaleString('es-PE',{timeZone:'America/Lima'}),notify:message=>{throw Error(message);},render,getUser:()=>({role:'ADMIN'})});
+document.addEventListener('click',async e=>{const target=e.target.closest('[data-view]');if(target){current=target.dataset.view;await render();}});
+try{
+ for(current of ['overview','customers','renewals','deliveries','history']){await render();if(!document.querySelector('#content h2'))throw Error('Vista vacía: '+current);if(document.querySelector('#content').textContent.includes('undefined'))throw Error('Dato indefinido');}
+ current='customers';await render();document.querySelector('[data-customer-jid]').click();await new Promise(r=>setTimeout(r,30));if(!document.querySelector('dialog[open]'))throw Error('Ficha no abrió');document.querySelector('[data-operations-close]').click();
+ current='deliveries';await render();document.querySelector('[data-retry-delivery]').click();await new Promise(r=>setTimeout(r,30));if(!document.querySelector('#delivery-retry input[required]'))throw Error('Falta confirmación');document.querySelector('[data-operations-close]').click();
+ current='overview';await render();document.querySelector('#test-status').textContent='PASS · 5 vistas + ficha + reintento';
+}catch(error){document.querySelector('#test-status').textContent='FAIL · '+error.message;}
+</script></body></html>

@@ -1,0 +1,32 @@
+/* Customer workspace: presentation only, no operational changes. */
+#shell #content[data-page=customers]{max-width:1600px;padding-top:24px}
+#shell [data-page=customers] .page-heading{position:relative;padding:24px 26px;margin-bottom:18px;border:1px solid #dce7ed;border-radius:18px;background:radial-gradient(ellipse at top right,#d9f1eb88,transparent 60%),#fff;box-shadow:0 4px 18px #183b4d04;overflow:hidden}
+#shell [data-page=customers] .page-heading:before{content:'';position:absolute;left:0;top:24px;bottom:24px;width:4px;border-radius:0 4px 4px 0;background:#0d9488}
+#shell [data-page=customers] .page-heading h2{font-size:30px;letter-spacing:-1px;margin-bottom:6px}
+#shell [data-page=customers] .page-heading p:not(.eyebrow){font-size:12px;max-width:620px;margin-bottom:0}
+#shell [data-page=customers] .page-heading>button{border-radius:10px;background:#ffffffcc;min-height:38px;font-size:12px}
+#shell #customer-search{display:grid;grid-template-columns:minmax(180px,1fr) auto minmax(180px,.65fr);align-items:end;gap:12px 16px;padding:18px 20px;margin:0 0 18px;border-radius:16px;box-shadow:0 3px 14px #183b4d03}
+#shell #customer-search label{min-width:0;width:auto;font-size:11px;font-weight:600;letter-spacing:.1px;gap:8px}
+#shell #customer-search input,#shell #customer-search select{width:100%;height:42px;min-height:42px;border-radius:10px;font-size:13px;background:#f7f9fc;border-color:#e0e7ef;padding:10px 12px}
+#shell #customer-search input:focus,#shell #customer-search select:focus{background:white;border-color:#369d94}
+#shell #customer-search>button{height:42px;min-height:42px;padding:0 20px;border-radius:10px;background:#087f74;box-shadow:0 3px 8px #087f7417;font-size:12px}
+#shell #customer-visible-count{grid-column:1/-1;justify-self:start;margin:0;padding:0;color:#6e7f91;font-size:11px;font-weight:400}
+#shell [data-page=customers] .table-scroll{padding:0;border-radius:16px;border-color:#e0e7ef;box-shadow:0 5px 22px #183b4d04}
+#shell [data-page=customers] table{width:100%;border-collapse:collapse}
+#shell [data-page=customers] table th{padding:16px;background:#f8fafc;color:#687c91;font-size:9px;font-weight:650;letter-spacing:.8px;white-space:nowrap;border-bottom:1px solid #e0e7ef}
+#shell [data-page=customers] table td{padding:17px 16px;border-bottom:1px solid #edf1f5}
+#shell [data-page=customers] tbody tr{background:white;transition:background .15s}
+#shell [data-page=customers] tbody tr:nth-child(even){background:#fcfdfe}
+#shell [data-page=customers] tbody tr:hover{background:#f2f9f8}
+#shell [data-page=customers] .customer-avatar{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#e1f4ef,#e6effb);color:#216b67;font-size:14px;border:1px solid #dcebe9}
+#shell [data-page=customers] .customer-identity strong{font-size:13px;font-weight:650;line-height:1.5}
+#shell [data-page=customers] .customer-identity small{font-size:11px;letter-spacing:.15px}
+#shell [data-page=customers] .customer-bot-tag{border-radius:6px;font-size:10px;padding:3px 9px;line-height:1.6}
+#shell [data-page=customers] .customer-number{font-size:13px;font-weight:600;color:#405670}
+#shell [data-page=customers] .customer-money{font-size:13px;font-weight:650;color:#23413f}
+#shell [data-page=customers] td:last-child button{min-height:34px;padding:7px 12px;font-size:11px;border-radius:8px;background:#f8fafc;color:#305a76;border-color:#dce5ee;box-shadow:none}
+#shell [data-page=customers] td:last-child button:hover{background:#e9f4f1;border-color:#a3cec6;color:#146459}
+#shell [data-page=customers] .section-note{font-size:11px;line-height:1.7;color:#758497;padding:4px 2px}
+@media(max-width:1000px){#shell #customer-search{grid-template-columns:minmax(150px,1fr) auto}#shell #customer-search label:nth-of-type(2){grid-column:1/-1}}
+@media(max-width:600px){#shell #content[data-page=customers]{padding:16px 12px}#shell [data-page=customers] .page-heading{padding:20px;border-radius:14px}#shell [data-page=customers] .page-heading h2{font-size:26px}#shell #customer-search{padding:16px;gap:12px;grid-template-columns:minmax(0,1fr)}#shell #customer-search>button{width:100%}#shell [data-page=customers] table{min-width:840px}}
+@media(prefers-reduced-motion:reduce){#shell [data-page=customers] *{transition:none!important}}

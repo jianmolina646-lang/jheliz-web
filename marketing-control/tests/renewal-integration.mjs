@@ -1,0 +1,41 @@
+import pg from 'pg';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+const schema='renewal_test_'+randomUUID().replaceAll('-','');
+const admin=new pg.Pool({connectionString:process.env.DATABASE_URL});
+const url=new URL(process.env.DATABASE_URL);url.searchParams.set('options','-c search_path='+schema);process.env.DATABASE_URL=url.toString();
+let db;
+try{
+ await admin.query(`CREATE SCHEMA ${schema}`);
+ ({db}=await import('../src/db.js'));
+ const {commerceSchema}=await import('../src/commerce-schema.js');
+ const {renewalSchema,createRenewal}=await import('../src/renewals.js');
+ const {externalSalesSchema}=await import('../src/external-sales.js');
+ const {expiryNotificationsSchema}=await import('../src/expiry-notifications.js');
+ const {encrypt,accountFingerprint,approveOrder}=await import('../src/commerce.js');
+ const {deliverOrders}=await import('../src/commerce-worker.js');
+ await db.query("CREATE TABLE users(id uuid PRIMARY KEY); CREATE TABLE instances(id uuid PRIMARY KEY,name text DEFAULT 'Ventas',purpose text DEFAULT 'SALES'); CREATE TABLE schema_migrations(version integer PRIMARY KEY); CREATE TABLE audit(actor uuid,action text,details jsonb); CREATE TABLE events(instance_id uuid,level text,message text)");
+ await db.query(commerceSchema);await db.query(externalSalesSchema);await db.query(expiryNotificationsSchema);await db.query(renewalSchema);
+ const actor=randomUUID(),instance=randomUUID(),jid='51911111111@s.whatsapp.net';
+ await db.query('INSERT INTO users VALUES($1)',[actor]);await db.query('INSERT INTO instances VALUES($1)',[instance]);
+ const p=(await db.query("INSERT INTO products(code,name,price_cents,days) VALUES('netflix','Netflix',3500,30) RETURNING *")).rows[0];
+ const stock=(await db.query("INSERT INTO stock(product_id,secret,fingerprint,state) VALUES($1,$2,$3,'SOLD') RETURNING *",[p.id,encrypt(JSON.stringify({email:'renew@example.test',password:'test-only'})),accountFingerprint(p.id,'renew@example.test')])).rows[0];
+ const parent=(await db.query("INSERT INTO orders(instance_id,jid,customer,product_id,product_name,price_cents,days,status,stock_id,started_at,expires_at) VALUES($1,$2,'Test',$3,'Netflix',3500,30,'DELIVERED',$4,now()-interval '10 days',now()+interval '20 days') RETURNING *",[instance,jid,p.id,stock.id])).rows[0];
+ await assert.rejects(createRenewal(instance,'51922222222@s.whatsapp.net','/renovar netflix renew@example.test'));
+ const [a,b]=await Promise.all([createRenewal(instance,jid,'/renovar netflix renew@example.test'),createRenewal(instance,jid,'/renovar netflix renew@example.test')]);
+ assert.equal(a.id,b.id);assert.equal(a.stock_id,null);
+ await assert.rejects(approveOrder(a.id,'TEST-RENEW',actor,false));
+ await approveOrder(a.id,'TEST-RENEW',actor,true);
+ await assert.rejects(approveOrder(a.id,'TEST-RENEW',actor,true));
+ const after=(await db.query('SELECT * FROM orders WHERE id=$1',[parent.id])).rows[0];
+ assert.equal(after.expires_at-parent.expires_at,30*86400000);
+ let count=0;const running=new Map([[instance,{connected:true,socket:{sendMessage:async(j,m)=>{count++;assert.equal(j,jid);assert.ok(m.text.includes('renew@example.test'));assert.ok(!m.text.includes('test-only'));}}}]]);
+ await deliverOrders(running);await deliverOrders(running);assert.equal(count,1);
+ assert.equal((await db.query('SELECT count(*)::int AS n FROM stock')).rows[0].n,1);
+ assert.equal((await db.query('SELECT status FROM orders WHERE id=$1',[a.id])).rows[0].status,'DELIVERED');
+ console.log('PASS isolated: ownership, concurrent idempotency, explicit service confirmation, duplicate approval, dates, same stock, single simulated delivery');
+}finally{
+ if(db)await db.end();
+ if(!/^renewal_test_[a-f0-9]{32}$/.test(schema))throw Error('Unsafe test schema');
+ await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await admin.end();
+}

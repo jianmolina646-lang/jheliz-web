@@ -1,0 +1,2 @@
+@media(min-width:651px){aside nav{overflow-y:auto;min-height:0;flex:1}aside .brand,aside .nav-caption,aside .sidebar-footer{flex-shrink:0}aside .nav-caption{margin-top:24px}aside nav button{padding:9px 12px}}
+#support-editor{max-height:90vh;overflow-y:auto}#support-editor textarea{white-space:pre-wrap}#content td{overflow-wrap:anywhere}

@@ -25,6 +25,17 @@ private_media/
 *.swp
 
 node_modules/
+.codex-work/
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+sessions/
+backups/
+backup-*/
+marketing-control/tests/*.png
 tailwind.css.tmp
 
 # Collected artifacts
