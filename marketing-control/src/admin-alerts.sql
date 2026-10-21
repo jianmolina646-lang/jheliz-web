@@ -2,7 +2,7 @@ BEGIN;
 CREATE TABLE IF NOT EXISTS sales_admin_alerts (
  id bigserial PRIMARY KEY,
  order_id uuid NOT NULL REFERENCES orders(id),
- kind text NOT NULL CHECK(kind IN ('ORDER','RECEIPT')),
+ kind text NOT NULL CHECK(kind IN ('ORDER','RECEIPT','PAYMENT_DELAYED')),
  status text NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','SENDING','SENT','REVIEW','SKIPPED')),
  created_at timestamptz NOT NULL DEFAULT now(),
  started_at timestamptz,
@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS sales_admin_alerts (
  UNIQUE(order_id,kind)
 );
 CREATE INDEX IF NOT EXISTS sales_admin_alerts_pending ON sales_admin_alerts(id) WHERE status='PENDING';
+ALTER TABLE sales_admin_alerts DROP CONSTRAINT IF EXISTS sales_admin_alerts_kind_check;
+ALTER TABLE sales_admin_alerts ADD CONSTRAINT sales_admin_alerts_kind_check CHECK(kind IN ('ORDER','RECEIPT','PAYMENT_DELAYED'));
 CREATE OR REPLACE FUNCTION enqueue_sales_admin_alert() RETURNS trigger AS $$
 BEGIN
  IF TG_OP='INSERT' THEN

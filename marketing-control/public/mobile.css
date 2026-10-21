@@ -1,0 +1,56 @@
+/* Mobile overrides only: desktop layouts and business actions stay unchanged. */
+.mobile-nav-backdrop{display:none}
+@media (max-width:750px){
+ html{scroll-padding-top:80px}body{overflow-wrap:anywhere}
+ #shell main{width:100%;margin-left:0;min-width:0}
+ #shell main>header{position:sticky;top:0;z-index:45;height:68px;gap:10px;padding:10px 14px}
+ #shell main>header>div:first-of-type{min-width:0;flex:1}
+ #shell #breadcrumb{font-size:15px}#shell main>header .eyebrow{font-size:10px}
+ #shell #content{padding:18px 12px 28px}
+ #shell button,dialog button,.access button{min-height:44px;touch-action:manipulation}
+ #shell #content button{min-height:44px;min-width:44px}
+ #shell #content input,#shell #content select,#shell #content textarea{font-size:16px!important;min-height:44px!important;max-width:100%}
+ #shell input,#shell select,#shell textarea,dialog input,dialog select,dialog textarea,.access input{font-size:16px;max-width:100%;min-height:44px}
+ #shell input[type=checkbox],dialog input[type=checkbox]{min-height:22px;min-width:22px}
+ #shell .page-heading h2{font-size:26px;line-height:1.2}
+ #shell .page-heading p,#shell .section-note,#shell .client-scope{font-size:13px;line-height:1.6}
+ #shell .columns,#shell .connection-body,.form-grid{grid-template-columns:minmax(0,1fr)}
+ #shell .workspace-metrics,#shell .client-kpis,#shell .delivery-kpis,#shell .orders-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ #shell .workspace-metric{padding:14px;min-width:0}#shell .workspace-metric span{font-size:12px}
+ #shell .workspace-metric strong{font-size:26px}
+ #shell .client-reference-filters,#shell #content .delivery-filters,#shell #content .orders-filters{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+ #shell .client-reference-filters>* ,#shell #content .delivery-filters>* ,#shell #content .orders-filters>*{width:100%;min-width:0;grid-column:auto}
+ #shell .client-search{position:relative}#shell .client-search input{padding-right:48px}
+ #shell .client-search button{min-width:44px}
+ #shell .orders-pagination,#shell .client-pager,#shell .delivery-pager{display:flex;flex-wrap:wrap;gap:12px;padding:14px;align-items:center}
+ #shell .client-pager>div,#shell .delivery-pager>div{display:flex;flex-wrap:wrap;gap:6px}
+ #shell .orders-pagination button,#shell .client-pager button,#shell .delivery-pager button{min-width:44px;min-height:44px}
+ #shell .event{flex-wrap:wrap;gap:10px}#shell .event>div{min-width:0;max-width:100%}
+ #shell .qr-box img{max-width:100%;height:auto}#shell .actions{flex-wrap:wrap}
+ #shell aside{position:fixed;top:68px;bottom:0;height:calc(100dvh - 68px);width:min(310px,calc(100vw - 48px));z-index:50;overflow-y:auto;overscroll-behavior:contain}
+ #shell .navigation-group button{min-height:46px;font-size:14px}
+ #shell .navigation-group summary{min-height:44px;font-size:11px}
+ .mobile-nav-backdrop{position:fixed;inset:68px 0 0;background:#07152a80;border:0;border-radius:0;z-index:49;display:none}
+ body.navigation-open .mobile-nav-backdrop{display:block}body.navigation-open{overflow:hidden}
+ #shell .mobile-menu{min-width:44px;min-height:44px;flex-shrink:0}
+ dialog{box-sizing:border-box;width:calc(100vw - 20px);max-width:calc(100vw - 20px);max-height:calc(100dvh - 24px);padding:18px;border-radius:16px;overflow:auto;overscroll-behavior:contain}
+ dialog .dialog-head{top:-18px;gap:10px}dialog .dialog-head h2{font-size:21px}
+ dialog .dialog-head button{min-width:44px}dialog .form-grid{grid-template-columns:minmax(0,1fr)}
+ dialog form>button.primary:last-child{position:static}
+ .access{padding:20px 14px;min-height:100dvh}.access-card{width:100%;padding:24px 18px;box-sizing:border-box}
+ #shell #content [data-mobile-cards]{width:100%;min-width:0!important;border-collapse:separate;display:block}
+ #shell #content [data-mobile-cards] thead{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip-path:inset(50%)}
+ #shell #content [data-mobile-cards] tbody{display:block;width:100%}
+ #shell #content [data-mobile-cards] tbody tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 12px;margin:12px;border:1px solid #dce4ef;border-radius:14px;padding:4px 12px;background:#fff;box-shadow:0 3px 12px #10213a06}
+ #shell #content [data-mobile-cards] tbody td{display:block;min-width:0;width:auto!important;max-width:100%;padding:12px 0!important;font-size:14px;white-space:normal!important;text-align:left!important;overflow-wrap:anywhere;border:0;border-bottom:1px solid #edf1f6}
+ #shell #content [data-mobile-cards] tbody td:first-child,#shell #content [data-mobile-cards] tbody td:last-child,#shell #content [data-mobile-cards] tbody td[colspan]{grid-column:1/-1}
+ #shell #content [data-mobile-cards] tbody td:last-child{border-bottom:0;padding-bottom:14px!important}
+ #shell #content [data-mobile-cards] td[data-label]::before{content:attr(data-label);display:block;font-size:11px;font-weight:650;color:#64748b;letter-spacing:.3px;margin-bottom:6px}
+ #shell #content [data-mobile-cards] td strong{font-size:15px}#shell #content [data-mobile-cards] td small{font-size:12px;white-space:normal;overflow-wrap:anywhere}
+ #shell #content [data-mobile-cards] td button,#shell #content [data-mobile-cards] td a{min-height:44px;max-width:100%}
+ #shell #content [data-mobile-cards] td button{margin:3px 4px 3px 0}
+ #shell #content [data-mobile-cards] [hidden]{display:none!important}
+ #shell .table-scroll:has([data-mobile-cards]){overflow:visible;max-width:100%}
+ #notice{margin:12px!important;font-size:14px}
+}
+@media(max-width:360px){#shell #content [data-mobile-cards] tbody tr{grid-template-columns:minmax(0,1fr)}#shell .header-user #logout{padding:8px}#shell .workspace-metric{padding:10px}}

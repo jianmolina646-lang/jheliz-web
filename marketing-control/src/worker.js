@@ -6,7 +6,8 @@ import {join} from 'node:path';
 import {db,rows,event} from './db.js';
 import {commandReply} from './policy.js';
 import {isWelcomeGreeting} from './welcome.js';
-import {commerceMessage,deliverOrders,deliverExpiryReminders,syncSheets} from './commerce-worker.js';
+import {commerceMessage,deliverOrders,deliverExpiryReminders,syncSheets,deliverNameCorrections} from './commerce-worker.js';
+import {verifyLemonPayments} from './lemon-payments.js';
 import {supportMessage,deliverSupport} from './support.js';
 import {deliverAdminAlerts} from './admin-alerts.js';
 import {codesMessage,isCodesInstance} from './codes-bridge.js';
@@ -53,7 +54,9 @@ async function connect(instance,state){
    message.message=normalizeMessageContent(message.message);
    const text=(message.message?.conversation||message.message?.extendedTextMessage?.text||'').trim();
    const greeting=isWelcomeGreeting(text);
-   if((!text.startsWith('/')&&!greeting&&!message.message?.imageMessage&&!(isCodesInstance(instance)&&text))||text.length>500)continue;
+   // Plain text can be the payer name requested after a receipt. Commerce only
+   // consumes it when this exact chat has an outstanding name request.
+   if((!text&&!message.message?.imageMessage)||text.length>500)continue;
    const key=instance.id+':'+jid,now=Date.now(),bucket=limits.get(key)||{start:now,count:0};
    if(now-bucket.start>60000){bucket.start=now;bucket.count=0;}if(++bucket.count>8)continue;limits.set(key,bucket);
    try{
@@ -82,6 +85,9 @@ async function tick(){
   }
   await db.query('UPDATE instances SET heartbeat=now()');
   await deliverOrders(running);
+  // Mail polling has its own single-flight guard and must not block WhatsApp.
+  void verifyLemonPayments();
+  await deliverNameCorrections(running);
   await deliverExpiryReminders(running);
   await deliverSupport(running);
   await deliverAdminAlerts(running);

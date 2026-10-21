@@ -7,20 +7,53 @@ import {createOrder,decrypt,encrypt,money,transaction} from './commerce.js';
 import {syncWorkbook} from './reports.js';
 import {catalogText,paymentText,receiptText,deliveryText,expiryReminderText} from './bot-copy.js';
 import {isCodesInstance} from './instance-purpose.js';
+import {lemonEnabled,recordPayer,requestPayerCorrection,correctionHint} from './lemon-payments.js';
+import {payerPrompt} from './lemon-match.js';
+import {paymentChoiceText,selectedPaymentText,selectPayment} from './payment-choice.js';
+import {readReceiptDetails} from './receipt-amount.js';
 
 export async function commerceMessage(socket,instance,message){
  const jid=message.key.remoteJid;
  const image=message.message?.imageMessage;
  const text=(message.message?.conversation||message.message?.extendedTextMessage?.text||image?.caption||'').trim();
  const [cmd,arg]=text.toLowerCase().split(/\s+/);
+ if(!image&&cmd==='/corregirnombre'){
+  try{await socket.sendMessage(jid,{text:await requestPayerCorrection(instance,jid)});}
+  catch{await socket.sendMessage(jid,{text:'No pudimos abrir la corrección. Inténtalo nuevamente o escribe /soporte.'});}
+  return true;
+ }
+ if(!image&&['qr','binance'].includes(text.toLowerCase())){
+  const method=text.toUpperCase();
+  const result=await selectPayment(instance,jid,method);
+  if(result.error)await socket.sendMessage(jid,{text:result.error});
+  else if(method==='QR')await socket.sendMessage(jid,{image:readFileSync(new URL('../public/lemon-qr.jpg',import.meta.url)),caption:selectedPaymentText(result.order,method)});
+  else await socket.sendMessage(jid,{text:selectedPaymentText(result.order,method)});
+  return true;
+ }
  if(image){
-  const [o]=await rows("SELECT id FROM orders WHERE instance_id=$1 AND jid=$2 AND status='PENDING'",[instance,jid]);if(!o)return false;
+  const [o]=await rows("SELECT * FROM orders WHERE instance_id=$1 AND jid=$2 AND status='PENDING'",[instance,jid]);if(!o)return false;
+  if(!o.lemon_check){await socket.sendMessage(jid,{text:paymentChoiceText(o)+'\n\nElige primero el método y luego vuelve a enviar tu comprobante.'});return true;}
   const size=Number(image.fileLength?.toString()||0);if(!size||size>5000000){await socket.sendMessage(jid,{text:'Envía el comprobante como imagen de menos de 5 MB.'});return true;}
   const data=await downloadMediaMessage(message,'buffer',{}, {reuploadRequest:socket.updateMediaMessage});
   const jpeg=data[0]===255&&data[1]===216&&data[2]===255,png=data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
   if(data.length>5000000||(!jpeg&&!png)){await socket.sendMessage(jid,{text:'El comprobante debe ser una imagen JPG o PNG de menos de 5 MB.'});return true;}
-  await db.query("UPDATE orders SET receipt=$1,receipt_mime=$2 WHERE id=$3 AND status='PENDING'",[encrypt(data.toString('base64')),jpeg?'image/jpeg':'image/png',o.id]);
-  await socket.sendMessage(jid,{text:receiptText(o.id)});return true;
+  const details=o.lemon_check==='MANUAL_BINANCE'?null:await readReceiptDetails(data);
+  const amount=details?.amount_cents??null,minute=details?.operation_minute??null;
+  const saved=await db.query("UPDATE orders SET receipt=$1,receipt_mime=$2,receipt_amount_cents=$4,receipt_operation_minute=$5 WHERE id=$3 AND status='PENDING' RETURNING lemon_check",[encrypt(data.toString('base64')),jpeg?'image/jpeg':'image/png',o.id,amount,minute]);
+  if(!saved.rowCount){await socket.sendMessage(jid,{text:'Tu pedido ya fue procesado. Consulta /pedidos.'});return true;}
+  if(saved.rows[0].lemon_check!=='MANUAL_BINANCE'&&!minute)await socket.sendMessage(jid,{text:'📅 No pude leer una fecha y hora de operación únicas. Envía una captura nítida que muestre ambas, incluido el año. No usamos la hora de la barra del teléfono. El pago sigue pendiente; no vuelvas a pagar.'});
+  if(saved.rows[0].lemon_check!=='MANUAL_BINANCE'&&amount!==o.price_cents){
+   await socket.sendMessage(jid,{text:amount===null?'📸 No pude leer un monto único en soles con claridad. Envía una captura completa y nítida donde aparezca S/ y el importe. El pago queda pendiente; no vuelvas a pagar.':'⚠️ El monto leído en la captura no coincide con el precio del pedido. Envía el comprobante correcto o escribe /soporte. No vuelvas a pagar.'});
+  }
+  if(await lemonEnabled()){
+   const updated=await db.query("UPDATE orders SET lemon_name_requested_at=now() WHERE id=$1 AND status='PENDING' AND lemon_check!='MANUAL_BINANCE' AND lemon_payer_normalized IS NULL AND created_at >= (SELECT activated_at FROM lemon_verifier WHERE id=1) RETURNING id",[o.id]);
+   await socket.sendMessage(jid,{text:updated.rowCount?payerPrompt(o.id):'📩 Comprobante recibido. Pendiente de verificación del ingreso real.\n/pedidos · Consultar estado'});
+  }else await socket.sendMessage(jid,{text:receiptText(o.id)});
+  return true;
+ }
+ if(text&&!text.startsWith('/')&&await lemonEnabled()){
+  const reply=await recordPayer(instance,jid,text);
+  if(reply){await socket.sendMessage(jid,{text:reply+'\n\n'+correctionHint});return true;}
  }
  if(!['/catalogo','/comprar','/renovar','/pedidos','/mis_cuentas','/vencimiento','/cancelar'].includes(cmd))return false;
  try{
@@ -30,7 +63,7 @@ export async function commerceMessage(socket,instance,message){
    if(alt&&/@(s\.whatsapp\.net|lid)$/.test(alt))identities.push(alt);
    if(jid.endsWith('@lid')){const pn=await socket.signalRepository?.lidMapping?.getPNForLID(jid);if(pn?.endsWith('@s.whatsapp.net'))identities.push(pn);}
    const o=await createRenewal(instance,jid,text,identities);
-   await socket.sendMessage(jid,{image:readFileSync(new URL('../public/ligo-qr.jpg',import.meta.url)),caption:`🔄 *JHELIZ · Renovación*\n\n${o.product_name}\nCuenta: ${text.trim().split(/\s+/)[2]}\nDuración: ${o.days} días\nTotal: S/ ${money(o.price_cents)}\n\nPaga con el QR de Ligo y envía el comprobante aquí. Verifica el destinatario: Jhedy Javier Villa Lima.\n\nLa renovación requiere verificación del pago y confirmación del servicio por el administrador. Conservas tu misma cuenta.\nPedido: ${o.id}\n/pedidos · Consultar estado\n/cancelar · Cancelar antes de pagar`});
+   await socket.sendMessage(jid,{text:paymentChoiceText(o)});
   }
   if(cmd==='/catalogo'){
    const p=await rows("SELECT p.*,count(s.id) FILTER(WHERE s.state='AVAILABLE' AND (s.expires_on IS NULL OR s.expires_on >= (now() AT TIME ZONE 'America/Lima')::date+p.days))::integer AS available FROM products p LEFT JOIN stock s ON s.product_id=p.id WHERE p.active=true GROUP BY p.id ORDER BY p.name LIMIT 40");
@@ -38,7 +71,7 @@ export async function commerceMessage(socket,instance,message){
   }
   if(cmd==='/comprar'){
    const o=await createOrder(instance,jid,message.pushName||'Cliente',arg||'');
-   await socket.sendMessage(jid,{image:readFileSync(new URL('../public/ligo-qr.jpg',import.meta.url)),caption:paymentText(o)});
+   await socket.sendMessage(jid,{text:paymentChoiceText(o)});
   }
   if(cmd==='/pedidos'||cmd==='/mis_cuentas'){
    const all=await rows('SELECT id,product_name,status,expires_at FROM orders WHERE instance_id=$1 AND jid=$2 ORDER BY created_at DESC LIMIT 5',[instance,jid]);
@@ -56,6 +89,20 @@ export async function commerceMessage(socket,instance,message){
   }
  }catch(e){await socket.sendMessage(jid,{text:e.publicMessage||'No pudimos completar la solicitud. Contacta al administrador.'});}
  return true;
+}
+
+export async function deliverNameCorrections(running){
+ for(const [instance,state] of running){
+  if(!state.connected||state.closed)continue;
+  const [o]=await rows(`UPDATE orders SET lemon_name_notice_at=now() WHERE id=(
+   SELECT id FROM orders WHERE instance_id=$1 AND status='PENDING'
+   AND lemon_check='NAME_MISMATCH' AND lemon_name_notice_at IS NULL
+   ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1)
+   RETURNING id,jid`,[instance]);
+  if(!o)continue;
+  try{await state.socket.sendMessage(o.jid,{text:'⚠️ No encontramos coincidencia con el nombre enviado. Revisa si falta algún nombre o apellido o hay una letra incorrecta.\n\n'+correctionHint});}
+  catch{await event(instance,'ERROR','Aviso de corrección no confirmado; disponible /corregirnombre. Pedido: '+o.id);}
+ }
 }
 
 export async function deliverOrders(running){

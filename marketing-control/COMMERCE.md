@@ -2,7 +2,7 @@
 
 El administrador crea productos en **Catálogo y precios**, carga cuentas en **Inventario** y aprueba pagos en **Pedidos y pagos**. Desactivar un producto lo oculta sin borrar el historial. Solo se deben cargar cuentas cuya venta esté autorizada.
 
-Bot: `/catalogo`, `/comprar codigo`, `/pedidos`, `/cancelar`. Un pedido pendiente por cliente e instancia. Una imagen JPG/PNG de hasta 5 MB enviada al chat se asocia al pedido pendiente; no valida un pago. El administrador debe comprobar el ingreso real en Ligo e ingresar una referencia de operación única. El QR configurado es el proporcionado por el propietario; beneficiario declarado: Jhedy Javier Villa Lima.
+Bot: `/catalogo`, `/comprar codigo`, `/pedidos`, `/cancelar`. Un pedido pendiente por cliente e instancia. Una imagen JPG/PNG de hasta 5 MB enviada al chat se asocia al pedido pendiente; no valida un pago. El administrador debe comprobar el ingreso real en Lemon Cash e ingresar una referencia de operación única. El QR configurado es el proporcionado por el propietario; beneficiario declarado: Jhedy Javier Villa Lima.
 
 Precios y días se copian al pedido, por lo que editar el producto no cambia compras existentes. Al aprobar se asigna stock en una transacción con bloqueo de filas; referencias de pago y cuentas asignadas son únicas. El stock se asigna al aprobar, no al mostrar el QR: un pedido pendiente no garantiza disponibilidad. Si no hay stock, se bloquea la aprobación y el administrador debe reponer o coordinar devolución.
 

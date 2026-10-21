@@ -10,6 +10,14 @@ export function parseRenewal(text){
 }
 export function renewalDates(expiry,days,now=new Date()){
  const start=new Date(Math.max(new Date(expiry).getTime(),now.getTime()));
+ if(days===30){
+  // Monthly plans follow Peru's calendar, including month-end clamping.
+  const local=new Date(start.getTime()-5*3600000),day=local.getUTCDate();
+  local.setUTCDate(1);local.setUTCMonth(local.getUTCMonth()+1);
+  const last=new Date(Date.UTC(local.getUTCFullYear(),local.getUTCMonth()+1,0)).getUTCDate();
+  local.setUTCDate(Math.min(day,last));
+  return {start,end:new Date(local.getTime()+5*3600000)};
+ }
  return {start,end:new Date(start.getTime()+days*86400000)};
 }
 export async function createRenewal(instance,jid,text,verifiedJids=[jid]){

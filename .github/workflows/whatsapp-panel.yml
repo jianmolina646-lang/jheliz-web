@@ -1,0 +1,32 @@
+name: WhatsApp panel checks
+on:
+  push:
+    branches: [backup/whatsapp-sales-2026-10-18]
+    paths: ['marketing-control/**', '.github/workflows/whatsapp-panel.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t whatsapp-panel-test marketing-control
+      - name: Unit and OCR tests
+        run: docker run --rm --network none --read-only --tmpfs /tmp whatsapp-panel-test sh -c 'node --test tests/*.test.js && python3 -B -m unittest discover -s tests -p "test_*.py"'
+      - name: Isolated payment integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker network create --internal panel-tests
+          docker run -d --name panel-testdb --network panel-tests --tmpfs /var/lib/postgresql/data -e POSTGRES_DB=marketing_lemon_test -e POSTGRES_HOST_AUTH_METHOD=trust postgres:16-alpine
+          trap 'docker rm -f panel-testdb; docker network rm panel-tests' EXIT
+          for i in $(seq 1 30); do
+            if docker exec panel-testdb pg_isready -U postgres; then break; fi
+            sleep 1
+          done
+          docker run --rm --network panel-tests --read-only --tmpfs /tmp \
+            -e DATABASE_URL=postgresql://postgres@panel-testdb:5432/marketing_lemon_test \
+            -e RUN_LEMON_TEST=1 -e COMMERCE_KEY_FILE=/tmp/test-key \
+            whatsapp-panel-test sh -c 'node -e '\''require("node:fs").writeFileSync("/tmp/test-key",require("node:crypto").randomBytes(32).toString("hex"))'\'' && node src/migrate.js && node --test tests/lemon-integration.test.js'

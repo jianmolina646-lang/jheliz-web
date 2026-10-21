@@ -11,7 +11,7 @@ Escribe /pedidos para revisar su estado.
 🛠️ *3. ¿Necesitas ayuda?*
 Escribe /soporte para reportar un problema.
 
-🔒 Pago por Ligo · Verificación manual antes de la entrega.
+🔒 Pago por Lemon Cash · Verificación manual antes de la entrega.
 
 Escribe el comando de la opción que necesitas.
 🏠 Para volver al inicio: /menu`;

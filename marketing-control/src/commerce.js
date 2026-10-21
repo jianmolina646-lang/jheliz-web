@@ -25,13 +25,17 @@ export async function createOrder(instance,jid,customer,code){return transaction
  return (await c.query('INSERT INTO orders(instance_id,jid,customer,product_id,product_name,price_cents,days) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',[instance,jid,customer.slice(0,100),p.id,p.name,p.price_cents,p.days])).rows[0];
  });}
 export async function approveOrder(id,reference,actor,serviceRenewed=false){return transaction(async c=>{
+ await c.query("SELECT pg_advisory_xact_lock(hashtext('lemon-payment-verification'))");
+ const used=await c.query('SELECT order_id FROM lemon_payments WHERE (operation_id=upper(trim($1)) OR external_id=trim($1)) AND (order_id IS NOT NULL OR blocked=true)',[reference]);
+ if(used.rowCount)fail('Esta operación Lemon ya fue utilizada o requiere revisión.');
  const o=(await c.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE',[id])).rows[0];if(!o)fail('Pedido no encontrado',404);
  if(o.status!=='PENDING')fail('Este pedido ya fue procesado.');
  await requireSalesInstance(c,o.instance_id);
- if(o.renewal_of)return approveRenewal(c,o,reference,actor,serviceRenewed);
+ if(o.renewal_of){const result=await approveRenewal(c,o,reference,actor,serviceRenewed);await c.query('UPDATE lemon_payments SET order_id=$1 WHERE operation_id=upper(trim($2)) OR external_id=trim($2)',[id,reference]);return result;}
  const s=(await c.query("SELECT * FROM stock WHERE product_id=$1 AND state='AVAILABLE' AND (expires_on IS NULL OR expires_on >= (now() AT TIME ZONE 'America/Lima')::date + $2::integer) ORDER BY expires_on NULLS LAST,created_at FOR UPDATE SKIP LOCKED LIMIT 1",[o.product_id,o.days])).rows[0];if(!s)fail('No hay stock válido. Carga una cuenta antes de aprobar.');
  await c.query("UPDATE stock SET state='SOLD' WHERE id=$1",[s.id]);
  await c.query("UPDATE orders SET status='APPROVED',stock_id=$1,payment_ref=$2,approved_by=$3,approved_at=now(),sheets_synced_at=null WHERE id=$4",[s.id,reference,actor,id]);
+ await c.query('UPDATE lemon_payments SET order_id=$1 WHERE operation_id=upper(trim($2)) OR external_id=trim($2)',[id,reference]);
  await log(c,actor,'order.approved',{order:id});return {ok:true};
  });}
 export function registerCommerce(app){

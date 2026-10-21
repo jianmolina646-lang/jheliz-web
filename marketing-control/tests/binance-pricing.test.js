@@ -22,9 +22,9 @@ test('shows manual Binance payment without changing original price', () => {
  assert.equal(JSON.stringify(product), before);
  const payment = paymentText({...product, product_name:'Netflix',id:'test'});
  assert.match(payment, /9.21 USDT/);
- assert.match(payment, /QR de Ligo/);
+ assert.match(payment, /QR de Lemon Cash/);
  assert.match(payment, /739582457/);
  assert.match(payment, /Jheliz2004/);
  assert.match(payment, /Una captura no confirma el pago/);
- assert.match(payment, /SOLO de Ligo/);
+ assert.match(payment, /SOLO de Lemon Cash/);
 });

@@ -18,4 +18,8 @@ test('professional reports separate stock and customers, preserve amounts and ne
  assert.equal(tab('Clientes').rows[0][8],15);assert.equal(tab('Ventas Bot').rows[0][4],15);
  assert.equal(tab('Vencimientos').rows[0][8],'Por vencer');assert.equal(tab('Ventas Bot').rows[0][1],'=1+1');
  assert.ok(!JSON.stringify(r).includes('DO-NOT-EXPORT'));
+ assert.equal(tab('Pagos').headers[7],'Referencia de pago');
+ assert.equal(tab('Pagos').rows[0][6],'No registrado · revisión manual');
+ assert.equal(tab('Ventas Bot').headers[7],'Referencia de pago');
+ assert.ok(!JSON.stringify(tab('Pagos')).includes('Referencia Ligo'));
 });
