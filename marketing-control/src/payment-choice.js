@@ -1,6 +1,8 @@
 import {usdtFromPenCents} from './binance-pricing.js';
 import {transaction} from './commerce.js';
+import {mpEnabled} from './mercadopago-client.js';
 export function paymentChoiceText(o){
+ if(mpEnabled())return `🧾 *JHELIZ · ${o.renewal_of?'Renovación':'Tu pedido'}*\n\n${o.product_name}\n💰 S/ ${(o.price_cents/100).toFixed(2)}\n\nResponde *YAPE* para recibir tu enlace de Mercado Pago con el monto incluido.\nResponde *BINANCE* para pagar en USDT.\n\nPedido: ${o.id}\n/pedidos · Estado\n/soporte · Ayuda`;
  return `🧾 *JHELIZ · ${o.renewal_of?'Renovación':'Tu pedido'}*\n\n${o.product_name}\n💰 S/ ${(o.price_cents/100).toFixed(2)}\n⏳ ${o.renewal_of&&o.days===30?'1 mes calendario':o.days+' días'}\n\n*¿Cómo deseas pagar?*\n\n📲 Responde *QR* para pagar en soles.\n🟨 Responde *BINANCE* para pagar en USDT.\n\nTe enviaremos únicamente los datos del método elegido.\n${o.renewal_of?'Conservas tu misma cuenta.\n':''}\nPedido: ${o.id}\n/pedidos · Estado\n/cancelar · Cancelar antes de pagar\n/soporte · Ayuda`;
 }
 export function selectedPaymentText(o,method){
@@ -14,6 +16,7 @@ export async function selectPayment(instance,jid,method){
   await c.query("SELECT pg_advisory_xact_lock(hashtext('lemon-payment-verification'))");
   const [o]=(await c.query("SELECT * FROM orders WHERE instance_id=$1 AND jid=$2 AND status='PENDING' FOR UPDATE",[instance,jid])).rows;
   if(!o)return {error:'No tienes un pedido pendiente. Escribe /catalogo para elegir una cuenta.'};
+  if(o.lemon_check?.startsWith('MP_'))return {error:'Este pedido tiene un enlace de Mercado Pago. No pagues por otro método; consulta /soporte.'};
   if(o.receipt)return {error:'Ya recibimos tu comprobante. Consulta /pedidos o escribe /soporte para corregir el método de pago.'};
   await c.query('UPDATE orders SET lemon_check=$1,lemon_name_requested_at=null,lemon_payer=null,lemon_payer_normalized=null WHERE id=$2',[method==='QR'?'QR_SELECTED':'MANUAL_BINANCE',o.id]);
   return {order:o};

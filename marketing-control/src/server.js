@@ -10,6 +10,7 @@ import {z} from 'zod';
 import {db,rows,audit} from './db.js';
 import {loginSchema,commandSchema,permitted} from './policy.js';
 import {registerCommerce} from './commerce.js';
+import {registerMercadoPago} from './mercadopago.js';
 import {registerSupport} from './support.js';
 import {registerOperations} from './operations.js';
 import {duplicateMessage,isCodesInstance} from './instance-purpose.js';
@@ -63,6 +64,7 @@ app.get('/api/users',{preHandler:allow('users')},async()=>rows('SELECT id,email,
 app.post('/api/users',{preHandler:allow('users')},async(req)=>{const u=z.object({email:z.string().email(),password:z.string().min(12).max(256),role:z.enum(['ADMIN','OPERATOR','SUPPORT'])}).parse(req.body);await db.query('INSERT INTO users(email,password_hash,role) VALUES($1,$2,$3)',[u.email.toLowerCase(),await argon2.hash(u.password),u.role]);await audit(req.user.id,'user.created',req.ip,{email:u.email,role:u.role});return {ok:true};});
 app.patch('/api/users/:id',{preHandler:allow('users')},async(req)=>{const uid=id.parse(req.params.id),{active}=z.object({active:z.boolean()}).parse(req.body);if(uid===req.user.id)throw Object.assign(new Error(),{statusCode:400});await db.query('UPDATE users SET active=$1 WHERE id=$2',[active,uid]);await audit(req.user.id,'user.active',req.ip,{id:uid,active});return {ok:true};});
 registerCommerce(app);
+registerMercadoPago(app);
 registerSupport(app);
 registerOperations(app);
 app.addHook('onSend',async(req,reply,payload)=>{reply.header('Cache-Control','no-store');return payload;});

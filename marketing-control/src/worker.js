@@ -8,6 +8,8 @@ import {commandReply} from './policy.js';
 import {isWelcomeGreeting} from './welcome.js';
 import {commerceMessage,deliverOrders,deliverExpiryReminders,syncSheets,deliverNameCorrections} from './commerce-worker.js';
 import {verifyLemonPayments} from './lemon-payments.js';
+import {verifyMercadoPago} from './mercadopago.js';
+import {mpEnabled} from './mercadopago-client.js';
 import {supportMessage,deliverSupport} from './support.js';
 import {deliverAdminAlerts} from './admin-alerts.js';
 import {codesMessage,isCodesInstance} from './codes-bridge.js';
@@ -67,7 +69,8 @@ async function connect(instance,state){
     if(await commerceMessage(socket,instance.id,message))continue;
     const name=greeting?'menu':text.slice(1).split(/\s/)[0].toLowerCase();if(!/^[a-z][a-z0-9_]{0,29}$/.test(name))continue;
     const [command]=await rows('SELECT * FROM commands WHERE name=$1',[name]);const response=commandReply(command);if(!response)continue;
-    await socket.sendMessage(jid,{text:response});
+    const replyText=name==='menu'&&mpEnabled()?response.replace(/🔒 Pago por Lemon Cash[^\n]*/, '🔒 Mercado Pago / Yape: confirmación automática. Binance: revisión manual.'):response;
+    await socket.sendMessage(jid,{text:replyText});
     await event(instance.id,'INFO',`Comando /${name} atendido`);
    }catch{await event(instance.id,'ERROR','No se pudo responder un comando').catch(()=>{});}
   }
@@ -87,6 +90,7 @@ async function tick(){
   await deliverOrders(running);
   // Mail polling has its own single-flight guard and must not block WhatsApp.
   void verifyLemonPayments();
+  void verifyMercadoPago();
   await deliverNameCorrections(running);
   await deliverExpiryReminders(running);
   await deliverSupport(running);

@@ -30,3 +30,8 @@ jobs:
             -e DATABASE_URL=postgresql://postgres@panel-testdb:5432/marketing_lemon_test \
             -e RUN_LEMON_TEST=1 -e COMMERCE_KEY_FILE=/tmp/test-key \
             whatsapp-panel-test sh -c 'node -e '\''require("node:fs").writeFileSync("/tmp/test-key",require("node:crypto").randomBytes(32).toString("hex"))'\'' && node src/migrate.js && node --test tests/lemon-integration.test.js'
+          docker exec panel-testdb createdb -U postgres marketing_mp_test
+          docker run --rm --network panel-tests --read-only --tmpfs /tmp \
+            -e DATABASE_URL=postgresql://postgres@panel-testdb:5432/marketing_mp_test \
+            -e RUN_MP_TEST=1 whatsapp-panel-test \
+            sh -c 'node src/migrate.js && node --test tests/mercadopago-integration.test.js'

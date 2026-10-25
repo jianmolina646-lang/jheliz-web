@@ -30,6 +30,7 @@ export async function approveOrder(id,reference,actor,serviceRenewed=false){retu
  if(used.rowCount)fail('Esta operación Lemon ya fue utilizada o requiere revisión.');
  const o=(await c.query('SELECT * FROM orders WHERE id=$1 FOR UPDATE',[id])).rows[0];if(!o)fail('Pedido no encontrado',404);
  if(o.status!=='PENDING')fail('Este pedido ya fue procesado.');
+ if(o.lemon_check?.startsWith('MP_')||reference.startsWith('MP:'))fail('Los pagos de Mercado Pago se aprueban únicamente mediante verificación automática.');
  await requireSalesInstance(c,o.instance_id);
  if(o.renewal_of){const result=await approveRenewal(c,o,reference,actor,serviceRenewed);await c.query('UPDATE lemon_payments SET order_id=$1 WHERE operation_id=upper(trim($2)) OR external_id=trim($2)',[id,reference]);return result;}
  const s=(await c.query("SELECT * FROM stock WHERE product_id=$1 AND state='AVAILABLE' AND (expires_on IS NULL OR expires_on >= (now() AT TIME ZONE 'America/Lima')::date + $2::integer) ORDER BY expires_on NULLS LAST,created_at FOR UPDATE SKIP LOCKED LIMIT 1",[o.product_id,o.days])).rows[0];if(!s)fail('No hay stock válido. Carga una cuenta antes de aprobar.');

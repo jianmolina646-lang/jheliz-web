@@ -9,6 +9,7 @@ import {welcomeText} from './welcome.js';
 import {externalSalesSchema} from './external-sales.js';
 import {expiryNotificationsSchema} from './expiry-notifications.js';
 import {lemonSchema} from './lemon-schema.js';
+import {mercadoPagoSchema} from './mercadopago-schema.js';
 await db.query(`
 CREATE TABLE IF NOT EXISTS schema_migrations(version integer PRIMARY KEY, applied_at timestamptz DEFAULT now());
 CREATE TABLE IF NOT EXISTS users(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),email text UNIQUE NOT NULL,password_hash text NOT NULL,role text NOT NULL CHECK(role IN ('ADMIN','OPERATOR','SUPPORT')),active boolean NOT NULL DEFAULT true,created_at timestamptz DEFAULT now());
@@ -42,6 +43,7 @@ await db.query(expiryNotificationsSchema);
 await db.query(renewalSchema);
 await db.query(operationsSchema);
 await db.query(lemonSchema);
+await db.query(mercadoPagoSchema);
 await db.query(readFileSync(new URL('./admin-alerts.sql',import.meta.url),'utf8'));
 // Apply the approved welcome once; later edits in Comandos are preserved.
 await db.query("WITH updated AS (UPDATE commands SET response=$1,enabled=true,private=false,updated_at=now() WHERE name='menu' AND NOT EXISTS(SELECT 1 FROM schema_migrations WHERE version=4) RETURNING id) INSERT INTO schema_migrations(version) VALUES(4) ON CONFLICT DO NOTHING",[welcomeText]);

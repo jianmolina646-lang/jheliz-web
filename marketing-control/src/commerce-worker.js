@@ -11,12 +11,21 @@ import {lemonEnabled,recordPayer,requestPayerCorrection,correctionHint} from './
 import {payerPrompt} from './lemon-match.js';
 import {paymentChoiceText,selectedPaymentText,selectPayment} from './payment-choice.js';
 import {readReceiptDetails} from './receipt-amount.js';
+import {mpEnabled} from './mercadopago-client.js';
+import {selectMercadoPago,mercadoPagoText} from './mercadopago.js';
 
 export async function commerceMessage(socket,instance,message){
  const jid=message.key.remoteJid;
  const image=message.message?.imageMessage;
  const text=(message.message?.conversation||message.message?.extendedTextMessage?.text||image?.caption||'').trim();
  const [cmd,arg]=text.toLowerCase().split(/\s+/);
+ if(!image&&['yape','mercadopago','mercado pago','/pagar','qr'].includes(text.toLowerCase())&&mpEnabled()){
+  try{
+   const result=await selectMercadoPago(instance,jid);
+   await socket.sendMessage(jid,{text:result.error||mercadoPagoText(result)});
+  }catch{await socket.sendMessage(jid,{text:'No pudimos generar el enlace de Mercado Pago. Intenta YAPE nuevamente o escribe /soporte. No pagues por otro medio si ya comenzaste un pago.'});}
+  return true;
+ }
  if(!image&&cmd==='/corregirnombre'){
   try{await socket.sendMessage(jid,{text:await requestPayerCorrection(instance,jid)});}
   catch{await socket.sendMessage(jid,{text:'No pudimos abrir la corrección. Inténtalo nuevamente o escribe /soporte.'});}
@@ -32,6 +41,7 @@ export async function commerceMessage(socket,instance,message){
  }
  if(image){
   const [o]=await rows("SELECT * FROM orders WHERE instance_id=$1 AND jid=$2 AND status='PENDING'",[instance,jid]);if(!o)return false;
+  if(o.lemon_check?.startsWith('MP_')){await socket.sendMessage(jid,{text:'Tu pago se verifica directamente con Mercado Pago. No necesitamos capturas ni códigos. Consulta /pedidos o /soporte.'});return true;}
   if(!o.lemon_check){await socket.sendMessage(jid,{text:paymentChoiceText(o)+'\n\nElige primero el método y luego vuelve a enviar tu comprobante.'});return true;}
   const size=Number(image.fileLength?.toString()||0);if(!size||size>5000000){await socket.sendMessage(jid,{text:'Envía el comprobante como imagen de menos de 5 MB.'});return true;}
   const data=await downloadMediaMessage(message,'buffer',{}, {reuploadRequest:socket.updateMediaMessage});
@@ -74,8 +84,10 @@ export async function commerceMessage(socket,instance,message){
    await socket.sendMessage(jid,{text:paymentChoiceText(o)});
   }
   if(cmd==='/pedidos'||cmd==='/mis_cuentas'){
-   const all=await rows('SELECT id,product_name,status,expires_at FROM orders WHERE instance_id=$1 AND jid=$2 ORDER BY created_at DESC LIMIT 5',[instance,jid]);
+   const all=await rows('SELECT id,product_name,status,expires_at,lemon_check FROM orders WHERE instance_id=$1 AND jid=$2 ORDER BY created_at DESC LIMIT 5',[instance,jid]);
+   for(const o of all)if(o.status==='PENDING'&&o.lemon_check?.startsWith('MP_'))o.status=['MP_NO_STOCK','MP_RENEWAL_REVIEW'].includes(o.lemon_check)?'MP_REVIEW':'MP_PENDING';
    const labels={PENDING:'Pendiente de revisión',APPROVED:'Pago aprobado; entrega pendiente',SENDING:'Entregando',DELIVERED:'Entregado',REVIEW:'Revisión de entrega',REJECTED:'Rechazado o cancelado'};
+   labels.MP_PENDING='Esperando confirmación de Mercado Pago';labels.MP_REVIEW='Pago confirmado; entrega en revisión. No vuelvas a pagar.';
    await socket.sendMessage(jid,{text:'📦 *JHELIZ · Mis compras*\n\n'+(all.length?all.map(o=>`🎬 *${o.product_name}*\nEstado: ${labels[o.status]}${o.expires_at?'\n⏳ Vence: '+new Date(o.expires_at).toLocaleDateString('es-PE',{timeZone:'America/Lima'}):''}\nPedido: ${o.id}`).join('\n\n────────────\n\n'):'Todavía no tienes pedidos registrados.')+'\n\n🛠️ Reportar un problema: /soporte\n🎬 Ver plataformas: /catalogo'});
   }
   if(cmd==='/vencimiento'){
@@ -84,7 +96,7 @@ export async function commerceMessage(socket,instance,message){
    await socket.sendMessage(jid,{text:'JHELIZ - Mis vencimientos\n\n'+lines+'\n\nRecibiras un recordatorio automatico el dia del vencimiento.\nAyuda: /soporte'});
   }
   if(cmd==='/cancelar'){
-   const r=await db.query("UPDATE orders SET status='REJECTED',sheets_synced_at=null WHERE instance_id=$1 AND jid=$2 AND status='PENDING' AND receipt IS NULL RETURNING id",[instance,jid]);
+   const r=await db.query("UPDATE orders SET status='REJECTED',sheets_synced_at=null WHERE instance_id=$1 AND jid=$2 AND status='PENDING' AND receipt IS NULL AND NOT EXISTS(SELECT 1 FROM mp_checkouts m WHERE m.order_id=orders.id) RETURNING id",[instance,jid]);
    await socket.sendMessage(jid,{text:r.rowCount?'Pedido cancelado. Escribe /catalogo para volver a elegir.':'No hay un pedido cancelable. Si ya pagaste o enviaste el comprobante, contacta al administrador.'});
   }
  }catch(e){await socket.sendMessage(jid,{text:e.publicMessage||'No pudimos completar la solicitud. Contacta al administrador.'});}
